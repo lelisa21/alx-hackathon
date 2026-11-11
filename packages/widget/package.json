@@ -1,0 +1,23 @@
+{
+  "name": "@dimts/widget",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/dimts-widget.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b && vite build",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "intl-messageformat": "^10.7.16",
+    "lit": "^3.2.1"
+  },
+  "devDependencies": {
+    "vite": "^6.2.0"
+  }
+}

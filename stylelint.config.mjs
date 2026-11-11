@@ -1,0 +1,7 @@
+export default {
+  extends: ["stylelint-config-standard"],
+  plugins: ["stylelint-use-logical"],
+  rules: {
+    "csstools/use-logical": "always",
+  },
+};

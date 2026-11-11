@@ -1,0 +1,8 @@
+Dimts-SRS-v1.2-complete.md
+Dimts-System-Blueprint-v2.0.md
+node_modules/
+dist/
+coverage/
+pnpm-lock.yaml
+playwright-report/
+test-results/

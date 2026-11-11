@@ -1,0 +1,21 @@
+{
+  "name": "@dimts/engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "intl-messageformat": "^10.7.16",
+    "yaml": "^2.7.0",
+    "zod": "^3.24.2"
+  }
+}

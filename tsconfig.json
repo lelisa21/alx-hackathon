@@ -1,0 +1,18 @@
+{
+  "files": [],
+  "references": [
+    { "path": "./packages/widget" },
+    { "path": "./packages/api" },
+    { "path": "./packages/engine" },
+    { "path": "./packages/grounding" },
+    { "path": "./packages/ai" },
+    { "path": "./packages/voice" },
+    { "path": "./packages/telegram" },
+    { "path": "./packages/sms" },
+    { "path": "./packages/help" },
+    { "path": "./packages/jobs" },
+    { "path": "./packages/insights" },
+    { "path": "./packages/lti" },
+    { "path": "./packages/locales-tools" }
+  ]
+}

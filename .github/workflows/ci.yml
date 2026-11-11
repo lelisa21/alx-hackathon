@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.12.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm typecheck
+      - run: pnpm lint
+      - run: pnpm format:check
+      - run: pnpm test
+      - run: pnpm build
+      - run: pnpm size
+      - name: Start local database
+        run: docker compose --profile local up -d --wait db
+        env:
+          POSTGRES_PASSWORD: dimts-ci-only
+      - name: Check database health
+        run: docker compose --profile local exec -T db pg_isready -U dimts -d dimts
+      - name: Stop local database
+        if: always()
+        run: docker compose --profile local down --volumes
+      - run: pnpm audit --audit-level high
+      - name: Scan for secrets
+        if: always()
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
