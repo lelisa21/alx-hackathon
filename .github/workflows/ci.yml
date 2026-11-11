@@ -35,6 +35,14 @@ jobs:
           POSTGRES_PASSWORD: dimts-ci-only
       - name: Check database health
         run: docker compose --profile local exec -T db pg_isready -U dimts -d dimts
+      - name: Apply database migrations
+        run: pnpm migrate
+        env:
+          DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
+      - name: Verify migrations are idempotent
+        run: pnpm migrate
+        env:
+          DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
       - name: Stop local database
         if: always()
         run: docker compose --profile local down --volumes

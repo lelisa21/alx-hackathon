@@ -10,11 +10,14 @@
     }
   },
   "scripts": {
-    "build": "tsc -b",
+    "build": "tsc -b && node dist/openapi-cli.js",
+    "migrate": "node --env-file-if-exists=../../.env dist/db/migrate.js",
+    "start": "node --env-file-if-exists=../../.env dist/server.js",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.2.0",
+    "@dimts/locales-tools": "workspace:*",
     "compression": "^1.7.4",
     "cors": "^2.8.5",
     "express": "^5.1.0",
@@ -23,6 +26,7 @@
     "jose": "^6.0.10",
     "pino": "^9.6.0",
     "pino-http": "^10.4.0",
+    "yaml": "^2.7.0",
     "pg": "^8.13.3",
     "ws": "^8.18.0",
     "zod": "^3.24.2"

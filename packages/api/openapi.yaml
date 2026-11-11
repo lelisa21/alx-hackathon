@@ -1,0 +1,811 @@
+openapi: 3.1.0
+info:
+  title: Dimts API
+  version: 0.1.0
+components:
+  securitySchemes:
+    sessionBearer:
+      type: http
+      scheme: bearer
+    hostKey:
+      type: apiKey
+      in: header
+      name: X-Dimts-Key
+  schemas:
+    AskRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 8
+          maxLength: 64
+        clientMsgId:
+          type: string
+          minLength: 8
+          maxLength: 64
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 8
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: At most 1000 Unicode code points
+        via:
+          type: string
+          enum: &a5
+            - text
+            - voice
+            - sms
+            - telegram
+        simple:
+          type: boolean
+      required:
+        - sessionId
+        - clientMsgId
+        - lang
+        - text
+        - via
+      additionalProperties: false
+    Reply:
+      type: object
+      properties:
+        id:
+          type: string
+        kind:
+          type: string
+          enum: &a6
+            - answer
+            - notfound
+            - escalation
+            - distress
+            - system
+        text:
+          type: string
+        lang:
+          type: string
+        dir:
+          type: string
+          enum: &a7
+            - ltr
+            - rtl
+        citations:
+          type: array
+          items:
+            type: object
+            properties:
+              passageId:
+                type: string
+              label:
+                type: string
+              url:
+                type: string
+                format: uri
+              sourceLang:
+                type: string
+              sourceType:
+                type: string
+                enum: &a8
+                  - course
+                  - job
+              timestamp:
+                type: number
+            required:
+              - passageId
+              - label
+              - url
+              - sourceLang
+              - sourceType
+            additionalProperties: false
+        actions:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                enum: &a9
+                  - help
+                  - more
+                  - open_source
+                  - subscribe_jobs
+                  - language
+                  - retry
+              label:
+                type: string
+            required:
+              - type
+              - label
+            additionalProperties: false
+        audioUrl:
+          type: string
+          format: uri
+        provider:
+          type: string
+          enum: &a10
+            - cloud
+            - local
+            - offline
+        contentVersion:
+          type: string
+      required:
+        - id
+        - kind
+        - text
+        - lang
+        - dir
+        - citations
+        - actions
+        - contentVersion
+      additionalProperties: false
+    Problem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: number
+        code:
+          type: string
+          enum: &a3
+            - invalid_request
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - rate_limited
+            - payload_too_large
+            - internal
+        messageKey:
+          type: string
+      required:
+        - type
+        - title
+        - status
+        - code
+        - messageKey
+      additionalProperties: false
+    SessionRequest:
+      type: object
+      properties:
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 8
+        channel:
+          type: string
+          enum: &a4
+            - web
+            - api
+          default: web
+        sessionId:
+          type: string
+          minLength: 8
+          maxLength: 64
+        resumeToken:
+          type: string
+          minLength: 20
+          maxLength: 100
+      additionalProperties: false
+    SessionResponse:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        sessionToken:
+          type: string
+        resumeToken:
+          type: string
+        lang:
+          type: string
+      required:
+        - sessionId
+        - sessionToken
+        - resumeToken
+        - lang
+      additionalProperties: false
+    HealthResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+        db:
+          type: boolean
+        version:
+          type: string
+        contentVersion:
+          type: string
+        ladder:
+          type: array
+          items:
+            type: string
+      required:
+        - ok
+        - db
+        - version
+        - contentVersion
+        - ladder
+      additionalProperties: false
+    LanguageList:
+      type: object
+      properties:
+        languages:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+              nameNative:
+                type: string
+              nameEn:
+                type: string
+              script:
+                type: string
+              dir:
+                type: string
+                enum: &a1
+                  - ltr
+                  - rtl
+              status:
+                type: string
+                enum: &a2
+                  - live
+                  - beta
+                  - draft
+              stt:
+                type: boolean
+              tts:
+                type: boolean
+            required:
+              - code
+              - nameNative
+              - nameEn
+              - script
+              - dir
+              - status
+              - stt
+              - tts
+            additionalProperties: false
+      required:
+        - languages
+      additionalProperties: false
+    LocaleUI:
+      type: object
+      additionalProperties:
+        type: string
+  parameters: {}
+paths:
+  /v1/docs:
+    get:
+      summary: Open API documentation
+      responses:
+        "200":
+          description: API documentation page
+          content:
+            text/html:
+              schema:
+                type: string
+  /v1/health:
+    get:
+      summary: Health and dependency status
+      responses:
+        "200":
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                  db:
+                    type: boolean
+                  version:
+                    type: string
+                  contentVersion:
+                    type: string
+                  ladder:
+                    type: array
+                    items:
+                      type: string
+                required:
+                  - ok
+                  - db
+                  - version
+                  - contentVersion
+                  - ladder
+                additionalProperties: false
+  /v1/languages:
+    get:
+      summary: List available language packs
+      responses:
+        "200":
+          description: Available languages
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  languages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        code:
+                          type: string
+                        nameNative:
+                          type: string
+                        nameEn:
+                          type: string
+                        script:
+                          type: string
+                        dir:
+                          type: string
+                          enum: *a1
+                        status:
+                          type: string
+                          enum: *a2
+                        stt:
+                          type: boolean
+                        tts:
+                          type: boolean
+                      required:
+                        - code
+                        - nameNative
+                        - nameEn
+                        - script
+                        - dir
+                        - status
+                        - stt
+                        - tts
+                      additionalProperties: false
+                required:
+                  - languages
+                additionalProperties: false
+  /v1/locales/{code}/ui:
+    get:
+      summary: Get localized UI strings
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: code
+          in: path
+        - schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+          required: false
+          name: lang_preview
+          in: query
+      responses:
+        "200":
+          description: UI strings
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties:
+                  type: string
+        "304":
+          description: Not modified
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/sessions:
+    post:
+      summary: Create or resume a learner session
+      security:
+        - hostKey: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lang:
+                  type: string
+                  minLength: 2
+                  maxLength: 8
+                channel:
+                  type: string
+                  enum: *a4
+                  default: web
+                sessionId:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+                resumeToken:
+                  type: string
+                  minLength: 20
+                  maxLength: 100
+              additionalProperties: false
+      responses:
+        "200":
+          description: Resumed session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  sessionToken:
+                    type: string
+                  resumeToken:
+                    type: string
+                  lang:
+                    type: string
+                required:
+                  - sessionId
+                  - sessionToken
+                  - resumeToken
+                  - lang
+                additionalProperties: false
+        "201":
+          description: Created session
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  sessionToken:
+                    type: string
+                  resumeToken:
+                    type: string
+                  lang:
+                    type: string
+                required:
+                  - sessionId
+                  - sessionToken
+                  - resumeToken
+                  - lang
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "403":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/ask:
+    post:
+      summary: Ask a question
+      security:
+        - sessionBearer: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+                clientMsgId:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+                lang:
+                  type: string
+                  minLength: 2
+                  maxLength: 8
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  description: At most 1000 Unicode code points
+                via:
+                  type: string
+                  enum: *a5
+                simple:
+                  type: boolean
+              required:
+                - sessionId
+                - clientMsgId
+                - lang
+                - text
+                - via
+              additionalProperties: false
+      responses:
+        "200":
+          description: Structured reply
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  kind:
+                    type: string
+                    enum: *a6
+                  text:
+                    type: string
+                  lang:
+                    type: string
+                  dir:
+                    type: string
+                    enum: *a7
+                  citations:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        passageId:
+                          type: string
+                        label:
+                          type: string
+                        url:
+                          type: string
+                          format: uri
+                        sourceLang:
+                          type: string
+                        sourceType:
+                          type: string
+                          enum: *a8
+                        timestamp:
+                          type: number
+                      required:
+                        - passageId
+                        - label
+                        - url
+                        - sourceLang
+                        - sourceType
+                      additionalProperties: false
+                  actions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        type:
+                          type: string
+                          enum: *a9
+                        label:
+                          type: string
+                      required:
+                        - type
+                        - label
+                      additionalProperties: false
+                  audioUrl:
+                    type: string
+                    format: uri
+                  provider:
+                    type: string
+                    enum: *a10
+                  contentVersion:
+                    type: string
+                required:
+                  - id
+                  - kind
+                  - text
+                  - lang
+                  - dir
+                  - citations
+                  - actions
+                  - contentVersion
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "409":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "413":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+webhooks: {}
