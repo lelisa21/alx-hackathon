@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@dimts/engine": "workspace:*",
+    "@dimts/grounding": "workspace:*",
     "zod": "^3.24.2"
   }
 }

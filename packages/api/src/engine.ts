@@ -1,19 +1,11 @@
 import { randomBytes } from "node:crypto";
+import type { Ladder } from "@dimts/ai";
 import { ask } from "@dimts/engine";
 import type { AskDependencies, AnswerRequest } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { translate } from "@dimts/locales-tools";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ApiConfig } from "./config.js";
-
-function extractSentences(text: string): string {
-  const sentences = text
-    .replace(/\s+/gu, " ")
-    .match(/[^.!?።]+[.!?።]?/gu)
-    ?.map((sentence) => sentence.trim())
-    .filter(Boolean);
-  return sentences?.slice(0, 3).join(" ") ?? "";
-}
 
 function glossaryTerms(pack: LangPack | undefined, lang: string) {
   const entries = Array.isArray(pack?.glossary)
@@ -36,31 +28,13 @@ export function createEngineDependencies(options: {
   config: ApiConfig;
   packs: Map<string, LangPack>;
   grounding: Pick<PostgresGrounding, "search" | "currentVersion">;
+  ai: Ladder;
 }): AskDependencies {
-  const { config, packs, grounding } = options;
+  const { config, packs, grounding, ai } = options;
 
   return {
     search: (question, lang) => grounding.search(question, lang),
-    answer: async (request: AnswerRequest) => {
-      const source = request.passages.find(
-        (passage) => passage.lang === request.lang,
-      );
-      if (!source) {
-        return {
-          text: "",
-          usedPassageIds: [],
-          provider: "offline",
-          latencyMs: 0,
-        };
-      }
-
-      return {
-        text: extractSentences(source.text),
-        usedPassageIds: [source.id],
-        provider: "offline",
-        latencyMs: 0,
-      };
-    },
+    answer: (request: AnswerRequest) => ai.answer(request),
     glossaryFor: (question, lang) => {
       const tokens = question.toLocaleLowerCase().split(/\s+/u);
       return glossaryTerms(packs.get(lang), lang).filter(({ term }) =>

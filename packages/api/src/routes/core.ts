@@ -2,6 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response, Router } from "express";
 import express from "express";
 import { ask } from "@dimts/engine";
+import type { LadderStatus } from "@dimts/ai";
 import type { AskDependencies } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { z } from "zod";
@@ -28,6 +29,7 @@ interface CoreRouteOptions {
   repository: ApiRepository;
   packs: Map<string, LangPack>;
   askDependencies?: AskDependencies;
+  aiStatus?: () => LadderStatus;
   grounding?: Pick<PostgresGrounding, "currentVersion">;
 }
 
@@ -138,6 +140,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
         : Promise.resolve("unavailable"),
     ]);
 
+    const aiStatus = options.aiStatus?.();
     response.json(
       validateResponse(HealthResponseSchema, {
         ok: true,
@@ -147,6 +150,8 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
         ladder: config.DIMTS_AI_LADDER.split(",").map((provider) =>
           provider.trim(),
         ),
+        provider: aiStatus?.activeProvider ?? null,
+        providerStates: aiStatus?.providers ?? [],
       }),
     );
   });
@@ -322,7 +327,12 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
           thanks ? "smallTalk.thanks" : "smallTalk.hello",
         )
       : askDependencies
-        ? ReplySchema.parse(await ask(body, askDependencies))
+        ? ReplySchema.parse(
+            await ask(
+              { ...body, simple: body.simple ?? false },
+              askDependencies,
+            ),
+          )
         : createReply(
             packs,
             body.lang,

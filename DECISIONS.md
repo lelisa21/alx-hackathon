@@ -70,3 +70,48 @@ decision register is authoritative for architectural choices.
   calibration require reviewed glossary/evaluation data (WP14); citation-link
   browser checks belong to the widget (WP05). Transcript ingestion remains
   deferred per the user's choice and the unresolved course-format question.
+
+## WP04 verification
+
+- **Verified locally:** FR-AI-01 to 03, 06, 07, and 11 provider contracts,
+  adapters, ordered fallback, health and timeout handling, 60-second cooldown
+  and recovery, malformed-response retry, configuration defaults, and
+  extractive mode for unproven provider/language pairs. `pnpm exec vitest run
+packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.ts`
+  passes; workspace build, typecheck, affected-file ESLint, and literal-string
+  checks pass.
+- **Partially verified:** FR-AI-04 falls back to passage text with a citation,
+  but the 70% FAQ hit-rate cannot be measured because the configured FAQ packs
+  contain no entries. Add reviewed FAQ data before claiming that criterion.
+- **Pending WP05:** FR-AI-05's learner notice and opt-out control are a widget
+  responsibility. The API defaults to offline; the browser notice and
+  end-to-end network check are not yet verified.
+- **Deferred per cut line:** FR-AI-08 answer caching.
+
+## WP05 verification
+
+- **Verified acceptance criteria:** FR-UI-01 welcome and language choice,
+  FR-UI-04 reply focus, FR-UI-08 320px reflow, FR-UI-09 interactive target
+  sizes, FR-UI-14 bundle budget, FR-UI-15 retry/help error recovery,
+  FR-LANG-07 text-based suggestions without automatic switching, and the
+  offline banner plus service-worker registration and cached language recovery
+  are covered by widget tests. `pnpm test:widget` builds the widget before
+  running Playwright. The latest browser run passed 10/10 tests, including
+  zero critical/serious axe violations and storage-disabled behavior.
+- **Implemented, acceptance criteria still outstanding:** text chat, citations,
+  beta labels, persisted language/settings, read-aloud using browser speech
+  synthesis, and data-saver caching. FR-UI-06 microphone recognition and its
+  state behavior are not implemented. Offline recovery restores static
+  language/UI data only; FR-UI-16's offline FAQ is blocked by empty FAQ packs
+  and the absence of a documented FAQ API contract. Do not fabricate course
+  answers.
+- **Other WP05 gaps:** FR-UI-13 needs an approved self-hosted Ethiopic font.
+  The specified 200% zoom, formal contrast threshold/token check, full 8px
+  spacing verification, and FR-UI-18/19 acceptance criteria remain
+  outstanding. The help action emits the host event; the actual human handoff
+  is WP07. Draft-language UI copy still needs language-lead review.
+- **Deployment constraint:** service-worker support requires the widget module
+  and `/service-worker.js` to be served from the embedding page's origin. The
+  service worker caches shell assets; static API responses use the widget's
+  separate CacheStorage logic. A cross-origin embed cannot install the worker
+  for its host page.

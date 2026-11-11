@@ -71,6 +71,12 @@ export interface AnswerResult {
   latencyMs: number;
 }
 
+export interface AiProvider {
+  name: ProviderName;
+  health(): Promise<{ ok: boolean; reason?: string }>;
+  answer(request: AnswerRequest, signal: AbortSignal): Promise<AnswerResult>;
+}
+
 export interface AskDependencies {
   search(question: string, lang: Lang): Promise<ScoredPassage[]>;
   answer(request: AnswerRequest): Promise<AnswerResult>;
@@ -83,6 +89,6 @@ export interface AskDependencies {
   confidenceFloor(lang: Lang): number;
   translate(lang: Lang, key: string): string;
   direction(lang: Lang): "ltr" | "rtl";
-  contentVersion(): string;
+  contentVersion(): string | Promise<string>;
   createId(): string;
 }

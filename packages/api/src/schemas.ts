@@ -116,6 +116,16 @@ export const HealthResponseSchema = z
     version: z.string(),
     contentVersion: z.string(),
     ladder: z.array(z.string()),
+    provider: z.enum(["cloud", "local", "offline"]).nullable(),
+    providerStates: z.array(
+      z
+        .object({
+          name: z.enum(["cloud", "local", "offline"]),
+          available: z.boolean(),
+          active: z.boolean(),
+        })
+        .strict(),
+    ),
   })
   .strict();
 

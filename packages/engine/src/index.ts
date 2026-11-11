@@ -1,5 +1,6 @@
 export { ask } from "./ask.js";
 export type {
+  AiProvider,
   Action,
   AnswerRequest,
   AnswerResult,

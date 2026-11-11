@@ -17,6 +17,9 @@
   },
   "dependencies": {
     "@asteasolutions/zod-to-openapi": "^7.2.0",
+    "@dimts/ai": "workspace:*",
+    "@dimts/engine": "workspace:*",
+    "@dimts/grounding": "workspace:*",
     "@dimts/locales-tools": "workspace:*",
     "compression": "^1.7.4",
     "cors": "^2.8.5",

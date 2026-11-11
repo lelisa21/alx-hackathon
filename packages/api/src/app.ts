@@ -7,6 +7,12 @@ import pino from "pino";
 import { pinoHttp } from "pino-http";
 import { loadPacks } from "@dimts/locales-tools";
 import { PostgresGrounding } from "@dimts/grounding";
+import {
+  Ladder,
+  OfflineFaq,
+  OpenAiCompatible,
+} from "@dimts/ai";
+import type { AiProvider } from "@dimts/ai";
 import type { AskDependencies } from "@dimts/engine";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,6 +29,7 @@ export interface BuildAppOptions {
   repository?: ApiRepository;
   localesRoot?: string;
   askDependencies?: AskDependencies;
+  aiLadder?: Ladder;
   grounding?: Pick<PostgresGrounding, "search" | "currentVersion">;
 }
 
@@ -39,10 +46,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
   const grounding =
     options.grounding ?? (pool ? new PostgresGrounding(pool) : undefined);
+  const aiLadder = options.aiLadder ?? createAiLadder(config, packs);
   const askDependencies =
     options.askDependencies ??
     (grounding
-      ? createEngineDependencies({ config, packs, grounding })
+      ? createEngineDependencies({ config, packs, grounding, ai: aiLadder })
       : undefined);
   const app = express();
   app.locals.close = async () => pool?.end();
@@ -98,6 +106,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       config,
       repository,
       packs,
+      aiStatus: () => aiLadder.status(),
       ...(grounding ? { grounding } : {}),
       ...(askDependencies ? { askDependencies } : {}),
     }),
@@ -107,4 +116,74 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   });
   app.use(errorHandler);
   return app;
+}
+
+function createAiLadder(
+  config: ApiConfig,
+  packs: ReturnType<typeof loadPacks>,
+): Ladder {
+  const providers: AiProvider[] = [];
+  if (config.DIMTS_CLOUD_API_URL && config.DIMTS_CLOUD_MODEL) {
+    providers.push(
+      new OpenAiCompatible({
+        name: "cloud",
+        baseUrl: config.DIMTS_CLOUD_API_URL,
+        model: config.DIMTS_CLOUD_MODEL,
+        ...(config.DIMTS_CLOUD_API_KEY
+          ? { apiKey: config.DIMTS_CLOUD_API_KEY }
+          : {}),
+        maxTokens: config.DIMTS_AI_MAX_TOKENS,
+        temperature: config.DIMTS_AI_TEMPERATURE,
+      }),
+    );
+  }
+  providers.push(
+    new OpenAiCompatible({
+      name: "local",
+      baseUrl: config.DIMTS_LOCAL_API_URL,
+      model: config.DIMTS_LOCAL_MODEL,
+      maxTokens: config.DIMTS_AI_MAX_TOKENS,
+      temperature: config.DIMTS_AI_TEMPERATURE,
+    }),
+  );
+  providers.push(
+    new OfflineFaq((lang) => faqEntries(packs.get(lang)?.faq)),
+  );
+
+  const ladderOrder = [
+    config.DIMTS_AI_PROVIDER,
+    ...config.DIMTS_AI_LADDER.split(",").map((provider) => provider.trim()),
+  ];
+  const uniqueOrder = [...new Set(ladderOrder)];
+  const orderedProviders = uniqueOrder.flatMap((name) => {
+    const provider = providers.find((candidate) => candidate.name === name);
+    return provider ? [provider] : [];
+  });
+  if (!orderedProviders.some((provider) => provider.name === "offline")) {
+    const offline = providers.find((provider) => provider.name === "offline");
+    if (offline) orderedProviders.push(offline);
+  }
+  return new Ladder(orderedProviders);
+}
+
+function faqEntries(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
+      return [];
+    }
+    const record = entry as Record<string, unknown>;
+    if (typeof record.q !== "string" || typeof record.a !== "string") {
+      return [];
+    }
+    return [
+      {
+        q: record.q,
+        a: record.a,
+        ...(typeof record.source === "string"
+          ? { source: record.source }
+          : {}),
+      },
+    ];
+  });
 }

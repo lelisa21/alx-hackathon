@@ -24,6 +24,42 @@ unless `?lang_preview=1` is supplied.
 `POST /v1/sessions` requires `X-Dimts-Key` and an allowed browser origin.
 `POST /v1/ask` requires the returned session bearer token and `sessionId`.
 
+## Embed the widget
+
+Build the static ES module with `pnpm --filter @dimts/widget build`, then serve
+`packages/widget/dist/dimts-widget.js` from the host page. Register the allowed
+host origin and its public widget key with the API before using the component:
+
+```html
+<script type="module" async src="/assets/dimts-widget.js"></script>
+<dimts-assistant
+  data-api="https://api.example.org/v1"
+  data-host-key="public-widget-key"
+></dimts-assistant>
+```
+
+For offline shell support, also serve the built
+`packages/widget/dist/service-worker.js` as `/service-worker.js` from the same
+origin as the embedding page and widget module. A cross-origin widget module
+cannot register a service worker for the host page. The worker caches the
+widget shell assets; the widget separately caches static language/UI API
+responses. These caches can restore the language picker, but they do not
+provide offline course answers: the FAQ packs are empty and no FAQ API contract
+is defined.
+
+The widget loads visible language packs, asks the API for a pseudonymous
+session, and keeps the bearer token in memory. The host can call
+`window.Dimts.open()`, `close()`, `setLanguage(code)`, or `escalate()`.
+`dimts:opened`, `dimts:closed`, `dimts:language`, and `dimts:escalated` events
+are dispatched on `window`. It renders in a shadow root so host styles do not
+change its controls.
+
+Run `pnpm test:widget` to build the widget and run its browser flows, including
+storage-disabled behavior, reflow, axe checks, and offline shell/language-cache
+recovery. Read-aloud via browser speech synthesis is available when selected;
+microphone recognition and the later human-help workflow are not implemented
+in this increment.
+
 ## Ingest course content
 
 Set `DIMTS_CONTENT_BASE_URL` to the canonical directory URL for rendered lessons
@@ -45,5 +81,5 @@ single transaction. Transcript ingestion is deferred until the course
 transcript format is confirmed.
 
 WP03 provides the grounding index/search and citation-gated engine library.
-The HTTP ask route still returns localized `notfound` replies for non-small-talk
-questions until WP04 wires in the AI provider ladder.
+WP04 provides the provider ladder. The API can use the offline, local, and
+configured cloud adapters; cloud remains opt-in through API configuration.

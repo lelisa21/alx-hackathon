@@ -108,4 +108,20 @@ describe("WP03 grounded ask", () => {
       label: "help.button",
     });
   });
+
+  it("returns localized not-found when every AI provider is unavailable", async () => {
+    const deps = dependencies({
+      answer: vi.fn(async () => {
+        throw new Error("provider unavailable");
+      }),
+    });
+
+    const reply = await ask(question, deps);
+
+    expect(reply.kind).toBe("notfound");
+    expect(reply.actions).toContainEqual({
+      type: "help",
+      label: "help.button",
+    });
+  });
 });

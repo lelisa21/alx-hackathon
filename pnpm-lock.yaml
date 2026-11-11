@@ -53,6 +53,9 @@ importers:
       '@dimts/engine':
         specifier: workspace:*
         version: link:../engine
+      '@dimts/grounding':
+        specifier: workspace:*
+        version: link:../grounding
       zod:
         specifier: ^3.24.2
         version: 3.25.76
@@ -62,6 +65,15 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^7.2.0
         version: 7.3.4(zod@3.25.76)
+      '@dimts/ai':
+        specifier: workspace:*
+        version: link:../ai
+      '@dimts/engine':
+        specifier: workspace:*
+        version: link:../engine
+      '@dimts/grounding':
+        specifier: workspace:*
+        version: link:../grounding
       '@dimts/locales-tools':
         specifier: workspace:*
         version: link:../locales-tools
