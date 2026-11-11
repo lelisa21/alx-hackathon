@@ -1,0 +1,14 @@
+/* The only stylesheet written for these frozen pages; everything else under assets/css/ is the
+   application's own, captured as served.
+
+   React wrote `display` inline on each sidebar label and drove the sidebar width from a class it
+   owned. With React gone the body class drives both, so the hamburger collapses the sidebar the
+   way it does in the live app instead of leaving the labels behind. */
+
+body.sidebar-collapsed #sidebar a > div:not(.icon) {
+  display: none !important;
+}
+
+body:not(.sidebar-collapsed) #sidebar a > div:not(.icon) {
+  display: block !important;
+}

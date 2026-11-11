@@ -14,6 +14,7 @@
     "lint": "eslint . && pnpm lint:styles && pnpm lint:strings",
     "lint:styles": "stylelint \"packages/widget/src/**/*.css\" --allow-empty-input",
     "lint:strings": "node scripts/no-literal-strings.mjs",
+    "lang:check": "pnpm --filter @dimts/locales-tools build && node packages/locales-tools/dist/cli.js",
     "size": "node scripts/size-gate.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check ."

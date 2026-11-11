@@ -1,0 +1,14 @@
+code: ar-test
+name_native: العربية
+name_en: Arabic test
+script: Arab
+dir: rtl
+calendar: gregorian
+fallback: en
+status: draft
+stt: false
+tts: false
+sms_encoding: ucs2
+sms_max_chars: 160
+reviewed_by: null
+reviewed_on: null

@@ -1,0 +1,14 @@
+code: om
+name_native: Afaan Oromoo
+name_en: Afaan Oromo
+script: Latn
+dir: ltr
+calendar: ethiopic
+fallback: am
+status: draft
+stt: false
+tts: false
+sms_encoding: gsm7
+sms_max_chars: 160
+reviewed_by: null
+reviewed_on: null

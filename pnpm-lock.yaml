@@ -181,6 +181,9 @@ importers:
 
   packages/locales-tools:
     dependencies:
+      intl-messageformat:
+        specifier: ^10.7.16
+        version: 10.7.18
       yaml:
         specifier: ^2.7.0
         version: 2.9.1

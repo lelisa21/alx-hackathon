@@ -1,0 +1,11 @@
+system_addendum: "Use only the supplied course passages. Reply in the selected language using short sentences."
+answer_mode: extractive
+floor: 0.6
+escalation:
+  - help
+  - person
+  - human
+distress: []
+small_talk:
+  - hello
+  - thank you

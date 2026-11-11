@@ -1,0 +1,14 @@
+code: am
+name_native: አማርኛ
+name_en: Amharic
+script: Ethi
+dir: ltr
+calendar: ethiopic
+fallback: en
+status: draft
+stt: false
+tts: false
+sms_encoding: ucs2
+sms_max_chars: 160
+reviewed_by: null
+reviewed_on: null

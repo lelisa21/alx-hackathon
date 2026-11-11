@@ -1,0 +1,14 @@
+code: en
+name_native: English
+name_en: English
+script: Latn
+dir: ltr
+calendar: gregorian
+fallback: null
+status: beta
+stt: false
+tts: false
+sms_encoding: gsm7
+sms_max_chars: 160
+reviewed_by: null
+reviewed_on: null
