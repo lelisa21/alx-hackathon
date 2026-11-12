@@ -118,7 +118,9 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
         `INSERT INTO message
            (id, session_id, reply_to, role, text, lang, kind, citations, reply)
          VALUES ($1, $2, $3, 'dimts', $4, $5, $6, $7::jsonb, $8::jsonb)
-         ON CONFLICT (session_id, reply_to) DO NOTHING`,
+         ON CONFLICT (session_id, reply_to)
+         WHERE reply_to IS NOT NULL
+         DO NOTHING`,
         [
           saved.reply.id,
           saved.sessionId,

@@ -10,6 +10,7 @@ export interface ContentDocument {
   content: string;
   format: ContentFormat;
   baseUrl: string;
+  canonicalUrl?: string;
   lang: string;
 }
 
@@ -206,6 +207,22 @@ function canonicalLessonUrl(baseUrl: string, lessonId: string): URL {
   return new URL(encodeURIComponent(lessonId), base);
 }
 
+function canonicalDocumentUrl(value: string): URL {
+  const url = new URL(value);
+  if (
+    !["http:", "https:"].includes(url.protocol) ||
+    url.username ||
+    url.password ||
+    url.search ||
+    url.hash
+  ) {
+    throw new Error(
+      "A canonical source URL must be HTTP(S), without credentials, query, or fragment.",
+    );
+  }
+  return url;
+}
+
 export function toPassages(document: ContentDocument): PassageRecord[] {
   if (
     !/^[\p{L}\p{N}._ -]+$/u.test(document.lessonId) ||
@@ -221,7 +238,9 @@ export function toPassages(document: ContentDocument): PassageRecord[] {
       ? markdownParts(document.content)
       : htmlParts(document.content);
   const lessonTitle = parsed.lessonTitle || document.lessonId;
-  const lessonUrl = canonicalLessonUrl(document.baseUrl, document.lessonId);
+  const lessonUrl = document.canonicalUrl
+    ? canonicalDocumentUrl(document.canonicalUrl)
+    : canonicalLessonUrl(document.baseUrl, document.lessonId);
 
   return parsed.chunks.map((chunk, index) => {
     const url = new URL(lessonUrl);
@@ -251,9 +270,7 @@ export function sourceHash(
   metadata: Record<string, string> = {},
 ): string {
   const canonicalSource = {
-    documents: [...documents].sort((a, b) =>
-      a.name.localeCompare(b.name),
-    ),
+    documents: [...documents].sort((a, b) => a.name.localeCompare(b.name)),
     metadata: Object.fromEntries(
       Object.entries(metadata).sort(([a], [b]) => a.localeCompare(b)),
     ),

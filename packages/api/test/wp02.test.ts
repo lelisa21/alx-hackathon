@@ -119,41 +119,6 @@ async function createSession(app: ReturnType<typeof buildApp>) {
 }
 
 describe("WP02 configuration and API contracts", () => {
-  it("defaults to offline answers and exposes provider ladder status", async () => {
-    const { app } = createApp();
-    const response = await request(app).get("/v1/health");
-
-    expect(response.status).toBe(200);
-    expect(response.body.provider).toBe("offline");
-    expect(response.body.providerStates).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          name: "offline",
-          available: true,
-          active: true,
-        }),
-      ]),
-    );
-    expect(response.body.providerStates).not.toContainEqual(
-      expect.objectContaining({ name: "cloud" }),
-    );
-    const config = parseConfig(validEnv);
-    expect(config).toMatchObject({
-      DIMTS_AI_PROVIDER: "offline",
-      DIMTS_AI_MAX_TOKENS: 400,
-      DIMTS_AI_TEMPERATURE: 0.1,
-    });
-  });
-
-  it("requires a model when a cloud endpoint is configured", () => {
-    expect(() =>
-      parseConfig({
-        ...validEnv,
-        DIMTS_CLOUD_API_URL: "https://provider.example/v1",
-      }),
-    ).toThrow(/DIMTS_CLOUD_MODEL/u);
-  });
-
   it("fails fast for missing, weak, or reused secrets", () => {
     expect(() =>
       parseConfig({ ...validEnv, DIMTS_HASH_KEY: undefined }),

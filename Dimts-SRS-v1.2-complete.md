@@ -115,7 +115,7 @@ This document specifies Dimts: what it must do, how well, and how we prove it. I
 ### 1.5 Assumptions and constraints
 
 - **A-01** The event runs 14 and 15 November 2026, 08:30 to 18:00, with code freeze at 13:00 on day two. Build time is about 14 hours.
-- **A-02** The Savanna starter, its documentation and sandbox are handed over at kick-off. Details of its auth, data and embedding model are TBC. Anything depending on them is marked TBC and isolated behind an adapter.
+- **A-02** A host platform may use any auth, data, and embedding model. Its trusted integration layer maps existing services or data to the `ContentSource`/`HostAuth` contract; Dimts does not depend on a Savanna-specific API or crawl private pages.
 - **A-03** Course content format is TBC (assumed: HTML or markdown lessons with titles, sections, optional video transcripts with timestamps).
 - **A-04** Whether code written before kick-off is allowed is TBC with the organisers. Until confirmed, only this SRS, designs, test question sets and glossaries are prepared in advance.
 - **A-05** Speech engines for Amharic and Afaan Oromo are not guaranteed. English and Amharic voice is a MUST attempt; Afaan Oromo voice is SHOULD with a beta label. Text works in all three.
@@ -171,7 +171,7 @@ Teacher ----------> Insights view (anonymous counts)
 
 ### 2.5 Dependencies and risks
 
-Dependencies: Savanna starter (TBC), at least one AI provider adapter working by hour 4, a human-checked glossary (see FR-LANG-11), native speakers for string review. See section 15 for risks.
+Dependencies: a host integration point capable of supplying an authorized `ContentSource`/`HostAuth` adapter, at least one AI provider adapter working by hour 4, a human-checked glossary (see FR-LANG-11), and native speakers for string review. See section 15 for risks.
 
 ## 3. System architecture
 
@@ -623,7 +623,7 @@ The brief names three levels. We implement all three.
 | FR-INT-05 | MUST | Level 2: REST API with an OpenAPI 3.1 file at /v1/openapi.yaml and a human-readable page at /docs. Host API key in X-Dimts-Key. CORS limited to DIMTS\_HOST\_ORIGINS. | Contract tests generated from the spec pass; examples/api-level2.http runs. |
 | FR-INT-06 | MUST | Level 3: LTI 1.3 tool with OIDC login initiation, launch validation (state, nonce, signature, audience), JWKS endpoint, deep linking, and role mapping (Learner opens chat; Instructor opens insights). | Tested against a mock LTI platform; invalid launches are rejected. |
 | FR-INT-07 | MUST | Job import accepts schema.org JobPosting JSON-LD at /v1/jobs/import. Required: title, description, datePosted, hiringOrganization, jobLocation. Unknown fields are ignored; invalid items are reported by index. | Valid and invalid fixture tests. |
-| FR-INT-08 | MUST | Host adapters: ContentSource (list and fetch lessons) and HostAuth. A Savanna adapter is built once the starter is known (TBC); a file-based adapter works from day one. | Swap adapters by config; both pass the same contract tests. |
+| FR-INT-08 | MUST | Public content: approve an HTTPS XML sitemap URL and language; the built-in connector discovers only same-origin HTML pages listed there. Private content: a small trusted host adapter maps existing authorization/content functions to `ContentSource` and `HostAuth`, and includes only material shareable with all learners using that source. No vendor-specific LMS API or arbitrary crawl is assumed. | Public sitemap source syncs without host code and rejects off-origin URLs. Private adapter contract tests cover scope, initial discovery, additions, updates, deletions, and reconciliation. |
 | FR-INT-09 | MUST | One-command demo: docker compose up starts everything with seeded sample course, sample jobs, simulator and helper console within 5 minutes on a clean machine. | A person outside the team runs it from the README. |
 | FR-INT-10 | MUST | Versioning: API under /v1, semantic versioning, CHANGELOG.md. | File present; version endpoint matches. |
 | FR-INT-11 | MUST | Uninstall: removing the script tag removes all widget elements and listeners and leaves no residue in storage except an optional language preference. | Test inspects DOM and storage after removal. |
@@ -980,7 +980,7 @@ Each package lists dependencies, requirements, the deliverable and a time box. A
 | WP-P4 | Design tokens, welcome screen and chat wireframes, reviewed by the co-designer | 6.1, 6.2 | Design files |
 | WP-P5 | Test candidate speech engines on 10 sentences per language | FR-VOICE-01 | docs/VOICE\_TEST.md |
 | WP-P6 | Prepare sample course and sample job data (small, realistic) | FR-TUTOR-01, FR-INT-07 | content/sample-course, content/sample-jobs |
-| WP-P7 | Ask organisers: is pre-built code allowed; what does the Savanna starter include; which AI and speech tools are provided | A-02, A-04 | Written answers in DECISIONS.md |
+| WP-P7 | Confirm whether pre-built code is allowed, the host-side integration point and authorized content scope, and which AI/speech tools are provided | A-02, A-04 | Written answers in DECISIONS.md |
 
 ### 14.2 Build packages
 
@@ -998,7 +998,7 @@ Each package lists dependencies, requirements, the deliverable and a time box. A
 | WP09 | Screen share and picture fallback | Channels lead | WP07 | FR-HELP-08 to 12 | Consent, banner, stop, fallback | 2 h |
 | WP10 | SMS adapter and simulator | Back-end lead | WP02 | FR-SMS-01 to 11 | Simulator thread with budgets | 1.5 h |
 | WP11 | Job import, alerts, accommodation flow | Back-end lead | WP03, WP08, WP10 | FR-JOB-01 to 11; FR-INT-07 | Alert and request flows on three channels | 2.5 h |
-| WP12 | Integration Levels 1 to 3 and Savanna adapter | Channels lead | WP05, WP02 | FR-INT-01 to 11 | Embed on blank page, API docs, LTI launch | 2.5 h |
+| WP12 | Integration Levels 1 to 3 and host adapter examples | Channels lead | WP05, WP02 | FR-INT-01 to 11 | Embed on blank page, host adapter contract, API docs, LTI launch | 2.5 h |
 | WP13 | Simple mode, teacher insights, language kit extras (lang:new, add-a-language doc) | Language lead and front-end lead | WP05, WP03 | FR-SIMPLE, FR-INSIGHT, FR-LANG-11, 13, 15 | Edge features working | 2 h |
 | WP14 | Evaluation run, WCAG report, README, INTEGRATION, PRIVACY, COST docs | All | WP03 onward | FR-TUTOR-10; NFR-ADOPT; NFR-PRIV-08; NFR-A11Y-01 | Docs complete, outsider install trial passed | 2 h |
 | WP15 | Gate rehearsal and demo rehearsal (three full runs) | All and co-designer | all | Section 13 | Signed gate checklist | 1.5 h |
@@ -1039,7 +1039,7 @@ Deviations: <none or a DECISIONS.md reference>
 | R4 | Failing the gate | Medium | Critical | Gate at every block, co-designer stops the line, accessibility built first | Section 13, NFR-A11Y |
 | R5 | Screen sharing fails on phones or 3G | High | Medium | Picture and describe fallback; clear message; low bitrate profile | FR-HELP-11, 12 |
 | R6 | Cloud AI or network fails during the demo | Medium | High | Ladder to local then offline; offline default in demo; recorded backup | FR-AI-03; 11.3 |
-| R7 | Savanna starter differs from assumptions | Medium | Medium | Adapter interfaces; file-based adapter from day one; ask in WP-P7 | FR-INT-08 |
+| R7 | Host platform exposes different auth and content models | Medium | Medium | Host-owned adapter boundary and shared contract tests; no platform-specific assumptions in Dimts | FR-INT-08 |
 | R8 | Scope too large for 14 hours | High | High | MUST first, cut line in 14.3, parallel packages | Section 14 |
 | R9 | Privacy mistake (logs, data fields) | Low | High | Schema scan, log scan, consent tests | NFR-PRIV |
 | R10 | Unreviewed Amharic or Oromo strings are wrong or rude | Medium | High | Native speaker review, status labels, checker needs reviewed\_by for live | FR-LANG-09, 10 |
@@ -1085,7 +1085,7 @@ Deviations: <none or a DECISIONS.md reference>
 | # | Question | Who answers | Affects |
 | --- | --- | --- | --- |
 | Q1 | Is code prepared before kick-off allowed? | Organisers (hyoun@alxafrica.com) | A-04, section 14.1 |
-| Q2 | What does the Savanna starter provide (auth, content API, embedding model)? | Kick-off briefing | FR-INT-08, FR-TUTOR-01 |
+| Q2 | Which host-side integration point and authorized content scope will the first deployment expose to its adapter? No credentials or vendor API details are required by Dimts. | Host integrator | FR-INT-08, FR-TUTOR-01 |
 | Q3 | What format is the course content, and is there video with transcripts? | Kick-off briefing | FR-TUTOR-01, FR-UI-17 |
 | Q4 | Which speech and AI services or models are provided or recommended? | Training week, Thursday | FR-VOICE-01, FR-AI-10 |
 | Q5 | Which open licence applies to the code? | Kick-off briefing | A-06 |
@@ -5175,7 +5175,7 @@ This edition is the complete version 1.2 file: Parts I, II and III in one docume
 **Open items (not decided here)**
 
 - Free-tier limits remain unverified (section 38).
-- The version 2.0 blueprint file was written before these additions; its section 7.5 lacks `DIMTS_JWT_SECRET`, its WebSocket table lacks the `auth` message, and its migration 002 lacks `message.reply_to` and `message.reply`. Align those three items when v2 is next edited.
+- The backend contract freeze aligned the blueprint with sections 33.7 and 34.2 to 34.9: migration 002 includes `message.reply_to` and `message.reply`, configuration includes the three distinct data-protection/signing secrets, and the WebSocket contract requires the first-message `auth` handshake. `packages/api/test/contract-docs.test.ts` guards this parity.
 - The Metered TURN response shape in 34.9 is written from memory of the provider's API and must be confirmed against its documentation.
 
 ---

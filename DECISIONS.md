@@ -7,9 +7,11 @@ decision register is authoritative for architectural choices.
 
 - **A-04, pre-kickoff code:** The user confirmed that organizer approval for
   pre-built code has been obtained before this scaffold was created.
-- **Architecture source:** Follow `Dimts-System-Blueprint-v2.0.md` where it
-  supersedes the SRS, including Express 5, PostgreSQL, pnpm workspaces, and the
-  final repository layout.
+- **Architecture source:** Follow the authoritative Dimts System Blueprint
+  (filename retained as v2.0; architecture revision 2.1) where it supersedes
+  the SRS. Express 5, PostgreSQL, Node.js, and pnpm are the current reference
+  implementation, not product-level dependencies; public protocols and
+  application ports define replacement boundaries.
 - **Package manager:** Pin pnpm 10.12.1 in the root manifest for reproducible
   workspace tooling.
 - **Local database:** Use the PostgreSQL 17 Alpine container in the `local`
@@ -71,6 +73,26 @@ decision register is authoritative for architectural choices.
   browser checks belong to the widget (WP05). Transcript ingestion remains
   deferred per the user's choice and the unresolved course-format question.
 
+## Host source integration verification
+
+- **Verified acceptance criteria:** AR-03, AR-04, FR-INT-08, and FR-TUTOR-12
+  now support a no-code public-site path and a small host-owned private adapter.
+  Public discovery uses an approved sitemap and indexes only same-origin HTML;
+  the private adapter remains scoped to material shareable with all learners
+  using that source. Initial full sync, scheduled reconciliation, atomic
+  publication, and host-authenticated notification refresh use the same source
+  manager. Tests cover pagination, URL scope, initial discovery, periodic
+  reconciliation, canonical updates/deletions, source authorization, and API
+  startup wiring.
+- **Verified locally:** `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint`,
+  and formatting checks pass (`100` tests passed; `3` PostgreSQL tests skipped).
+- **Not verified against PostgreSQL:** the source-generation integration tests
+  remain skipped because `DIMTS_TEST_DATABASE_URL` is unavailable locally.
+  Private sources still require a few host-side callbacks; per-learner ACL
+  filtering is not implemented. Public source discovery is sitemap-based,
+  limited to 250 pages per source, and does not index private or unlisted
+  content.
+
 ## WP04 verification
 
 - **Verified locally:** FR-AI-01 to 03, 06, 07, and 11 provider contracts,
@@ -115,3 +137,63 @@ packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.t
   service worker caches shell assets; static API responses use the widget's
   separate CacheStorage logic. A cross-origin embed cannot install the worker
   for its host page.
+
+## Dynamic content and backend bootstrap
+
+- **Architecture review (Blueprint architecture revision 2.1):** the prior design treated the current technology
+  stack and three provider labels too much like fixed architecture, and did
+  not define authorized source discovery, durable synchronization, or
+  per-question language detection. The Blueprint adds AR-01–AR-08, capability
+  ports, explicit source lifecycle, confidence-gated language behavior,
+  conformance acceptance, and the limitations of universal platform discovery.
+- **Provider registry:** provider IDs and API schemas are now open-ended,
+  configuration selects adapter bindings by ID, and the ladder filters by
+  declared language/mode/modality capabilities. The runtime currently
+  registers the OpenAI-compatible adapter; native vendor adapters and
+  provider data-class consent filtering remain unimplemented.
+- **Question language:** use local `franc` detection against installed locale
+  packs for each question. Apply only results above the configured confidence
+  threshold; otherwise keep the request's selected language. Detection never
+  mutates the saved session language or sends question text to an external
+  service. Cross-language retrieval remains evaluation-gated.
+- **Static shell versus dynamic learner data:** the local/hosted "static site"
+  is only the widget delivery layer. Course content is queried from the active
+  PostgreSQL passage set at ask time; re-ingestion updates the active version
+  and invalidates answer cache (FR-TUTOR-12). Do not bake course answers into
+  the widget or describe the app as static-content-only.
+- **Content integration levels:** public pages need no website code when the
+  owner approves an HTTPS XML sitemap in `DIMTS_PUBLIC_SOURCES`; the built-in
+  connector reads only same-origin sitemap pages. Private course content uses
+  a small host-owned `ContentSource`/`HostAuth` adapter passed through
+  `buildApp({ sourceSync })`. The host selects content shareable with the
+  source's learner population; per-user/role ACL filtering is not yet
+  supported. Dimts performs an initial full sync and scheduled reconciliation.
+  Native changes are authenticated by the host before calling the manager's
+  internal `notify` hook; no generic public webhook is exposed.
+- **Local host bootstrap:** `pnpm local:bootstrap` applies pending migrations
+  and upserts the local widget host by ID. It stores only the SHA-256 hash of
+  `DIMTS_LOCAL_WIDGET_KEY`, validates allowed origins, and can be rerun safely.
+  The key is a public development identifier, not a production credential.
+  Backend live-PostgreSQL verification and complete FR-INT-09/12 Compose
+  orchestration remain pending.
+- **Verified this increment:** local host hashing/origin/upsert unit tests and
+  API/grounding contracts pass. The PostgreSQL integration tests for health,
+  session creation, idempotent migrations, and changed-content answers are
+  wired into CI but skipped locally because Docker Engine is unavailable.
+
+## Backend contract freeze
+
+- **Requirements:** FR-CONV-13, NFR-SEC-11, and NFR-SEC-12.
+- **Resolution:** the blueprint now matches SRS Part III for reply replay
+  columns, first-message WebSocket authentication, and required API secrets.
+  The duplicate decision number for helper display names is corrected to D29;
+  the decision itself is unchanged.
+- **Verified acceptance:** `packages/api/test/contract-docs.test.ts` checks
+  migration/blueprint reply-schema parity, WebSocket auth requirements,
+  documented secrets, and unique blueprint decision IDs. The focused run
+  passed 4 contract tests and all 17 WP02 API tests.
+- **Validation note:** API typecheck is currently blocked by a pre-existing
+  exact-optional-property error in `packages/api/src/routes/core.ts:325`;
+  that runtime source was not changed as part of this contract freeze.
+- **Scope note:** this freezes the WebSocket contract; it does not claim the
+  help WebSocket server is implemented.

@@ -176,7 +176,7 @@ describe("WP03 grounding", () => {
     );
   });
 
-  it("replaces passages and invalidates cached replies in one transaction", async () => {
+  it("publishes a new content generation and invalidates cached replies atomically", async () => {
     const statements: string[] = [];
     const pool: ContentPool = {
       connect: async () => ({
@@ -202,9 +202,11 @@ describe("WP03 grounding", () => {
     );
 
     expect(statements[0]).toBe("BEGIN");
-    expect(statements.some((sql) => sql.includes("DELETE FROM passage"))).toBe(
-      true,
-    );
+    expect(
+      statements.some((sql) =>
+        sql.includes("INSERT INTO active_source_generation"),
+      ),
+    ).toBe(true);
     expect(
       statements.some((sql) => sql.includes("DELETE FROM answer_cache")),
     ).toBe(true);

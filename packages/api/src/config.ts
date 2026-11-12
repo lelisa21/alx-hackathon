@@ -25,20 +25,12 @@ const environmentSchema = z
     DIMTS_CRON_SECRET: z.string().min(24),
     DIMTS_HOST_ORIGINS: z.string().default(""),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
-    DIMTS_AI_PROVIDER: z
-      .enum(["cloud", "local", "offline"])
-      .default("offline"),
+    DIMTS_AI_PROVIDER: z.string().optional(),
     DIMTS_AI_LADDER: z.string().default("cloud,local,offline"),
-    DIMTS_CLOUD_API_URL: z.string().url().optional(),
+    DIMTS_CLOUD_API_URL: z.string().optional(),
     DIMTS_CLOUD_API_KEY: z.string().optional(),
     DIMTS_CLOUD_MODEL: z.string().optional(),
-    DIMTS_LOCAL_API_URL: z
-      .string()
-      .url()
-      .default("http://localhost:11434/v1"),
-    DIMTS_LOCAL_MODEL: z.string().min(1).default("qwen2.5:0.5b"),
-    DIMTS_AI_MAX_TOKENS: z.coerce.number().int().min(1).max(2048).default(400),
-    DIMTS_AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
+    DIMTS_LOCAL_API_URL: z.string().optional(),
     DIMTS_CONFIDENCE_FLOOR: z.coerce.number().min(0).max(1).default(0.35),
     DIMTS_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
     DIMTS_TELEGRAM_TOKEN: z.string().optional(),
@@ -60,24 +52,6 @@ const environmentSchema = z
         code: z.ZodIssueCode.custom,
         message:
           "DIMTS_ENC_KEY, DIMTS_HASH_KEY, and DIMTS_JWT_SECRET must be different",
-      });
-    }
-
-    if (config.DIMTS_CLOUD_API_URL && !config.DIMTS_CLOUD_MODEL) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["DIMTS_CLOUD_MODEL"],
-        message: "is required when DIMTS_CLOUD_API_URL is configured",
-      });
-    }
-
-    if (!config.DIMTS_AI_LADDER.split(",").every((provider) =>
-      ["cloud", "local", "offline"].includes(provider.trim()),
-    )) {
-      context.addIssue({
-        code: z.ZodIssueCode.custom,
-        path: ["DIMTS_AI_LADDER"],
-        message: "must contain only cloud, local, and offline providers",
       });
     }
   });

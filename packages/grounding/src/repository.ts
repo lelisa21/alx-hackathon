@@ -1,3 +1,4 @@
+import { createHash, randomUUID } from "node:crypto";
 import type { Pool } from "pg";
 import { queryTokens, textGrams } from "./grams.js";
 import type { PassageRecord } from "./ingest.js";
@@ -7,9 +8,7 @@ import { normalise } from "./normalise.js";
 
 const CANDIDATE_SQL = `
   WITH active_content AS (
-    SELECT id FROM content_version
-    ORDER BY created_at DESC, id DESC
-    LIMIT 1
+    SELECT generation_id FROM active_source_generation
   )
   SELECT p.id, p.text, p.text_norm, p.lesson_title, p.section_title, p.url,
          p.lang, p.source_type, p.ts_start,
@@ -18,7 +17,7 @@ const CANDIDATE_SQL = `
   FROM passage p
   WHERE p.grams && $1::text[]
     AND p.source_type = ANY ($2::text[])
-    AND p.content_version_id = (SELECT id FROM active_content)
+    AND p.content_version_id IN (SELECT generation_id FROM active_content)
   ORDER BY hits DESC, p.id
   LIMIT 8
 `;
@@ -26,21 +25,9 @@ const CANDIDATE_SQL = `
 const INSERT_PASSAGE_SQL = `
   INSERT INTO passage (
     id, content_version_id, lesson_id, lesson_title, section_title, anchor,
-    url, lang, source_type, ts_start, text, text_norm, grams
-  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
-  ON CONFLICT (id) DO UPDATE SET
-    content_version_id = EXCLUDED.content_version_id,
-    lesson_id = EXCLUDED.lesson_id,
-    lesson_title = EXCLUDED.lesson_title,
-    section_title = EXCLUDED.section_title,
-    anchor = EXCLUDED.anchor,
-    url = EXCLUDED.url,
-    lang = EXCLUDED.lang,
-    source_type = EXCLUDED.source_type,
-    ts_start = EXCLUDED.ts_start,
-    text = EXCLUDED.text,
-    text_norm = EXCLUDED.text_norm,
-    grams = EXCLUDED.grams
+    url, lang, source_type, ts_start, text, text_norm, grams,
+    source_id, source_resource_id
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
 `;
 
 interface PassageRow {
@@ -77,26 +64,37 @@ export async function replaceContent(
   }
 
   const client = await pool.connect();
+  const generationId = randomUUID();
+  const sourceId = "legacy";
   try {
     await client.query("BEGIN");
     try {
       await client.query("SELECT pg_advisory_xact_lock(hashtext($1))", [
-        "dimts-content-ingest",
+        sourceId,
       ]);
       await client.query(
         `INSERT INTO content_version (id, created_at, source_hash)
-         VALUES ($1, clock_timestamp(), $1)
-         ON CONFLICT (id) DO UPDATE SET
-           source_hash = EXCLUDED.source_hash,
-           created_at = clock_timestamp()`,
-        [versionId],
+         VALUES ($1, clock_timestamp(), $2)`,
+        [generationId, versionId],
       );
-      await client.query("DELETE FROM passage");
+      await client.query(
+        `INSERT INTO source_generation (
+           id, source_id, mode, status, discovered, indexed, removed, completed_at
+         ) VALUES ($1, $2, 'full', 'active', $3, $3, 0, clock_timestamp())`,
+        [
+          generationId,
+          sourceId,
+          new Set(passages.map(({ lessonId }) => lessonId)).size,
+        ],
+      );
 
       for (const passage of passages) {
+        const passageId = createHash("sha256")
+          .update(JSON.stringify([sourceId, passage.lessonId, passage.id]))
+          .digest("hex");
         await client.query(INSERT_PASSAGE_SQL, [
-          passage.id,
-          versionId,
+          passageId,
+          generationId,
           passage.lessonId,
           passage.lessonTitle,
           passage.sectionTitle,
@@ -108,9 +106,24 @@ export async function replaceContent(
           passage.text,
           passage.textNorm,
           passage.grams,
+          sourceId,
+          passage.lessonId,
         ]);
       }
 
+      await client.query(
+        `UPDATE source_generation
+         SET status = 'retired'
+         WHERE source_id = $1 AND status = 'active'`,
+        [sourceId],
+      );
+      await client.query(
+        `INSERT INTO active_source_generation (source_id, generation_id)
+         VALUES ($1, $2)
+         ON CONFLICT (source_id) DO UPDATE
+         SET generation_id = EXCLUDED.generation_id`,
+        [sourceId, generationId],
+      );
       await client.query("DELETE FROM answer_cache");
       await client.query("COMMIT");
     } catch (error) {
@@ -130,12 +143,17 @@ export class PostgresGrounding {
   }
 
   async currentVersion(): Promise<string> {
-    const result = await this.pool.query<{ id: string }>(
-      `SELECT id FROM content_version
-       ORDER BY created_at DESC, id DESC
-       LIMIT 1`,
+    const result = await this.pool.query<{
+      source_id: string;
+      generation_id: string;
+    }>(
+      `SELECT source_id, generation_id
+       FROM active_source_generation
+       ORDER BY source_id`,
     );
-    return result.rows[0]?.id ?? "";
+    return createHash("sha256")
+      .update(JSON.stringify(result.rows))
+      .digest("hex");
   }
 
   async search(

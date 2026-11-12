@@ -34,7 +34,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a7
+          enum: &a5
             - text
             - voice
             - sms
@@ -55,7 +55,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a8
+          enum: &a6
             - answer
             - notfound
             - escalation
@@ -67,7 +67,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a9
+          enum: &a7
             - ltr
             - rtl
         citations:
@@ -86,7 +86,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a10
+                enum: &a8
                   - course
                   - job
               timestamp:
@@ -105,7 +105,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a11
+                enum: &a9
                   - help
                   - more
                   - open_source
@@ -123,10 +123,7 @@ components:
           format: uri
         provider:
           type: string
-          enum: &a12
-            - cloud
-            - local
-            - offline
+          minLength: 1
         contentVersion:
           type: string
       required:
@@ -150,7 +147,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a5
+          enum: &a3
             - invalid_request
             - unauthorized
             - forbidden
@@ -177,7 +174,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a6
+          enum: &a4
             - web
             - api
           default: web
@@ -226,10 +223,7 @@ components:
           type:
             - string
             - "null"
-          enum: &a1
-            - cloud
-            - local
-            - offline
+          minLength: 1
         providerStates:
           type: array
           items:
@@ -237,10 +231,7 @@ components:
             properties:
               name:
                 type: string
-                enum: &a2
-                  - cloud
-                  - local
-                  - offline
+                minLength: 1
               available:
                 type: boolean
               active:
@@ -277,12 +268,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a3
+                enum: &a1
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a4
+                enum: &a2
                   - live
                   - beta
                   - draft
@@ -346,7 +337,7 @@ paths:
                     type:
                       - string
                       - "null"
-                    enum: *a1
+                    minLength: 1
                   providerStates:
                     type: array
                     items:
@@ -354,7 +345,7 @@ paths:
                       properties:
                         name:
                           type: string
-                          enum: *a2
+                          minLength: 1
                         available:
                           type: boolean
                         active:
@@ -399,10 +390,10 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a3
+                          enum: *a1
                         status:
                           type: string
-                          enum: *a4
+                          enum: *a2
                         stt:
                           type: boolean
                         tts:
@@ -463,7 +454,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -490,7 +481,7 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a6
+                  enum: *a4
                   default: web
                 sessionId:
                   type: string
@@ -559,7 +550,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -584,7 +575,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -609,7 +600,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -649,7 +640,7 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a7
+                  enum: *a5
                 simple:
                   type: boolean
               required:
@@ -671,14 +662,14 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a8
+                    enum: *a6
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a9
+                    enum: *a7
                   citations:
                     type: array
                     items:
@@ -695,7 +686,7 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a10
+                          enum: *a8
                         timestamp:
                           type: number
                       required:
@@ -712,7 +703,7 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a11
+                          enum: *a9
                         label:
                           type: string
                       required:
@@ -724,7 +715,7 @@ paths:
                     format: uri
                   provider:
                     type: string
-                    enum: *a12
+                    minLength: 1
                   contentVersion:
                     type: string
                 required:
@@ -752,7 +743,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -777,7 +768,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -802,7 +793,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -827,7 +818,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -852,7 +843,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a5
+                    enum: *a3
                   messageKey:
                     type: string
                 required:

@@ -1,7 +1,7 @@
-# Dimts System Blueprint, Version 2.0 (Unified)
+# Dimts System Blueprint, Version 2.0 (Unified; architecture revision 2.1)
 
 Product: **Dimts**, the Track 3 module (multilingual voice and text tutor, human help, career gateway) for the Digital Bridge Accessibility Hackathon, 14 and 15 November 2026.
-Date: 9 November 2026. Status: **authoritative**. Supersedes SRS Parts I to III wherever they differ.
+Date: 11 November 2026. Status: **authoritative**. Supersedes SRS Parts I to III wherever they differ. Architecture revision 2.1 clarifies portability and dynamic integration requirements; it does not claim that an unconfigured installation can discover private platform data without an authorized connector. The versioned filename remains stable for existing project links.
 
 ---
 
@@ -81,7 +81,7 @@ Dimts is a **plug-in module**, not an app. A host platform (first the ALX Savann
 
 ### 1.4 Scope
 
-**In scope (MUST unless noted):** grounded tutor in en, am, om (voice for en and am; om voice SHOULD, beta); four channels (web widget, Telegram, SMS via simulator, REST); one-tap human help with learner-controlled screen sharing and a picture fallback; pluggable AI (cloud, local, offline); career gateway (alerts, accommodation requests, job answers); language packs as folders; Simple mode (SHOULD); teacher insights (SHOULD); integration levels 1 to 3.
+**In scope (MUST unless noted):** grounded tutor with reviewed initial en, am, om packs and an extensible BCP 47 language registry (voice for en and am; om voice SHOULD, beta); four channels (web widget, Telegram, SMS via simulator, REST); one-tap human help with learner-controlled screen sharing and a picture fallback; pluggable AI providers selected by registry and policy (including remote, local, and offline adapters); authorized dynamic source discovery and synchronization; career gateway (alerts, accommodation requests, job answers); Simple mode (SHOULD); teacher insights (SHOULD); integration levels 1 to 3.
 
 **Out of scope for the event:** real SMS operator link, payments, accounts beyond a pseudonymous session, any disability or medical record, training our own speech or language models, native apps.
 
@@ -120,31 +120,48 @@ Dimts is a **plug-in module**, not an app. A host platform (first the ALX Savann
                           |   cloud|local|offline                        |
                           +-----------+----------------------------------+
                                       |
-                        PostgreSQL (Neon / local)      Optional: free AI API,
-                                                       Metered TURN, Telegram
+                        Persistence adapter            Registered AI/source
+                        (PostgreSQL reference)          integrations, TURN
 ```
 
 ### 2.2 Layered architecture
 
 ```text
-L5  Channels      widget | telegram | sms | rest | lti          (translate only, no business rules)
-L4  API           Express 5 routes, auth, validation, rate limits, OpenAPI
-L3  Engine        sessions, language, rules, escalation, safety, citation check   (pure TypeScript)
-L2  Capabilities  grounding | ai ladder | voice | help | jobs | insights | locales
-L1  Infrastructure  pg pool, crypto, clock, id, logger, config, http clients
+External protocols  Web Component | REST/OpenAPI | LTI | Telegram | SMS
+Application ports   Ask | Language | AI provider | Content source | Identity | Persistence | Clock
+Domain capabilities Conversation | Discovery/sync | Ingestion/retrieval | Help | Jobs | Insights
+Reference adapters  TypeScript/Node | Express | PostgreSQL | Gemini/OpenAI/xAI/etc. | file/LMS sources
+Runtime bindings    local Compose | hosted cloud | another conforming runtime
 ```
 
-Rule of dependency: a layer may import only from layers below it, and L3 and L2 depend on **ports** (interfaces) defined in the engine, never on Express, `pg` or a vendor SDK. This keeps the engine testable with no database and lets an AI agent change one adapter without reading the rest.
+The diagram names architecture boundaries, not mandatory technologies. The current TypeScript/Node, Express, and PostgreSQL implementation is the reference deployment, not a product-level lock-in. Domain and application code depends on ports and versioned data contracts; framework, database, provider, source, and runtime dependencies stay in adapters/composition roots. Another language or framework can implement the same external API and conformance suite. Replacing a reference adapter requires implementing and validating that boundary; this blueprint does not promise a technology switch with zero code or migration work.
 
-### 2.3 Components (final list, 14)
+### 2.3 Architecture requirements and acceptance
+
+These architecture requirements (AR) extend, but do not replace, the SRS requirement IDs. Existing FR/NFR acceptance criteria remain in force.
+
+| ID | Requirement | Acceptance evidence |
+| --- | --- | --- |
+| AR-01 | Provider-neutral AI port and registry. Provider identity, model, capabilities, timeout, health, and secret reference are configuration/adapter data; the engine does not branch on vendor names. | One shared provider contract suite passes for every registered provider. Switching the configured provider changes no engine code. |
+| AR-02 | Technology-neutral boundaries. HTTP/API schemas, engine ports, source documents, and persistence ports define stable contracts. A reference-stack choice may not leak into domain types. | Package dependency checks and contract tests run against the reference adapters; a second implementation can pass the same serialized API and port conformance fixtures. |
+| AR-03 | Low-friction, authorized dynamic discovery. Public websites can be connected by approving an HTTPS XML sitemap URL; discovery stays on that exact origin and only indexes listed HTML pages. Private platforms use a small host-owned adapter with explicit content scope and authorization. No unrestricted crawl or credential guessing. | Contract tests cover sitemap pagination/origin limits, source access denial, additions, updates, deletions, and duplicate delivery. |
+| AR-04 | Event-assisted synchronization with reconciliation. Source change notifications are authenticated by the source adapter and treated as invalidation hints; the connector fetches authoritative content. A scheduled full/delta reconciliation repairs missed events. Sync is resumable, idempotent, observable, and publishes a complete index generation atomically. | Replay/duplicate/out-of-order notification tests; connector outage/restart test; deleted source content no longer retrieves after a successful generation; failed sync leaves the last good generation active. |
+| AR-05 | Pluggable document understanding. Source adapters return typed documents and relations; format extractors produce normalized passages with provenance and citations. Unsupported, inaccessible, or malformed resources are reported, not silently treated as understood. | Shared extractor/source fixtures verify stable anchors, provenance, resource relations, and explicit handling of unsupported formats. |
+| AR-06 | Dynamic multilingual interaction. Language detection returns a BCP 47 tag and confidence per question. High-confidence question language controls that reply without silently changing the learner's saved preference; uncertain detection falls back to the explicit/session language and offers correction. Retrieval may cross source language only through a configured glossary or multilingual retrieval adapter; output is validated in the question language. | Detector tests cover supported languages, mixed/short/unknown input, confidence thresholds, and no preference mutation; retrieval/response evaluation is reported per language pair. |
+| AR-07 | Extensible languages. Adding a reviewed language pack and compatible detector/retrieval/provider capability does not require edits to core conversation flow. Unsupported capabilities degrade explicitly to a supported language or a clarification, never a fabricated answer. | Add a test language pack and mock capabilities; core package tests remain unchanged and citation/language checks pass. |
+| AR-08 | Integration changes are bounded. Source-specific authentication, webhook validation, and deployment secrets stay inside source adapters; no vendor credential is exposed to learners or stored in indexed content. | Security tests check scope enforcement, secret redaction, signature failures, and least-privilege connector configuration. |
+
+These requirements are implementable through adapters, capability declarations, schema-versioned contracts, and conformance tests. They do not imply that a generic model can infer arbitrary private platform structure without a connector, permissions, and source-specific semantics.
+
+### 2.4 Components (reference packages)
 
 | ID | Package | Responsibility | Owner team |
 | --- | --- | --- | --- |
 | C1 | `widget` | Web component `<dimts-assistant>`: chat, language, mic, help, settings, flows | Experience |
-| C2 | `api` | Express app, WebSocket server, auth, OpenAPI, internal endpoints, wiring of adapters | Connect |
+| C2 | `api` | Reference HTTP/WebSocket adapter, auth, OpenAPI, internal endpoints, wiring of adapters | Connect |
 | C3 | `engine` | Ask pipeline, rules, ports, types | Core |
 | C4 | `grounding` | Ingest, normalise, trigram search, confidence, citations | Core |
-| C5 | `ai` | Provider interface, three adapters, ladder, modes | Core |
+| C5 | `ai` | Provider port implementations, registry, policy-aware routing and modes | Core |
 | C6 | `voice` | STT and TTS interfaces, browser adapter, tones | Experience |
 | C7 | `telegram` | grammY bot adapter | Connect |
 | C8 | `sms` | Gateway interface, simulator, segments, keywords | Language and Services |
@@ -153,33 +170,27 @@ Rule of dependency: a layer may import only from layers below it, and L3 and L2 
 | C11 | `insights` | Anonymous aggregates and teacher page | Core (data), Experience (page) |
 | C12 | `lti` | LTI 1.3 login, launch, JWKS, deep linking | Connect |
 | C13 | `locales-tools` and `locales/` | Pack loader, checker, scaffolder, packs | Language and Services |
-| C14 | `infra` | CI, Compose, Render blueprint, workflows, seed, scripts | Connect |
+| C14 | `infra` | Reference CI, Compose, Render blueprint, workflows, seed, scripts | Connect |
 
-### 2.4 Final technology stack (all free)
+### 2.5 Reference technology stack (replaceable adapters)
 
-| Area | Choice | Fallback |
+| Boundary | Current reference implementation | Replacement contract |
 | --- | --- | --- |
-| Runtime | Node.js LTS, TypeScript strict | none |
-| Monorepo | pnpm workspaces | npm workspaces |
-| API | **Express 5**, Zod schemas, `@asteasolutions/zod-to-openapi`, helmet, cors, compression, express-rate-limit, pino | none |
-| Database | **PostgreSQL**: Neon Free when hosted, Postgres container locally. `pg` Pool, plain SQL migrations, no ORM | local Postgres |
-| Search | Character trigrams in `text[]` with GIN index, ranked in code (D03) | none |
-| Realtime | `ws` on the same HTTP server | server-sent events plus POST |
-| Widget | Lit web components, Vite, one ES module, shadow DOM | plain custom elements |
-| i18n | `intl-messageformat` (ICU), `Intl` | none |
-| Voice (browser) | Web Speech API | text only |
-| Voice (server, optional, laptop only) | open speech models behind `/v1/stt`, `/v1/tts` | skip voice for that language |
-| AI | OpenAI-compatible adapter for cloud (free tier) and local (Ollama); offline FAQ and extractive | offline |
-| Telegram | grammY, webhook | none |
-| SMS | Own gateway interface, simulator | none |
-| Screen share | Browser WebRTC 1 to 1, public STUN, Metered free TURN | picture upload |
-| LTI | `jose` plus about 150 lines | `ltijs` |
-| Hosting | Render Free (API and static site), Neon Free (database) | Docker Compose on a laptop |
-| Scheduler | GitHub Actions calling `/v1/internal/*` | run scripts by hand |
-| Tests | Vitest, supertest, Playwright, `@axe-core/playwright`, k6 | none |
-| Lint | ESLint, Stylelint with logical-properties rule, custom no-literal-strings script, Prettier | none |
+| Runtime/language | Node.js LTS, TypeScript strict | Engine/API schemas; another implementation must pass port and API contract suites |
+| API framework | Express 5, Zod, OpenAPI | Versioned HTTP/OpenAPI and WebSocket contracts |
+| Database | PostgreSQL, `pg`, plain SQL migrations | Persistence port and migration/transaction conformance; alternate stores need an adapter |
+| Search | Character trigrams, PostgreSQL GIN, in-code ranking | Retrieval port; alternate index must pass the same relevance/citation evaluation |
+| Realtime | `ws` on the API server | Protocol messages and replay semantics |
+| Widget | Lit, Vite, ES module, shadow DOM | Custom-element and host JavaScript/event contract |
+| AI providers | OpenAI-compatible reference adapter plus offline; provider-specific adapters are permitted | `AiProvider` contract and capability declaration; vendor APIs are not assumed compatible |
+| Content sources | File-based ingestion reference; platform connectors are separate adapters | `ContentSource`, `HostAuth`, document and sync contracts in 7.4 |
+| Languages | Locale packs and BCP 47 | Locale pack schema, detector and retrieval capability contracts |
+| Hosting | Render/Neon and local Compose | HTTP, environment/secret, persistence, health and job-runner contracts |
+| Tests/tooling | Vitest, Supertest, Playwright, ESLint, Prettier | Contract fixtures are runner-independent; tools are reference choices |
 
-### 2.5 Deployment topologies
+Free-tier selections are deployment policy, not architecture constraints. A compatible runtime or provider must still meet the privacy, performance, accessibility, cost, and reliability requirements.
+
+### 2.6 Deployment topologies
 
 | Topology | Used for | Start |
 | --- | --- | --- |
@@ -187,7 +198,19 @@ Rule of dependency: a layer may import only from layers below it, and L3 and L2 
 | **Local** | Development, backup laptop, offline demo | `docker compose --profile local up` (Postgres, API, static site; optional local-ai) |
 | **Test** | CI | GitHub Actions with a Postgres service container |
 
-Constraints of the free host that shape the design: the API sleeps when idle and may restart any time; its disk is wiped on restart; Neon pauses compute when idle. Therefore **no state lives in memory or on disk**, the widget handles a slow wake-up with a localised message and the offline FAQ, and every client reconnects on its own.
+The deployment target is not a domain dependency. For the current hosted reference, the API may sleep or restart and the database may pause; therefore durable state lives behind the persistence port, not in process memory or ephemeral disk. The widget handles slow wake-up and clients reconnect. The local static site is only a delivery shell: course knowledge is discovered, synchronized, and queried dynamically from configured sources.
+
+### 2.7 Documentation review: gaps and resolution
+
+| Earlier assumption/gap | Why it was insufficient | Architecture correction |
+| --- | --- | --- |
+| A fixed TypeScript/Express/PostgreSQL stack was described as the final architecture. | Replacing a framework or database could leak implementation details into domain logic and force broad rewrites. | Treat it as the reference stack; isolate it behind versioned API, persistence, retrieval, and domain ports (D01-D03, D28). |
+| The AI contract used `cloud/local/offline` as a closed provider enum and assumed OpenAI-compatible APIs. | Gemini, OpenAI, xAI/Grok, and other APIs have different request, auth, and capability semantics. | Arbitrary provider IDs, capability-aware registry, provider-specific adapters, shared contract suite (AR-01, D24). |
+| Content ingestion was primarily a manual file command and static sample lessons. | Re-running a CLI does not discover platform content or keep updates/deletions synchronized. | Authorized source discovery, event-assisted refresh, scheduled reconciliation, durable cursors, and atomic index generations (AR-03 to AR-05, D25-D26). |
+| Platform understanding was implied without defining source access or semantic boundaries. | No generic system can read private platform data or infer undocumented behavior without permission and a connector. | Discover only connector-exposed resources; preserve metadata/relations and explicitly report unsupported/denied resources. Confirm each host contract before building its connector. |
+| Session language and a small set of packs were the only language-selection mechanism. | This cannot satisfy per-question language detection or add languages without core-code edits. | Pluggable language detection, BCP 47 registry, confidence gating, evaluated cross-language retrieval and per-turn response language (AR-06/07, D27). |
+
+This design supports adaptation, not magic interoperability: a new host/provider/runtime needs an adapter with access credentials and conformance tests. Universal crawling, automatic permission discovery, and guaranteed translation for every language are explicitly not promised.
 
 ## 3. Cross-cutting architecture
 
@@ -211,11 +234,18 @@ Learner      Widget            API (Express)        Engine            Grounding 
   | announce once, focus on reply start                                                               |
 ```
 
+Before retrieval, a language-detection port evaluates the current question. A
+high-confidence BCP 47 result selects the reply language for that turn; it does
+not silently rewrite the learner's saved language preference. Low-confidence
+or mixed-language input uses the explicit/session language and can offer a
+correction. The retrieval adapter searches across source languages only when
+its configured glossary or multilingual model supports that pair.
+
 ### 3.2 Degradation ladder (NFR-REL-01)
 
 | Failure | Behaviour | Learner sees |
 | --- | --- | --- |
-| Cloud AI down or rate limited | Skip 60 seconds, use local, then offline | Normal answer (provider name hidden) |
+| Configured AI provider down or rate limited | Apply its configured cooldown, then try the next policy-eligible provider | Normal answer (provider name hidden) |
 | No provider answers | Reply kind `notfound` with Help me now | Honest "I did not find this" |
 | API asleep (over 2 seconds) | Widget shows `waking.message`, uses cached offline FAQ from service worker | Waking up notice, FAQ still answers |
 | Database unreachable | Retry with back-off (0.5, 1, 2 s), then notfound reply; FAQ route works | Plain error with Try again and Help me now |
@@ -223,7 +253,7 @@ Learner      Widget            API (Express)        Engine            Grounding 
 | Browser speech unsupported | Mic hidden with a text reason | Text input |
 | Screen capture unsupported or poor | Picture fallback and "Describe what you see" | Clear reason and two options |
 | WebSocket drops | Reconnect with back-off, replay missed messages | Brief "reconnecting" status |
-| Wrong-language answer from AI | Retry once in extractive mode, else notfound | Answer in correct language |
+| Wrong-language answer from AI | Retry once with a language-capable provider in extractive mode, else notfound | Answer in the detected/requested language |
 
 ### 3.3 Security and trust model
 
@@ -259,15 +289,62 @@ No analytics, third-party fonts or scripts. Cloud AI is off unless the host enab
 
 `GET /v1/health` (ladder state, content version, provider names, db ok). `pnpm usage` (database size and top tables, warns at 600 MB). Structured logs carry request id, route, status, latency, provider name, result kind. No message content ever.
 
+### 3.6 Source discovery and synchronization
+
+Discovery is connector-scoped, not an unrestricted crawl. For public sites, an
+operator approves an HTTPS XML sitemap URL; the built-in connector discovers
+only same-origin pages named in that sitemap. It follows sitemap indexes, caps
+discovery at 250 HTML pages and 32 MiB per snapshot, pins outbound requests to
+public IPv4 addresses, rejects redirects and private-network targets, and
+performs scheduled full reconciliation. The website needs no custom code when
+it already publishes a sitemap.
+
+For private platforms, the host adds a small trusted backend adapter that maps
+its existing content service/store to `ContentSource` and `HostAuth`. That
+adapter must select only content that is authorized and appropriate to every
+learner using that Dimts source. Per-learner or role-specific ACL filtering is
+not yet implemented; such content must not be added to a shared source. Dimts
+does not guess platform APIs or credentials. The adapter provides stable IDs,
+revisions, metadata, deletions, and optionally authenticated change hints.
+Hints only trigger authoritative fetches; they are never trusted as lesson
+content.
+
+Synchronization behavior:
+
+1. A source connector lists accessible resources with stable source/resource
+   identifiers and a continuation or revision token.
+2. The connector fetches the authoritative document and declared metadata;
+   format adapters extract text, headings/anchors, links, language, and
+   supported relationships while preserving source provenance.
+3. The indexer stages additions and updates into a new source generation.
+   Unsupported or denied resources are surfaced to operator status without
+   publishing partial data as a successful sync.
+4. A successful generation atomically becomes active. Deletion tombstones
+   remove the corresponding resource from the active view. Failed generations
+   leave the last good source generation active.
+5. Authenticated change notifications enqueue/coalesce incremental refresh.
+   A scheduled reconciliation re-lists sources and repairs missed, duplicate,
+   or out-of-order notifications. Connector cursors and sync checkpoints are
+   durable and safe to replay.
+
+The host adapter owns access to source credentials and native notification
+authentication. It may read existing host services or databases directly;
+Dimts does not expose a generic platform API endpoint or public webhook
+protocol. The host passes the adapter to the application composition root.
+After startup, Dimts performs an initial full sync and scheduled
+reconciliation; an authenticated host event may call the manager's internal
+notification hook to request an earlier refresh. Every indexed answer is
+still subject to the grounding confidence floor and citation gate.
+
 ---
 
 ## 4. Decision register (resolves all conflicts in earlier documents)
 
 | ID | Decision | Replaces or resolves |
 | --- | --- | --- |
-| D01 | Express 5 with Zod; no Fastify, no TypeBox | SRS 3.3, 21.1, 23.4 |
-| D02 | PostgreSQL everywhere (Neon hosted, container local); no SQLite, no FTS5 | SRS 3.3, 8, 19.3, 22.4 |
-| D03 | One search method for all languages: application-built character trigrams in `passage.grams text[]` with GIN index, candidate query then in-code scoring. No porter, no `pg_trgm` dependency | FR-TUTOR-17, 19.6, 22.4, 33.3 |
+| D01 | Express 5 with Zod is the current HTTP reference adapter, not an engine or public-contract dependency | SRS 3.3, 21.1, 23.4 |
+| D02 | PostgreSQL is the current persistence reference adapter (Neon hosted, container local), not a domain-model constraint; equivalent stores require the persistence contract and migration/conformance tests | SRS 3.3, 8, 19.3, 22.4 |
+| D03 | Current PostgreSQL search uses application-built character trigrams in `passage.grams text[]` with GIN, candidate query then in-code scoring. The retrieval port is technology-neutral and any replacement must pass the same relevance/citation evaluation. No porter or `pg_trgm` dependency | FR-TUTOR-17, 19.6, 22.4, 33.3 |
 | D04 | Confidence = 0.6 × matched-word share + 0.4 × mean best trigram similarity; floor calibrated per language by `pnpm eval --calibrate` and stored in `prompts.yaml` key `floor` (default 0.35) | FR-TUTOR-18 vs 19.6 blend |
 | D05 | Ethiopic normalisation uses the row-of-8 method (SRS 22.2). The 19.4 version is superseded | 19.4 |
 | D06 | Engine depends on ports, not on pg or Express (code in 11.1). The 19.7 `Deps` shape is superseded by the ports in 11.1 | 19.7 vs 23.2 |
@@ -288,7 +365,12 @@ No analytics, third-party fonts or scripts. Cloud AI is off unless the host enab
 | D21 | Role assignment rebalanced: Language lead also owns SMS; Core owns jobs; Connect owns API platform | Section 14.2 of SRS |
 | D22 | Answer cache (FR-AI-08) lives in Postgres `answer_cache` and is the first cut after the cut line | FR-AI-08 |
 | D23 | Section numbering restarts here; SRS section numbers are no longer used in new tickets, requirement IDs are | Duplicate Part II numbering |
-| D24 | Helper display name is staff data and may be stored; learner data rules (NFR-PRIV-01) are unchanged | `helper` table |
+| D24 | Vendor integrations are registered adapters behind capability-declaring ports. The domain/engine uses provider IDs and declared capabilities, never vendor-specific branches. OpenAI-compatible transport is one adapter, not the universal provider contract | AR-01, FR-AI-01 to 03 |
+| D25 | Public discovery is explicit and sitemap-bounded; private discovery uses a host-owned adapter scoped to shareable content. Dimts performs no arbitrary crawl and infers no credentials | AR-03, AR-05, FR-INT-08 |
+| D26 | Source change notifications are authenticated adapter-owned hints; scheduled reconciliation is authoritative for repairing missed changes. Publish complete index generations atomically and retain the prior generation on failed sync | AR-04, FR-TUTOR-12 |
+| D27 | Per-question language detection may choose the reply language at high confidence without mutating saved preference. Unknown/ambiguous detection falls back explicitly. Cross-language retrieval is capability-gated and evaluated | AR-06, AR-07, FR-LANG-07, FR-TUTOR-03, 07, 08 |
+| D28 | TypeScript/Express/PostgreSQL are this repository's reference stack only. Stable ports, OpenAPI/JSON schemas, and conformance fixtures are the portability boundary; another stack must implement and pass them | AR-02, NFR-MAINT-01 |
+| D29 | Helper display name is staff data and may be stored; learner data rules (NFR-PRIV-01) are unchanged | `helper` table |
 
 ---
 
@@ -315,19 +397,31 @@ No analytics, third-party fonts or scripts. Cloud AI is off unless the host enab
 
 ### 5.2 Entities
 
-Final schema = SRS Part III migration `001_init.sql` (section 33.2 there) **plus migration 002 below**. Tables: `session`, `message`, `content_version`, `passage`, `help_request`, `help_message`, `help_image`, `subscription`, `job`, `alert_sent`, `accommodation_request`, `consent_log`, `feedback_counter`, `insight_aggregate`, `host_key`, and from 002: `helper`, `answer_cache`.
+Final schema = SRS Part III migrations `001_init.sql` (section 33.2) and
+`002_auth_replay_cache.sql` (section 33.7). Tables: `session`, `message`,
+`content_version`, `passage`, `help_request`, `help_message`, `help_image`,
+`subscription`, `job`, `alert_sent`, `accommodation_request`, `consent_log`,
+`feedback_counter`, `insight_aggregate`, `host_key`, `helper`, and
+`answer_cache`.
 
 ```sql
--- packages/api/migrations/002_auth_cache.sql
+-- packages/api/migrations/002_auth_replay_cache.sql
 ALTER TABLE session ADD COLUMN token_hash TEXT;             -- SHA-256 of the session bearer token
 ALTER TABLE session ADD COLUMN resume_hash TEXT;            -- SHA-256 of the resume token (web resume link)
 ALTER TABLE session ADD COLUMN contact_hmac TEXT;           -- HMAC of telegram chat id or phone, for continuity
 CREATE UNIQUE INDEX session_contact_idx ON session (channel, contact_hmac) WHERE contact_hmac IS NOT NULL;
 
+-- Learner messages claim client_msg_id; replies store the exact replay payload.
+ALTER TABLE message ADD COLUMN reply_to TEXT;
+ALTER TABLE message ADD COLUMN reply JSONB;
+CREATE UNIQUE INDEX message_reply_to_idx
+  ON message (session_id, reply_to)
+  WHERE reply_to IS NOT NULL;
+
 CREATE TABLE helper (                                       -- staff, not learners
   id TEXT PRIMARY KEY,
   display_name TEXT NOT NULL,
-  token_hash TEXT NOT NULL,
+  token_hash TEXT NOT NULL UNIQUE,
   langs TEXT[] NOT NULL DEFAULT '{}',
   active BOOLEAN NOT NULL DEFAULT TRUE
 );
@@ -393,7 +487,17 @@ Alert subscription: job type, region, language, channel, plain-language consent,
 
 ### 6.4 Content update and language addition
 
-Content: `pnpm content:ingest <path>` creates a new `content_version`, replaces changed passages, invalidates `answer_cache`. Language: `pnpm lang:new <code>` scaffolds a draft pack from English; fill YAML; `pnpm lang:check`; native review; status draft, then beta, then live (voice gate 8 of 10, eval targets).
+Content updates have two paths: file-based/manual ingestion remains available
+for development and one-off imports; configured platform connectors perform
+discovery and synchronization using section 3.6. Both paths use the same
+normalization, provenance, indexing, citation, and atomic-generation pipeline.
+Re-ingestion records a content version and invalidates affected answer caches
+(FR-TUTOR-12). A connector addition or update is fetched from the source; a
+deletion is applied only after a successful authoritative sync. Language:
+`pnpm lang:new <code>` scaffolds a draft pack from English; fill YAML; run
+`pnpm lang:check`; native review; status draft, then beta, then live. A detector
+and provider/retrieval capabilities must be registered and evaluated for a
+language before the system claims full support.
 
 ## 7. Contracts (single source of truth)
 
@@ -446,27 +550,192 @@ export interface Action { type: 'help' | 'more' | 'open_source' | 'subscribe_job
 
 export interface Reply { id: string; kind: ReplyKind; text: string; lang: Lang; dir: 'ltr' | 'rtl';
   citations: Citation[];            // at least 1 when kind is 'answer'
-  actions: Action[]; audioUrl?: string; provider?: 'cloud' | 'local' | 'offline'; contentVersion: string }
+  actions: Action[]; audioUrl?: string; providerId?: string; contentVersion: string }
 
 export interface Passage { id: string; text: string; label: string; url: string; lang: Lang; sourceType: 'course' | 'job' }
 export interface AnswerRequest { question: string; lang: Lang; passages: Passage[]; glossary: { term: string; meaning: string }[];
   simple: boolean; mode: 'generative' | 'extractive'; systemPrompt: string }
-export interface AnswerResult { text: string; usedPassageIds: string[]; provider: 'cloud' | 'local' | 'offline'; latencyMs: number }
-export interface AiProvider { name: 'cloud' | 'local' | 'offline'; health(): Promise<{ ok: boolean; reason?: string }>;
+export interface AnswerResult { text: string; usedPassageIds: string[]; providerId: string; latencyMs: number }
+export interface AiProvider { id: string; capabilities(): Promise<ProviderCapabilities>;
+  health(): Promise<{ ok: boolean; reasonCode?: string }>;
   answer(req: AnswerRequest, signal: AbortSignal): Promise<AnswerResult> }
 ```
 
 ### 7.3 WebSocket messages (JSON with `type`; unknown types dropped)
 
-`help.joined` (server), `chat.message` (both; id, text), `chat.typing` (both; throttled), `share.request` (helper only), `share.accept` and `share.decline` (learner only), `rtc.offer`, `rtc.answer`, `rtc.ice`, `share.stop` (both; closes tracks on both sides), `help.closed` (server). Server validates sender role per type (section 19.14 logic of the SRS is canonical) and replays `help_message` rows after the last id a reconnecting client reports.
+The first client message MUST be `auth` within 5 seconds. It includes
+`requestId` and `role`; a helper supplies its JWT, while a learner supplies
+`sessionId` and `token`. `lastMessageId` is optional and identifies the
+last persisted help message the client received. Missing or invalid
+authentication closes the socket with code `4401`.
 
-### 7.4 Provider and gateway interfaces
+After authentication, messages are: `help.joined` (server), `chat.message`
+(both; id, text), `chat.typing` (both; throttled), `share.request` (helper
+only), `share.accept` and `share.decline` (learner only), `rtc.offer`,
+`rtc.answer`, `rtc.ice`, `share.stop` (both; closes tracks on both sides), and
+`help.closed` (server). The server validates sender role per type and replays
+persisted `help_message` rows after `lastMessageId` on reconnect.
 
-`AiProvider` as above (cloud and local share one OpenAI-compatible class; offline is FAQ plus extractive). `SmsGateway { send(to, text, {lang}) -> {id, segments}; onInbound(handler); status(id) }`. `SpeechToText { supported(lang); start(lang) -> text; stop() }` and `TextToSpeech { supported(lang); speak(text, lang, rate); stop() }`. `ContentSource { list(); fetch(id) }` and `HostAuth` for host adapters (file-based adapter from day one, Savanna adapter when the starter is known).
+### 7.4 Provider, language, content, and gateway ports
+
+The following TypeScript is illustrative notation for the contracts, not a
+requirement that every implementation use TypeScript. Serialized/public
+contracts use versioned JSON/OpenAPI schemas. Secrets are referenced by ID
+from deployment secret storage; they are never part of a provider descriptor
+returned to a client.
+
+```typescript
+type ProviderId = string;
+type SourceId = string;
+type Bcp47Tag = string;
+
+interface ProviderCapabilities {
+  languages: Bcp47Tag[];
+  modes: ("extractive" | "generative")[];
+  modalities: ("text" | "image" | "audio")[];
+  structuredOutput: boolean;
+}
+
+interface AiProvider {
+  name: ProviderId;
+  capabilities(): ProviderCapabilities;
+  health(): Promise<{ ok: boolean; reasonCode?: string }>;
+  answer(request: AnswerRequest, signal: AbortSignal): Promise<AnswerResult>;
+}
+
+interface ProviderBinding {
+  id: ProviderId;
+  adapter: string;
+  model: string;
+  endpoint?: string;
+  credentialRef?: string;
+  enabled: boolean;
+  priority: number;
+  timeoutMs: number;
+  allowedDataClasses: ("question" | "course-passage" | "glossary")[];
+  capabilities: ProviderCapabilities;
+}
+
+interface LanguageDetector {
+  detect(text: string): Promise<{
+    language: Bcp47Tag;
+    confidence: number;
+    alternatives: { language: Bcp47Tag; confidence: number }[];
+  }>;
+}
+
+interface SourceResource {
+  sourceId: SourceId;
+  resourceId: string;
+  revision: string;
+  canonicalUrl: string;
+  language?: Bcp47Tag;
+  mediaType: string;
+  title?: string;
+  relations?: { type: string; targetResourceId: string }[];
+}
+
+interface SourcePage {
+  resources: SourceResource[];
+  nextCursor?: string;
+  snapshotRevision: string;
+}
+
+interface SourceChange {
+  resourceId: string;
+  revision: string;
+  operation: "upsert" | "delete";
+}
+
+interface SourceDocument extends SourceResource {
+  body: string | Uint8Array;
+}
+
+interface ContentSource {
+  id: SourceId;
+  auth: HostAuth;
+  list(
+    input: { cursor?: string; snapshotRevision?: string },
+    signal: AbortSignal,
+  ): Promise<SourcePage>;
+  fetch(
+    resourceId: string,
+    signal: AbortSignal
+  ): Promise<SourceDocument | null>;
+  listChanges?(
+    input: { cursor?: string },
+    signal: AbortSignal,
+  ): Promise<{ changes: SourceChange[]; nextCursor?: string }>;
+}
+
+interface HostAuth {
+  authorize(
+    sourceId: SourceId,
+    operation: "discover" | "read",
+    signal: AbortSignal
+  ): Promise<void>;
+}
+```
+
+`ProviderBinding` is server-side configuration. Registry resolution filters
+enabled providers by requested language, mode, modality, privacy/data-sharing
+policy, and the per-(provider, language) evaluation gate before applying the
+configured order and timeouts. Vendor adapters map their native request and
+response formats to `AiProvider`; an OpenAI-compatible adapter is a convenience
+only. Gemini, OpenAI, xAI/Grok, and future integrations use dedicated adapters
+unless their documented APIs genuinely conform. A provider change is a
+configuration/adapter operation, not an engine edit.
+
+The current runtime has open provider IDs, capability declarations, and a
+registry with an OpenAI-compatible adapter. Compatible provider endpoints can
+be configured without changing the engine. Per-question language detection is
+local, confidence-gated, and limited to installed locale packs; it does not
+mutate session preference. Native vendor adapters, data-class consent
+filtering, and a provider conformance suite for vendor APIs remain
+implementation work; do not describe them as supported until tested.
+
+The source connector owns discovery semantics, credentials, API pagination,
+revision interpretation, and notification verification. Its bounded,
+snapshot-paginated `list` operation discovers resources within granted scopes.
+It maps platform notifications to resource invalidation hints; the
+synchronization coordinator fetches canonical state rather than trusting
+webhook bodies. Format extractors are separately
+registered by media type and return text blocks with stable anchors, source
+references, and discovered links/relations. Unknown formats and denied
+resources are explicit sync results.
+
+The persistence port stores source registrations, cursors, sync runs,
+resource revisions, and immutable index generations. The PostgreSQL adapter
+is the first implementation. A replacement datastore must preserve durable
+cursoring, transaction/atomic-publish semantics, retention, uniqueness, and
+the API/grounding conformance suite.
+
+`SmsGateway { send(to, text, {lang}) -> {id, segments}; onInbound(handler); status(id) }`.
+`SpeechToText { supported(lang); start(lang) -> text; stop() }` and
+`TextToSpeech { supported(lang); speak(text, lang, rate); stop() }` remain
+independent ports.
 
 ### 7.5 Configuration (all env, validated by Zod at start)
 
-`NODE_ENV, PORT, DATABASE_URL (pooled), DATABASE_URL_DIRECT (migrations), DIMTS_ENC_KEY, DIMTS_HASH_KEY, DIMTS_CRON_SECRET, DIMTS_HOST_ORIGINS, DIMTS_AI_PROVIDER, DIMTS_AI_LADDER, DIMTS_CLOUD_API_URL/KEY/MODEL, DIMTS_LOCAL_API_URL, DIMTS_CONFIDENCE_FLOOR (global default), DIMTS_DEFAULT_LANG, DIMTS_RETENTION_HOURS (24), DIMTS_TELEGRAM_TOKEN/SECRET, DIMTS_SMS_MODE (simulator), DIMTS_TURN_API_KEY/APP, DIMTS_HELPER_HOURS (JSON), DIMTS_DB_BUDGET_MB (600)`. Secrets live only in Render settings, GitHub secrets and a git-ignored `.env`.
+The reference implementation uses validated deployment configuration for
+provider bindings, source registrations, detector selection, sync/reconcile
+intervals, confidence policy, allowed host origins, retention, and secret
+references. These values are not compiled into domain logic. `DIMTS_AI_PROVIDER`
+and `DIMTS_AI_LADDER` select arbitrary registered IDs;
+`DIMTS_AI_PROVIDERS` declares adapter IDs, endpoints, models, capabilities,
+priorities, timeouts, and credential references. The initial runtime registry
+currently includes the OpenAI-compatible adapter; native provider adapters
+and source registration/scheduling surfaces remain incremental work. Secrets
+live only in deployment secret storage and a git-ignored local `.env`;
+provider credentials, source credentials, and webhook verification secrets
+never appear in logs or client configuration.
+
+The API also requires `DIMTS_ENC_KEY`, `DIMTS_HASH_KEY`,
+`DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`. `DIMTS_ENC_KEY` and
+`DIMTS_HASH_KEY` are distinct 32-byte base64 values;
+`DIMTS_JWT_SECRET` is at least 32 characters and different from both; and
+`DIMTS_CRON_SECRET` is at least 24 characters. Startup fails when required
+secrets are missing or invalid. These constraints implement NFR-SEC-12.
 
 ## 8. Language system
 
@@ -479,6 +748,9 @@ export interface AiProvider { name: 'cloud' | 'local' | 'offline'; health(): Pro
 | Rule | Detail |
 | --- | --- |
 | Fallback chain | om then am then en; learner told once per session (FR-LANG-05) |
+| Question language | Detect each question through an installed `LanguageDetector`; use its BCP 47 result for that reply only when confidence meets policy and the required pack/capabilities are available. Never silently overwrite saved preference. Below threshold, use the explicit/session language and offer correction. |
+| Extensibility | Locale folders and detector/provider/retrieval capabilities are discovered through validated registries; core conversation flow contains no closed list of language codes. Advertise full support only after review and evaluation. |
+| Cross-language retrieval | Search same-language sources first. Cross-language candidates require reviewed glossary mappings or an enabled multilingual retrieval adapter; citations retain source-language provenance and explain a language difference per FR-TUTOR-07. |
 | Status | draft hidden; beta shows visible Beta label; live shows none; live requires reviewer set, 200 glossary terms, 10 checks |
 | No literal text | All UI text from keys; lint fails otherwise (FR-LANG-03) |
 | Respectful register | Polite plural in Amharic and Afaan Oromoo, everywhere |
@@ -546,11 +818,35 @@ Tones via Web Audio (no files): start 660 Hz, stop 440, sent 880, error 220 twic
 
 ### 10.1 Grounded tutor (C3, C4)
 
-Pipeline order (fixed): idempotency, escalation and distress, small talk, retrieve, confidence floor, answer through ladder, citation validity, language check, store, count topic. Retrieval: normalise (language-specific), expand with glossary across languages, trigram candidates (GIN, top 8), re-score, keep top 5. Jobs are a second `source_type`. If no content is loaded: notfound plus person; never answer from model memory. Evaluation (`pnpm eval`) reports retrieval hit rate, citation validity (target 100 per cent), notfound correctness (at least 90 per cent), answer-language correctness, per language, written to `docs/EVAL.md`; `--calibrate` sets the floor.
+Pipeline order (fixed): idempotency, escalation and distress, small talk,
+detect/resolve question language, retrieve, confidence floor, answer through
+the capability- and policy-filtered provider registry, citation validity,
+answer-language validation, store, count topic. Retrieval runs against the
+active index generation for all authorized sources. Normalize with
+language-specific registered rules; expand through a reviewed glossary or
+configured multilingual retrieval capability; fetch trigram candidates (GIN,
+top 8 in the reference adapter), re-score, and keep top 5. Jobs are one source
+type among extensible source types. If no content is loaded or the source is
+unavailable, return notfound plus help; never answer from model memory.
+Evaluation (`pnpm eval`) reports retrieval hit rate, citation validity (target
+100 per cent), notfound correctness (at least 90 per cent), and answer-language
+correctness per source and language pair in `docs/EVAL.md`; calibration sets
+the floor without weakening citation or privacy gates.
 
 ### 10.2 AI layer (C5)
 
-Ladder `cloud,local,offline`; a provider failing health, timing out (8 s cloud, 20 s local) or erroring is skipped for 60 seconds. Malformed JSON retried once then notfound. Temperature low, short outputs. Providers receive only question, passages, glossary, simple flag, mode. **Extractive mode** returns the best one to three sentences with glossary terms and the citation, no model text; it is forced for any provider-language pair not yet passing evaluation (D17). Cloud adapter off by default; when enabled the widget shows "Answers may use an online service" with a control for local or offline. Send only to a free-tier provider whose terms state it does not train on API data.
+The host configures ordered `ProviderBinding` entries; domain logic has no
+closed `cloud,local,offline` enum. The registry resolves an adapter by ID,
+filters by language/mode/privacy capabilities and learner/host consent, then
+applies configured order, timeouts, retries, and cooldowns. Malformed output
+is retried once then becomes notfound. Adapters normalize native vendor
+responses to the shared schema; the engine checks cited passage IDs and answer
+language. Extractive mode returns one to three sentences from supplied
+passages without model-generated claims and is forced for an unproven
+provider-language pair (D17). Remote processing is opt-in and subject to the
+existing learner notice and opt-out (FR-AI-05); selecting a provider cannot
+bypass that gate. Only the data classes explicitly allowed in the binding and
+disclosed to the learner are sent. Credentials remain server-side.
 
 ### 10.3 Voice (C6)
 
@@ -801,7 +1097,7 @@ CI on every push: install, typecheck, lint (including no-literal-strings and log
 | K4 | Fail the gate | Med | Crit | Gate every block; co-designer can stop the line |
 | K5 | Screen share fails on phones or 3G | High | Med | Picture and describe fallback, bitrate cap |
 | K6 | Network or AI failure in demo | Med | High | Ladder, offline default, local backup laptop, recorded video |
-| K7 | Savanna starter differs from assumptions | Med | Med | Adapters, file-based adapter, ask organisers (Q1 to Q3) |
+| K7 | Host platform exposes different auth and content models | Med | Med | Host-owned adapter boundary and shared contract tests; no platform-specific assumptions |
 | K8 | Scope too large for about 14 hours | High | High | MUST first, cut line, parallel teams |
 | K9 | Privacy slip (logs, fields) | Low | High | Schema and log scans, consent tests |
 | K10 | Unreviewed am or om strings wrong or rude | Med | High | Native review, status gating, reviewer required for live |
@@ -877,10 +1173,10 @@ Does every changed file trace to a requirement ID? Any literal user-facing strin
 | ID | Package | Team | Depends on | Requirements | Time |
 | --- | --- | --- | --- | --- | --- |
 | WP00 | Repo, CI, lint rules, Compose, Render blueprint, Neon, secrets, FREE_TIER skeleton | Connect | none | NFR-MAINT-01, FR-INT-09, 12, NFR-COST-03 | 1.5 h |
-| WP01 | Locale loader, checker, en pack, am and om drafts, ar-test | Language | WP00 | FR-LANG-01 to 10, 12, 14, 16 | 1.5 h |
+| WP01 | Locale loader/checker, extensible pack registry, en/am/om drafts, ar-test | Language | WP00 | FR-LANG-01 to 10, 12, 14, 16; AR-06, AR-07 | 1.5 h |
 | WP02 | Express app, config, errors, auth, ports, ask skeleton, OpenAPI, migrations 001 and 002 | Connect and Core | WP00 | FR-CONV-01 to 04, 09, 10, 13, section 7 | 2 h |
-| WP03 | Ingest, normalise, trigram search, confidence, citation check | Core | WP02 | FR-TUTOR-01 to 06, 13, 15 to 18 | 2 h |
-| WP04 | AI interface, three adapters, ladder, modes | Core | WP03 | FR-AI-01 to 08, 11 | 2 h |
+| WP03 | Source/document ports, discovery and sync coordinator, extractors, index generations, retrieval and citations | Core + Connect | WP02 | FR-INT-08, FR-TUTOR-01 to 06, 12, 13, 15 to 18; AR-03 to 05 | Re-estimate after contract freeze |
+| WP04 | Provider registry, capability filtering, vendor adapters, ladder and modes | Core | WP03 | FR-AI-01 to 08, 11; AR-01, AR-08 | Re-estimate after contract freeze |
 | WP05 | Widget shell: welcome, picker, chat, live region, focus, settings, tokens, service worker | Experience | WP01, WP02 | FR-UI-01 to 17, 21, FR-LANG-06 to 08 | 3 h |
 | WP06 | Voice interfaces, mic flow, review, Read aloud, tones | Experience | WP05, voice test | FR-VOICE-02 to 08, 12 | 2 h |
 | WP07 | Help server, queue, console, chat UI | Connect and Experience | WP05 | FR-HELP-01 to 07, 13 to 17 | 2 h |
@@ -888,7 +1184,7 @@ Does every changed file trace to a requirement ID? Any literal user-facing strin
 | WP09 | Screen share, consent, banner, TURN, picture fallback | Connect and Experience | WP07 | FR-HELP-08 to 12 | 2 h |
 | WP10 | SMS gateway, simulator, segments, keywords | Language | WP02 | FR-SMS-01 to 12 | 1.5 h |
 | WP11 | Jobs import, alerts, accommodation flows, Ethiopian dates | Core and Experience | WP03, WP08, WP10 | FR-JOB, FR-INT-07 | 2.5 h |
-| WP12 | Integration L1 to L3, Savanna adapter, examples | Connect | WP05, WP02 | FR-INT-01 to 11 | 2.5 h |
+| WP12 | Integration L1 to L3, host adapter integration examples, examples | Connect | WP05, WP02 | FR-INT-01 to 11 | 2.5 h |
 | WP13 | Simple mode, insights, lang:new, add-a-language doc | Language and Experience | WP05, WP03 | FR-SIMPLE, FR-INSIGHT, FR-LANG-11, 13, 15 | 2 h |
 | WP14 | Eval run and calibration, WCAG report, README, INTEGRATION, PRIVACY, COST, FREE_TIER, usage script | All | WP03 onward | FR-TUTOR-10, NFR-ADOPT, NFR-PRIV-08, NFR-A11Y-01, NFR-COST-05 | 2 h |
 | WP15 | Gate rehearsal, demo rehearsal x3, warm-up checklist | All and Co-design | all | Gate G1 to G13 | 1.5 h |
@@ -965,7 +1261,7 @@ Six slides, none over 12 words: the person; the problem we tested; the live demo
 
 | # | Action | Owner | By |
 | --- | --- | --- | --- |
-| 1 | Ask organisers: pre-built code allowed (Q1); Savanna starter contents (Q2); content format and video (Q3); AI and speech tools provided (Q4); licence (Q5); helpers for demo (Q6); SMS partner (Q7); verified emergency contacts (Q9) | Connect lead | Tue 10 Nov |
+| 1 | Ask organisers: pre-built code allowed (Q1); host-side integration point and authorized content scope (Q2); content format and video (Q3); AI and speech tools provided (Q4); licence (Q5); helpers for demo (Q6); SMS partner (Q7); verified emergency contacts (Q9) | Connect lead | Tue 10 Nov |
 | 2 | Name the native-speaker reviewers (Q8) and a second reader | Language lead | Tue 10 Nov |
 | 3 | Create Neon, Render, GitHub, Telegram, Metered accounts; fill FREE_TIER.md with verified limits | Connect lead | Wed 11 Nov |
 | 4 | Draft glossary (target 200 per language) and 10 eval questions per language | Language lead | Thu 12 Nov |
@@ -991,11 +1287,15 @@ Six slides, none over 12 words: the person; the problem we tested; the live demo
 | FR-AI-09 | Provider name shown only in helper console and `/v1/health` |
 | NFR-COST-01 | Also within Render Free (512 MB) when hosted |
 | NFR-PERF-04 | Measured on a warm API and database; cold start covered by NFR-PERF-07 |
-| FR-INT-09 | One-command demo is `docker compose --profile local up` |
+| FR-INT-09 | One-command demo is `docker compose --profile local up`; its static site is the web shell only, not a pre-seeded course-knowledge implementation. Dynamic course knowledge comes from configured sources and the active index. |
 | FR-JOB-03, NFR-PRIV-06 | Delete my data is one endpoint (`POST /v1/data/delete`) shared by every channel |
 | Section 9.1 auth column | Replaced by section 3.3 (session token, helper token, public widget key, cron secret) |
 | Added: NFR-A11Y-07 | VOICE_TEST records screen reader and voice per language; Read aloud as alternative |
 | Added: FR-TUTOR-15, 16, 18; FR-AI-11; FR-SMS-12; FR-LANG-17; NFR-COST-03 to 06; NFR-PERF-07; FR-INT-12; NFR-REL-03 | As written in SRS Parts II and III; all MUST |
+| FR-AI-01/02 | Provider interface uses arbitrary registered provider IDs and declared capabilities; "cloud/local/offline" are adapter examples, not an exhaustive provider enum. Provider-specific formats are normalized at the adapter boundary. |
+| FR-TUTOR-12 | Content updates may be manual or connector-driven. Configured source events trigger authoritative fetch; scheduled reconciliation repairs missed events. Stage and publish complete generations atomically; failed sync leaves last good content active. |
+| FR-INT-08 | Public source: configure an approved HTTPS sitemap URL and language; the built-in connector indexes only same-origin HTML pages listed there. Private source: integrate a small trusted `ContentSource`/`HostAuth` adapter for content authorized and shareable with all learners in that source. No vendor-specific LMS API or arbitrary crawl is assumed. |
+| FR-LANG-07 and FR-TUTOR-03/07/08 | Language detection is per question and confidence-gated; it selects reply language for that turn without silently changing preference. Cross-language retrieval requires a registered capability and evaluated language pair. |
 | Added: Q9 | Verified emergency or support contacts for the distress message |
 
 ## 22. Canonical code sources and known corrections

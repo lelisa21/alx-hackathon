@@ -80,6 +80,51 @@ describe("WP03 grounded ask", () => {
     ]);
   });
 
+  it("uses a confidently detected question language without changing session language", async () => {
+    const detected = {
+      language: "am",
+      confidence: 0.94,
+      alternatives: [{ language: "om", confidence: 0.04 }],
+    };
+    const search = vi.fn(async () => [passage]);
+    const deps = dependencies({
+      search,
+      languageDetector: { detect: async () => detected },
+      languageDetectionConfidence: 0.8,
+      direction: (lang) => (lang === "am" ? "rtl" : "ltr"),
+    });
+
+    const reply = await ask(question, deps);
+
+    expect(search).toHaveBeenCalledWith(question.text, "am");
+    expect(deps.answer).toHaveBeenCalledWith(
+      expect.objectContaining({ lang: "am" }),
+    );
+    expect(reply.lang).toBe("am");
+    expect(reply.dir).toBe("rtl");
+    expect(question.lang).toBe("en");
+  });
+
+  it("uses the selected session language when detection is uncertain", async () => {
+    const search = vi.fn(async () => [passage]);
+    const deps = dependencies({
+      search,
+      languageDetector: {
+        detect: async () => ({
+          language: "am",
+          confidence: 0.42,
+          alternatives: [{ language: "om", confidence: 0.4 }],
+        }),
+      },
+      languageDetectionConfidence: 0.8,
+    });
+
+    const reply = await ask(question, deps);
+
+    expect(search).toHaveBeenCalledWith(question.text, "en");
+    expect(reply.lang).toBe("en");
+  });
+
   it("replaces a provider answer with not-found when no valid citation is used", async () => {
     const deps = dependencies({
       answer: vi.fn(async () => ({

@@ -11,6 +11,7 @@
     "build": "pnpm --recursive --if-present build",
     "api:start": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api start",
     "migrate": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api migrate",
+    "local:bootstrap": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api bootstrap:local",
     "content:ingest": "pnpm --filter @dimts/engine build && pnpm --filter @dimts/grounding build && node --env-file-if-exists=.env packages/grounding/dist/cli.js",
     "typecheck": "pnpm --recursive --if-present typecheck",
     "test": "vitest run --passWithNoTests",

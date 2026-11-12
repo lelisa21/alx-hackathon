@@ -1,15 +1,6 @@
-import type {
-  AnswerResult,
-  AskDependencies,
-  AskRequest,
-  Citation,
-  Reply,
-} from "./types.js";
+import type { AskDependencies, AskRequest, Citation, Reply } from "./types.js";
 
-async function notFoundReply(
-  request: AskRequest,
-  deps: AskDependencies,
-): Promise<Reply> {
+function notFoundReply(request: AskRequest, deps: AskDependencies): Reply {
   return {
     id: deps.createId(),
     kind: "notfound",
@@ -20,7 +11,7 @@ async function notFoundReply(
     actions: [
       { type: "help", label: deps.translate(request.lang, "help.button") },
     ],
-    contentVersion: await deps.contentVersion(),
+    contentVersion: deps.contentVersion(),
   };
 }
 
@@ -38,30 +29,25 @@ export async function ask(
   const passagesById = new Map(
     passages.map((passage) => [passage.id, passage]),
   );
-  let result: AnswerResult;
-  try {
-    result = await deps.answer({
-      question: request.text,
-      lang: request.lang,
-      passages: passages.map(
-        ({ id, text, label, url, lang, sourceType, timestamp }) => ({
-          id,
-          text,
-          label,
-          url,
-          lang,
-          sourceType,
-          ...(timestamp === undefined ? {} : { timestamp }),
-        }),
-      ),
-      glossary: deps.glossaryFor(request.text, request.lang),
-      simple: request.simple ?? false,
-      mode: deps.modeFor(request.lang),
-      systemPrompt: deps.systemPrompt(request.lang),
-    });
-  } catch {
-    return notFoundReply(request, deps);
-  }
+  const result = await deps.answer({
+    question: request.text,
+    lang: request.lang,
+    passages: passages.map(
+      ({ id, text, label, url, lang, sourceType, timestamp }) => ({
+        id,
+        text,
+        label,
+        url,
+        lang,
+        sourceType,
+        ...(timestamp === undefined ? {} : { timestamp }),
+      }),
+    ),
+    glossary: deps.glossaryFor(request.text, request.lang),
+    simple: request.simple ?? false,
+    mode: deps.modeFor(request.lang),
+    systemPrompt: deps.systemPrompt(request.lang),
+  });
 
   const usedIds = [...new Set(result.usedPassageIds)];
   const citations: Citation[] = usedIds.flatMap((id) => {
@@ -94,6 +80,6 @@ export async function ask(
     citations,
     actions: [],
     provider: result.provider,
-    contentVersion: await deps.contentVersion(),
+    contentVersion: deps.contentVersion(),
   };
 }
