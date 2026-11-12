@@ -11,6 +11,8 @@ export interface NewSession {
   lang: string;
   tokenHash: string;
   resumeHash: string;
+  cloudOk: boolean;
+  consentVersion: string | null;
 }
 
 export interface ClaimedQuestion {
@@ -28,6 +30,7 @@ export interface SavedReply {
 
 export interface ApiRepository {
   ping(): Promise<boolean>;
+  runRetention(retentionHours: number): Promise<void>;
   getHostByHash(keyHash: string): Promise<{ origins: string[] } | null>;
   createSession(session: NewSession): Promise<void>;
   resumeSession(session: {
@@ -35,7 +38,17 @@ export interface ApiRepository {
     currentResumeHash: string;
     tokenHash: string;
     resumeHash: string;
-  }): Promise<{ id: string; lang: string } | null>;
+    cloudOk?: boolean;
+    consentVersion?: string | null;
+  }): Promise<{
+    id: string;
+    lang: string;
+    cloudOk: boolean;
+    consentVersion: string | null;
+  } | null>;
+  getCloudConsent(
+    sessionId: string,
+  ): Promise<{ cloudOk: boolean; consentVersion: string | null } | null>;
   getSessionTokenHash(sessionId: string): Promise<string | null>;
   touchSession(sessionId: string): Promise<void>;
   findReply(sessionId: string, clientMsgId: string): Promise<ApiReply | null>;

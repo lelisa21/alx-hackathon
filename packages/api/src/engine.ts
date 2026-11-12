@@ -1,19 +1,11 @@
 import { randomBytes } from "node:crypto";
 import { ask } from "@dimts/engine";
-import type { AskDependencies, AnswerRequest } from "@dimts/engine";
+import type { AskDependencies, LanguageDetector } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { translate } from "@dimts/locales-tools";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ApiConfig } from "./config.js";
-
-function extractSentences(text: string): string {
-  const sentences = text
-    .replace(/\s+/gu, " ")
-    .match(/[^.!?።]+[.!?።]?/gu)
-    ?.map((sentence) => sentence.trim())
-    .filter(Boolean);
-  return sentences?.slice(0, 3).join(" ") ?? "";
-}
+import type { ApiProviderRuntime } from "./provider-runtime.js";
 
 function glossaryTerms(pack: LangPack | undefined, lang: string) {
   const entries = Array.isArray(pack?.glossary)
@@ -36,31 +28,15 @@ export function createEngineDependencies(options: {
   config: ApiConfig;
   packs: Map<string, LangPack>;
   grounding: Pick<PostgresGrounding, "search" | "currentVersion">;
+  providerRuntime: ApiProviderRuntime;
+  languageDetector?: LanguageDetector;
 }): AskDependencies {
-  const { config, packs, grounding } = options;
+  const { config, packs, grounding, providerRuntime, languageDetector } =
+    options;
 
   return {
     search: (question, lang) => grounding.search(question, lang),
-    answer: async (request: AnswerRequest) => {
-      const source = request.passages.find(
-        (passage) => passage.lang === request.lang,
-      );
-      if (!source) {
-        return {
-          text: "",
-          usedPassageIds: [],
-          provider: "offline",
-          latencyMs: 0,
-        };
-      }
-
-      return {
-        text: extractSentences(source.text),
-        usedPassageIds: [source.id],
-        provider: "offline",
-        latencyMs: 0,
-      };
-    },
+    answer: (request, policy) => providerRuntime.answer(request, policy),
     glossaryFor: (question, lang) => {
       const tokens = question.toLocaleLowerCase().split(/\s+/u);
       return glossaryTerms(packs.get(lang), lang).filter(({ term }) =>
@@ -77,12 +53,17 @@ export function createEngineDependencies(options: {
         : "extractive",
     confidenceFloor: (lang) => {
       const floor = packs.get(lang)?.prompts.floor;
-      return typeof floor === "number"
-        ? floor
-        : config.DIMTS_CONFIDENCE_FLOOR;
+      return typeof floor === "number" ? floor : config.DIMTS_CONFIDENCE_FLOOR;
     },
     translate: (lang, key) => translate(packs, lang, key).text,
     direction: (lang) => packs.get(lang)?.meta.dir ?? "ltr",
+    ...(languageDetector
+      ? {
+          languageDetector,
+          languageDetectionConfidence:
+            config.DIMTS_LANGUAGE_DETECTION_CONFIDENCE,
+        }
+      : {}),
     contentVersion: () => grounding.currentVersion(),
     createId: () => randomBytes(16).toString("base64url"),
   };

@@ -6,6 +6,8 @@ export type {
   AskDependencies,
   AskRequest,
   Citation,
+  LanguageDetection,
+  LanguageDetector,
   Lang,
   Passage,
   ProviderName,

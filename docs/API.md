@@ -6,18 +6,46 @@ or credentials to application logs.
 
 ## Start locally
 
-1. Copy `.env.example` to `.env` and set a local PostgreSQL password.
-2. Generate distinct values for `DIMTS_ENC_KEY` and `DIMTS_HASH_KEY` with
-   `openssl rand -base64 32`. Generate a third distinct base64 value for
-   `DIMTS_JWT_SECRET` and a `DIMTS_CRON_SECRET` with
-   `openssl rand -base64 24`. Keep `.env` private and untracked.
-3. Start PostgreSQL with `docker compose --profile local up -d --wait db`.
-4. Set `DIMTS_LOCAL_WIDGET_KEY` in `.env` and ensure
-   `DIMTS_HOST_ORIGINS` contains the host page origin. The widget key is a
-   public identifier for local development; do not reuse it in production.
-5. Run `pnpm local:bootstrap` to apply pending migrations and upsert the
-   allowed local host. Only its SHA-256 hash is stored in `host_key`.
-6. Run `pnpm api:start`. The service listens on port 3000 by default.
+1. Copy `.env.example` to `.env` and set a local PostgreSQL password using only
+   letters, digits, hyphens, and underscores. Compose also places it in the API
+   connection URL and environment interpolation.
+2. Replace the four secret placeholders with distinct random values. In
+   PowerShell, this generates four independent base64 values:
+
+   ```powershell
+   $rng = [Security.Cryptography.RandomNumberGenerator]::Create()
+   1..4 | ForEach-Object {
+     $bytes = New-Object byte[] 32
+     $rng.GetBytes($bytes)
+     [Convert]::ToBase64String($bytes)
+   }
+   $rng.Dispose()
+   ```
+
+   Use separate generated values for `DIMTS_ENC_KEY`, `DIMTS_HASH_KEY`,
+   `DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`; the first two must decode to
+   32 bytes. Keep `.env` private and untracked.
+
+3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` matches the
+   widget origin. The widget key is a public identifier for local development;
+   do not reuse it in production.
+4. Start the local stack with `docker compose --profile local up --build -d --wait`.
+   Compose starts PostgreSQL, runs migrations and local-host bootstrap before
+   the API becomes healthy, and serves the widget shell at
+   `http://localhost:5173`. The API is also available at
+   `http://localhost:3000`. Override the API and widget
+   `DIMTS_COMPOSE_*_PORT` values to avoid local port conflicts, and update
+   `DIMTS_HOST_ORIGINS` if the widget port changes.
+5. To stop the stack while preserving the database, run
+   `docker compose --profile local down`. To remove the local database too, use
+   `docker compose --profile local down --volumes`.
+
+PostgreSQL is private to the internal backend network; use
+`docker compose --profile local exec db psql -U dimts -d dimts` for local
+database access. The API and widget share a separate edge bridge for the
+loopback-published host ports and API integrations. All published ports bind
+only to loopback. The configured AI provider defaults to offline; no provider
+credentials are required for the local stack.
 
 `GET /v1/health`, `GET /v1/languages`, `GET /v1/locales/{code}/ui`,
 `GET /v1/openapi.yaml`, and `GET /v1/docs` are public. Draft packs are hidden
@@ -84,6 +112,10 @@ reconciliation schedule.
 DIMTS_PUBLIC_SOURCES=[{"id":"course-site","sitemapUrl":"https://learn.example/sitemap.xml","language":"en","pageSize":25}]
 ```
 
+The API validates source registrations at startup. Reconciliation runs every
+five minutes by default; set `DIMTS_SOURCE_SYNC_INTERVAL_MS` (1,000 through
+86,400,000) to change the interval.
+
 The public connector follows same-origin sitemap indexes, caps discovery at
 250 pages, rejects redirects and private-network targets, and pins outbound
 requests to public IPv4 addresses. It fetches HTML only (up to 1 MiB per page,
@@ -117,15 +149,24 @@ const app = buildApp({
 await app.locals.sourceSyncReady;
 ```
 
-On startup Dimts performs full discovery, then runs scheduled reconciliation
-(five minutes by default, configurable) and publishes complete generations
-atomically. Failed syncs preserve the last good generation. The host
-authenticates its native content-change events before calling
+The host-owned adapter boundary also supports an authorized Telegram content
+adapter. This package wires the generic boundary only; the native Telegram
+adapter remains WP08. Index only material explicitly authorized for all
+learners using that source, never learner direct messages or private-chat
+history.
+
+On startup Dimts performs full discovery before the API begins listening, then
+runs scheduled reconciliation and publishes complete generations atomically.
+Failed syncs preserve the last good generation. The host authenticates its
+native content-change events before calling
 `app.locals.sourceSyncManager.notify(sourceId, changes)`; Dimts then fetches
 authoritative content through the adapter. There is no generic public webhook
-route or payload. When using a custom repository, provide a conforming
-`SourceSyncStore`; otherwise the API uses PostgreSQL. Directory ingestion
-remains available for development.
+route or payload. With the default PostgreSQL repository, the API creates the
+source store automatically; when using a custom repository, pass a conforming
+`SourceSyncStore` as `sourceSync.store`. The default error log omits source
+identifiers, upstream error messages, and document text; custom `onError`
+callbacks must preserve that privacy boundary. Directory ingestion remains
+available for development.
 
 Per-question language detection is now local and confidence-gated: detection
 runs against the installed language packs, and short, unsupported, or

@@ -5074,7 +5074,7 @@ Use public STUN first (`stun:stun.l.google.com:19302` is allowed because it carr
 | Section 9.1 (auth column) | "session" means a valid `Authorization: Bearer <sessionToken>` plus `sessionId`; "helper token" means a helper JWT; "host key" means `X-Dimts-Key`. See 34.5 to 34.9. |
 | Section 9.3 (WebSocket) | Add client-to-server type `auth` (first message, 5-second deadline, close code 4401). Add `lastMessageId` to it for replay. |
 
-New requirements in this edition (all MUST):
+New requirements in this edition (allMUST):
 
 | ID | Requirement | Acceptance criteria |
 | --- | --- | --- |

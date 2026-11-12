@@ -36,6 +36,10 @@ registry.registerComponent("securitySchemes", "hostKey", {
   in: "header",
   name: "X-Dimts-Key",
 });
+registry.registerComponent("securitySchemes", "cronBearer", {
+  type: "http",
+  scheme: "bearer",
+});
 
 const json = (schema: z.ZodTypeAny) => ({
   content: { "application/json": { schema } },
@@ -123,6 +127,19 @@ registry.registerPath({
     "409": problemResponse,
     "413": problemResponse,
     "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/internal/retention",
+  summary: "Delete expired session and retention data",
+  security: [{ cronBearer: [] }],
+  responses: {
+    "200": {
+      description: "Retention completed",
+      ...json(z.object({ ok: z.boolean() }).strict()),
+    },
+    "401": problemResponse,
   },
 });
 

@@ -80,6 +80,17 @@ describe("WP03 grounded ask", () => {
     ]);
   });
 
+  it("awaits asynchronous content-version lookups", async () => {
+    const deps = dependencies();
+    Object.defineProperty(deps, "contentVersion", {
+      value: async () => "version-2",
+    });
+
+    const reply = await ask(question, deps);
+
+    expect(reply.contentVersion).toBe("version-2");
+  });
+
   it("uses a confidently detected question language without changing session language", async () => {
     const detected = {
       language: "am",
@@ -99,6 +110,7 @@ describe("WP03 grounded ask", () => {
     expect(search).toHaveBeenCalledWith(question.text, "am");
     expect(deps.answer).toHaveBeenCalledWith(
       expect.objectContaining({ lang: "am" }),
+      { cloudOk: false },
     );
     expect(reply.lang).toBe("am");
     expect(reply.dir).toBe("rtl");
@@ -154,11 +166,25 @@ describe("WP03 grounded ask", () => {
     });
   });
 
+  it("passes session remote-processing consent to the provider boundary", async () => {
+    const deps = dependencies();
+
+    await ask(question, deps, { cloudOk: true });
+
+    expect(deps.answer).toHaveBeenCalledWith(
+      expect.objectContaining({ question: question.text }),
+      { cloudOk: true },
+    );
+  });
+
   it("returns localized not-found when every AI provider is unavailable", async () => {
     const deps = dependencies({
-      answer: vi.fn(async () => {
-        throw new Error("provider unavailable");
-      }),
+      answer: vi.fn(async () => ({
+        text: "",
+        usedPassageIds: [],
+        provider: "offline",
+        latencyMs: 0,
+      })),
     });
 
     const reply = await ask(question, deps);

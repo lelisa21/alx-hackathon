@@ -3,9 +3,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { FrancLanguageDetector } from "@dimts/ai";
 import { buildApp } from "../src/app.js";
+import type { BuildAppOptions } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
+import { AskRequestSchema } from "../src/schemas.js";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -32,7 +35,14 @@ const validEnv = {
 function createRepository() {
   const sessions = new Map<
     string,
-    { tokenHash: string; resumeHash: string; lang: string; channel: string }
+    {
+      tokenHash: string;
+      resumeHash: string;
+      lang: string;
+      channel: string;
+      cloudOk: boolean;
+      consentVersion: string | null;
+    }
   >();
   const replies = new Map<string, Record<string, unknown>>();
   const claimed = new Set<string>();
@@ -42,6 +52,7 @@ function createRepository() {
     replies,
     claimed,
     ping: async () => true,
+    runRetention: async () => undefined,
     getHostByHash: async (hash: string) =>
       hash === createHash("sha256").update("public-host").digest("hex")
         ? { origins: ["https://learn.example"] }
@@ -52,6 +63,8 @@ function createRepository() {
       resumeHash: string;
       lang: string;
       channel: string;
+      cloudOk: boolean;
+      consentVersion: string | null;
     }) => {
       sessions.set(session.id, session);
     },
@@ -60,13 +73,35 @@ function createRepository() {
       currentResumeHash: string;
       tokenHash: string;
       resumeHash: string;
+      cloudOk?: boolean;
+      consentVersion?: string | null;
     }) => {
       const current = sessions.get(session.id);
       if (!current || current.resumeHash !== session.currentResumeHash)
         return null;
       current.tokenHash = session.tokenHash;
       current.resumeHash = session.resumeHash;
-      return { id: session.id, lang: current.lang };
+      if (session.cloudOk !== undefined) {
+        current.cloudOk = session.cloudOk;
+        current.consentVersion = session.cloudOk
+          ? (session.consentVersion ?? null)
+          : null;
+      }
+      return {
+        id: session.id,
+        lang: current.lang,
+        cloudOk: current.cloudOk,
+        consentVersion: current.consentVersion,
+      };
+    },
+    getCloudConsent: async (id: string) => {
+      const current = sessions.get(id);
+      return current
+        ? {
+            cloudOk: current.cloudOk,
+            consentVersion: current.consentVersion,
+          }
+        : null;
     },
     getSessionTokenHash: async (id: string) =>
       sessions.get(id)?.tokenHash ?? null,
@@ -98,7 +133,10 @@ function createRepository() {
   };
 }
 
-function createApp(repository = createRepository(), overrides = {}) {
+function createApp(
+  repository = createRepository(),
+  overrides: BuildAppOptions = {},
+) {
   return {
     app: buildApp({
       config: parseConfig(validEnv),
@@ -147,6 +185,121 @@ describe("WP02 configuration and API contracts", () => {
     expect(response.body).toMatchObject({ ok: true, db: false });
   });
 
+  it("bounds health when the database or content-version check stalls", async () => {
+    const repository = createRepository();
+    repository.ping = () => new Promise<boolean>(() => undefined);
+    const { app } = createApp(repository, {
+      grounding: {
+        currentVersion: () => new Promise<string>(() => undefined),
+      },
+    });
+    const startedAt = performance.now();
+
+    const response = await request(app)
+      .get("/v1/health")
+      .timeout({ response: 1900, deadline: 2000 });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      ok: true,
+      db: false,
+      contentVersion: "unavailable",
+    });
+    expect(performance.now() - startedAt).toBeLessThan(2000);
+  });
+
+  it("requires the cron secret for the retention endpoint", async () => {
+    const repository = createRepository();
+    const runRetention = vi.fn(async () => undefined);
+    repository.runRetention = runRetention;
+    const { app } = createApp(repository);
+
+    const missingSecret = await request(app).post("/v1/internal/retention");
+    const wrongSecret = await request(app)
+      .post("/v1/internal/retention")
+      .set("authorization", "Bearer wrong-secret");
+    const authorized = await request(app)
+      .post("/v1/internal/retention")
+      .set("authorization", `Bearer ${validEnv.DIMTS_CRON_SECRET}`);
+
+    expect(missingSecret.status).toBe(401);
+    expect(wrongSecret.status).toBe(401);
+    expect(authorized.status).toBe(200);
+    expect(authorized.body).toEqual({ ok: true });
+    expect(runRetention).toHaveBeenCalledOnce();
+    expect(runRetention).toHaveBeenCalledWith(24);
+  });
+
+  it("defaults the optional simple-mode flag to false", () => {
+    const body = AskRequestSchema.parse({
+      sessionId: "session-000001",
+      clientMsgId: "message-000001",
+      lang: "en",
+      text: "A question",
+      via: "text",
+    });
+
+    expect(body.simple).toBe(false);
+  });
+
+  it("validates the per-question language detection threshold", () => {
+    expect(parseConfig(validEnv).DIMTS_LANGUAGE_DETECTION_CONFIDENCE).toBe(
+      0.25,
+    );
+    expect(() =>
+      parseConfig({
+        ...validEnv,
+        DIMTS_LANGUAGE_DETECTION_CONFIDENCE: "1.01",
+      }),
+    ).toThrow(/DIMTS_LANGUAGE_DETECTION_CONFIDENCE/u);
+  });
+
+  it("wires the local detector into the default API ask pipeline", async () => {
+    const detected = vi
+      .spyOn(FrancLanguageDetector.prototype, "detect")
+      .mockResolvedValue({
+        language: "en",
+        confidence: 0.99,
+        alternatives: [],
+      });
+    const questionText = "How do I make a study plan?";
+    const { app } = createApp(createRepository(), {
+      grounding: {
+        search: async () => [
+          {
+            id: "study-plan#goals",
+            text: "Choose one learning goal.",
+            label: "Study plan / Goals",
+            url: "https://course.example/study-plan#goals",
+            lang: "en",
+            sourceType: "course",
+            score: 0.9,
+          },
+        ],
+        currentVersion: async () => "version-1",
+      },
+    });
+
+    try {
+      const session = await createSession(app);
+      const reply = await request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${session.body.sessionToken}`)
+        .send({
+          sessionId: session.body.sessionId,
+          clientMsgId: "language-detect-0001",
+          lang: "en",
+          text: questionText,
+          via: "text",
+        });
+
+      expect(reply.status).toBe(200);
+      expect(detected).toHaveBeenCalledWith(questionText);
+    } finally {
+      detected.mockRestore();
+    }
+  });
+
   it("lists only live and beta packs unless preview is requested", async () => {
     const { app } = createApp();
     const normal = await request(app).get("/v1/languages");
@@ -186,6 +339,8 @@ describe("WP02 configuration and API contracts", () => {
     expect(response.body.sessionId).toHaveLength(22);
     expect(response.body.sessionToken).toHaveLength(43);
     expect(response.body.resumeToken).toHaveLength(43);
+    expect(response.body.cloudOk).toBe(false);
+    expect(response.body.consentVersion).toBeNull();
     expect(repository.sessions.get(response.body.sessionId)).toMatchObject({
       tokenHash: createHash("sha256")
         .update(response.body.sessionToken)
@@ -193,7 +348,182 @@ describe("WP02 configuration and API contracts", () => {
       resumeHash: createHash("sha256")
         .update(response.body.resumeToken)
         .digest("hex"),
+      cloudOk: false,
+      consentVersion: null,
     });
+  });
+
+  it("persists remote-AI opt-in and permits revoking it when resuming", async () => {
+    const { app, repository } = createApp();
+    const invalidOptIn = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", "public-host")
+      .set("origin", "https://learn.example")
+      .send({ lang: "en", cloudOk: true });
+    const original = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", "public-host")
+      .set("origin", "https://learn.example")
+      .send({
+        lang: "en",
+        cloudOk: true,
+        consentVersion: "remote-ai-v1",
+      });
+
+    expect(invalidOptIn.status).toBe(400);
+    expect(original.status).toBe(201);
+    expect(original.body).toMatchObject({
+      cloudOk: true,
+      consentVersion: "remote-ai-v1",
+    });
+
+    const resumed = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", "public-host")
+      .set("origin", "https://learn.example")
+      .send({
+        sessionId: original.body.sessionId,
+        resumeToken: original.body.resumeToken,
+        cloudOk: false,
+      });
+
+    expect(resumed.status).toBe(200);
+    expect(resumed.body).toMatchObject({
+      cloudOk: false,
+      consentVersion: null,
+    });
+    expect(repository.sessions.get(original.body.sessionId)).toMatchObject({
+      cloudOk: false,
+      consentVersion: null,
+    });
+  });
+
+  it("uses configured remote providers only for consenting sessions", async () => {
+    const config = parseConfig({
+      ...validEnv,
+      DIMTS_AI_PROVIDER: "remote-test",
+      DIMTS_AI_LADDER: "remote-test,offline",
+      DIMTS_AI_PROVIDERS: JSON.stringify([
+        {
+          id: "remote-test",
+          adapter: "openai-compatible",
+          model: "test-model",
+          endpoint: "https://provider.example/v1",
+          credentialRef: "REMOTE_TEST_KEY",
+          privacyClass: "remote",
+          enabled: true,
+          priority: 1,
+          timeoutMs: 8_000,
+          allowedDataClasses: ["question", "course-passage"],
+          capabilities: {
+            languages: ["en"],
+            modes: ["extractive"],
+            modalities: ["text"],
+            structuredOutput: true,
+          },
+        },
+      ]),
+      REMOTE_TEST_KEY: "server-only-provider-key",
+    });
+    const grounding = {
+      search: async () => [
+        {
+          id: "study-plan#goals",
+          text: "Choose one learning goal. Divide it into small weekly steps.",
+          label: "Study plan / Goals",
+          url: "https://course.example/study-plan#goals",
+          lang: "en",
+          sourceType: "course" as const,
+          score: 0.9,
+        },
+      ],
+      currentVersion: async () => "version-1",
+    };
+    const { app } = createApp(createRepository(), {
+      config,
+      providerSecrets: { REMOTE_TEST_KEY: "server-only-provider-key" },
+      grounding,
+    });
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      if (String(input).endsWith("/models")) {
+        return new Response(JSON.stringify({ data: [] }), { status: 200 });
+      }
+      const body = JSON.parse(String(init?.body)) as {
+        messages: { role: string; content: string }[];
+      };
+      const userMessage = body.messages.find(
+        ({ role }) => role === "user",
+      )?.content;
+      expect(userMessage).toContain("How do I make a study plan?");
+      expect(userMessage).toContain("Choose one learning goal.");
+      return new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: JSON.stringify({
+                  text: "Choose one learning goal.",
+                  usedPassageIds: ["study-plan#goals"],
+                }),
+              },
+            },
+          ],
+        }),
+        { status: 200 },
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const anonymous = await createSession(app);
+      const firstAnswer = await request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${anonymous.body.sessionToken}`)
+        .send({
+          sessionId: anonymous.body.sessionId,
+          clientMsgId: "offline-without-consent",
+          lang: "en",
+          text: "How do I make a study plan?",
+          via: "text",
+        });
+      expect(firstAnswer.status).toBe(200);
+      expect(fetchMock).not.toHaveBeenCalled();
+
+      const consenting = await request(app)
+        .post("/v1/sessions")
+        .set("x-dimts-key", "public-host")
+        .set("origin", "https://learn.example")
+        .send({
+          lang: "en",
+          cloudOk: true,
+          consentVersion: config.DIMTS_AI_CONSENT_VERSION,
+        });
+      const remoteAnswer = await request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${consenting.body.sessionToken}`)
+        .send({
+          sessionId: consenting.body.sessionId,
+          clientMsgId: "remote-with-consent",
+          lang: "en",
+          text: "How do I make a study plan?",
+          via: "text",
+        });
+
+      expect(remoteAnswer.status).toBe(200);
+      expect(remoteAnswer.body.kind).toBe("answer");
+      expect(remoteAnswer.body).not.toHaveProperty("provider");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[1]?.[1]?.headers).toMatchObject({
+        authorization: "Bearer server-only-provider-key",
+      });
+      const health = await request(app).get("/v1/health");
+      expect(health.body.provider).toBe("remote-test");
+      expect(JSON.stringify(remoteAnswer.body)).not.toContain(
+        "server-only-provider-key",
+      );
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("resumes a session by rotating the bearer and resume tokens", async () => {
@@ -472,7 +802,7 @@ describe("WP02 configuration and API contracts", () => {
     expect(responses.at(-1)?.body.code).toBe("rate_limited");
   });
 
-  it("ships both versioned SQL migrations and exact reply replay columns", async () => {
+  it("ships the consent migration and exact reply replay columns", async () => {
     const migrations = path.join(root, "packages", "api", "migrations");
     const initial = await readFile(
       path.join(migrations, "001_init.sql"),
@@ -480,6 +810,10 @@ describe("WP02 configuration and API contracts", () => {
     );
     const auth = await readFile(
       path.join(migrations, "002_auth_replay_cache.sql"),
+      "utf8",
+    );
+    const consent = await readFile(
+      path.join(migrations, "004_remote_ai_consent.sql"),
       "utf8",
     );
 
@@ -493,6 +827,8 @@ describe("WP02 configuration and API contracts", () => {
     );
     expect(auth).toContain("token_hash");
     expect(auth).toContain("reply_to");
+    expect(consent).toContain("cloud_ok SET DEFAULT FALSE");
+    expect(consent).toContain("consent_version = NULL");
     expect(auth).toContain("CREATE UNIQUE INDEX message_reply_to_idx");
   });
 
@@ -504,6 +840,7 @@ describe("WP02 configuration and API contracts", () => {
     expect(response.status).toBe(200);
     expect(response.text).toContain("openapi: 3.1.0");
     expect(response.text).toContain("/v1/ask:");
+    expect(response.text).toContain("/v1/internal/retention:");
     expect(docs.status).toBe(200);
     expect(docs.text).toContain("/v1/openapi.yaml");
   });

@@ -15,6 +15,7 @@
     "content:ingest": "pnpm --filter @dimts/engine build && pnpm --filter @dimts/grounding build && node --env-file-if-exists=.env packages/grounding/dist/cli.js",
     "typecheck": "pnpm --recursive --if-present typecheck",
     "test": "vitest run --passWithNoTests",
+    "test:compose": "node scripts/test-local-compose.mjs",
     "test:widget": "pnpm --filter @dimts/widget build && playwright test --config playwright.widget.config.ts",
     "lint": "eslint . && pnpm lint:styles && pnpm lint:strings",
     "lint:styles": "stylelint \"packages/widget/src/**/*.css\" --allow-empty-input",

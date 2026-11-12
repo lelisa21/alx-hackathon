@@ -1,9 +1,14 @@
 import { readdir, readFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-const widgetDist = path.resolve("packages/widget/dist");
-const englishUiPack = path.resolve("locales/en/ui.yaml");
+const repositoryRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
+const widgetDist = path.join(repositoryRoot, "packages", "widget", "dist");
+const englishUiPack = path.join(repositoryRoot, "locales", "en", "ui.yaml");
 const javascriptLimit = 60 * 1024;
 const initialLoadLimit = 150 * 1024;
 

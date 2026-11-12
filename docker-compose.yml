@@ -8,8 +8,6 @@ services:
       POSTGRES_DB: dimts
       POSTGRES_USER: dimts
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
-    ports:
-      - "127.0.0.1:5432:5432"
     volumes:
       - dimts-postgres:/var/lib/postgresql/data
     healthcheck:
@@ -17,6 +15,90 @@ services:
       interval: 5s
       timeout: 3s
       retries: 10
+    networks:
+      - backend
+
+  api:
+    build:
+      context: .
+      target: api
+    profiles:
+      - local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
+      DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
+      DIMTS_ENC_KEY: ${DIMTS_ENC_KEY:?Set DIMTS_ENC_KEY in .env}
+      DIMTS_HASH_KEY: ${DIMTS_HASH_KEY:?Set DIMTS_HASH_KEY in .env}
+      DIMTS_JWT_SECRET: ${DIMTS_JWT_SECRET:?Set DIMTS_JWT_SECRET in .env}
+      DIMTS_CRON_SECRET: ${DIMTS_CRON_SECRET:?Set DIMTS_CRON_SECRET in .env}
+      DIMTS_HOST_ORIGINS: ${DIMTS_HOST_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
+      DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
+      DIMTS_RETENTION_HOURS: ${DIMTS_RETENTION_HOURS:-24}
+      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-https://learn.example/course/}
+      DIMTS_PUBLIC_SOURCES: ${DIMTS_PUBLIC_SOURCES:-[]}
+      DIMTS_SOURCE_SYNC_INTERVAL_MS: ${DIMTS_SOURCE_SYNC_INTERVAL_MS:-300000}
+      DIMTS_AI_PROVIDER: ${DIMTS_AI_PROVIDER:-offline}
+      DIMTS_AI_LADDER: ${DIMTS_AI_LADDER:-offline}
+      DIMTS_AI_PROVIDERS: ${DIMTS_AI_PROVIDERS:-[]}
+      DIMTS_AI_MAX_TOKENS: ${DIMTS_AI_MAX_TOKENS:-512}
+      DIMTS_AI_TEMPERATURE: ${DIMTS_AI_TEMPERATURE:-0.2}
+      DIMTS_AI_CONSENT_VERSION: ${DIMTS_AI_CONSENT_VERSION:-remote-ai-v1}
+      DIMTS_LANGUAGE_DETECTION_CONFIDENCE: ${DIMTS_LANGUAGE_DETECTION_CONFIDENCE:-0.25}
+    ports:
+      - "127.0.0.1:${DIMTS_COMPOSE_API_PORT:-3000}:3000"
+    command:
+      - sh
+      - -c
+      - node packages/api/dist/db/local-bootstrap.js && exec node packages/api/dist/server.js
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/v1/health').then((r) => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"
+      interval: 5s
+      timeout: 3s
+      retries: 12
+      start_period: 30s
+    networks:
+      - backend
+      - edge
+
+  widget:
+    build:
+      context: .
+      target: web
+    profiles:
+      - local
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
+      NGINX_ENVSUBST_TEMPLATE_DIR: /usr/share/nginx/html/templates
+      NGINX_ENVSUBST_OUTPUT_DIR: /usr/share/nginx/html
+    ports:
+      - "127.0.0.1:${DIMTS_COMPOSE_WEB_PORT:-5173}:80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    networks:
+      - edge
 
 volumes:
   dimts-postgres:
+
+networks:
+  backend:
+    internal: true
+  edge:

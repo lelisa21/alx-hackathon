@@ -198,6 +198,13 @@ Free-tier selections are deployment policy, not architecture constraints. A comp
 | **Local** | Development, backup laptop, offline demo | `docker compose --profile local up` (Postgres, API, static site; optional local-ai) |
 | **Test** | CI | GitHub Actions with a Postgres service container |
 
+In the local Compose profile, PostgreSQL is attached only to an internal
+backend network. The API joins that backend and a separate edge bridge shared
+with the widget; the API and widget publish ports only on loopback. This keeps
+the database off the host network while allowing the API to reach configured
+content sources or remote providers when enabled. The stack defaults to the
+offline provider.
+
 The deployment target is not a domain dependency. For the current hosted reference, the API may sleep or restart and the database may pause; therefore durable state lives behind the persistence port, not in process memory or ephemeral disk. The widget handles slow wake-up and clients reconnect. The local static site is only a delivery shell: course knowledge is discovered, synchronized, and queried dynamically from configured sources.
 
 ### 2.7 Documentation review: gaps and resolution
@@ -371,6 +378,7 @@ still subject to the grounding confidence floor and citation gate.
 | D27 | Per-question language detection may choose the reply language at high confidence without mutating saved preference. Unknown/ambiguous detection falls back explicitly. Cross-language retrieval is capability-gated and evaluated | AR-06, AR-07, FR-LANG-07, FR-TUTOR-03, 07, 08 |
 | D28 | TypeScript/Express/PostgreSQL are this repository's reference stack only. Stable ports, OpenAPI/JSON schemas, and conformance fixtures are the portability boundary; another stack must implement and pass them | AR-02, NFR-MAINT-01 |
 | D29 | Helper display name is staff data and may be stored; learner data rules (NFR-PRIV-01) are unchanged | `helper` table |
+| D30 | Remote AI is per-session opt-in (`cloudOk` plus `consentVersion`); learner replies omit provider identity, which is exposed only through health/debug surfaces | FR-AI-05, FR-AI-09, NFR-PRIV |
 
 ---
 
@@ -505,10 +513,10 @@ language before the system claims full support.
 
 | Method and path | Purpose | Auth |
 | --- | --- | --- |
-| GET /health | Provider ladder, version, content_version, db status | none |
+| GET /health | Active provider, provider ladder, version, content_version, db status | none |
 | GET /languages | live and beta languages (draft with `?lang_preview=1`) | none |
 | GET /locales/{code}/ui | UI strings, ETag | none |
-| POST /sessions | Create or resume; returns `sessionId`, `sessionToken`, `resumeToken` | host key (public id plus origin, or secret key) |
+| POST /sessions | Create or resume; supports per-session remote-AI consent and returns `sessionId`, `sessionToken`, `resumeToken`, `cloudOk`, and `consentVersion` | host key (public id plus origin, or secret key) |
 | POST /ask | Question to Reply | session |
 | POST /feedback | Helpful or not, counter only | session |
 | POST /stt, POST /tts | Optional server speech | session |
@@ -542,6 +550,11 @@ export type Lang = string;                                    // BCP 47 code fro
 export interface AskRequest { sessionId: string; clientMsgId: string; lang: Lang; text: string /* <= 1000 */;
   via: 'text' | 'voice' | 'sms' | 'telegram'; simple?: boolean }
 
+export interface SessionRequest { lang?: Lang; channel?: 'web' | 'api'; sessionId?: string;
+  resumeToken?: string; cloudOk?: boolean; consentVersion?: string }
+export interface SessionResponse { sessionId: string; sessionToken: string; resumeToken: string;
+  lang: Lang; cloudOk: boolean; consentVersion: string | null }
+
 export interface Citation { passageId: string; label: string; url: string; sourceLang: Lang;
   sourceType: 'course' | 'job'; timestamp?: number }
 
@@ -550,7 +563,7 @@ export interface Action { type: 'help' | 'more' | 'open_source' | 'subscribe_job
 
 export interface Reply { id: string; kind: ReplyKind; text: string; lang: Lang; dir: 'ltr' | 'rtl';
   citations: Citation[];            // at least 1 when kind is 'answer'
-  actions: Action[]; audioUrl?: string; providerId?: string; contentVersion: string }
+  actions: Action[]; audioUrl?: string; contentVersion: string }
 
 export interface Passage { id: string; text: string; label: string; url: string; lang: Lang; sourceType: 'course' | 'job' }
 export interface AnswerRequest { question: string; lang: Lang; passages: Passage[]; glossary: { term: string; meaning: string }[];
@@ -609,10 +622,12 @@ interface ProviderBinding {
   model: string;
   endpoint?: string;
   credentialRef?: string;
+  privacyClass: "local" | "remote";
   enabled: boolean;
   priority: number;
   timeoutMs: number;
   allowedDataClasses: ("question" | "course-passage" | "glossary")[];
+  evaluatedLanguages?: Bcp47Tag[];
   capabilities: ProviderCapabilities;
 }
 
@@ -679,11 +694,15 @@ interface HostAuth {
 
 `ProviderBinding` is server-side configuration. Registry resolution filters
 enabled providers by requested language, mode, modality, privacy/data-sharing
-policy, and the per-(provider, language) evaluation gate before applying the
-configured order and timeouts. Vendor adapters map their native request and
-response formats to `AiProvider`; an OpenAI-compatible adapter is a convenience
-only. Gemini, OpenAI, xAI/Grok, and future integrations use dedicated adapters
-unless their documented APIs genuinely conform. A provider change is a
+policy, learner consent for `privacyClass: "remote"`, and the per-(provider,
+language) evaluation gate before applying the configured order and timeouts.
+New sessions default `cloudOk` to false. Setting it true requires a
+non-empty `consentVersion`; resuming a session may update either value,
+including revoking consent. Only configured `allowedDataClasses` may be sent
+to a provider. Vendor adapters map their native request and response formats
+to `AiProvider`; an OpenAI-compatible adapter is a convenience only. Gemini,
+OpenAI, xAI/Grok, and future integrations use dedicated adapters unless their
+documented APIs genuinely conform. A provider change is a
 configuration/adapter operation, not an engine edit.
 
 The current runtime has open provider IDs, capability declarations, and a
@@ -723,10 +742,20 @@ intervals, confidence policy, allowed host origins, retention, and secret
 references. These values are not compiled into domain logic. `DIMTS_AI_PROVIDER`
 and `DIMTS_AI_LADDER` select arbitrary registered IDs;
 `DIMTS_AI_PROVIDERS` declares adapter IDs, endpoints, models, capabilities,
-priorities, timeouts, and credential references. The initial runtime registry
-currently includes the OpenAI-compatible adapter; native provider adapters
-and source registration/scheduling surfaces remain incremental work. Secrets
-live only in deployment secret storage and a git-ignored local `.env`;
+privacy classes, allowed data classes, priorities, timeouts, and credential
+references. `DIMTS_AI_MAX_TOKENS` and `DIMTS_AI_TEMPERATURE` set bounded
+generation defaults. Public source registrations use
+`DIMTS_PUBLIC_SOURCES` (approved sitemap entries with `id`, `sitemapUrl`,
+`language`, and optional `pageSize`). `DIMTS_SOURCE_SYNC_INTERVAL_MS`
+configures scheduled reconciliation (default 300,000; valid range 1,000 to
+86,400,000). Private platforms use host-owned `ContentSource`/`HostAuth`
+adapters passed through `buildApp({ sourceSync })`; PostgreSQL is the default
+sync store, and a custom store is required with a custom repository. The API
+waits for the initial sync before listening. A host may use this adapter
+boundary for explicitly authorized Telegram source material; native Telegram
+integration remains WP08, and learner direct messages/private-chat history
+are not shared index inputs. Secrets live only in deployment secret storage
+and a git-ignored local `.env`;
 provider credentials, source credentials, and webhook verification secrets
 never appear in logs or client configuration.
 

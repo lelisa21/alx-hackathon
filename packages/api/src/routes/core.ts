@@ -20,6 +20,7 @@ import {
   SessionResponseSchema,
 } from "../schemas.js";
 import type { ApiReply, ApiRepository } from "../types.js";
+import type { ApiProviderRuntime } from "../provider-runtime.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
 
@@ -28,6 +29,7 @@ interface CoreRouteOptions {
   repository: ApiRepository;
   packs: Map<string, LangPack>;
   askDependencies?: AskDependencies;
+  providerRuntime?: ApiProviderRuntime;
   grounding?: Pick<PostgresGrounding, "currentVersion">;
 }
 
@@ -121,32 +123,40 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
 
   router.get("/health", async (_request, response) => {
     let timer: NodeJS.Timeout | undefined;
-    const [database, contentVersion] = await Promise.all([
-      Promise.race([
-      repository.ping().then(
-        () => true,
-        () => false,
-      ),
-      new Promise<boolean>((resolve) => {
-        timer = setTimeout(() => resolve(false), 1500);
+    const health = await Promise.race([
+      Promise.all([
+        repository.ping().then(
+          () => true,
+          () => false,
+        ),
+        options.grounding
+          ? options.grounding.currentVersion().catch(() => "unavailable")
+          : Promise.resolve("unavailable"),
+      ]).then(([database, contentVersion]) => ({
+        database,
+        contentVersion,
+      })),
+      new Promise<{ database: boolean; contentVersion: string }>((resolve) => {
+        timer = setTimeout(
+          () => resolve({ database: false, contentVersion: "unavailable" }),
+          1500,
+        );
       }),
-      ]).finally(() => {
-        if (timer) clearTimeout(timer);
-      }),
-      options.grounding
-        ? options.grounding.currentVersion().catch(() => "unavailable")
-        : Promise.resolve("unavailable"),
-    ]);
+    ]).finally(() => {
+      if (timer) clearTimeout(timer);
+    });
 
     response.json(
       validateResponse(HealthResponseSchema, {
         ok: true,
-        db: database,
+        db: health.database,
         version: "0.1.0",
-        contentVersion,
-        ladder: config.DIMTS_AI_LADDER.split(",").map((provider) =>
-          provider.trim(),
-        ),
+        contentVersion: health.contentVersion,
+        provider:
+          options.providerRuntime?.activeProvider ?? config.DIMTS_AI_PROVIDER,
+        ladder:
+          options.providerRuntime?.providerOrder ??
+          config.DIMTS_AI_LADDER.split(",").map((provider) => provider.trim()),
       }),
     );
   });
@@ -224,11 +234,22 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     const sessionToken = randomBytes(32).toString("base64url");
     const resumeToken = randomBytes(32).toString("base64url");
     if (body.sessionId && body.resumeToken) {
+      if (
+        body.cloudOk &&
+        body.consentVersion !== config.DIMTS_AI_CONSENT_VERSION
+      ) {
+        sendProblem(response, 400, "invalid_request", "error.invalid");
+        return;
+      }
       const resumed = await repository.resumeSession({
         id: body.sessionId,
         currentResumeHash: sha256(body.resumeToken),
         tokenHash: sha256(sessionToken),
         resumeHash: sha256(resumeToken),
+        ...(body.cloudOk === undefined ? {} : { cloudOk: body.cloudOk }),
+        ...(body.consentVersion === undefined
+          ? {}
+          : { consentVersion: body.consentVersion }),
       });
       if (!resumed) {
         sendProblem(response, 401, "unauthorized", "error.generic");
@@ -240,6 +261,8 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
           sessionToken,
           resumeToken,
           lang: resumed.lang,
+          cloudOk: resumed.cloudOk,
+          consentVersion: resumed.consentVersion,
         }),
       );
       return;
@@ -251,12 +274,19 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
     const sessionId = randomBytes(16).toString("base64url");
+    const cloudOk = body.cloudOk ?? false;
+    if (cloudOk && body.consentVersion !== config.DIMTS_AI_CONSENT_VERSION) {
+      sendProblem(response, 400, "invalid_request", "error.invalid");
+      return;
+    }
     await repository.createSession({
       id: sessionId,
       channel: body.channel,
       lang,
       tokenHash: sha256(sessionToken),
       resumeHash: sha256(resumeToken),
+      cloudOk,
+      consentVersion: cloudOk ? (body.consentVersion ?? null) : null,
     });
     response.status(201).json(
       validateResponse(SessionResponseSchema, {
@@ -264,6 +294,8 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
         sessionToken,
         resumeToken,
         lang,
+        cloudOk,
+        consentVersion: cloudOk ? (body.consentVersion ?? null) : null,
       }),
     );
   });
@@ -313,6 +345,10 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     const pack = packs.get(body.lang);
     const isGreeting = isSmallTalk(pack, body.text);
     const thanks = /\b(?:thanks?|thank you)\b/iu.test(body.text);
+    const consent =
+      !isGreeting && askDependencies
+        ? await repository.getCloudConsent(body.sessionId)
+        : null;
     const reply = isGreeting
       ? createReply(
           packs,
@@ -322,7 +358,14 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
           thanks ? "smallTalk.thanks" : "smallTalk.hello",
         )
       : askDependencies
-        ? ReplySchema.parse(await ask(body, askDependencies))
+        ? ReplySchema.parse(
+            await ask(body, askDependencies, {
+              cloudOk: Boolean(
+                consent?.cloudOk &&
+                consent.consentVersion === config.DIMTS_AI_CONSENT_VERSION,
+              ),
+            }),
+          )
         : createReply(
             packs,
             body.lang,

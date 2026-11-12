@@ -53,9 +53,6 @@ importers:
       '@dimts/engine':
         specifier: workspace:*
         version: link:../engine
-      '@dimts/grounding':
-        specifier: workspace:*
-        version: link:../grounding
       franc:
         specifier: ^6.2.0
         version: 6.2.0
@@ -236,6 +233,9 @@ importers:
 
   packages/widget:
     dependencies:
+      '@dimts/voice':
+        specifier: workspace:*
+        version: link:../voice
       intl-messageformat:
         specifier: ^10.7.16
         version: 10.7.18

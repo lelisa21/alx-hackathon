@@ -11,7 +11,7 @@ export const AskRequestSchema = z
       .max(2000)
       .describe("At most 1000 Unicode code points"),
     via: z.enum(["text", "voice", "sms", "telegram"]),
-    simple: z.boolean().optional(),
+    simple: z.boolean().default(false),
   })
   .strict();
 
@@ -50,7 +50,6 @@ export const ReplySchema = z
     citations: z.array(CitationSchema),
     actions: z.array(ActionSchema),
     audioUrl: z.string().url().optional(),
-    provider: z.enum(["cloud", "local", "offline"]).optional(),
     contentVersion: z.string(),
   })
   .strict()
@@ -70,6 +69,8 @@ export const SessionRequestSchema = z
     channel: z.enum(["web", "api"]).default("web"),
     sessionId: z.string().min(8).max(64).optional(),
     resumeToken: z.string().min(20).max(100).optional(),
+    cloudOk: z.boolean().optional(),
+    consentVersion: z.string().min(1).max(64).optional(),
   })
   .strict()
   .superRefine((body, context) => {
@@ -77,6 +78,20 @@ export const SessionRequestSchema = z
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message: "sessionId and resumeToken must be provided together",
+      });
+    }
+    if (body.cloudOk && !body.consentVersion) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "consentVersion is required when cloudOk is true",
+        path: ["consentVersion"],
+      });
+    }
+    if (body.consentVersion && !body.cloudOk) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "consentVersion is only valid when cloudOk is true",
+        path: ["consentVersion"],
       });
     }
   });
@@ -87,6 +102,8 @@ export const SessionResponseSchema = z
     sessionToken: z.string(),
     resumeToken: z.string(),
     lang: z.string(),
+    cloudOk: z.boolean(),
+    consentVersion: z.string().nullable(),
   })
   .strict();
 
@@ -115,6 +132,7 @@ export const HealthResponseSchema = z
     db: z.boolean(),
     version: z.string(),
     contentVersion: z.string(),
+    provider: z.string(),
     ladder: z.array(z.string()),
   })
   .strict();

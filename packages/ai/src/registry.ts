@@ -1,22 +1,33 @@
 import type {
   AiProvider,
+  ProviderDataClass,
   ProviderCapabilities,
   ProviderName,
+  ProviderPrivacyClass,
 } from "./provider.js";
 
 export interface ProviderBinding {
   id: ProviderName;
   adapter: string;
-  endpoint: string;
+  endpoint?: string | undefined;
   model: string;
-  apiKey?: string;
+  credentialRef?: string | undefined;
+  privacyClass: ProviderPrivacyClass;
   enabled: boolean;
   priority: number;
   timeoutMs: number;
+  allowedDataClasses: ProviderDataClass[];
+  evaluatedLanguages?: string[] | undefined;
   capabilities: ProviderCapabilities;
 }
 
-export type ProviderAdapterFactory = (binding: ProviderBinding) => AiProvider;
+export interface ResolvedProviderBinding extends ProviderBinding {
+  apiKey?: string;
+}
+
+export type ProviderAdapterFactory = (
+  binding: ResolvedProviderBinding,
+) => AiProvider;
 
 export class ProviderRegistry {
   private readonly factories = new Map<string, ProviderAdapterFactory>();
@@ -30,7 +41,7 @@ export class ProviderRegistry {
     return this;
   }
 
-  create(bindings: ProviderBinding[]): AiProvider[] {
+  create(bindings: ResolvedProviderBinding[]): AiProvider[] {
     const ids = new Set<string>();
     for (const binding of bindings) {
       if (!binding.id.trim() || ids.has(binding.id)) {

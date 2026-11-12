@@ -111,6 +111,228 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
       createHash("sha256").update(hostKey).digest("hex"),
     );
     expect(stored.rows[0]?.key_hash).not.toBe(hostKey);
+
+    const credentials = await client.query<{
+      token_hash: string;
+      resume_hash: string;
+      cloud_ok: boolean;
+      consent_version: string | null;
+    }>(
+      "SELECT token_hash, resume_hash, cloud_ok, consent_version FROM session WHERE id = $1",
+      [session.body.sessionId],
+    );
+    expect(credentials.rows[0]?.token_hash).toBe(
+      createHash("sha256").update(session.body.sessionToken).digest("hex"),
+    );
+    expect(credentials.rows[0]?.resume_hash).toBe(
+      createHash("sha256").update(session.body.resumeToken).digest("hex"),
+    );
+    expect(credentials.rows[0]?.token_hash).not.toBe(session.body.sessionToken);
+    expect(credentials.rows[0]).toMatchObject({
+      cloud_ok: false,
+      consent_version: null,
+    });
+  });
+
+  it("persists remote-AI consent and its revocation", async () => {
+    const created = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", hostKey)
+      .set("origin", origin)
+      .send({
+        lang: "en",
+        cloudOk: true,
+        consentVersion: "remote-ai-v1",
+      });
+    expect(created.status).toBe(201);
+    sessionIds.push(created.body.sessionId);
+
+    const optedIn = await client.query<{
+      cloud_ok: boolean;
+      consent_version: string | null;
+    }>("SELECT cloud_ok, consent_version FROM session WHERE id = $1", [
+      created.body.sessionId,
+    ]);
+    expect(optedIn.rows[0]).toEqual({
+      cloud_ok: true,
+      consent_version: "remote-ai-v1",
+    });
+
+    const resumed = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", hostKey)
+      .set("origin", origin)
+      .send({
+        sessionId: created.body.sessionId,
+        resumeToken: created.body.resumeToken,
+        cloudOk: false,
+      });
+    expect(resumed.status).toBe(200);
+    expect(resumed.body).toMatchObject({
+      cloudOk: false,
+      consentVersion: null,
+    });
+
+    const revoked = await client.query<{
+      cloud_ok: boolean;
+      consent_version: string | null;
+    }>("SELECT cloud_ok, consent_version FROM session WHERE id = $1", [
+      created.body.sessionId,
+    ]);
+    expect(revoked.rows[0]).toEqual({
+      cloud_ok: false,
+      consent_version: null,
+    });
+  });
+
+  it("replays database-backed replies and enforces the persisted session limit", async () => {
+    const session = await request(app)
+      .post("/v1/sessions")
+      .set("x-dimts-key", hostKey)
+      .set("origin", origin)
+      .send({ lang: "en", channel: "web" });
+    expect(session.status).toBe(201);
+    sessionIds.push(session.body.sessionId);
+
+    const body = {
+      sessionId: session.body.sessionId as string,
+      clientMsgId: "postgres-replay-message-1",
+      lang: "en",
+      text: "A question with no indexed answer",
+      via: "text",
+    };
+    const ask = () =>
+      request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${session.body.sessionToken}`)
+        .send(body);
+    const first = await ask();
+    const replay = await ask();
+
+    expect(first.status, JSON.stringify(first.body)).toBe(200);
+    expect(replay.status).toBe(200);
+    expect(replay.body).toEqual(first.body);
+
+    await client.query(
+      `INSERT INTO message (id, session_id, client_msg_id, role, text, lang, kind)
+       SELECT gen_random_uuid()::text, $1, 'seeded-limit-' || n::text,
+              'learner', 'test question', 'en', 'question'
+       FROM generate_series(1, 19) AS n`,
+      [body.sessionId],
+    );
+    const limited = await request(app)
+      .post("/v1/ask")
+      .set("authorization", `Bearer ${session.body.sessionToken}`)
+      .send({ ...body, clientMsgId: "postgres-replay-message-2" });
+    expect(limited.status).toBe(429);
+
+    const messageCounts = await client.query<{
+      learner_count: string;
+      reply_count: string;
+    }>(
+      `SELECT count(*) FILTER (WHERE role = 'learner')::text AS learner_count,
+              count(*) FILTER (WHERE role = 'dimts')::text AS reply_count
+       FROM message WHERE session_id = $1`,
+      [body.sessionId],
+    );
+    expect(messageCounts.rows[0]).toEqual({
+      learner_count: "20",
+      reply_count: "1",
+    });
+  });
+
+  it("retains active sessions while expiring old learner and help data", async () => {
+    const expiredSessionId = `expired-${randomUUID()}`;
+    const activeSessionId = `active-${randomUUID()}`;
+    const expiredHelpId = `expired-help-${randomUUID()}`;
+    const activeHelpId = `active-help-${randomUUID()}`;
+    const stoppedSubscriptionId = randomUUID();
+    const expiredAnswerKey = randomUUID();
+    sessionIds.push(activeSessionId);
+
+    await client.query(
+      `INSERT INTO session (id, channel, lang, last_seen_at)
+       VALUES ($1, 'web', 'en', now() - interval '25 hours'),
+              ($2, 'web', 'en', now())`,
+      [expiredSessionId, activeSessionId],
+    );
+    await client.query(
+      `INSERT INTO message (id, session_id, role, text, lang, kind)
+       VALUES ($1, $2, 'learner', 'expired question', 'en', 'question')`,
+      [randomUUID(), expiredSessionId],
+    );
+    await client.query(
+      `INSERT INTO help_request (id, session_id, lang, channel, status)
+       VALUES ($1, $2, 'en', 'web', 'waiting'),
+              ($3, $4, 'en', 'web', 'waiting')`,
+      [expiredHelpId, expiredSessionId, activeHelpId, activeSessionId],
+    );
+    await client.query(
+      `INSERT INTO help_message (id, help_request_id, sender, text)
+       VALUES ($1, $2, 'learner', 'expired help message')`,
+      [randomUUID(), expiredHelpId],
+    );
+    await client.query(
+      `INSERT INTO help_image (id, help_request_id, mime, data, created_at)
+       VALUES ($1, $2, 'image/png', $3, now()),
+              ($4, $5, 'image/png', $3, now() - interval '3 hours')`,
+      [
+        randomUUID(),
+        expiredHelpId,
+        Buffer.from([1]),
+        randomUUID(),
+        activeHelpId,
+      ],
+    );
+    await client.query(
+      `INSERT INTO subscription (id, channel, contact_enc, lang, stopped_at)
+       VALUES ($1, 'sms', $2, 'en', now())`,
+      [stoppedSubscriptionId, Buffer.from([1])],
+    );
+    await client.query(
+      `INSERT INTO answer_cache (cache_key, reply, created_at)
+       VALUES ($1, '{}'::jsonb, now() - interval '25 hours')`,
+      [expiredAnswerKey],
+    );
+
+    const response = await request(app)
+      .post("/v1/internal/retention")
+      .set("authorization", "Bearer integration-cron-secret-long-enough");
+
+    expect(response.status).toBe(200);
+    const retainedSessions = await client.query<{ id: string }>(
+      "SELECT id FROM session WHERE id = ANY($1::text[]) ORDER BY id",
+      [[expiredSessionId, activeSessionId]],
+    );
+    expect(retainedSessions.rows.map(({ id }) => id)).toEqual([
+      activeSessionId,
+    ]);
+    const remainingHelp = await client.query<{
+      help_count: string;
+      message_count: string;
+      image_count: string;
+    }>(
+      `SELECT
+         (SELECT count(*)::text FROM help_request WHERE id = $1) AS help_count,
+         (SELECT count(*)::text FROM help_message WHERE help_request_id = $2) AS message_count,
+         (SELECT count(*)::text FROM help_image WHERE help_request_id = $3) AS image_count`,
+      [expiredHelpId, expiredHelpId, activeHelpId],
+    );
+    expect(remainingHelp.rows[0]).toEqual({
+      help_count: "0",
+      message_count: "0",
+      image_count: "0",
+    });
+    const stoppedSubscriptions = await client.query(
+      "SELECT id FROM subscription WHERE id = $1",
+      [stoppedSubscriptionId],
+    );
+    expect(stoppedSubscriptions.rowCount).toBe(0);
+    const expiredAnswers = await client.query(
+      "SELECT cache_key FROM answer_cache WHERE cache_key = $1",
+      [expiredAnswerKey],
+    );
+    expect(expiredAnswers.rowCount).toBe(0);
   });
 
   it("uses newly ingested course content for subsequent cited answers", async () => {

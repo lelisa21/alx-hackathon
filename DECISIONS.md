@@ -64,10 +64,15 @@ decision register is authoritative for architectural choices.
   glossary expansion, top-five scoring, confidence bounds, citation gating,
   empty-index behavior, transactional replacement, and answer-cache
   invalidation. The tests also assert the `passage.grams` GIN index.
-- **Not verified against PostgreSQL:** Applying ingestion and search queries to
-  a live database; the local Docker database is unavailable in this
-  environment. CI is configured to apply migrations twice against PostgreSQL;
-  its result has not been observed here.
+- **Verified against PostgreSQL:** The WP02 PostgreSQL integration run covers
+  dynamic content replacement and atomic source-generation publication and
+  rollback.
+- **Per-question language behavior:** the engine now accepts an optional
+  detector and confidence threshold. Tests confirm a high-confidence result
+  selects the reply/search language without mutating the session language,
+  while uncertain detection retains the selected language. The default API
+  runtime wires the local Franc detector using non-draft packs and the
+  validated `DIMTS_LANGUAGE_DETECTION_CONFIDENCE` setting.
 - **Pending later work:** the 70% multilingual retrieval evaluation and floor
   calibration require reviewed glossary/evaluation data (WP14); citation-link
   browser checks belong to the widget (WP05). Transcript ingestion remains
@@ -81,34 +86,39 @@ decision register is authoritative for architectural choices.
   the private adapter remains scoped to material shareable with all learners
   using that source. Initial full sync, scheduled reconciliation, atomic
   publication, and host-authenticated notification refresh use the same source
-  manager. Tests cover pagination, URL scope, initial discovery, periodic
-  reconciliation, canonical updates/deletions, source authorization, and API
-  startup wiring.
-- **Verified locally:** `pnpm build`, `pnpm test`, `pnpm typecheck`, `pnpm lint`,
-  and formatting checks pass (`100` tests passed; `3` PostgreSQL tests skipped).
-- **Not verified against PostgreSQL:** the source-generation integration tests
-  remain skipped because `DIMTS_TEST_DATABASE_URL` is unavailable locally.
-  Private sources still require a few host-side callbacks; per-learner ACL
-  filtering is not implemented. Public source discovery is sitemap-based,
-  limited to 250 pages per source, and does not index private or unlisted
-  content.
+  manager. Grounding tests cover pagination, URL scope, initial discovery,
+  periodic reconciliation, canonical updates/deletions, and source
+  authorization. API startup wiring is verified in the Person 2 section below.
+- **Verified locally:** `pnpm build`, `pnpm test`, `pnpm typecheck`, and
+  `pnpm lint` pass. The full suite passed all 97 tests with PostgreSQL
+  integration enabled.
+- **Verified against PostgreSQL:** the source-generation integration tests
+  passed against an isolated local database, including atomic publication and
+  preservation of the last good generation after a failed sync. Private
+  sources still require a few host-side callbacks; per-learner ACL filtering
+  is not implemented. Public source discovery is sitemap-based, limited to
+  250 pages per source, and does not index private or unlisted content.
 
 ## WP04 verification
 
-- **Verified locally:** FR-AI-01 to 03, 06, 07, and 11 provider contracts,
-  adapters, ordered fallback, health and timeout handling, 60-second cooldown
-  and recovery, malformed-response retry, configuration defaults, and
-  extractive mode for unproven provider/language pairs. `pnpm exec vitest run
-packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.ts`
-  passes; workspace build, typecheck, affected-file ESLint, and literal-string
-  checks pass.
+- **Verified locally:** provider contracts, arbitrary configured IDs, the
+  OpenAI-compatible and offline adapters, ordered fallback, health and timeout
+  handling, 60-second cooldown and recovery, malformed-response retry,
+  configuration defaults, extractive mode for unproven provider/language
+  pairs, and default API runtime wiring. Remote calls require persisted
+  per-session consent; provider payloads are filtered by configured data
+  classes, credentials remain server-side, and provider identity is absent
+  from learner replies.
 - **Partially verified:** FR-AI-04 falls back to passage text with a citation,
   but the 70% FAQ hit-rate cannot be measured because the configured FAQ packs
   contain no entries. Add reviewed FAQ data before claiming that criterion.
-- **Pending WP05:** FR-AI-05's learner notice and opt-out control are a widget
-  responsibility. The API defaults to offline; the browser notice and
-  end-to-end network check are not yet verified.
-- **Deferred per cut line:** FR-AI-08 answer caching.
+- **Consent boundary:** the API enforces the FR-AI-05 consent contract and
+  defaults new sessions to no remote processing. The learner-facing disclosure
+  and opt-out control remain a WP05 widget responsibility; until it is
+  integrated, the widget does not opt sessions into remote processing.
+- **Other pending criteria:** native vendor adapters and evaluated multilingual
+  retrieval/provider pairs are not claimed. FR-AI-08 answer caching remains
+  deferred per the cut line.
 
 ## WP05 verification
 
@@ -148,14 +158,17 @@ packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.t
   conformance acceptance, and the limitations of universal platform discovery.
 - **Provider registry:** provider IDs and API schemas are now open-ended,
   configuration selects adapter bindings by ID, and the ladder filters by
-  declared language/mode/modality capabilities. The runtime currently
-  registers the OpenAI-compatible adapter; native vendor adapters and
-  provider data-class consent filtering remain unimplemented.
+  declared language/mode/modality capabilities and data-sharing policy. The
+  API composition root registers the OpenAI-compatible adapter and the
+  deterministic offline adapter; native vendor-specific adapters remain
+  unimplemented.
 - **Question language:** use local `franc` detection against installed locale
   packs for each question. Apply only results above the configured confidence
   threshold; otherwise keep the request's selected language. Detection never
   mutates the saved session language or sends question text to an external
-  service. Cross-language retrieval remains evaluation-gated.
+  service. The default API runtime detects only against non-draft packs and
+  reads the threshold from validated configuration. Cross-language retrieval
+  evaluation remains pending.
 - **Static shell versus dynamic learner data:** the local/hosted "static site"
   is only the widget delivery layer. Course content is queried from the active
   PostgreSQL passage set at ask time; re-ingestion updates the active version
@@ -174,12 +187,13 @@ packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.t
   and upserts the local widget host by ID. It stores only the SHA-256 hash of
   `DIMTS_LOCAL_WIDGET_KEY`, validates allowed origins, and can be rerun safely.
   The key is a public development identifier, not a production credential.
-  Backend live-PostgreSQL verification and complete FR-INT-09/12 Compose
-  orchestration remain pending.
+  Backend live-PostgreSQL verification is recorded under WP02; full
+  FR-INT-09/12 Compose orchestration was completed in the Person 1 pass below.
 - **Verified this increment:** local host hashing/origin/upsert unit tests and
-  API/grounding contracts pass. The PostgreSQL integration tests for health,
-  session creation, idempotent migrations, and changed-content answers are
-  wired into CI but skipped locally because Docker Engine is unavailable.
+  API/grounding contracts pass. Five PostgreSQL integration tests also passed
+  locally against an isolated Compose database, covering health, session
+  creation, repeat migrations, changed-content answers, and source-generation
+  publication and rollback.
 
 ## Backend contract freeze
 
@@ -192,8 +206,200 @@ packages/ai/test packages/engine/test/wp03.test.ts packages/api/test/wp02.test.t
   migration/blueprint reply-schema parity, WebSocket auth requirements,
   documented secrets, and unique blueprint decision IDs. The focused run
   passed 4 contract tests and all 17 WP02 API tests.
-- **Validation note:** API typecheck is currently blocked by a pre-existing
-  exact-optional-property error in `packages/api/src/routes/core.ts:325`;
-  that runtime source was not changed as part of this contract freeze.
+- **Validation note:** the earlier contract-freeze run found an
+  exact-optional-property error in `packages/api/src/routes/core.ts:325`. WP02
+  resolved it by defaulting the optional `simple` request flag to `false`; API
+  typecheck now passes.
 - **Scope note:** this freezes the WebSocket contract; it does not claim the
   help WebSocket server is implemented.
+
+## WP02 API and persistence verification
+
+- **Requirements:** FR-CONV-01–04, FR-CONV-10, FR-CONV-13, NFR-SEC-03,
+  NFR-SEC-10, NFR-SEC-12, NFR-OPS-01, NFR-OPS-02, and NFR-PRIV-05.
+- **Verified acceptance:** 34 API tests pass, including four contract-parity
+  checks, health deadlines, the optional `simple` default, retention
+  authorization, and OpenAPI coverage. Five PostgreSQL integration tests pass:
+  migrations are repeatable; host/session credentials are stored as hashes;
+  reply replay and the persisted session limit work; retention removes expired
+  learner/help data, stale images, stopped subscriptions, and expired answer
+  cache entries while preserving active sessions; and updated course content
+  produces updated cited answers. The engine also now awaits asynchronous
+  content-version lookups, covered by a focused regression test.
+- **Validation:** workspace build, all 97 tests with PostgreSQL integration
+  enabled, workspace typecheck, and repository lint pass. The later Person 1
+  pass records the updated suite and completes the previously deferred Compose
+  acceptance.
+
+## WP00 Compose acceptance (originally deferred)
+
+- **Requirements:** FR-INT-09 and FR-INT-12, with NFR-OPS-01/02.
+- **Historical deferral:** the first Compose increment started only
+  PostgreSQL. The user later requested completion of API/widget startup; the
+  deferral is resolved by the acceptance below.
+- **Scope:** per the authoritative Blueprint, Compose runs PostgreSQL, API, and
+  the static widget shell. It does not invent seeded course/job data, a
+  simulator, or helper-console behavior.
+
+## Person 1 completion pass — requirements before implementation
+
+- **Requirements in scope:** WP00 (FR-INT-09, FR-INT-12, NFR-OPS-01/02);
+  WP04 (FR-AI-01–07, FR-AI-09, FR-AI-11, AR-01, AR-08). Previously completed
+  WP02/WP03 acceptance remains covered by the sections above.
+- **Consent-contract resolution (user approved):** Add optional `cloudOk` and
+  `consentVersion` to the existing session create/resume request. Omitted
+  consent is false; enabling remote processing requires a non-empty version;
+  resume can revoke it. The response returns persisted consent state.
+- **Compose boundary:** Follow the authoritative Blueprint: start PostgreSQL,
+  API, and the static widget shell; do not fabricate seeded course answers,
+  job data, simulator, or helper-console behavior absent from that boundary.
+- **Verified acceptance — WP04:** provider binding configuration validates,
+  providers resolve through configured adapters, remote requests are blocked
+  without consent and filtered to allowed data classes, credentials stay
+  server-side, and offline fallback remains available. API tests exercise both
+  non-consenting and consenting sessions. PostgreSQL integration tests verify
+  migration 004, default opt-out, consent persistence, and revocation.
+- **Verified acceptance — WP00:** `pnpm test:compose` builds and starts the
+  database, API, and widget; checks direct and proxied API health, language
+  listing, loopback-only API/widget ports, the internal database backend
+  network, an offline-image restart with `--pull never --no-build`, and
+  cleanup of its uniquely named containers, volume, and images. Startup must
+  become healthy within the script's five-minute bound. The database is not
+  published to the host.
+- **Validation:** `pnpm test` passes 104 tests (the six PostgreSQL tests are
+  skipped without a database URL); all six pass separately against an isolated
+  PostgreSQL container. `pnpm typecheck`, `pnpm build`, `pnpm lint`,
+  `pnpm lang:check`, `pnpm test:widget` (10/10, including axe checks), and
+  `pnpm test:compose` pass. Modified files were formatted. Repository-wide
+  `pnpm format:check` still reports two untouched pre-existing files:
+  `packages/api/src/server.ts` and `packages/grounding/src/grams.ts`.
+- **Acceptance boundary:** the Compose restart proves the prebuilt stack starts
+  without pulling or rebuilding images; it does not claim a first-time build on
+  a physically disconnected machine. FR-AI-04's FAQ hit-rate and the WP05
+  learner-facing remote-AI notice/opt-out remain pending their required data
+  and UI integration.
+
+## Person 2 source runtime integration
+
+### Requirements before implementation
+
+- **Requirements:** WP03 — FR-INT-08, FR-TUTOR-01–06, FR-TUTOR-12–13,
+  FR-TUTOR-15–18, and AR-03–AR-05. Preserve the authorized-sitemap boundary,
+  stable source identities, host authorization, provenance, atomic
+  publication, and dynamic retrieval behavior.
+- **Telegram scope (user-approved):** wire the generic host-owned source
+  adapter boundary only. A native Telegram connector remains WP08
+  (FR-TG-01–12); learner direct messages and private-chat history are not
+  shared index inputs.
+- **Discrepancy found:** the source primitives existed, but current API code
+  did not parse `DIMTS_PUBLIC_SOURCES`, create/start a `SourceSyncManager`, or
+  expose the documented `sourceSyncReady`/`sourceSyncManager` locals. This
+  contradicted the earlier startup-wiring claim.
+
+### Verified acceptance
+
+- **FR-INT-08:** validated public sitemap registrations feed the existing
+  bounded, same-origin connector. `DIMTS_SOURCE_SYNC_INTERVAL_MS` defaults to
+  300,000 ms and is bounded to 1,000–86,400,000 ms.
+- **FR-TUTOR-12, AR-03–AR-05:** API startup combines public registrations with
+  host-injected `ContentSource` adapters, uses PostgreSQL storage by default,
+  and requires an injected `SourceSyncStore` with a custom repository. The
+  initial sync is awaited before the server listens; reconciliation is
+  scheduled; host-authenticated `notify` calls fetch authoritative content
+  through the adapter before atomic publication.
+- **Privacy boundary:** shared sources must contain only material authorized
+  for every learner using that source. Per-learner ACL filtering is still not
+  implemented. Native Telegram ingestion remains WP08; the adapter boundary
+  does not index learner DMs or private-chat history, and no public webhook
+  was added. Default sync-error logs omit source identifiers, upstream error
+  messages, and document text.
+- **Verification:** API and grounding source tests pass (69 passed, 6
+  PostgreSQL tests skipped without the test database URL); API and grounding
+  typechecks and targeted ESLint pass. Prettier passes for the changed
+  implementation, test, and documentation files; the pre-existing formatting
+  difference in `packages/api/src/server.ts` was not broadened. Compose
+  configuration validates and passes the default interval `300000` to the API.
+
+## Widget size-gate follow-up — requirements before implementation
+
+- **Requirement:** FR-UI-14 — “Bundle budget: initial widget JavaScript at
+  most 60 KB compressed; voice and help code load on demand. CI size check
+  fails if exceeded.”
+- **Scope:** preserve the existing budgets and compression measurement; make
+  the script locate repository assets independently of the caller's working
+  directory and add isolated pass/fail tests for its budget behavior.
+
+### Verified acceptance
+
+- The gate resolves the repository root from its own module path and passes
+  when invoked from outside the repository root.
+- Fixture tests verify failure when compressed JavaScript exceeds 60 KiB, when
+  initial-load assets exceed 150 KiB, and when the build has no JavaScript
+  bundle. The actual widget build passes at 28,247 compressed JavaScript bytes
+  and 29,175 compressed initial-load bytes.
+- `pnpm exec vitest run tests/size-gate.test.ts`, `pnpm size`, targeted ESLint,
+  Prettier, and `git diff --check` pass.
+- **Not claimed:** FR-UI-14's on-demand voice/help loading remains pending.
+  `packages/widget/vite.config.ts` currently inlines dynamic imports, so this
+  size-gate change does not establish code-splitting or lazy-load behavior.
+
+## WP06 voice scaffold — requirements before implementation
+
+- **FR-VOICE-02:** “STT and TTS are behind interfaces (SpeechToText,
+  TextToSpeech). Engines are adapters chosen by voice.yaml and
+  DIMTS_STT_ENGINE / DIMTS_TTS_ENGINE.”
+- **FR-VOICE-03:** “if STT or TTS is not supported for the chosen language, the
+  mic or read-aloud control is hidden or disabled with a clear text reason,
+  and text input works fully.”
+- **FR-VOICE-04:** “Recording starts and stops by tap (toggle). ... Maximum 60
+  seconds per recording.”
+- **FR-VOICE-05:** “the recognised text is shown ... with Send and Say it
+  again. The text is editable.”
+- **FR-VOICE-06:** “a plain message explains how to continue by text and how to
+  enable the mic, no dead ends.”
+- **FR-VOICE-07:** “Low confidence or silence: the learner hears and sees
+  Please say it again, never a silent failure.”
+- **FR-VOICE-08:** “each reply has a Read aloud button; setting can read all
+  replies automatically. Speech can be paused, stopped and sped up (0.75, 1,
+  1.25).”
+- **FR-VOICE-09:** “Audio is not stored by default.”
+- **FR-VOICE-12:** “Sound never carries information alone: any tone, voice
+  prompt or audio reply has a visible and screen reader equivalent.”
+
+**Selected scope:** build the `SpeechToText` and `TextToSpeech` ports and a
+mock-driven widget interaction flow. No real browser/server voice adapter is
+selected or enabled: `voice.yaml` engines remain null, the language packs
+report STT/TTS unavailable, and no `/v1/stt` contract exists. The widget must
+not request microphone access or invoke speech output without an injected,
+language-supported adapter. FR-VOICE-01's physical Android test and engine
+selection remain prerequisites for production voice.
+
+### Verified acceptance
+
+- `@dimts/voice` now defines provider-neutral STT/TTS ports, voice error codes,
+  and the 60-second recording limit. Widget controls require both the language
+  capability flag and an injected adapter that reports support.
+- Mock-adapter Playwright tests verify unavailable controls and typed chat,
+  recording toggle and 60-second stop, editable transcript/retry/explicit send,
+  permission and missing-microphone recovery, silence feedback, optional
+  spoken retry/transcript, per-reply and automatic read-aloud, speech rate,
+  pause/resume/stop, and no transcript persistence in local storage.
+- Speech output and transcription prompts have visible text equivalents;
+  status and error announcements are exposed to assistive technology. The
+  widget accessibility test reports no critical or serious axe violations.
+- `pnpm test:widget` passes 17/17; widget/voice typecheck, targeted ESLint,
+  style and string lint, `lang:check`, Prettier, and `git diff --check` pass.
+  `pnpm size` passes at 29,600 compressed JavaScript bytes and 30,746 compressed
+  initial-load bytes.
+
+### Still pending — not a WP06 completion claim
+
+- FR-VOICE-01: no Android device/engine comparison has been recorded in
+  `docs/VOICE_TEST.md`; `voice.yaml` and `DIMTS_STT_ENGINE` /
+  `DIMTS_TTS_ENGINE` selection are not wired. No production voice adapter is
+  active, and the real microphone/audio path is unverified.
+- FR-VOICE-02's configuration-driven engine selection, actual voice behavior
+  on supported hardware, server STT deletion behavior under FR-VOICE-09, and
+  FR-VOICE-10/11 remain unverified or unimplemented.
+- Amharic and Afaan Oromoo voice copy is present in their draft locale packs
+  but still requires language-lead review.

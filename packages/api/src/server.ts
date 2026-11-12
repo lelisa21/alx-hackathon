@@ -3,7 +3,9 @@ import { buildApp } from "./app.js";
 import { parseConfig } from "./config.js";
 
 const config = parseConfig(process.env);
-const server = createServer(buildApp({ config }));
+const app = buildApp({ config });
+await app.locals.sourceSyncReady;
+const server = createServer(app);
 
 server.listen(config.PORT, () => {
   process.stdout.write(`Dimts API listening on port ${config.PORT}\n`);

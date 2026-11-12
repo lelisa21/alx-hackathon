@@ -2,7 +2,7 @@ export type Lang = string;
 export type SourceType = "course" | "job";
 export type ReplyKind =
   "answer" | "notfound" | "escalation" | "distress" | "system";
-export type ProviderName = "cloud" | "local" | "offline";
+export type ProviderName = string;
 
 export interface AskRequest {
   sessionId: string;
@@ -25,6 +25,16 @@ export interface Passage {
 
 export interface ScoredPassage extends Passage {
   score: number;
+}
+
+export interface LanguageDetection {
+  language: Lang;
+  confidence: number;
+  alternatives: { language: Lang; confidence: number }[];
+}
+
+export interface LanguageDetector {
+  detect(text: string): Promise<LanguageDetection | null>;
 }
 
 export interface Citation {
@@ -50,7 +60,6 @@ export interface Reply {
   dir: "ltr" | "rtl";
   citations: Citation[];
   actions: Action[];
-  provider?: ProviderName;
   contentVersion: string;
 }
 
@@ -71,9 +80,13 @@ export interface AnswerResult {
   latencyMs: number;
 }
 
+export interface AnswerPolicy {
+  cloudOk: boolean;
+}
+
 export interface AskDependencies {
   search(question: string, lang: Lang): Promise<ScoredPassage[]>;
-  answer(request: AnswerRequest): Promise<AnswerResult>;
+  answer(request: AnswerRequest, policy: AnswerPolicy): Promise<AnswerResult>;
   glossaryFor(
     question: string,
     lang: Lang,
@@ -83,6 +96,8 @@ export interface AskDependencies {
   confidenceFloor(lang: Lang): number;
   translate(lang: Lang, key: string): string;
   direction(lang: Lang): "ltr" | "rtl";
-  contentVersion(): string;
+  languageDetector?: LanguageDetector;
+  languageDetectionConfidence?: number;
+  contentVersion(): string | Promise<string>;
   createId(): string;
 }

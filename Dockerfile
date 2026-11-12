@@ -1,0 +1,36 @@
+FROM node:22-alpine AS workspace
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
+COPY . .
+RUN pnpm install --frozen-lockfile
+RUN pnpm build
+
+FROM node:22-alpine AS api
+
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+COPY --from=workspace /app/packages/api/package.json packages/api/package.json
+COPY --from=workspace /app/packages/api/dist packages/api/dist
+COPY --from=workspace /app/packages/api/migrations packages/api/migrations
+COPY --from=workspace /app/packages/ai/package.json packages/ai/package.json
+COPY --from=workspace /app/packages/ai/dist packages/ai/dist
+COPY --from=workspace /app/packages/engine/package.json packages/engine/package.json
+COPY --from=workspace /app/packages/engine/dist packages/engine/dist
+COPY --from=workspace /app/packages/grounding/package.json packages/grounding/package.json
+COPY --from=workspace /app/packages/grounding/dist packages/grounding/dist
+COPY --from=workspace /app/packages/locales-tools/package.json packages/locales-tools/package.json
+COPY --from=workspace /app/packages/locales-tools/dist packages/locales-tools/dist
+COPY --from=workspace /app/locales locales
+RUN pnpm install --prod --frozen-lockfile --filter @dimts/api...
+
+ENV NODE_ENV=production
+EXPOSE 3000
+CMD ["node", "packages/api/dist/server.js"]
+
+FROM nginx:alpine AS web
+
+COPY packages/widget/nginx.conf /etc/nginx/conf.d/default.conf
+COPY --from=workspace /app/packages/widget/dist /usr/share/nginx/html
+EXPOSE 80

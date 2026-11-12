@@ -11,6 +11,9 @@ components:
       type: apiKey
       in: header
       name: X-Dimts-Key
+    cronBearer:
+      type: http
+      scheme: bearer
   schemas:
     AskRequest:
       type: object
@@ -41,6 +44,7 @@ components:
             - telegram
         simple:
           type: boolean
+          default: false
       required:
         - sessionId
         - clientMsgId
@@ -121,9 +125,6 @@ components:
         audioUrl:
           type: string
           format: uri
-        provider:
-          type: string
-          minLength: 1
         contentVersion:
           type: string
       required:
@@ -186,6 +187,12 @@ components:
           type: string
           minLength: 20
           maxLength: 100
+        cloudOk:
+          type: boolean
+        consentVersion:
+          type: string
+          minLength: 1
+          maxLength: 64
       additionalProperties: false
     SessionResponse:
       type: object
@@ -198,11 +205,19 @@ components:
           type: string
         lang:
           type: string
+        cloudOk:
+          type: boolean
+        consentVersion:
+          type:
+            - string
+            - "null"
       required:
         - sessionId
         - sessionToken
         - resumeToken
         - lang
+        - cloudOk
+        - consentVersion
       additionalProperties: false
     HealthResponse:
       type: object
@@ -215,40 +230,19 @@ components:
           type: string
         contentVersion:
           type: string
+        provider:
+          type: string
         ladder:
           type: array
           items:
             type: string
-        provider:
-          type:
-            - string
-            - "null"
-          minLength: 1
-        providerStates:
-          type: array
-          items:
-            type: object
-            properties:
-              name:
-                type: string
-                minLength: 1
-              available:
-                type: boolean
-              active:
-                type: boolean
-            required:
-              - name
-              - available
-              - active
-            additionalProperties: false
       required:
         - ok
         - db
         - version
         - contentVersion
-        - ladder
         - provider
-        - providerStates
+        - ladder
       additionalProperties: false
     LanguageList:
       type: object
@@ -329,40 +323,19 @@ paths:
                     type: string
                   contentVersion:
                     type: string
+                  provider:
+                    type: string
                   ladder:
                     type: array
                     items:
                       type: string
-                  provider:
-                    type:
-                      - string
-                      - "null"
-                    minLength: 1
-                  providerStates:
-                    type: array
-                    items:
-                      type: object
-                      properties:
-                        name:
-                          type: string
-                          minLength: 1
-                        available:
-                          type: boolean
-                        active:
-                          type: boolean
-                      required:
-                        - name
-                        - available
-                        - active
-                      additionalProperties: false
                 required:
                   - ok
                   - db
                   - version
                   - contentVersion
-                  - ladder
                   - provider
-                  - providerStates
+                  - ladder
                 additionalProperties: false
   /v1/languages:
     get:
@@ -491,6 +464,12 @@ paths:
                   type: string
                   minLength: 20
                   maxLength: 100
+                cloudOk:
+                  type: boolean
+                consentVersion:
+                  type: string
+                  minLength: 1
+                  maxLength: 64
               additionalProperties: false
       responses:
         "200":
@@ -508,11 +487,19 @@ paths:
                     type: string
                   lang:
                     type: string
+                  cloudOk:
+                    type: boolean
+                  consentVersion:
+                    type:
+                      - string
+                      - "null"
                 required:
                   - sessionId
                   - sessionToken
                   - resumeToken
                   - lang
+                  - cloudOk
+                  - consentVersion
                 additionalProperties: false
         "201":
           description: Created session
@@ -529,11 +516,19 @@ paths:
                     type: string
                   lang:
                     type: string
+                  cloudOk:
+                    type: boolean
+                  consentVersion:
+                    type:
+                      - string
+                      - "null"
                 required:
                   - sessionId
                   - sessionToken
                   - resumeToken
                   - lang
+                  - cloudOk
+                  - consentVersion
                 additionalProperties: false
         "400":
           description: Problem response
@@ -643,6 +638,7 @@ paths:
                   enum: *a5
                 simple:
                   type: boolean
+                  default: false
               required:
                 - sessionId
                 - clientMsgId
@@ -713,9 +709,6 @@ paths:
                   audioUrl:
                     type: string
                     format: uri
-                  provider:
-                    type: string
-                    minLength: 1
                   contentVersion:
                     type: string
                 required:
@@ -829,6 +822,49 @@ paths:
                   - messageKey
                 additionalProperties: false
         "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/internal/retention:
+    post:
+      summary: Delete expired session and retention data
+      security:
+        - cronBearer: []
+      responses:
+        "200":
+          description: Retention completed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                required:
+                  - ok
+                additionalProperties: false
+        "401":
           description: Problem response
           content:
             application/problem+json:
