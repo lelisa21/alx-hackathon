@@ -45,6 +45,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
   let client: pg.Client;
   let app: ReturnType<typeof buildApp>;
   const sessionIds: string[] = [];
+  const helperIds: string[] = [];
 
   beforeAll(async () => {
     if (!databaseUrl) throw new Error("DIMTS_TEST_DATABASE_URL is required.");
@@ -77,6 +78,9 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
     if (client) {
       for (const sessionId of sessionIds) {
         await client.query("DELETE FROM session WHERE id = $1", [sessionId]);
+      }
+      for (const helperId of helperIds) {
+        await client.query("DELETE FROM helper WHERE id = $1", [helperId]);
       }
       await client.query("DELETE FROM host_key WHERE id = $1", [hostId]);
       await client.end();
@@ -132,6 +136,77 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
       cloud_ok: false,
       consent_version: null,
     });
+  });
+
+  it("atomically lets only one authenticated helper claim a request", async () => {
+    const sessionId = `help-session-${randomUUID()}`;
+    const requestId = `help-request-${randomUUID()}`;
+    const firstHelperId = `helper-${randomUUID()}`;
+    const secondHelperId = `helper-${randomUUID()}`;
+    const firstToken = randomUUID();
+    const secondToken = randomUUID();
+    sessionIds.push(sessionId);
+    helperIds.push(firstHelperId, secondHelperId);
+
+    await client.query(
+      `INSERT INTO session (id, channel, lang) VALUES ($1, 'web', 'en')`,
+      [sessionId],
+    );
+    await client.query(
+      `INSERT INTO helper (id, display_name, token_hash, langs)
+       VALUES ($1, 'First helper', $2, ARRAY['en']),
+              ($3, 'Second helper', $4, ARRAY['en'])`,
+      [
+        firstHelperId,
+        createHash("sha256").update(firstToken).digest("hex"),
+        secondHelperId,
+        createHash("sha256").update(secondToken).digest("hex"),
+      ],
+    );
+    await client.query(
+      `INSERT INTO help_request (id, session_id, lang, channel, status)
+       VALUES ($1, $2, 'en', 'web', 'waiting')`,
+      [requestId, sessionId],
+    );
+
+    const [firstLogin, secondLogin] = await Promise.all([
+      request(app).post("/v1/helpers/login").send({ token: firstToken }),
+      request(app).post("/v1/helpers/login").send({ token: secondToken }),
+    ]);
+    expect(firstLogin.status).toBe(200);
+    expect(secondLogin.status).toBe(200);
+
+    const claims = await Promise.all([
+      request(app)
+        .post(`/v1/help/${requestId}/claim`)
+        .set("authorization", `Bearer ${firstLogin.body.jwt}`),
+      request(app)
+        .post(`/v1/help/${requestId}/claim`)
+        .set("authorization", `Bearer ${secondLogin.body.jwt}`),
+    ]);
+    expect(claims.map(({ status }) => status).sort()).toEqual([200, 409]);
+
+    const stored = await client.query<{
+      status: string;
+      helper_id: string | null;
+    }>("SELECT status, helper_id FROM help_request WHERE id = $1", [requestId]);
+    expect(stored.rows[0]?.status).toBe("claimed");
+    expect([firstHelperId, secondHelperId]).toContain(
+      stored.rows[0]?.helper_id,
+    );
+
+    const credentialHashes = await client.query<{ token_hash: string }>(
+      "SELECT token_hash FROM helper WHERE id = ANY($1::text[]) ORDER BY id",
+      [[firstHelperId, secondHelperId]],
+    );
+    expect(
+      credentialHashes.rows.map(({ token_hash }) => token_hash).sort(),
+    ).toEqual(
+      [
+        createHash("sha256").update(firstToken).digest("hex"),
+        createHash("sha256").update(secondToken).digest("hex"),
+      ].sort(),
+    );
   });
 
   it("persists remote-AI consent and its revocation", async () => {

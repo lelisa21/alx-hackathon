@@ -213,6 +213,45 @@ decision register is authoritative for architectural choices.
 - **Scope note:** this freezes the WebSocket contract; it does not claim the
   help WebSocket server is implemented.
 
+## WP07 help backend contract staging
+
+- **Requirements:** FR-HELP-01 says one activation creates a help request;
+  FR-HELP-02 requires a preview of the language and optional last three
+  questions, followed by one confirmation before sending. FR-HELP-05 requires
+  configurable helper availability hours. FR-HELP-06 requires a
+  language-filterable queue and atomic claiming. FR-HELP-13 limits handoff data
+  to language, channel, optional last three questions, and chat. FR-HELP-15
+  requires help data deletion at session end or retention expiry. FR-HELP-17
+  requires a limit of five requests per hour per session and helper blocking.
+- **Contract resolutions:** The Help me now action opens the preview; the
+  explicit confirmation sends the request. `DIMTS_HELPER_HOURS` is a JSON
+  weekly schedule using UTC and ISO weekdays (Monday=1 through Sunday=7),
+  with each interval represented by `day`, `start` and `end` (`HH:mm`);
+  overnight hours are represented by intervals on both days. An unset schedule
+  does not restrict availability. This schedule format and flow clarification
+  are recorded in the Blueprint.
+- **Implementation boundary:** Do not invent missing public request/response
+  fields or a block endpoint. The help-request, queue-response, and block
+  contracts remain pending; implement only contracts fully specified by the
+  Blueprint or compatible SRS detail. The schedule parser is internal until
+  the availability response for the learner is specified. The five-per-hour
+  limit remains for the request-creation increment.
+- **Verified acceptance (first backend slice):** Helper login returns only a
+  JWT for a valid helper token; invalid tokens and revoked helpers are rejected.
+  Claim authentication and the one-winner HTTP behavior pass focused tests.
+  `DIMTS_HELPER_HOURS` strictly parses UTC weekly intervals and the availability
+  function passes fixed-time boundary tests. OpenAPI includes helper login and
+  claim.
+- **Validation:** All 48 API tests pass; 7 PostgreSQL integration tests are
+  skipped because `DIMTS_TEST_DATABASE_URL` is unset. API build, lint,
+  formatting, and `git diff --check` pass. The new PostgreSQL two-helper
+  integration test is present but still needs a configured test database.
+- **Still pending:** Help request creation and privacy-limited summary,
+  language-filtered queue, end-help, learner availability response/UI,
+  WebSocket chat/replay, five-per-hour request limit, helper blocking, and
+  learner/helper interfaces. The block behavior and public shapes noted above
+  require contract resolution before implementation.
+
 ## WP02 API and persistence verification
 
 - **Requirements:** FR-CONV-01–04, FR-CONV-10, FR-CONV-13, NFR-SEC-03,

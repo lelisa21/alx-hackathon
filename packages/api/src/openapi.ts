@@ -8,6 +8,9 @@ import { stringify } from "yaml";
 import {
   AskRequestSchema,
   HealthResponseSchema,
+  HelperLoginRequestSchema,
+  HelperLoginResponseSchema,
+  HelpClaimResponseSchema,
   LanguageListSchema,
   LocaleUiSchema,
   ProblemSchema,
@@ -25,9 +28,16 @@ registry.register("Problem", ProblemSchema);
 registry.register("SessionRequest", SessionRequestSchema);
 registry.register("SessionResponse", SessionResponseSchema);
 registry.register("HealthResponse", HealthResponseSchema);
+registry.register("HelperLoginRequest", HelperLoginRequestSchema);
+registry.register("HelperLoginResponse", HelperLoginResponseSchema);
+registry.register("HelpClaimResponse", HelpClaimResponseSchema);
 registry.register("LanguageList", LanguageListSchema);
 registry.register("LocaleUI", LocaleUiSchema);
 registry.registerComponent("securitySchemes", "sessionBearer", {
+  type: "http",
+  scheme: "bearer",
+});
+registry.registerComponent("securitySchemes", "helperBearer", {
   type: "http",
   scheme: "bearer",
 });
@@ -127,6 +137,40 @@ registry.registerPath({
     "409": problemResponse,
     "413": problemResponse,
     "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/helpers/login",
+  summary: "Exchange a helper token for a helper JWT",
+  request: {
+    body: {
+      content: { "application/json": { schema: HelperLoginRequestSchema } },
+    },
+  },
+  responses: {
+    "200": {
+      description: "Helper JWT",
+      ...json(HelperLoginResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/help/{id}/claim",
+  summary: "Claim a waiting help request",
+  security: [{ helperBearer: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    "200": {
+      description: "Claim accepted",
+      ...json(HelpClaimResponseSchema),
+    },
+    "401": problemResponse,
+    "409": problemResponse,
   },
 });
 registry.registerPath({

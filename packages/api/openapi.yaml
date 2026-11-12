@@ -7,6 +7,9 @@ components:
     sessionBearer:
       type: http
       scheme: bearer
+    helperBearer:
+      type: http
+      scheme: bearer
     hostKey:
       type: apiKey
       in: header
@@ -243,6 +246,34 @@ components:
         - contentVersion
         - provider
         - ladder
+      additionalProperties: false
+    HelperLoginRequest:
+      type: object
+      properties:
+        token:
+          type: string
+          minLength: 20
+          maxLength: 200
+      required:
+        - token
+      additionalProperties: false
+    HelperLoginResponse:
+      type: object
+      properties:
+        jwt:
+          type: string
+      required:
+        - jwt
+      additionalProperties: false
+    HelpClaimResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+      required:
+        - ok
       additionalProperties: false
     LanguageList:
       type: object
@@ -822,6 +853,186 @@ paths:
                   - messageKey
                 additionalProperties: false
         "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/helpers/login:
+    post:
+      summary: Exchange a helper token for a helper JWT
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+                  minLength: 20
+                  maxLength: 200
+              required:
+                - token
+              additionalProperties: false
+      responses:
+        "200":
+          description: Helper JWT
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jwt:
+                    type: string
+                required:
+                  - jwt
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/help/{id}/claim:
+    post:
+      summary: Claim a waiting help request
+      security:
+        - helperBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+      responses:
+        "200":
+          description: Claim accepted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - ok
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "409":
           description: Problem response
           content:
             application/problem+json:

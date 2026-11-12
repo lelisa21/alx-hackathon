@@ -58,6 +58,14 @@ export interface ApiRepository {
   releaseQuestion(sessionId: string, clientMsgId: string): Promise<void>;
 }
 
+export interface HelpAuthStore {
+  findActiveHelperByTokenHash(
+    tokenHash: string,
+  ): Promise<{ id: string } | null>;
+  isHelperActive(helperId: string): Promise<boolean>;
+  claimWaitingRequest(requestId: string, helperId: string): Promise<boolean>;
+}
+
 export interface AppDependencies {
   config: ApiConfig;
   repository: ApiRepository;

@@ -135,6 +135,71 @@ const providerBindingsSchema = z
     return parsed.data;
   });
 
+const helperHoursIntervalSchema = z
+  .object({
+    day: z.number().int().min(1).max(7),
+    start: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u),
+    end: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/u),
+  })
+  .strict()
+  .refine((interval) => interval.start < interval.end, {
+    message: "interval start must be before end",
+  });
+
+const helperHoursSchema = z
+  .string()
+  .optional()
+  .transform((value, context) => {
+    if (value === undefined) return undefined;
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(value);
+    } catch {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "must contain valid JSON",
+      });
+      return z.NEVER;
+    }
+
+    const parsed = z.array(helperHoursIntervalSchema).safeParse(decoded);
+    if (!parsed.success) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: parsed.error.issues
+          .map((issue) => {
+            const key =
+              issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+            return `${key}${issue.message}`;
+          })
+          .join("; "),
+      });
+      return z.NEVER;
+    }
+
+    const intervalsByDay = new Map<
+      number,
+      Array<{ start: string; end: string }>
+    >();
+    for (const interval of parsed.data) {
+      const intervals = intervalsByDay.get(interval.day) ?? [];
+      if (
+        intervals.some(
+          ({ start, end }) => interval.start < end && interval.end > start,
+        )
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `intervals overlap on ISO weekday ${interval.day}`,
+        });
+        return z.NEVER;
+      }
+      intervals.push(interval);
+      intervalsByDay.set(interval.day, intervals);
+    }
+    return parsed.data;
+  });
+
 const base64Key = (length: number) =>
   z
     .string()
@@ -185,7 +250,7 @@ const environmentSchema = z
     DIMTS_SMS_MODE: z.string().default("simulator"),
     DIMTS_TURN_API_KEY: z.string().optional(),
     DIMTS_TURN_APP: z.string().optional(),
-    DIMTS_HELPER_HOURS: z.string().optional(),
+    DIMTS_HELPER_HOURS: helperHoursSchema,
     DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {

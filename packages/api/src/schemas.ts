@@ -107,6 +107,16 @@ export const SessionResponseSchema = z
   })
   .strict();
 
+export const HelperLoginRequestSchema = z
+  .object({ token: z.string().min(20).max(200) })
+  .strict();
+
+export const HelperLoginResponseSchema = z.object({ jwt: z.string() }).strict();
+
+export const HelpClaimResponseSchema = z
+  .object({ ok: z.literal(true) })
+  .strict();
+
 export const ProblemSchema = z
   .object({
     type: z.string(),

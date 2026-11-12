@@ -47,6 +47,22 @@ describe("backend contract documentation", () => {
     expect(blueprint).toMatch(/4401/u);
   });
 
+  it("freezes the WP07 confirmation and UTC availability contracts", async () => {
+    const blueprint = await readFile(
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
+      "utf8",
+    );
+
+    expect(blueprint).toMatch(
+      /activating Help me now opens the preview; the\s+request is sent only after the learner confirms/u,
+    );
+    expect(blueprint).toMatch(/\[\{"day":1,"start":"09:00","end":"17:00"\}\]/u);
+    expect(blueprint).toMatch(
+      /An unset value means no schedule-based availability restriction/u,
+    );
+    expect(blueprint).toMatch(/an empty array means no available hours/u);
+  });
+
   it("documents all distinct API signing and data-protection secrets", async () => {
     const blueprint = await readFile(
       path.join(root, "Dimts-System-Blueprint-v2.0.md"),

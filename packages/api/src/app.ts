@@ -25,13 +25,15 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseConfig, configuredOrigins } from "./config.js";
 import { createPool, createPostgresRepository } from "./db/repository.js";
+import { createPostgresHelpAuthStore } from "./db/help-auth-store.js";
 import { errorHandler, sendProblem } from "./middleware/problem.js";
 import { createCoreRouter } from "./routes/core.js";
+import { createHelpRouter } from "./routes/help.js";
 import { createInternalRouter } from "./routes/internal.js";
 import { createEngineDependencies } from "./engine.js";
 import { createApiProviderRuntime } from "./provider-runtime.js";
 import type { ApiConfig } from "./config.js";
-import type { ApiRepository } from "./types.js";
+import type { ApiRepository, HelpAuthStore } from "./types.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -44,6 +46,7 @@ export interface ApiSourceSyncOptions {
 export interface BuildAppOptions {
   config?: ApiConfig;
   repository?: ApiRepository;
+  helpStore?: HelpAuthStore;
   localesRoot?: string;
   askDependencies?: AskDependencies;
   providerSecrets?: Record<string, string | undefined>;
@@ -71,6 +74,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const pool = options.repository ? undefined : createPool(config);
   const repository =
     options.repository ?? createPostgresRepository(pool ?? createPool(config));
+  const helpStore =
+    options.helpStore ?? (pool ? createPostgresHelpAuthStore(pool) : undefined);
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
   const grounding =
     options.grounding ?? (pool ? new PostgresGrounding(pool) : undefined);
@@ -191,6 +196,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       ...(askDependencies ? { askDependencies } : {}),
     }),
   );
+  if (helpStore) {
+    app.use(
+      "/v1",
+      createHelpRouter({
+        config,
+        store: helpStore,
+      }),
+    );
+  }
   app.use("/v1/internal", createInternalRouter(config, repository));
   app.use((_request, response) => {
     sendProblem(response, 404, "not_found", "error.not_found");

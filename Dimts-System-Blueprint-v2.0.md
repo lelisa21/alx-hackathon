@@ -541,6 +541,15 @@ language before the system claims full support.
 
 Errors: `application/problem+json` with `type, title, status, code, messageKey`; the UI shows `ui.yaml[messageKey]`, never the raw title. Codes: `invalid_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `rate_limited` 429, `payload_too_large` 413, `internal` 500. An AI failure is never a 5xx: it returns a `notfound` Reply.
 
+For FR-HELP-01 and FR-HELP-02, activating Help me now opens the preview; the
+request is sent only after the learner confirms. `DIMTS_HELPER_HOURS`, when
+set, is a JSON array of UTC intervals:
+`[{"day":1,"start":"09:00","end":"17:00"}]`. `day` uses ISO weekdays
+(Monday=1 through Sunday=7), and times use 24-hour `HH:mm`. Intervals must
+start before they end; overnight availability is represented by intervals on
+both days. An unset value means no schedule-based availability restriction;
+an empty array means no available hours.
+
 ### 7.2 Core types
 
 ```typescript
