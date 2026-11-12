@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { parseConfig } from "../src/config.js";
 import { sha256 } from "../src/middleware/auth.js";
 import { createHelpRouter } from "../src/routes/help.js";
-import type { HelpAuthStore } from "../src/types.js";
+import type { HelpStore } from "../src/types.js";
 
 const secrets = [
   Buffer.alloc(32, 1).toString("base64"),
@@ -24,7 +24,7 @@ const config = parseConfig({
 
 function createApp() {
   const claims = new Map<string, string>();
-  const store: HelpAuthStore = {
+  const store: HelpStore = {
     findActiveHelperByTokenHash: async (hash) =>
       hash === sha256("valid-helper-token-000000000000")
         ? { id: "helper-one" }
@@ -39,10 +39,18 @@ function createApp() {
       claims.set(requestId, helperId);
       return true;
     },
+    createRequest: async () => ({ id: "request-123", status: "waiting" }),
+    listWaitingRequests: async () => [],
+    blockWaitingRequest: async () => true,
+    closeRequest: async () => true,
+  };
+  const repository = {
+    getSessionTokenHash: async () => null,
+    touchSession: async () => {},
   };
   const app = express();
   app.use(express.json());
-  app.use("/v1", createHelpRouter({ config, store }));
+  app.use("/v1", createHelpRouter({ config, repository, store }));
   return { app, claims };
 }
 

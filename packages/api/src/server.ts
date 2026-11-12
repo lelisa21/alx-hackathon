@@ -6,6 +6,9 @@ const config = parseConfig(process.env);
 const app = buildApp({ config });
 await app.locals.sourceSyncReady;
 const server = createServer(app);
+if (typeof app.locals.attachHelpWebSockets === "function") {
+  app.locals.attachHelpWebSockets(server);
+}
 
 server.listen(config.PORT, () => {
   process.stdout.write(`Dimts API listening on port ${config.PORT}\n`);
@@ -13,8 +16,15 @@ server.listen(config.PORT, () => {
 
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
+    if (typeof app.locals.closeHelpWebSockets === "function") {
+      app.locals.closeHelpWebSockets();
+    }
     server.close(() => {
-      void (server as typeof server & { app: { locals: { close?: () => Promise<void> } } }).app.locals
+      void (
+        server as typeof server & {
+          app: { locals: { close?: () => Promise<void> } };
+        }
+      ).app.locals
         .close?.()
         .then(() => process.exit(0));
     });

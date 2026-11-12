@@ -405,12 +405,13 @@ still subject to the grounding confidence floor and citation gate.
 
 ### 5.2 Entities
 
-Final schema = SRS Part III migrations `001_init.sql` (section 33.2) and
-`002_auth_replay_cache.sql` (section 33.7). Tables: `session`, `message`,
+Final schema = SRS Part III migrations `001_init.sql` (section 33.2),
+`002_auth_replay_cache.sql` (section 33.7), and
+`003_help_request_block.sql`. Tables: `session`, `message`,
 `content_version`, `passage`, `help_request`, `help_message`, `help_image`,
 `subscription`, `job`, `alert_sent`, `accommodation_request`, `consent_log`,
-`feedback_counter`, `insight_aggregate`, `host_key`, `helper`, and
-`answer_cache`.
+`feedback_counter`, `insight_aggregate`, `host_key`, `helper`,
+`help_request_block`, and `answer_cache`.
 
 ```sql
 -- packages/api/migrations/002_auth_replay_cache.sql
@@ -442,6 +443,19 @@ CREATE TABLE answer_cache (                                  -- FR-AI-08, option
 );
 CREATE INDEX answer_cache_age_idx ON answer_cache (created_at);
 ```
+
+```sql
+-- packages/api/migrations/003_help_request_block.sql
+CREATE TABLE help_request_block (
+  helper_id TEXT NOT NULL REFERENCES helper(id) ON DELETE CASCADE,
+  help_request_id TEXT NOT NULL REFERENCES help_request(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  PRIMARY KEY (helper_id, help_request_id)
+);
+```
+
+`help_request_block` is a helper-specific queue exclusion: it does not close
+the request or hide it from the learner or any other helper.
 
 ### 5.3 State machines
 
@@ -520,13 +534,15 @@ language before the system claims full support.
 | POST /ask | Question to Reply | session |
 | POST /feedback | Helpful or not, counter only | session |
 | POST /stt, POST /tts | Optional server speech | session |
-| POST /help | Create help request (`includeSummary`) | session |
+| POST /help | Create a confirmed help request (`sessionId`, `includeSummary`) | session |
+| GET /help/queue | Waiting requests, optionally filtered by `lang` | helper JWT |
 | GET /help/ws (WebSocket) | Chat and signalling | session or helper JWT |
+| POST /help/{id}/block | Hide a waiting request from this helper's queue | helper JWT |
+| POST /help/{id}/claim | Claim a waiting request (409 if taken) | helper JWT |
+| POST /help/{id}/close | End help (204, no response body) | session or helper JWT |
 | POST /help/{id}/ice | Time-limited TURN credentials | session or helper |
 | POST /help/{id}/image | Screen picture, 2 MB image types | session |
-| POST /help/{id}/close | End help | session or helper |
 | POST /helpers/login | Helper token to JWT | helper token |
-| GET /help/queue, POST /help/{id}/claim | Queue and claim (409 if taken) | helper JWT |
 | POST /jobs/import | JobPosting JSON-LD, invalid items reported by index | secret host key |
 | GET /jobs | Filter by region and type | session |
 | POST /subscriptions, DELETE /subscriptions/{id} | Alerts (consent required), Stop and delete | session |
@@ -549,6 +565,21 @@ set, is a JSON array of UTC intervals:
 start before they end; overnight availability is represented by intervals on
 both days. An unset value means no schedule-based availability restriction;
 an empty array means no available hours.
+
+The confirmed `POST /help` body is `{sessionId, includeSummary}` and its
+successful response is `{id, status:"waiting"}` with HTTP 201. Language and
+channel are derived from the session; when `includeSummary` is true the API
+stores only the last three learner questions. The helper queue response is
+`{requests:[{id, lang, channel, createdAt, summary}]}`, ordered oldest first;
+`createdAt` is an ISO 8601 timestamp and `summary` is null when excluded, or
+an array containing at most those three questions. A helper sees only
+languages in their configured `helper.langs`; an optional `lang` query narrows
+that set. `POST /help/{id}/block` returns `{ok:true}` and excludes that waiting
+request only from the blocking helper's queue. It does not close the request
+or hide it from another helper or the learner. A session is limited to five
+help requests per rolling hour. The learner or the helper assigned to a
+claimed request may close it; a successful close returns HTTP 204 with no
+body.
 
 ### 7.2 Core types
 

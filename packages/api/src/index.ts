@@ -1,6 +1,7 @@
 export { buildApp } from "./app.js";
 export type { ApiSourceSyncOptions, BuildAppOptions } from "./app.js";
 export type { HelpAuthStore } from "./types.js";
+export type { HelpSocketStore } from "./help-sockets.js";
 export { configuredOrigins, parseConfig } from "./config.js";
 export { generateOpenApiYaml } from "./openapi.js";
 export {

@@ -8,6 +8,11 @@ import { stringify } from "yaml";
 import {
   AskRequestSchema,
   HealthResponseSchema,
+  HelpBlockResponseSchema,
+  HelpCreateRequestSchema,
+  HelpCreateResponseSchema,
+  HelpQueueQuerySchema,
+  HelpQueueResponseSchema,
   HelperLoginRequestSchema,
   HelperLoginResponseSchema,
   HelpClaimResponseSchema,
@@ -30,6 +35,10 @@ registry.register("SessionResponse", SessionResponseSchema);
 registry.register("HealthResponse", HealthResponseSchema);
 registry.register("HelperLoginRequest", HelperLoginRequestSchema);
 registry.register("HelperLoginResponse", HelperLoginResponseSchema);
+registry.register("HelpCreateRequest", HelpCreateRequestSchema);
+registry.register("HelpCreateResponse", HelpCreateResponseSchema);
+registry.register("HelpQueueResponse", HelpQueueResponseSchema);
+registry.register("HelpBlockResponse", HelpBlockResponseSchema);
 registry.register("HelpClaimResponse", HelpClaimResponseSchema);
 registry.register("LanguageList", LanguageListSchema);
 registry.register("LocaleUI", LocaleUiSchema);
@@ -160,6 +169,56 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
+  path: "/v1/help",
+  summary: "Create a confirmed human help request",
+  security: [{ sessionBearer: [] }],
+  request: {
+    body: {
+      content: { "application/json": { schema: HelpCreateRequestSchema } },
+    },
+  },
+  responses: {
+    "201": {
+      description: "Help request is waiting",
+      ...json(HelpCreateResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/queue",
+  summary: "List waiting requests in the helper's supported languages",
+  security: [{ helperBearer: [] }],
+  request: { query: HelpQueueQuerySchema },
+  responses: {
+    "200": {
+      description: "Waiting help requests ordered by creation time",
+      ...json(HelpQueueResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/help/{id}/block",
+  summary: "Hide a waiting request from this helper's queue",
+  security: [{ helperBearer: [] }],
+  request: { params: z.object({ id: z.string() }) },
+  responses: {
+    "200": {
+      description: "Request hidden for this helper",
+      ...json(HelpBlockResponseSchema),
+    },
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
   path: "/v1/help/{id}/claim",
   summary: "Claim a waiting help request",
   security: [{ helperBearer: [] }],
@@ -171,6 +230,41 @@ registry.registerPath({
     },
     "401": problemResponse,
     "409": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/help/{id}/close",
+  summary: "End a help request",
+  security: [{ sessionBearer: [] }, { helperBearer: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: {
+      required: false,
+      content: {
+        "application/json": {
+          schema: z
+            .object({ sessionId: z.string().min(8).max(64) })
+            .strict(),
+        },
+      },
+    },
+  },
+  responses: {
+    "204": { description: "Help request ended" },
+    "400": problemResponse,
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/ws",
+  summary: "Upgrade to the help chat WebSocket",
+  description:
+    "The first client frame must authenticate with a learner session token or a helper JWT within five seconds.",
+  responses: {
+    "101": { description: "WebSocket protocol upgrade" },
   },
 });
 registry.registerPath({

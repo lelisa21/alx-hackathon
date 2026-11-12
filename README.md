@@ -1,4 +1,48 @@
-# Savanna static pages
+# Quick start: interactive Dimts MVP
+
+The root `index.html` is an offline Savanna reference catalog. To run the
+interactive learner widget with its API:
+
+1. Start Docker Desktop and make sure its Linux container engine is running.
+2. On first run, create `.env` from `.env.example` and set the local secrets as
+   described in [Local API setup](./docs/API.md#start-locally).
+3. From the repository root, build and start the app:
+
+   ```powershell
+   docker compose --profile local up --build -d --wait
+   ```
+
+4. Open [http://localhost:5173/](http://localhost:5173/). Check
+   [http://localhost:5173/v1/health](http://localhost:5173/v1/health) to confirm
+   the API is ready through the widget's proxy.
+5. To stop the app and preserve local data:
+
+   ```powershell
+   docker compose --profile local down
+   ```
+
+If the browser says **Failed to Load Page**, first check that Docker Desktop is
+running, then run `docker compose --profile local ps`. Start or inspect the
+services with:
+
+```powershell
+docker compose --profile local up --build -d --wait
+docker compose --profile local logs --tail=100 api widget
+```
+
+If startup reports that host port `3000` is already allocated, use another API
+port in the same PowerShell window:
+
+```powershell
+$env:DIMTS_COMPOSE_API_PORT = "3001"
+docker compose --profile local up --build -d --wait
+```
+
+See [Local API setup](./docs/API.md#start-locally) for port conflicts and
+configuration. Opening `index.html` directly still shows only the offline
+reference pages.
+
+## Savanna static pages
 
 Three Savanna learner pages, frozen from the **local dev app** into plain HTML + CSS so they can be
 opened offline and used as a reference for front-end and accessibility work.

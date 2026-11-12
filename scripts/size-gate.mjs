@@ -11,6 +11,8 @@ const widgetDist = path.join(repositoryRoot, "packages", "widget", "dist");
 const englishUiPack = path.join(repositoryRoot, "locales", "en", "ui.yaml");
 const javascriptLimit = 60 * 1024;
 const initialLoadLimit = 150 * 1024;
+const widgetBundleName = "dimts-widget.js";
+const helperBundleName = "dimts-helper-console.js";
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -40,8 +42,21 @@ try {
 
 const assets = files.filter((file) => /\.(?:js|css)$/.test(file));
 const javascriptAssets = assets.filter((file) => file.endsWith(".js"));
-if (javascriptAssets.length === 0) {
-  throw new Error("Widget build output contains no JavaScript bundle.");
+const widgetJavaScriptAssets = javascriptAssets.filter(
+  (file) => path.basename(file) !== helperBundleName,
+);
+const helperJavaScriptAssets = javascriptAssets.filter(
+  (file) => path.basename(file) === helperBundleName,
+);
+if (
+  !widgetJavaScriptAssets.some(
+    (file) => path.basename(file) === widgetBundleName,
+  )
+) {
+  throw new Error("Widget build output contains no widget bundle.");
+}
+if (helperJavaScriptAssets.length === 0) {
+  throw new Error("Widget build output contains no helper console bundle.");
 }
 
 const localeAssets = await readFile(englishUiPack).then(
@@ -58,16 +73,21 @@ const sizes = await Promise.all(
   })),
 );
 
-const javascriptBytes = sizes
-  .filter(({ file }) => file.endsWith(".js"))
+const widgetJavaScriptBytes = sizes
+  .filter(({ file }) => widgetJavaScriptAssets.includes(file))
   .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
-const initialLoadBytes = sizes.reduce(
-  (total, { compressedBytes }) => total + compressedBytes,
-  0,
-);
+const helperJavaScriptBytes = sizes
+  .filter(({ file }) => helperJavaScriptAssets.includes(file))
+  .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
+const initialLoadBytes = sizes
+  .filter(({ file }) => !helperJavaScriptAssets.includes(file))
+  .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
 
 console.log(
-  `Widget JavaScript: ${javascriptBytes} / ${javascriptLimit} compressed bytes`,
+  `Widget JavaScript: ${widgetJavaScriptBytes} / ${javascriptLimit} compressed bytes`,
+);
+console.log(
+  `Helper console JavaScript: ${helperJavaScriptBytes} / ${javascriptLimit} compressed bytes`,
 );
 console.log(
   `Initial-load assets: ${initialLoadBytes} / ${initialLoadLimit} compressed bytes`,
@@ -78,6 +98,10 @@ if (!sizes.some(({ file }) => file === englishUiPack)) {
   );
 }
 
-if (javascriptBytes > javascriptLimit || initialLoadBytes > initialLoadLimit) {
+if (
+  widgetJavaScriptBytes > javascriptLimit ||
+  helperJavaScriptBytes > javascriptLimit ||
+  initialLoadBytes > initialLoadLimit
+) {
   process.exitCode = 1;
 }

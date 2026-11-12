@@ -128,25 +128,104 @@ decision register is authoritative for architectural choices.
   FR-LANG-07 text-based suggestions without automatic switching, and the
   offline banner plus service-worker registration and cached language recovery
   are covered by widget tests. `pnpm test:widget` builds the widget before
-  running Playwright. The latest browser run passed 10/10 tests, including
-  zero critical/serious axe violations and storage-disabled behavior.
+  running Playwright. The then-current browser run passed 10/10 tests,
+  including zero critical/serious axe violations and storage-disabled behavior.
 - **Implemented, acceptance criteria still outstanding:** text chat, citations,
   beta labels, persisted language/settings, read-aloud using browser speech
-  synthesis, and data-saver caching. FR-UI-06 microphone recognition and its
-  state behavior are not implemented. Offline recovery restores static
-  language/UI data only; FR-UI-16's offline FAQ is blocked by empty FAQ packs
-  and the absence of a documented FAQ API contract. Do not fabricate course
-  answers.
-- **Other WP05 gaps:** FR-UI-13 needs an approved self-hosted Ethiopic font.
-  The specified 200% zoom, formal contrast threshold/token check, full 8px
-  spacing verification, and FR-UI-18/19 acceptance criteria remain
-  outstanding. The help action emits the host event; the actual human handoff
-  is WP07. Draft-language UI copy still needs language-lead review.
+  synthesis, and data-saver caching. At that checkpoint, FR-UI-06 microphone
+  cues were not implemented. Offline recovery restores static language/UI data
+  only; FR-UI-16's offline FAQ is blocked by empty FAQ packs and the absence
+  of a documented FAQ API contract. Do not fabricate course answers.
+- **Other WP05 gaps at that checkpoint:** FR-UI-13 needed a self-hosted
+  Ethiopic font. The specified 200% browser-zoom check, 8px spacing
+  verification, focus-ring contrast audit, and FR-UI-18/19 acceptance criteria
+  were outstanding. The help action emits the host event; the actual human
+  handoff is WP07. Draft-language UI copy still needs language-lead review.
 - **Deployment constraint:** service-worker support requires the widget module
   and `/service-worker.js` to be served from the embedding page's origin. The
   service worker caches shell assets; static API responses use the widget's
   separate CacheStorage logic. A cross-origin embed cannot install the worker
   for its host page.
+
+## WP05 accessibility follow-up — requirements before implementation
+
+- **FR-UI-02:** Help me now must be reachable within the first five tab stops
+  on every screen.
+- **FR-UI-07/08:** accessibility settings apply immediately and persist; the
+  layout must reflow without horizontal scrolling at 320 CSS pixels and 200%
+  text size.
+- **FR-UI-10:** default and high-contrast text colors must meet 7:1 contrast;
+  the focus ring remains at least 3px wide with a 2px offset.
+- **Scope:** add browser coverage for chat keyboard order, 200% reflow, and the
+  contrast tokens/disabled controls before changing the widget.
+
+## WP05 accessibility follow-up — verified acceptance
+
+- **FR-UI-02:** Help me now is the first welcome tab stop and the third chat
+  tab stop (after language and settings), with fixed viewport placement.
+- **FR-UI-07/08:** choosing 200% text applies immediately and persists across a
+  page reload; at that setting the widget reflows at a 320 CSS-pixel viewport
+  without horizontal overflow. This does not claim a separate browser-zoom
+  simulation.
+- **FR-UI-10:** default and high-contrast text, muted-text, and primary-button
+  token pairs pass the 7:1 threshold. Disabled controls retain full opacity;
+  keyboard focus remains a 3px outline with a 2px offset.
+- **Verification:** `pnpm test:widget` passes 20/20, including axe checks with
+  no critical/serious violations. Widget typecheck, targeted ESLint, Prettier,
+  locale-copy validation, and `pnpm size` pass. The bundle is 29,604 compressed
+  JavaScript bytes; initial-load assets are 30,750 compressed bytes.
+- **Outstanding at that checkpoint:** FR-UI-06's moving ring/tone/haptic
+  feedback, FR-UI-09's full spacing audit, FR-UI-13's Ethiopic font,
+  FR-UI-14's on-demand voice/help loading, and FR-UI-16's offline FAQ required
+  separate work. Offline course answers remain blocked on approved FAQ
+  content and a documented contract.
+
+## WP05 in-depth continuation — requirements before implementation
+
+- **FR-UI-06:** the microphone state must be conveyed by its accessible name,
+  visible moving ring, tone, and short vibration where supported; reduced-motion
+  and silent operation must remain understandable.
+- **FR-UI-09/11:** interactive targets require 48px minimum size with 8px
+  spacing; animation must respect both `prefers-reduced-motion` and Stop motion.
+- **FR-LANG-06:** language names are spoken on focus when TTS is available, and
+  changing language must preserve the conversation and return focus to the
+  picker.
+- **FR-UI-13:** use a self-hosted Noto Sans Ethiopic subset only while Amharic
+  is active; the widget must not make third-party font requests.
+- **Scope:** add failing browser coverage for the voice cues/reduced-motion
+  states, language focus behavior, target spacing, and conditional font load
+  before implementation.
+
+## WP05 in-depth continuation — verified acceptance
+
+- **FR-UI-02:** Help me now remains fixed in the same viewport corner on the
+  welcome and chat screens and is reachable within the first five tab stops.
+- **FR-UI-06:** the 64px microphone is centered on a 320px viewport. Recording
+  visibly animates a ring, plays the specified 660Hz start and 440Hz stop
+  tones, and requests the specified vibration patterns when supported. The
+  accessible pressed state remains clear without audio or motion; reduced
+  motion disables the ring, and Stop motion disables both ring and vibration.
+- **FR-UI-09/11:** 48px controls and 8px spacing are checked on welcome, chat,
+  and settings at 320px. The motion tests cover both the media preference and
+  the in-app setting.
+- **FR-LANG-06:** the native language name is spoken on focus only when the
+  selected language and injected TTS adapter support it. Changing language
+  keeps existing messages and restores focus to the language picker.
+- **FR-UI-13:** regular and bold Noto Sans Ethiopic subsets are self-hosted
+  under the OFL license and registered only when Amharic is active. Browser
+  tests verify no font request in English and only same-origin font requests
+  when Amharic is active.
+- **Verification:** the latest full widget run passed 27/27 tests, including
+  axe checks with no critical/serious violations. Widget typecheck, targeted
+  ESLint, stylesheet lint, localized-copy check, locale-pack validation, and
+  the size gate pass. The gate measured 30,456 compressed widget JavaScript
+  bytes and 31,602 compressed initial-load bytes.
+- **Still outstanding:** FR-UI-14's on-demand voice/help code loading is not
+  established; the widget currently receives voice adapters from its host and
+  the build still inlines dynamic imports. FR-UI-16's offline FAQ remains
+  blocked by empty FAQ packs and the lack of a documented FAQ API contract.
+  Browser-zoom simulation and a manual focus-ring contrast audit are also
+  outstanding. These criteria are not claimed complete.
 
 ## Dynamic content and backend bootstrap
 
@@ -248,9 +327,102 @@ decision register is authoritative for architectural choices.
   integration test is present but still needs a configured test database.
 - **Still pending:** Help request creation and privacy-limited summary,
   language-filtered queue, end-help, learner availability response/UI,
-  WebSocket chat/replay, five-per-hour request limit, helper blocking, and
-  learner/helper interfaces. The block behavior and public shapes noted above
-  require contract resolution before implementation.
+  five-per-hour request limit, helper blocking, learner/helper interfaces, and
+  widget reconnect/live-region behavior. The block behavior and public shapes
+  noted above require contract resolution before implementation.
+
+## WP07 WebSocket relay increment
+
+- **Requirements:** FR-HELP-07 requires WebSocket chat with reconnect and
+  message ordering. FR-HELP-13 limits helper handoff data to language, channel,
+  optional last three questions, and chat messages.
+- **Contract boundary:** Follow Blueprint section 7.3 for `/v1/help/ws`,
+  first-message authentication within five seconds, close code `4401`, learner
+  session-token or claimed-helper JWT authentication, `lastMessageId` replay,
+  and the `help.joined`, `chat.message`, and throttled `chat.typing` frames.
+  Chat text is capped at 2,000 characters, typing is limited to one frame per
+  second per connection, and message IDs are idempotent. Leave WP09 share/RTC
+  signaling out of this increment.
+- **Verified acceptance:** WebSocket tests cover the five-second auth timeout,
+  `4401` rejection, strict auth frames, learner and claimed-helper access,
+  ordered chat delivery, duplicate suppression, reconnect replay, and typing
+  throttling. PostgreSQL integration verifies token scoping, active/claimed
+  helper checks, persisted ordering, replay cursors, duplicate handling, and
+  rejection after closure. The API server attaches and closes the WebSocket
+  runtime through its lifecycle.
+- **Validation:** All 55 non-PostgreSQL API tests pass. All 8 PostgreSQL
+  integration tests pass against an isolated temporary database. API build,
+  lint, formatting, and `git diff --check` pass.
+- **Still pending:** Widget-side reconnect and live-region behavior, help
+  creation/queue/closure, availability response, the five-per-hour limit,
+  helper blocking, and WP09 share/RTC signaling. Rooms are process-local as
+  permitted for the single instance; multi-instance fan-out needs a broker.
+
+## WP07 MVP help-flow contract — approved
+
+- **Requirements:** FR-HELP-01/02 require explicit confirmation before request
+  creation; FR-HELP-03/05 cover waiting and availability states; FR-HELP-06
+  requires a language-filterable helper queue and atomic claim; FR-HELP-07
+  requires ordered, reconnectable chat; FR-HELP-13 limits helper-visible data;
+  FR-HELP-15 requires deletion at session end or retention expiry; FR-HELP-17
+  requires request limits and helper blocking.
+- **User-approved create contract:** `POST /v1/help` accepts the session
+  identity and `includeSummary` boolean, and returns `{id, status}` with
+  `status: "waiting"`. The server derives language and channel from the
+  authenticated session; when enabled, the only context shared is the last
+  three learner questions.
+- **User-approved queue contract:** `GET /v1/help/queue` accepts an optional
+  `lang` filter and returns `{requests:[{id, lang, channel, createdAt,
+summary}]}`. `summary` is null when excluded; otherwise it contains only
+  those last three questions. The documented close path remains
+  `POST /v1/help/{id}/close`.
+- **User-approved blocking effect:** a helper blocks only a specific request
+  from that helper's own queue; other helpers and the learner's request remain
+  unaffected.
+- **User-approved blocking operation:** `POST /v1/help/{id}/block` requires a
+  helper JWT and returns `{ok:true}`. It persists only a helper/request
+  exclusion and does not close the request or hide it from other helpers or
+  the learner.
+- **Implementation boundary:** do not add screen-sharing, image transfer, or
+  WebRTC behavior (WP09). Do not log learner messages, names, phone numbers,
+  or Telegram IDs.
+
+## WP07 learner/helper interface increment
+
+- **Requirements:** FR-HELP-01/02 cover the learner preview, optional last
+  three questions, opt-out switch, and explicit confirmation. FR-HELP-03
+  covers the waiting state while tutor chat remains usable. FR-HELP-06/07
+  cover the language-filtered helper queue, claim, ordered chat, reconnect,
+  live announcements, and closure. FR-HELP-13/15/17 cover minimal handoff data,
+  retention, request limits, and helper-specific blocking. FR-HELP-14 has
+  automated accessibility checks in this increment.
+- **Verified acceptance:** the learner can cancel before sending, send with or
+  without the optional summary, keep asking the tutor while waiting, chat over
+  the authenticated WebSocket, reconnect from the last received message
+  without duplicates, and return to tutor mode when either side closes help.
+  The helper console is a separate build entry; its JWT remains in memory. It
+  filters the queue, refreshes every 15 seconds, politely announces new
+  requests, blocks per helper, claims, chats, and closes. REST close broadcasts
+  `help.closed` to both connected peers. The size gate measures the learner and
+  helper JavaScript separately so the helper module is not charged to learner
+  initial load.
+- **Accessibility/locales:** browser tests report no critical or serious axe
+  violations for the learner preview or helper console; the helper console
+  reflows at 320px and its tested controls meet 48px targets. New strings use
+  `ui.yaml` keys in `en`, `am`, and `om`; the draft Amharic and Afaan Oromoo
+  values remain English pending language-lead translation review. This is not
+  a manual screen-reader, zoom, or contrast sign-off.
+- **Validation:** `pnpm test:widget` passes 32/32. The focused API and size-gate
+  Vitest run passes 20/20. Workspace typecheck, API build, locale check, and
+  lint pass. The size gate reports 32,892/61,440 compressed learner JavaScript
+  bytes, 26,464/61,440 helper-console bytes, and 34,598/153,600 initial-load
+  bytes.
+- **Still pending:** FR-HELP-04 timeout fallback/callback, FR-HELP-05 outside-
+  hours availability messaging and response shape, FR-HELP-14 manual keyboard,
+  screen-reader, zoom, and contrast checks, optional FR-HELP-16 helper first
+  name, and WP09 screen sharing. Helper rooms remain process-local, so
+  multi-instance live fan-out still needs a broker. Availability and fallback
+  contracts must be resolved before those behaviors are added.
 
 ## WP02 API and persistence verification
 
@@ -442,3 +614,22 @@ selection remain prerequisites for production voice.
   FR-VOICE-10/11 remain unverified or unimplemented.
 - Amharic and Afaan Oromoo voice copy is present in their draft locale packs
   but still requires language-lead review.
+
+## Interactive MVP entry point
+
+- **Requirements:** FR-INT-09, FR-UI-01/02, and FR-HELP-01/02.
+- **Decision:** Keep the root `index.html` as the offline Savanna reference
+  catalog. Add a direct link to the separate Compose-served Dimts learner app;
+  do not load the API-backed widget from a `file://` page.
+
+### Verified acceptance
+
+- The root page identifies the interactive app and links to
+  `http://localhost:5173/`; README points to the local setup instructions.
+- The widget's existing Compose HTML template mounts `<dimts-assistant>` and
+  loads `dimts-widget.js`. `scripts/test-local-compose.mjs` checks those
+  contents when the stack starts.
+- **Runtime not verified in this environment:** Compose acceptance could not
+  run because the Docker CLI cannot connect to the Docker Desktop Linux
+  engine. Use the documented setup and `pnpm test:compose` when Docker is
+  available.

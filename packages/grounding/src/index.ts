@@ -1,4 +1,11 @@
 export { sourceHash, toPassages } from "./ingest.js";
+export {
+  parseJobPostingPassages,
+} from "./job-posting.js";
+export type {
+  JobPostingParseError,
+  JobPostingPassageResult,
+} from "./job-posting.js";
 export type {
   ContentChunk,
   ContentDocument,

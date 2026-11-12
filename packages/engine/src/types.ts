@@ -84,6 +84,16 @@ export interface AnswerPolicy {
   cloudOk: boolean;
 }
 
+export interface ConversationSignals {
+  recentReplyKinds(sessionId: string): Promise<ReplyKind[]>;
+  consecutiveNegativeFeedback(sessionId: string): Promise<number>;
+}
+
+export interface RuleSet {
+  escalation: string[];
+  distress: string[];
+}
+
 export interface AskDependencies {
   search(question: string, lang: Lang): Promise<ScoredPassage[]>;
   answer(request: AnswerRequest, policy: AnswerPolicy): Promise<AnswerResult>;
@@ -94,8 +104,16 @@ export interface AskDependencies {
   systemPrompt(lang: Lang): string;
   modeFor(lang: Lang): "generative" | "extractive";
   confidenceFloor(lang: Lang): number;
-  translate(lang: Lang, key: string): string;
+  translate(
+    lang: Lang,
+    key: string,
+    vars?: Record<string, string | number>,
+  ): string;
   direction(lang: Lang): "ltr" | "rtl";
+  rulesFor?(lang: Lang): RuleSet;
+  supportTextFor?(lang: Lang): string;
+  conversationSignals?: ConversationSignals;
+  answerCache?: import("./cache.js").AnswerCache;
   languageDetector?: LanguageDetector;
   languageDetectionConfidence?: number;
   contentVersion(): string | Promise<string>;

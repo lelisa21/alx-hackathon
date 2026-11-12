@@ -1,4 +1,4 @@
-const shellCache = "dimts-shell-v1";
+const shellCache = "dimts-shell-v2";
 
 globalThis.addEventListener("install", (event) => {
   event.waitUntil(
@@ -43,11 +43,15 @@ globalThis.addEventListener("fetch", (event) => {
     (async () => {
       const cache = await globalThis.caches.open(shellCache);
       const cached = await cache.match(request);
-      if (cached) return cached;
-
-      const response = await globalThis.fetch(request);
-      if (response.ok) await cache.put(request, response.clone());
-      return response;
+      try {
+        const response = await globalThis.fetch(request);
+        if (!response.ok) return cached ?? response;
+        await cache.put(request, response.clone());
+        return response;
+      } catch (error) {
+        if (cached) return cached;
+        throw error;
+      }
     })(),
   );
 });

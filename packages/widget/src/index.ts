@@ -3,6 +3,29 @@ import { IntlMessageFormat } from "intl-messageformat";
 import { MAX_RECORDING_MS, VoiceError } from "@dimts/voice";
 import type { SpeechToText, TextToSpeech } from "@dimts/voice";
 import { suggestLanguageOptions } from "./language.js";
+import ethiopicRegularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
+import ethiopicBoldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
+
+let ethiopicFontsRegistered = false;
+
+function registerEthiopicFonts(): void {
+  if (ethiopicFontsRegistered) return;
+  document.fonts.add(
+    new FontFace("Noto Sans Ethiopic", `url(${ethiopicRegularFontUrl})`, {
+      display: "swap",
+      weight: "400",
+      unicodeRange: "U+1200-137F, U+1380-139F",
+    }),
+  );
+  document.fonts.add(
+    new FontFace("Noto Sans Ethiopic", `url(${ethiopicBoldFontUrl})`, {
+      display: "swap",
+      weight: "700",
+      unicodeRange: "U+1200-137F, U+1380-139F",
+    }),
+  );
+  ethiopicFontsRegistered = true;
+}
 
 interface Language {
   code: string;
@@ -37,6 +60,12 @@ interface ConversationMessage {
   lang: string;
   dir: "ltr" | "rtl";
   citations: Citation[];
+}
+
+interface HelpChatMessage {
+  id: string;
+  from: "learner" | "helper";
+  text: string;
 }
 
 interface WidgetSettings {
@@ -117,6 +146,16 @@ export class DimtsAssistant extends LitElement {
     speakingMessageId: { state: true },
     speechPaused: { state: true },
     noticeIsError: { state: true },
+    helpPreviewOpen: { state: true },
+    helpIncludeSummary: { state: true },
+    helpRequestId: { state: true },
+    helpMessages: { state: true },
+    helpDraft: { state: true },
+    helpBusy: { state: true },
+    helpStatus: { state: true },
+    helpNotice: { state: true },
+    helpNoticeIsError: { state: true },
+    helpAnnouncement: { state: true },
   };
 
   declare api: string;
@@ -143,10 +182,25 @@ export class DimtsAssistant extends LitElement {
   declare private speakingMessageId: string | null;
   declare private speechPaused: boolean;
   declare private noticeIsError: boolean;
+  declare private helpPreviewOpen: boolean;
+  declare private helpIncludeSummary: boolean;
+  declare private helpRequestId: string;
+  declare private helpMessages: HelpChatMessage[];
+  declare private helpDraft: string;
+  declare private helpBusy: boolean;
+  declare private helpStatus: "connecting" | "connected" | "reconnecting" | "";
+  declare private helpNotice: string;
+  declare private helpNoticeIsError: boolean;
+  declare private helpAnnouncement: string;
   private recordingTimer: number | undefined;
   private recordingStopRequested = false;
   private recordingRun = 0;
+  private recordingCueActive = false;
   private speechRun = 0;
+  private audioContext: AudioContext | undefined;
+  private helpSocket: WebSocket | undefined;
+  private helpReconnectTimer: number | undefined;
+  private helpReconnectAttempt = 0;
 
   constructor() {
     super();
@@ -174,6 +228,16 @@ export class DimtsAssistant extends LitElement {
     this.speakingMessageId = null;
     this.speechPaused = false;
     this.noticeIsError = false;
+    this.helpPreviewOpen = false;
+    this.helpIncludeSummary = true;
+    this.helpRequestId = "";
+    this.helpMessages = [];
+    this.helpDraft = "";
+    this.helpBusy = false;
+    this.helpStatus = "";
+    this.helpNotice = "";
+    this.helpNoticeIsError = false;
+    this.helpAnnouncement = "";
   }
 
   static override styles = css`
@@ -194,6 +258,17 @@ export class DimtsAssistant extends LitElement {
         sans-serif;
       font-size: calc(1rem * var(--dimts-scale, 1));
       line-height: 1.5;
+    }
+
+    :host([lang="am"]) {
+      font-family:
+        "Noto Sans Ethiopic",
+        system-ui,
+        -apple-system,
+        BlinkMacSystemFont,
+        "Segoe UI",
+        sans-serif;
+      line-height: 1.65;
     }
 
     :host([high-contrast]) {
@@ -242,7 +317,7 @@ export class DimtsAssistant extends LitElement {
 
     button:disabled {
       cursor: not-allowed;
-      opacity: 0.72;
+      border-style: dashed;
     }
 
     :focus-visible {
@@ -260,6 +335,7 @@ export class DimtsAssistant extends LitElement {
       max-inline-size: 42rem;
       min-block-size: 32rem;
       overflow-wrap: anywhere;
+      padding-block-end: 4.5rem;
       position: relative;
     }
 
@@ -386,10 +462,64 @@ export class DimtsAssistant extends LitElement {
     }
 
     .help {
+      align-self: flex-end;
       inset-block-end: 0.75rem;
       inset-inline-end: 0.75rem;
-      position: sticky;
+      order: 1;
+      position: fixed;
       z-index: 1;
+    }
+
+    .help-backdrop {
+      align-items: center;
+      background: rgb(0 0 0 / 55%);
+      display: grid;
+      inset: 0;
+      overflow-y: auto;
+      padding: 1rem;
+      position: fixed;
+      z-index: 3;
+    }
+
+    .help-dialog {
+      background: var(--dimts-surface);
+      border: 2px solid var(--dimts-border);
+      border-radius: 0.75rem;
+      margin-inline: auto;
+      max-block-size: 100%;
+      max-inline-size: 36rem;
+      overflow-y: auto;
+      padding: 1.25rem;
+      inline-size: 100%;
+    }
+
+    .help-summary {
+      border: 1px solid var(--dimts-border);
+      margin-block: 0.75rem;
+      max-block-size: 12rem;
+      overflow-y: auto;
+      padding: 0.75rem;
+    }
+
+    .help-actions,
+    .help-chat-messages {
+      display: grid;
+      gap: 0.5rem;
+      margin-block: 0.75rem;
+    }
+
+    .help-chat-messages {
+      max-block-size: 16rem;
+      overflow-y: auto;
+    }
+
+    .visually-hidden {
+      block-size: 1px;
+      clip-path: inset(50%);
+      inline-size: 1px;
+      overflow: hidden;
+      position: absolute;
+      white-space: nowrap;
     }
 
     .status {
@@ -416,6 +546,18 @@ export class DimtsAssistant extends LitElement {
       font-weight: 700;
     }
 
+    .setting-toggles {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .setting-toggles .setting-row {
+      display: grid;
+      gap: 0.5rem;
+      grid-template-columns: minmax(0, 1fr) 48px;
+    }
+
     .setting-row {
       align-items: center;
       display: flex;
@@ -433,6 +575,35 @@ export class DimtsAssistant extends LitElement {
     .mic {
       min-block-size: 64px;
       min-inline-size: 64px;
+    }
+
+    .mic[aria-pressed="true"] {
+      background: var(--dimts-primary);
+      color: var(--dimts-primary-text);
+      position: relative;
+    }
+
+    .mic[aria-pressed="true"]::after {
+      animation: recording-ring 1.2s ease-out infinite;
+      border: 2px solid var(--dimts-primary);
+      border-radius: 0.65rem;
+      content: "";
+      inset: -0.25rem;
+      opacity: 0;
+      pointer-events: none;
+      position: absolute;
+    }
+
+    @keyframes recording-ring {
+      0% {
+        opacity: 0.9;
+        transform: scale(0.88);
+      }
+
+      100% {
+        opacity: 0;
+        transform: scale(1.2);
+      }
     }
 
     .offline-banner {
@@ -454,24 +625,46 @@ export class DimtsAssistant extends LitElement {
         align-items: flex-start;
         flex-direction: column;
       }
+
+      .composer-actions {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+      }
+
+      .composer-actions > .muted {
+        grid-column: 1;
+        grid-row: 1;
+      }
+
+      .composer-actions .mic {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: center;
+      }
+
+      .composer-actions .primary {
+        grid-column: 3;
+        grid-row: 1;
+        justify-self: end;
+      }
     }
 
     @media (prefers-reduced-motion: reduce) {
       *,
       *::before,
       *::after {
-        animation-duration: 0.01ms !important;
+        animation: none !important;
         scroll-behavior: auto !important;
-        transition-duration: 0.01ms !important;
+        transition: none !important;
       }
     }
 
     :host([stop-motion]) *,
     :host([stop-motion]) *::before,
     :host([stop-motion]) *::after {
-      animation-duration: 0.01ms !important;
+      animation: none !important;
       scroll-behavior: auto !important;
-      transition-duration: 0.01ms !important;
+      transition: none !important;
     }
   `;
 
@@ -487,6 +680,7 @@ export class DimtsAssistant extends LitElement {
     );
     void this.enableOfflineSupport();
     void this.initialize();
+    if (this.helpRequestId) this.connectHelpSocket();
   }
 
   override disconnectedCallback(): void {
@@ -496,8 +690,17 @@ export class DimtsAssistant extends LitElement {
       window.clearTimeout(this.recordingTimer);
       this.recordingTimer = undefined;
     }
+    if (this.helpReconnectTimer !== undefined) {
+      window.clearTimeout(this.helpReconnectTimer);
+      this.helpReconnectTimer = undefined;
+    }
+    this.helpSocket?.close();
+    this.helpSocket = undefined;
     try {
-      if (this.isRecording) this.speechToText?.stop();
+      if (this.isRecording) {
+        this.stopRecordingCue();
+        this.speechToText?.stop();
+      }
     } catch {
       this.notice = this.t("voice.retry");
       this.noticeIsError = true;
@@ -537,7 +740,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private async fetchStatic(url: string): Promise<Response> {
-    const remoteUrl = new URL(url);
+    const remoteUrl = new URL(url, location.origin);
     const cacheUrl = new URL(
       `/__dimts_cache${remoteUrl.pathname}`,
       location.origin,
@@ -617,7 +820,7 @@ export class DimtsAssistant extends LitElement {
       if (remembered) {
         await this.chooseLanguage(remembered.code, false);
       } else {
-        this.selectedLang = this.languages[0]!.code;
+        this.setSelectedLanguage(this.languages[0]!.code);
         await this.loadUi(this.selectedLang);
       }
     } catch {
@@ -648,10 +851,17 @@ export class DimtsAssistant extends LitElement {
     this.ui = {};
   }
 
+  private setSelectedLanguage(code: string): void {
+    if (code === "am") registerEthiopicFonts();
+    this.selectedLang = code;
+    this.setAttribute("lang", code);
+  }
+
   private async chooseLanguage(code: string, persist = true): Promise<void> {
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
-    this.selectedLang = selected.code;
+    this.stopSpeech();
+    this.setSelectedLanguage(selected.code);
     await this.loadUi(selected.code);
     if (persist) {
       storage.set("dimts.lang", selected.code);
@@ -681,6 +891,312 @@ export class DimtsAssistant extends LitElement {
         detail: { lang: this.selectedLang },
       }),
     );
+    this.openHelpPreview();
+  }
+
+  private async openHelpPreview(): Promise<void> {
+    if (this.helpRequestId || this.helpBusy) return;
+    this.helpIncludeSummary = true;
+    this.helpNotice = "";
+    this.helpNoticeIsError = false;
+    this.helpPreviewOpen = true;
+    await this.updateComplete;
+    this.renderRoot
+      .querySelector<HTMLInputElement>(".help-dialog input")
+      ?.focus();
+  }
+
+  private async cancelHelpPreview(): Promise<void> {
+    this.helpPreviewOpen = false;
+    await this.updateComplete;
+    this.renderRoot.querySelector<HTMLButtonElement>(".help")?.focus();
+  }
+
+  private trapHelpDialog(event: KeyboardEvent): void {
+    if (event.key === "Escape") {
+      event.preventDefault();
+      void this.cancelHelpPreview();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    const controls = [
+      ...this.renderRoot.querySelectorAll<HTMLElement>(
+        ".help-dialog input, .help-dialog button",
+      ),
+    ];
+    const first = controls[0];
+    const last = controls.at(-1);
+    const activeElement =
+      this.renderRoot instanceof ShadowRoot
+        ? this.renderRoot.activeElement
+        : null;
+    if (!first || !last) return;
+    if (event.shiftKey && activeElement === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && activeElement === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  private async createHelpRequest(): Promise<void> {
+    if (this.helpBusy || !this.helpPreviewOpen) return;
+    this.helpBusy = true;
+    this.helpNotice = "";
+    this.helpNoticeIsError = false;
+    try {
+      if (!this.sessionId || !this.sessionToken) {
+        await this.createSession();
+      }
+      if (!this.sessionId || !this.sessionToken) {
+        this.helpNotice = this.t("help.error");
+        this.helpNoticeIsError = true;
+        return;
+      }
+      const response = await fetch(`${this.apiRoot}/help`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.sessionToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          includeSummary: this.helpIncludeSummary,
+        }),
+      });
+      if (!response.ok) {
+        this.helpNotice = this.t(
+          response.status === 429 ? "help.limit" : "help.error",
+        );
+        this.helpNoticeIsError = true;
+        return;
+      }
+      const request = (await response.json()) as {
+        id: string;
+        status: "waiting";
+      };
+      if (
+        typeof request.id !== "string" ||
+        request.id.length === 0 ||
+        request.status !== "waiting"
+      ) {
+        this.helpNotice = this.t("help.error");
+        this.helpNoticeIsError = true;
+        return;
+      }
+      this.helpRequestId = request.id;
+      this.helpMessages = [];
+      this.helpDraft = "";
+      this.helpStatus = "connecting";
+      this.helpPreviewOpen = false;
+      this.helpNotice = "";
+      this.helpNoticeIsError = false;
+      this.connectHelpSocket();
+      await this.updateComplete;
+      this.renderRoot
+        .querySelector<HTMLTextAreaElement>(".help-chat textarea")
+        ?.focus();
+    } catch {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+    } finally {
+      this.helpBusy = false;
+    }
+  }
+
+  private connectHelpSocket(): void {
+    if (
+      !this.isConnected ||
+      !this.helpRequestId ||
+      !this.sessionId ||
+      !this.sessionToken
+    ) {
+      return;
+    }
+    if (this.helpSocket && this.helpSocket.readyState < WebSocket.CLOSING) {
+      return;
+    }
+    try {
+      const url = new URL(`${this.apiRoot}/help/ws`);
+      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
+      const socket = new WebSocket(url);
+      this.helpSocket = socket;
+      socket.onopen = () => {
+        if (!this.helpRequestId || this.helpSocket !== socket) {
+          socket.close();
+          return;
+        }
+        const lastMessageId = this.helpMessages.at(-1)?.id;
+        socket.send(
+          JSON.stringify({
+            type: "auth",
+            requestId: this.helpRequestId,
+            role: "learner",
+            sessionId: this.sessionId,
+            token: this.sessionToken,
+            ...(lastMessageId ? { lastMessageId } : {}),
+          }),
+        );
+      };
+      socket.onmessage = (event: MessageEvent<unknown>) => {
+        this.handleHelpFrame(event.data);
+      };
+      socket.onerror = () => {
+        this.helpStatus = "reconnecting";
+      };
+      socket.onclose = (event: CloseEvent) => {
+        if (this.helpSocket === socket) this.helpSocket = undefined;
+        if (event.code === 4401) {
+          this.helpStatus = "";
+          this.helpNotice = this.t("help.error");
+          this.helpNoticeIsError = true;
+        } else if (this.isConnected && this.helpRequestId) {
+          this.helpStatus = "reconnecting";
+          this.scheduleHelpReconnect();
+        }
+      };
+    } catch {
+      this.helpStatus = "reconnecting";
+      this.scheduleHelpReconnect();
+    }
+  }
+
+  private scheduleHelpReconnect(): void {
+    if (
+      !this.isConnected ||
+      !this.helpRequestId ||
+      this.helpReconnectTimer !== undefined
+    ) {
+      return;
+    }
+    const delay = Math.min(1_000 * 2 ** this.helpReconnectAttempt, 30_000);
+    this.helpReconnectAttempt += 1;
+    this.helpReconnectTimer = window.setTimeout(() => {
+      this.helpReconnectTimer = undefined;
+      this.connectHelpSocket();
+    }, delay);
+  }
+
+  private handleHelpFrame(raw: unknown): void {
+    if (typeof raw !== "string") {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+      return;
+    }
+    let frame: unknown;
+    try {
+      frame = JSON.parse(raw);
+    } catch {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+      return;
+    }
+    if (typeof frame !== "object" || frame === null || !("type" in frame)) {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+      return;
+    }
+    if (frame.type === "help.joined") {
+      this.helpStatus = "connected";
+      this.helpReconnectAttempt = 0;
+      this.helpNotice = "";
+      this.helpNoticeIsError = false;
+      return;
+    }
+    if (frame.type === "help.closed") {
+      this.helpRequestId = "";
+      this.helpMessages = [];
+      this.helpDraft = "";
+      this.helpStatus = "";
+      this.helpAnnouncement = "";
+      this.helpSocket?.close();
+      this.helpSocket = undefined;
+      if (this.helpReconnectTimer !== undefined) {
+        window.clearTimeout(this.helpReconnectTimer);
+        this.helpReconnectTimer = undefined;
+      }
+      this.notice = this.t("help.ended");
+      this.noticeIsError = false;
+      return;
+    }
+    if (
+      frame.type !== "chat.message" ||
+      !("id" in frame) ||
+      typeof frame.id !== "string" ||
+      !("text" in frame) ||
+      typeof frame.text !== "string" ||
+      !("from" in frame) ||
+      frame.from !== "helper"
+    ) {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+      return;
+    }
+    if (this.helpMessages.some((message) => message.id === frame.id)) return;
+    this.helpMessages = [
+      ...this.helpMessages,
+      { id: frame.id, from: "helper", text: frame.text },
+    ];
+    this.helpAnnouncement = this.t("help.newMessage");
+  }
+
+  private sendHelpMessage(event: SubmitEvent): void {
+    event.preventDefault();
+    const text = this.helpDraft.trim();
+    const socket = this.helpSocket;
+    if (!text || !socket || socket.readyState !== WebSocket.OPEN) {
+      this.helpStatus = "reconnecting";
+      return;
+    }
+    const id = crypto.randomUUID();
+    try {
+      socket.send(JSON.stringify({ type: "chat.message", id, text }));
+    } catch {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+      return;
+    }
+    this.helpMessages = [...this.helpMessages, { id, from: "learner", text }];
+    this.helpDraft = "";
+  }
+
+  private async closeHelpRequest(): Promise<void> {
+    if (!this.helpRequestId || this.helpBusy) return;
+    this.helpBusy = true;
+    this.helpNotice = "";
+    this.helpNoticeIsError = false;
+    try {
+      const response = await fetch(
+        `${this.apiRoot}/help/${encodeURIComponent(this.helpRequestId)}/close`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${this.sessionToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ sessionId: this.sessionId }),
+        },
+      );
+      if (!response.ok) throw new Error("help close");
+      this.helpRequestId = "";
+      this.helpMessages = [];
+      this.helpDraft = "";
+      this.helpStatus = "";
+      this.helpAnnouncement = "";
+      this.helpSocket?.close();
+      this.helpSocket = undefined;
+      this.helpReconnectAttempt = 0;
+      if (this.helpReconnectTimer !== undefined) {
+        window.clearTimeout(this.helpReconnectTimer);
+        this.helpReconnectTimer = undefined;
+      }
+    } catch {
+      this.helpNotice = this.t("help.error");
+      this.helpNoticeIsError = true;
+    } finally {
+      this.helpBusy = false;
+    }
   }
 
   private async createSession(): Promise<void> {
@@ -835,6 +1351,7 @@ export class DimtsAssistant extends LitElement {
     this.speechReview = false;
     this.isRecording = true;
     this.recordingStopRequested = false;
+    this.startRecordingCue();
     const run = ++this.recordingRun;
     this.recordingTimer = window.setTimeout(
       () => this.stopRecording(),
@@ -883,6 +1400,7 @@ export class DimtsAssistant extends LitElement {
       this.noticeIsError = true;
     } finally {
       if (run === this.recordingRun) {
+        this.stopRecordingCue();
         if (this.recordingTimer !== undefined) {
           window.clearTimeout(this.recordingTimer);
           this.recordingTimer = undefined;
@@ -896,6 +1414,7 @@ export class DimtsAssistant extends LitElement {
   private stopRecording(): void {
     if (!this.isRecording || this.recordingStopRequested) return;
     this.recordingStopRequested = true;
+    this.stopRecordingCue();
     if (this.recordingTimer !== undefined) {
       window.clearTimeout(this.recordingTimer);
       this.recordingTimer = undefined;
@@ -909,6 +1428,45 @@ export class DimtsAssistant extends LitElement {
       this.isRecording = false;
       this.recordingStopRequested = false;
     }
+  }
+
+  private startRecordingCue(): void {
+    this.recordingCueActive = true;
+    this.playTone(660);
+    this.vibrate(30);
+  }
+
+  private stopRecordingCue(): void {
+    if (!this.recordingCueActive) return;
+    this.recordingCueActive = false;
+    this.playTone(440);
+    this.vibrate([30, 40, 30]);
+  }
+
+  private playTone(frequency: number): void {
+    const AudioContextConstructor = window.AudioContext;
+    if (typeof AudioContextConstructor !== "function") return;
+    if (!this.audioContext || this.audioContext.state === "closed") {
+      this.audioContext = new AudioContextConstructor();
+    }
+
+    const context = this.audioContext;
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+    const now = context.currentTime;
+    oscillator.frequency.setValueAtTime(frequency, now);
+    gain.gain.setValueAtTime(0.04, now);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(now);
+    oscillator.stop(now + 0.08);
+  }
+
+  private vibrate(pattern: number | number[]): void {
+    if (this.settings.stopMotion || typeof navigator.vibrate !== "function") {
+      return;
+    }
+    navigator.vibrate(pattern);
   }
 
   private canRecord(lang = this.selectedLang): boolean {
@@ -1064,6 +1622,12 @@ export class DimtsAssistant extends LitElement {
           type="button"
           lang=${language.code}
           dir=${language.dir}
+          @focus=${() =>
+            void this.speak(
+              language.nameNative,
+              language.code,
+              `language-${language.code}`,
+            )}
           @click=${() => void this.chooseLanguage(language.code)}
         >
           <span class="language-name">${language.nameNative}</span>
@@ -1104,24 +1668,28 @@ export class DimtsAssistant extends LitElement {
             )}
           </div>
         </fieldset>
-        ${this.renderToggle(
-          "settings.highContrast",
-          this.settings.highContrast,
-          (value) => this.updateSettings({ highContrast: value }),
-        )}
-        ${this.renderToggle(
-          "settings.stopMotion",
-          this.settings.stopMotion,
-          (value) => this.updateSettings({ stopMotion: value }),
-        )}
-        ${this.renderToggle("settings.simple", this.settings.simple, (value) =>
-          this.updateSettings({ simple: value }),
-        )}
-        ${this.renderToggle(
-          "settings.dataSaver",
-          this.settings.dataSaver,
-          (value) => this.updateSettings({ dataSaver: value }),
-        )}
+        <div class="setting-toggles">
+          ${this.renderToggle(
+            "settings.highContrast",
+            this.settings.highContrast,
+            (value) => this.updateSettings({ highContrast: value }),
+          )}
+          ${this.renderToggle(
+            "settings.stopMotion",
+            this.settings.stopMotion,
+            (value) => this.updateSettings({ stopMotion: value }),
+          )}
+          ${this.renderToggle(
+            "settings.simple",
+            this.settings.simple,
+            (value) => this.updateSettings({ simple: value }),
+          )}
+          ${this.renderToggle(
+            "settings.dataSaver",
+            this.settings.dataSaver,
+            (value) => this.updateSettings({ dataSaver: value }),
+          )}
+        </div>
         <label class="setting-row" for="read-aloud">
           <span>${this.t("settings.readAloud")}</span>
           <select
@@ -1224,10 +1792,174 @@ export class DimtsAssistant extends LitElement {
         type="button"
         lang=${this.selectedLang}
         dir=${this.currentDirection}
+        ?disabled=${Boolean(this.helpRequestId)}
         @click=${() => this.escalate()}
       >
         ${this.t("help.button")}
       </button>
+    `;
+  }
+
+  private renderHelpPreview(): unknown {
+    if (!this.helpPreviewOpen) return nothing;
+    const questions = this.messages
+      .filter((message) => message.role === "learner")
+      .slice(-3);
+    return html`
+      <div class="help-backdrop">
+        <section
+          class="help-dialog"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="help-preview-title"
+          lang=${this.selectedLang}
+          dir=${this.currentDirection}
+          @keydown=${(event: KeyboardEvent) => this.trapHelpDialog(event)}
+        >
+          <h2 id="help-preview-title">${this.t("help.preview.title")}</h2>
+          <p>
+            ${this.t("help.preview.language", {
+              language: this.currentLanguage?.nameNative ?? this.selectedLang,
+            })}
+          </p>
+          <label class="setting-row" for="include-help-summary">
+            <span>${this.t("help.includeSummary")}</span>
+            <input
+              id="include-help-summary"
+              type="checkbox"
+              .checked=${this.helpIncludeSummary}
+              @change=${(event: Event) => {
+                this.helpIncludeSummary = (
+                  event.currentTarget as HTMLInputElement
+                ).checked;
+              }}
+            />
+          </label>
+          ${
+            this.helpIncludeSummary && questions.length > 0
+              ? html`
+                  <section
+                    class="help-summary"
+                    aria-label=${this.t("help.preview.summary")}
+                  >
+                    <h3>${this.t("help.preview.summary")}</h3>
+                    <ul>
+                      ${questions.map((question) => html`<li>${question.text}</li>`)}
+                    </ul>
+                  </section>
+                `
+              : nothing
+          }
+          ${
+            this.helpNotice
+              ? html`
+                  <p
+                    role=${this.helpNoticeIsError ? "alert" : "status"}
+                    aria-live=${this.helpNoticeIsError ? "assertive" : "polite"}
+                  >
+                    ${this.helpNotice}
+                  </p>
+                `
+              : nothing
+          }
+          <div class="help-actions">
+            <button type="button" @click=${() => void this.cancelHelpPreview()}>
+              ${this.t("help.cancel")}
+            </button>
+            <button
+              class="primary"
+              type="button"
+              ?disabled=${this.helpBusy}
+              @click=${() => void this.createHelpRequest()}
+            >
+              ${this.t("help.sendRequest")}
+            </button>
+          </div>
+        </section>
+      </div>
+    `;
+  }
+
+  private renderHelpSession(): unknown {
+    if (!this.helpRequestId) return nothing;
+    return html`
+      <section
+        class="panel"
+        aria-labelledby="help-chat-heading"
+        lang=${this.selectedLang}
+        dir=${this.currentDirection}
+      >
+        <h2 id="help-chat-heading">${this.t("help.chat")}</h2>
+        <p>${this.t("help.waiting")}</p>
+        <p role="status" aria-live="polite">
+          ${this.t(`help.${this.helpStatus || "connecting"}`)}
+        </p>
+        ${
+          this.helpNotice
+            ? html`
+                <p
+                  role=${this.helpNoticeIsError ? "alert" : "status"}
+                  aria-live=${this.helpNoticeIsError ? "assertive" : "polite"}
+                >
+                  ${this.helpNotice}
+                </p>
+              `
+            : nothing
+        }
+        <div class="help-chat-messages" aria-live="off">
+          ${this.helpMessages.map(
+            (message) => html`
+              <article
+                data-help-sender=${message.from}
+                aria-label=${this.t(
+                  message.from === "helper" ? "help.helper" : "help.you",
+                )}
+              >
+                <strong>
+                  ${this.t(
+                    message.from === "helper" ? "help.helper" : "help.you",
+                  )}
+                </strong>
+                <p>${message.text}</p>
+              </article>
+            `,
+          )}
+        </div>
+        <p class="visually-hidden" role="status" aria-live="polite">
+          ${this.helpAnnouncement}
+        </p>
+        <form
+          class="help-chat"
+          @submit=${(event: SubmitEvent) => this.sendHelpMessage(event)}
+        >
+          <label for="help-message">${this.t("help.message")}</label>
+          <textarea
+            id="help-message"
+            maxlength="2000"
+            .value=${this.helpDraft}
+            @input=${(event: Event) =>
+              (this.helpDraft = (
+                event.currentTarget as HTMLTextAreaElement
+              ).value)}
+          ></textarea>
+          <div class="help-actions">
+            <button
+              type="submit"
+              class="primary"
+              ?disabled=${this.helpStatus !== "connected" || this.helpBusy}
+            >
+              ${this.t("help.send")}
+            </button>
+            <button
+              type="button"
+              ?disabled=${this.helpBusy}
+              @click=${() => void this.closeHelpRequest()}
+            >
+              ${this.t("help.end")}
+            </button>
+          </div>
+        </form>
+      </section>
     `;
   }
 
@@ -1248,13 +1980,13 @@ export class DimtsAssistant extends LitElement {
           lang=${this.selectedLang}
           dir=${this.currentLanguage?.dir ?? "ltr"}
         >
+          ${this.renderOfflineBanner()} ${this.renderHelpButton()}
+          ${this.renderHelpSession()} ${this.renderHelpPreview()}
           <section class="welcome" aria-labelledby="welcome-heading">
-            ${this.renderOfflineBanner()}
             <h1 id="welcome-heading">${this.t("welcome.title")}</h1>
             <div class="language-list">${this.renderLanguageChoices()}</div>
             <p class="status" role="status">${this.notice}</p>
           </section>
-          ${this.renderHelpButton()}
         </main>
       `;
     }
@@ -1282,6 +2014,8 @@ export class DimtsAssistant extends LitElement {
             </button>
           </div>
         </header>
+        ${this.renderHelpButton()} ${this.renderHelpSession()}
+        ${this.renderHelpPreview()}
         ${
           this.panel === "language"
             ? html`
@@ -1532,7 +2266,6 @@ export class DimtsAssistant extends LitElement {
             </div>
           </form>
         </div>
-        ${this.renderHelpButton()}
       </main>
     `;
   }

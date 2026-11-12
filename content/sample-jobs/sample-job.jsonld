@@ -1,0 +1,25 @@
+{
+  "@context": "https://schema.org",
+  "@type": "JobPosting",
+  "@id": "https://jobs.example/jobs/community-garden-assistant",
+  "url": "https://jobs.example/jobs/community-garden-assistant",
+  "title": "Community Garden Assistant",
+  "description": "Help prepare garden beds and support local growers. English is not required for this role. Training is provided.",
+  "datePosted": "2026-11-01",
+  "validThrough": "2026-12-15",
+  "hiringOrganization": {
+    "@type": "Organization",
+    "name": "Sample Community Cooperative"
+  },
+  "jobLocation": {
+    "@type": "Place",
+    "address": {
+      "@type": "PostalAddress",
+      "addressLocality": "Hawassa",
+      "addressCountry": "ET"
+    }
+  },
+  "accommodationsOffered": [
+    "Written interview questions"
+  ]
+}

@@ -53,6 +53,10 @@ describe("widget size gate", () => {
     await Promise.all([
       writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};\n"),
       writeFile(
+        path.join(widgetDist, "dimts-helper-console.js"),
+        "export {};\n",
+      ),
+      writeFile(
         path.join(widgetDist, "widget.css"),
         "body { color: black; }\n",
       ),
@@ -72,6 +76,10 @@ describe("widget size gate", () => {
         path.join(widgetDist, "dimts-widget.js"),
         randomBytes(64 * 1024),
       ),
+      writeFile(
+        path.join(widgetDist, "dimts-helper-console.js"),
+        "export {};\n",
+      ),
       writeEnglishPack(),
     ]);
 
@@ -85,6 +93,10 @@ describe("widget size gate", () => {
   it("fails when the initial-load asset budget is exceeded", async () => {
     await Promise.all([
       writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};\n"),
+      writeFile(
+        path.join(widgetDist, "dimts-helper-console.js"),
+        "export {};\n",
+      ),
       writeFile(path.join(widgetDist, "widget.css"), randomBytes(160 * 1024)),
       writeEnglishPack(),
     ]);
@@ -109,7 +121,57 @@ describe("widget size gate", () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
-      "Widget build output contains no JavaScript bundle.",
+      "Widget build output contains no widget bundle.",
+    );
+  });
+
+  it("measures the helper console separately from the learner initial load", async () => {
+    await Promise.all([
+      writeFile(
+        path.join(widgetDist, "dimts-widget.js"),
+        randomBytes(50 * 1024),
+      ),
+      writeFile(
+        path.join(widgetDist, "dimts-helper-console.js"),
+        randomBytes(50 * 1024),
+      ),
+      writeEnglishPack(),
+    ]);
+
+    const result = runSizeGate();
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Widget JavaScript:");
+    expect(result.stdout).toContain("Helper console JavaScript:");
+  });
+
+  it("fails when the helper console is over its independent budget", async () => {
+    await Promise.all([
+      writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};\n"),
+      writeFile(
+        path.join(widgetDist, "dimts-helper-console.js"),
+        randomBytes(64 * 1024),
+      ),
+      writeEnglishPack(),
+    ]);
+
+    const result = runSizeGate();
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toContain("Helper console JavaScript:");
+  });
+
+  it("fails when the separately built helper console is missing", async () => {
+    await Promise.all([
+      writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};\n"),
+      writeEnglishPack(),
+    ]);
+
+    const result = runSizeGate();
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      "Widget build output contains no helper console bundle.",
     );
   });
 });

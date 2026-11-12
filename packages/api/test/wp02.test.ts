@@ -842,6 +842,7 @@ describe("WP02 configuration and API contracts", () => {
     expect(response.text).toContain("/v1/ask:");
     expect(response.text).toContain("/v1/helpers/login:");
     expect(response.text).toContain("/v1/help/{id}/claim:");
+    expect(response.text).toContain("/v1/help/ws:");
     expect(response.text).toContain("/v1/internal/retention:");
     expect(docs.status).toBe(200);
     expect(docs.text).toContain("/v1/openapi.yaml");

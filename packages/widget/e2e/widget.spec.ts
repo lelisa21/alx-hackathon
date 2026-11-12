@@ -77,6 +77,8 @@ type TestWindow = Window & {
     stops: number;
     resolve?: (text: string) => void;
   };
+  __toneFrequencies?: number[];
+  __vibrationPatterns?: (number | number[])[];
   __spoken?: { text: string; lang: string; rate: number }[];
   __speechControls?: {
     pauses: number;
@@ -86,12 +88,44 @@ type TestWindow = Window & {
   };
 };
 
+function colorChannels(color: string): [number, number, number] {
+  const hex = color.match(/^#([0-9a-f]{6})$/iu);
+  if (hex?.[1]) {
+    const value = Number.parseInt(hex[1], 16);
+    return [(value >> 16) & 255, (value >> 8) & 255, value & 255];
+  }
+  const rgb = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/u);
+  if (rgb?.[1] && rgb[2] && rgb[3]) {
+    return [Number(rgb[1]), Number(rgb[2]), Number(rgb[3])];
+  }
+  throw new Error(`Unsupported color: ${color}`);
+}
+
+function luminance(color: string): number {
+  const channels = colorChannels(color).map((channel) => {
+    const normalized = channel / 255;
+    return normalized <= 0.04045
+      ? normalized / 12.92
+      : ((normalized + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * channels[0]! + 0.7152 * channels[1]! + 0.0722 * channels[2]!;
+}
+
+function contrastRatio(foreground: string, background: string): number {
+  const values = [luminance(foreground), luminance(background)].sort(
+    (left, right) => right - left,
+  );
+  return (values[0]! + 0.05) / (values[1]! + 0.05);
+}
+
 async function openWidget(
   page: import("@playwright/test").Page,
   options: { failFirstAsk?: boolean; languages?: TestLanguage[] } = {},
 ) {
   let failNextAsk = options.failFirstAsk ?? false;
   let networkOffline = false;
+  const helpRequests: { sessionId: string; includeSummary: boolean }[] = [];
+  const helpClosures: { requestId: string; sessionId: string }[] = [];
   await page.route("http://127.0.0.1:4173/", (route) =>
     route.fulfill({
       status: 200,
@@ -131,6 +165,31 @@ async function openWidget(
       });
       return;
     }
+    if (url.pathname.endsWith("/help") && route.request().method() === "POST") {
+      helpRequests.push(
+        JSON.parse(route.request().postData() ?? "{}") as {
+          sessionId: string;
+          includeSummary: boolean;
+        },
+      );
+      await route.fulfill({
+        status: 201,
+        json: { id: "help-request-1", status: "waiting" },
+      });
+      return;
+    }
+    if (
+      url.pathname.endsWith("/help/help-request-1/close") &&
+      route.request().method() === "POST"
+    ) {
+      helpClosures.push(
+        JSON.parse(route.request().postData() ?? "{}") as {
+          sessionId: string;
+        },
+      );
+      await route.fulfill({ status: 204 });
+      return;
+    }
     if (url.pathname.endsWith("/ask")) {
       if (failNextAsk) {
         failNextAsk = false;
@@ -166,8 +225,596 @@ async function openWidget(
     disconnectApi: () => {
       networkOffline = true;
     },
+    helpRequests,
+    helpClosures,
   };
 }
+
+async function installCueMocks(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await page.addInitScript(() => {
+    const testWindow = window as TestWindow;
+    testWindow.__toneFrequencies = [];
+    testWindow.__vibrationPatterns = [];
+    Object.defineProperty(navigator, "vibrate", {
+      configurable: true,
+      value: (pattern: number | number[]) => {
+        testWindow.__vibrationPatterns?.push(pattern);
+        return true;
+      },
+    });
+
+    class MockAudioContext {
+      currentTime = 0;
+      destination = {};
+      state = "running";
+
+      createOscillator() {
+        const testWindow = window as TestWindow;
+        const frequency = {
+          value: 0,
+          setValueAtTime(value: number) {
+            this.value = value;
+          },
+        };
+        return {
+          frequency,
+          connect() {},
+          start() {
+            testWindow.__toneFrequencies?.push(frequency.value);
+          },
+          stop() {},
+        };
+      }
+
+      createGain() {
+        return {
+          gain: { value: 0, setValueAtTime() {} },
+          connect() {},
+        };
+      }
+
+      close() {
+        this.state = "closed";
+        return Promise.resolve();
+      }
+    }
+
+    Object.defineProperty(window, "AudioContext", {
+      configurable: true,
+      value: MockAudioContext,
+    });
+  });
+}
+
+async function attachPendingSpeech(
+  page: import("@playwright/test").Page,
+): Promise<void> {
+  await page.locator("dimts-assistant").evaluate(async (element) => {
+    const widget = element as WidgetElement;
+    const testWindow = window as TestWindow;
+    testWindow.__voice = { starts: [], stops: 0 };
+    widget.speechToText = {
+      supported: (lang) => lang === "en",
+      start: (lang) =>
+        new Promise((resolve) => {
+          testWindow.__voice?.starts.push(lang);
+          if (testWindow.__voice) testWindow.__voice.resolve = resolve;
+        }),
+      stop: () => {
+        if (testWindow.__voice) {
+          testWindow.__voice.stops += 1;
+          testWindow.__voice.resolve?.("How do I plan my study?");
+        }
+      },
+    };
+    await widget.updateComplete;
+  });
+}
+
+test("loads the language picker with a same-origin relative API root", async ({
+  page,
+}) => {
+  const socketFrames: Record<string, unknown>[] = [];
+  await page.route("http://127.0.0.1:4173/", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "text/html",
+      body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+    }),
+  );
+  await page.route("http://127.0.0.1:4173/v1/**", async (route) => {
+    const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/languages")) {
+      await route.fulfill({ json: { languages } });
+      return;
+    }
+    if (/\/locales\/[^/]+\/ui$/u.test(url.pathname)) {
+      const code = url.pathname.split("/").at(-2) ?? "en";
+      await route.fulfill({ json: packs.get(code)?.ui ?? {} });
+      return;
+    }
+    if (url.pathname.endsWith("/sessions")) {
+      await route.fulfill({
+        status: 201,
+        json: { sessionId: "session-12345678", sessionToken: "session-token" },
+      });
+      return;
+    }
+    if (
+      url.pathname.endsWith("/help") &&
+      route.request().method() === "POST"
+    ) {
+      await route.fulfill({
+        status: 201,
+        json: { id: "help-request-1", status: "waiting" },
+      });
+      return;
+    }
+    if (
+      url.pathname.endsWith("/help/help-request-1/close") &&
+      route.request().method() === "POST"
+    ) {
+      await route.fulfill({ status: 204 });
+      return;
+    }
+    await route.fulfill({ status: 404, json: {} });
+  });
+  await page.routeWebSocket("ws://127.0.0.1:4173/v1/help/ws", (socket) => {
+    socket.onMessage((raw) => {
+      const frame = JSON.parse(String(raw)) as Record<string, unknown>;
+      socketFrames.push(frame);
+      if (frame.type === "auth") {
+        socket.send(JSON.stringify({ type: "help.joined" }));
+      }
+    });
+  });
+  await page.goto("http://127.0.0.1:4173/");
+  await expect(page.getByRole("button", { name: "English" })).toBeVisible();
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(
+    page.getByRole("textbox", { name: "Ask a question" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Help me now" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Send request" })
+    .click();
+  await expect(page.getByText("Connected to a helper.")).toBeVisible();
+  expect(socketFrames).toContainEqual(
+    expect.objectContaining({
+      type: "auth",
+      requestId: "help-request-1",
+      role: "learner",
+      sessionId: "session-12345678",
+    }),
+  );
+  await page.getByRole("button", { name: "End help" }).click();
+  await expect(
+    page.getByText("This help chat has ended. You can continue with the tutor."),
+  ).toBeVisible();
+});
+
+test("refreshes cached shell assets while online", async ({ page }) => {
+  await openWidget(page);
+  await expect(
+    page.getByRole("heading", { name: "Choose your language" }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(() => Boolean(navigator.serviceWorker.controller)),
+    )
+    .toBe(true);
+
+  const shellCacheName = await page.evaluate(async () =>
+    (await caches.keys()).find((name) => name.startsWith("dimts-shell-")),
+  );
+  if (!shellCacheName) throw new Error("Expected the widget shell cache.");
+  await page.evaluate(async (cacheName) => {
+    const cache = await caches.open(cacheName);
+    await cache.put(
+      new URL("/dimts-widget.js", location.origin),
+      new Response("stale shell"),
+    );
+  }, shellCacheName);
+
+  const bundle = await page.evaluate(async () =>
+    (await fetch("/dimts-widget.js")).text(),
+  );
+  expect(bundle).not.toBe("stale shell");
+  expect(bundle).toContain("dimts-assistant");
+});
+
+test("keeps Help me now fixed in one corner and within the first five tab stops", async ({
+  page,
+}) => {
+  await openWidget(page);
+  const helpButton = page.getByRole("button", { name: "Help me now" });
+  const welcomeCorner = await helpButton.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      position: style.position,
+      insetBlockEnd: style.insetBlockEnd,
+      insetInlineEnd: style.insetInlineEnd,
+    };
+  });
+  expect(welcomeCorner).toEqual({
+    position: "fixed",
+    insetBlockEnd: "12px",
+    insetInlineEnd: "12px",
+  });
+  const englishChoice = page.getByRole("button", { name: "English" });
+  await englishChoice.focus();
+  await page.keyboard.press("Shift+Tab");
+  await expect(helpButton).toBeFocused();
+  await englishChoice.click();
+  await expect(
+    page.getByRole("textbox", { name: "Ask a question" }),
+  ).toBeVisible();
+  await expect(helpButton).toHaveCSS("position", welcomeCorner.position);
+  await expect(helpButton).toHaveCSS(
+    "inset-block-end",
+    welcomeCorner.insetBlockEnd,
+  );
+  await expect(helpButton).toHaveCSS(
+    "inset-inline-end",
+    welcomeCorner.insetInlineEnd,
+  );
+  const languageButton = page.getByRole("button", { name: "Change language" });
+  await languageButton.focus();
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("button", { name: "Settings" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(helpButton).toBeFocused();
+  await expect
+    .poll(() =>
+      helpButton.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return { width: style.outlineWidth, offset: style.outlineOffset };
+      }),
+    )
+    .toEqual({ width: "3px", offset: "2px" });
+});
+
+test("previews only the last three questions and sends help after confirmation", async ({
+  page,
+}) => {
+  const { helpRequests } = await openWidget(page);
+  await expect(page.getByRole("button", { name: "English" })).toBeVisible();
+  await page.getByRole("button", { name: "English" }).click();
+
+  const questions = [
+    "Question one",
+    "Question two",
+    "Question three",
+    "Question four",
+  ];
+  for (const question of questions) {
+    const composer = page.getByRole("textbox", { name: "Ask a question" });
+    await composer.fill(question);
+    await composer.press("Enter");
+    await expect(
+      page
+        .locator("article[data-role='learner']")
+        .filter({ hasText: question }),
+    ).toBeVisible();
+    await expect(
+      page.locator("article[data-role='assistant']").last(),
+    ).toContainText("Choose one topic to learn this week.");
+  }
+
+  await page.getByRole("button", { name: "Help me now" }).click();
+  const dialog = page.getByRole("dialog", { name: "Ask a person for help?" });
+  await expect(dialog).toBeVisible();
+  await expect(dialog.getByText("Question one", { exact: true })).toHaveCount(
+    0,
+  );
+  for (const question of questions.slice(1)) {
+    await expect(dialog.getByText(question, { exact: true })).toBeVisible();
+  }
+  const { AxeBuilder } = await import("@axe-core/playwright");
+  const previewAccessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    previewAccessibility.violations.filter((violation) =>
+      ["critical", "serious"].includes(violation.impact ?? ""),
+    ),
+  ).toEqual([]);
+  const includeSummary = dialog.getByRole("checkbox", {
+    name: "Include my last questions",
+  });
+  await expect(includeSummary).toBeChecked();
+  await includeSummary.uncheck();
+  await expect(dialog.getByText("Question two", { exact: true })).toHaveCount(
+    0,
+  );
+  await dialog.getByRole("button", { name: "Not now" }).click();
+  await expect(dialog).toHaveCount(0);
+  expect(helpRequests).toEqual([]);
+
+  await page.getByRole("button", { name: "Help me now" }).click();
+  const confirmedDialog = page.getByRole("dialog", {
+    name: "Ask a person for help?",
+  });
+  await confirmedDialog
+    .getByRole("checkbox", { name: "Include my last questions" })
+    .uncheck();
+  await confirmedDialog.getByRole("button", { name: "Send request" }).click();
+
+  await expect(
+    page.getByText("A person will join soon.", { exact: false }),
+  ).toBeVisible();
+  expect(helpRequests).toEqual([
+    { sessionId: "session-12345678", includeSummary: false },
+  ]);
+  const composer = page.getByRole("textbox", { name: "Ask a question" });
+  await composer.fill("Continue learning with the tutor.");
+  await page
+    .locator("form.composer")
+    .getByRole("button", { name: "Send", exact: true })
+    .click();
+  await expect(
+    page
+      .locator("article[data-role='learner']")
+      .filter({ hasText: "Continue learning with the tutor." }),
+  ).toBeVisible();
+  await expect(
+    page.locator("article[data-role='assistant']").last(),
+  ).toContainText("Choose one topic to learn this week.");
+});
+
+test("connects help chat, sends ordered messages, and closes the request", async ({
+  page,
+}) => {
+  const socketFrames: Record<string, unknown>[] = [];
+  await page.routeWebSocket("ws://api.test/v1/help/ws", (socket) => {
+    socket.onMessage((raw) => {
+      const frame = JSON.parse(String(raw)) as Record<string, unknown>;
+      socketFrames.push(frame);
+      if (frame.type === "auth") {
+        socket.send(JSON.stringify({ type: "help.joined" }));
+        socket.send(
+          JSON.stringify({
+            type: "chat.message",
+            id: "helper-message-1",
+            text: "I am here to help.",
+            from: "helper",
+          }),
+        );
+      }
+    });
+  });
+  const { helpRequests, helpClosures } = await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Help me now" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Send request" })
+    .click();
+
+  await expect(page.getByText("Connected to a helper.")).toBeVisible();
+  await expect(page.getByText("I am here to help.")).toBeVisible();
+  await expect(page.getByText("New message from your helper.")).toBeVisible();
+  await page.getByLabel("Message").fill("Thank you.");
+  await page
+    .locator("section[aria-labelledby='help-chat-heading']")
+    .getByRole("button", { name: "Send", exact: true })
+    .click();
+  await expect(page.getByText("Thank you.", { exact: true })).toBeVisible();
+  await expect
+    .poll(() => socketFrames.filter((frame) => frame.type === "chat.message"))
+    .toContainEqual({
+      type: "chat.message",
+      id: expect.any(String),
+      text: "Thank you.",
+    });
+
+  await page.getByRole("button", { name: "End help" }).click();
+  expect(helpRequests).toEqual([
+    { sessionId: "session-12345678", includeSummary: true },
+  ]);
+  await expect
+    .poll(() => helpClosures)
+    .toEqual([{ sessionId: "session-12345678" }]);
+});
+
+test("reconnects help chat from the last received message without duplicates", async ({
+  page,
+}) => {
+  const authFrames: Record<string, unknown>[] = [];
+  let connectionCount = 0;
+  await page.routeWebSocket("ws://api.test/v1/help/ws", (socket) => {
+    connectionCount += 1;
+    const connection = connectionCount;
+    socket.onMessage((raw) => {
+      const frame = JSON.parse(String(raw)) as Record<string, unknown>;
+      if (frame.type !== "auth") return;
+      authFrames.push(frame);
+      socket.send(JSON.stringify({ type: "help.joined" }));
+      socket.send(
+        JSON.stringify({
+          type: "chat.message",
+          id: "helper-message-1",
+          text: "First helper response.",
+          from: "helper",
+        }),
+      );
+      if (connection === 1) {
+        setTimeout(
+          () => socket.close({ code: 1000, reason: "reconnect test" }),
+          50,
+        );
+      } else {
+        socket.send(
+          JSON.stringify({
+            type: "chat.message",
+            id: "helper-message-2",
+            text: "Second helper response.",
+            from: "helper",
+          }),
+        );
+      }
+    });
+  });
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Help me now" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Send request" })
+    .click();
+
+  await expect(page.getByText("First helper response.")).toHaveCount(1);
+  await expect(page.getByText("Second helper response.")).toBeVisible({
+    timeout: 10_000,
+  });
+  await expect.poll(() => authFrames.length).toBeGreaterThanOrEqual(2);
+  expect(authFrames[1]?.lastMessageId).toBe("helper-message-1");
+  await expect(page.getByText("First helper response.")).toHaveCount(1);
+});
+
+test("returns the learner to tutor mode when the helper ends chat", async ({
+  page,
+}) => {
+  await page.routeWebSocket("ws://api.test/v1/help/ws", (socket) => {
+    socket.onMessage((raw) => {
+      const frame = JSON.parse(String(raw)) as Record<string, unknown>;
+      if (frame.type !== "auth") return;
+      socket.send(JSON.stringify({ type: "help.joined" }));
+      setTimeout(
+        () => socket.send(JSON.stringify({ type: "help.closed" })),
+        50,
+      );
+    });
+  });
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Help me now" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Send request" })
+    .click();
+
+  await expect(
+    page.getByText(
+      "This help chat has ended. You can continue with the tutor.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.locator("section[aria-labelledby='help-chat-heading']"),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Help me now" })).toBeEnabled();
+  await expect(
+    page.getByRole("textbox", { name: "Ask a question" }),
+  ).toBeVisible();
+});
+
+test("announces microphone state with its ring, tone, and haptic cues", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await installCueMocks(page);
+  await openWidget(page, { languages: voiceEnabledTestLanguages });
+  await page.getByRole("button", { name: "English" }).click();
+  await attachPendingSpeech(page);
+
+  const layout = await page.locator("dimts-assistant").evaluate((element) => {
+    const mic = element
+      .shadowRoot!.querySelector(".mic")!
+      .getBoundingClientRect();
+    const main = element
+      .shadowRoot!.querySelector("main")!
+      .getBoundingClientRect();
+    return {
+      micHeight: mic.height,
+      micCenter: (mic.left + mic.right) / 2,
+      mainCenter: (main.left + main.right) / 2,
+    };
+  });
+  expect(layout.micHeight).toBeGreaterThanOrEqual(64);
+  expect(Math.abs(layout.micCenter - layout.mainCenter)).toBeLessThanOrEqual(1);
+
+  await page.getByRole("button", { name: "Start talking" }).click();
+  const stopButton = page.getByRole("button", { name: "Stop talking" });
+  await expect(stopButton).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() =>
+      stopButton.evaluate(
+        (element) => getComputedStyle(element, "::after").animationName,
+      ),
+    )
+    .toBe("recording-ring");
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__toneFrequencies))
+    .toEqual([660]);
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__vibrationPatterns))
+    .toEqual([30]);
+
+  await stopButton.click();
+  await expect(
+    page.getByRole("button", { name: "Start talking" }),
+  ).toHaveAttribute("aria-pressed", "false");
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__toneFrequencies))
+    .toEqual([660, 440]);
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__vibrationPatterns))
+    .toEqual([30, [30, 40, 30]]);
+});
+
+test("Stop motion disables the microphone ring and vibration", async ({
+  page,
+}) => {
+  await installCueMocks(page);
+  await openWidget(page, { languages: voiceEnabledTestLanguages });
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("Stop motion").check();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await attachPendingSpeech(page);
+
+  await page.getByRole("button", { name: "Start talking" }).click();
+  const stopButton = page.getByRole("button", { name: "Stop talking" });
+  await expect(stopButton).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() =>
+      stopButton.evaluate(
+        (element) => getComputedStyle(element, "::after").animationName,
+      ),
+    )
+    .toBe("none");
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__vibrationPatterns))
+    .toEqual([]);
+});
+
+test("keeps microphone state visible when sound and motion are unavailable", async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    Object.defineProperty(window, "AudioContext", {
+      configurable: true,
+      value: undefined,
+    });
+  });
+  await openWidget(page, { languages: voiceEnabledTestLanguages });
+  await page.getByRole("button", { name: "English" }).click();
+  await attachPendingSpeech(page);
+
+  await page.getByRole("button", { name: "Start talking" }).click();
+  const stopButton = page.getByRole("button", { name: "Stop talking" });
+  await expect(stopButton).toHaveAttribute("aria-pressed", "true");
+  await expect
+    .poll(() =>
+      stopButton.evaluate((element) => ({
+        animation: getComputedStyle(element, "::after").animationName,
+        background: getComputedStyle(element).backgroundColor,
+      })),
+    )
+    .toMatchObject({ animation: "none" });
+});
 
 test("welcomes in-language, keeps the conversation, and focuses cited replies", async ({
   page,
@@ -227,32 +874,88 @@ test("names controls in their language and meets interactive target sizes", asyn
 }) => {
   await page.setViewportSize({ width: 320, height: 720 });
   await openWidget(page);
+  await expect(page.getByRole("button", { name: "English" })).toBeVisible();
+  const assertTargets = async () => {
+    const controls = await page
+      .locator("dimts-assistant")
+      .locator("button, a, input, select, textarea")
+      .evaluateAll((elements) =>
+        elements.map((element) => {
+          const bounds = element.getBoundingClientRect();
+          return {
+            width: bounds.width,
+            height: bounds.height,
+            lang: element.getAttribute("lang"),
+            dir: element.getAttribute("dir"),
+          };
+        }),
+      );
+
+    expect(controls.length).toBeGreaterThan(0);
+    expect(
+      controls.filter(
+        ({ width, height, lang, dir }) =>
+          width < 48 ||
+          height < 48 ||
+          !lang ||
+          (dir !== "ltr" && dir !== "rtl"),
+      ),
+    ).toEqual([]);
+  };
+  await assertTargets();
   await page.getByRole("button", { name: "English" }).click();
+  await assertTargets();
   await page.getByRole("button", { name: "Settings" }).click();
+  await assertTargets();
+});
 
-  const controls = await page
-    .locator("dimts-assistant")
-    .locator("button, a, input, select, textarea")
-    .evaluateAll((elements) =>
-      elements.map((element) => {
-        const bounds = element.getBoundingClientRect();
-        return {
-          tag: element.tagName,
-          width: bounds.width,
-          height: bounds.height,
-          lang: element.getAttribute("lang"),
-          dir: element.getAttribute("dir"),
-        };
-      }),
-    );
+test("keeps at least 8px between interactive targets", async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openWidget(page);
+  const assertSpacing = async () => {
+    const closePairs = await page
+      .locator("dimts-assistant")
+      .evaluate((element) => {
+        const controls = Array.from(
+          element.shadowRoot!.querySelectorAll<HTMLElement>(
+            "button, a, input, select, textarea",
+          ),
+        )
+          .filter((control) => control.getClientRects().length > 0)
+          .map((control) => {
+            const { left, right, top, bottom } =
+              control.getBoundingClientRect();
+            return {
+              label: control.textContent?.trim() || control.tagName,
+              left,
+              right,
+              top,
+              bottom,
+            };
+          });
 
-  expect(controls.length).toBeGreaterThan(0);
-  expect(
-    controls.filter(
-      ({ width, height, lang, dir }) =>
-        width < 48 || height < 48 || lang !== "en" || dir !== "ltr",
-    ),
-  ).toEqual([]);
+        const close: string[] = [];
+        for (let first = 0; first < controls.length; first += 1) {
+          for (let second = first + 1; second < controls.length; second += 1) {
+            const a = controls[first]!;
+            const b = controls[second]!;
+            const gapInline = Math.max(0, a.left - b.right, b.left - a.right);
+            const gapBlock = Math.max(0, a.top - b.bottom, b.top - a.bottom);
+            if (gapInline < 8 && gapBlock < 8) {
+              close.push(`${a.label} / ${b.label}`);
+            }
+          }
+        }
+        return close;
+      });
+
+    expect(closePairs).toEqual([]);
+  };
+  await assertSpacing();
+  await page.getByRole("button", { name: "English" }).click();
+  await assertSpacing();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await assertSpacing();
 });
 
 test("remembers a language choice across page loads", async ({ page }) => {
@@ -275,6 +978,141 @@ test("remembers a language choice across page loads", async ({ page }) => {
   await expect(
     page.getByRole("button", { name: "200 percent" }),
   ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("speaks the language name on focus when that language has TTS", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: voiceEnabledTestLanguages });
+  await page.locator("dimts-assistant").evaluate(async (element) => {
+    const widget = element as WidgetElement;
+    const testWindow = window as TestWindow;
+    testWindow.__spoken = [];
+    widget.textToSpeech = {
+      supported: (lang) => lang === "en",
+      speak: async (text, lang, rate) => {
+        testWindow.__spoken?.push({ text, lang, rate });
+      },
+      pause: () => {},
+      resume: () => {},
+      stop: () => {},
+    };
+    await widget.updateComplete;
+  });
+
+  await page.getByRole("button", { name: "English" }).focus();
+  await expect
+    .poll(() => page.evaluate(() => (window as TestWindow).__spoken))
+    .toEqual([{ text: "English", lang: "en", rate: 1 }]);
+});
+
+test("changing language keeps chat history and returns focus to the picker", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "English" }).click();
+  const composer = page.getByRole("textbox", { name: "Ask a question" });
+  await composer.fill("How do I make a study plan?");
+  await composer.press("Enter");
+  const learnerMessage = page
+    .locator("dimts-assistant")
+    .locator('article[data-role="learner"]');
+  await expect(learnerMessage).toContainText("How do I make a study plan?");
+
+  await page.getByRole("button", { name: "Change language" }).click();
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  await expect(learnerMessage).toContainText("How do I make a study plan?");
+  await expect(learnerMessage).toHaveAttribute("lang", "en");
+  await expect
+    .poll(() =>
+      page
+        .locator("dimts-assistant")
+        .locator(".header-actions button")
+        .first()
+        .evaluate((element) => element === element.getRootNode().activeElement),
+    )
+    .toBe(true);
+});
+
+test("loads a self-hosted Ethiopic font only when Amharic is active", async ({
+  page,
+}) => {
+  const fontRequests: string[] = [];
+  page.on("request", (request) => {
+    if (request.resourceType() === "font") {
+      fontRequests.push(new URL(request.url()).origin);
+    }
+  });
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "English" }).click();
+  await expect.poll(() => fontRequests.length).toBe(0);
+
+  await page.getByRole("button", { name: "Change language" }).click();
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  await page.getByRole("button", { name: "Change language" }).click();
+  await expect(page.getByRole("button", { name: "አማርኛ" })).toBeVisible();
+  await expect.poll(() => fontRequests.length).toBeGreaterThan(0);
+  expect(new Set(fontRequests)).toEqual(new Set(["http://127.0.0.1:4173"]));
+});
+
+test("reflows at 200 percent text size on a 320px viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("button", { name: "200 percent" }).click();
+
+  const layout = await page.locator("dimts-assistant").evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+    scale: getComputedStyle(element).getPropertyValue("--dimts-scale").trim(),
+  }));
+  expect(layout.scale).toBe("2");
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+});
+
+test("keeps default and high-contrast text at 7:1 without fading disabled controls", async ({
+  page,
+}) => {
+  await openWidget(page);
+  const widget = page.locator("dimts-assistant");
+  const getPalette = () =>
+    widget.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        surface: style.getPropertyValue("--dimts-surface").trim(),
+        text: style.getPropertyValue("--dimts-text").trim(),
+        muted: style.getPropertyValue("--dimts-muted").trim(),
+        primary: style.getPropertyValue("--dimts-primary").trim(),
+        primaryText: style.getPropertyValue("--dimts-primary-text").trim(),
+      };
+    });
+
+  const assertPalette = async () => {
+    const palette = await getPalette();
+    expect(contrastRatio(palette.text, palette.surface)).toBeGreaterThanOrEqual(
+      7,
+    );
+    expect(
+      contrastRatio(palette.muted, palette.surface),
+    ).toBeGreaterThanOrEqual(7);
+    expect(
+      contrastRatio(palette.primaryText, palette.primary),
+    ).toBeGreaterThanOrEqual(7);
+  };
+
+  await assertPalette();
+  await page.getByRole("button", { name: "English" }).click();
+  const mic = widget.locator(".mic");
+  await expect(mic).toBeDisabled();
+  await expect
+    .poll(() => mic.evaluate((element) => getComputedStyle(element).opacity))
+    .toBe("1");
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByLabel("High contrast").check();
+  await assertPalette();
 });
 
 test("works when browser storage is unavailable", async ({ page }) => {

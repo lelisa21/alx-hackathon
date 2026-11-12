@@ -17,7 +17,9 @@ function equalHash(expected: string | null, actual: string): boolean {
   );
 }
 
-export function createSessionAuth(repository: ApiRepository) {
+export function createSessionAuth(
+  repository: Pick<ApiRepository, "getSessionTokenHash" | "touchSession">,
+) {
   return async function requireSession(
     request: Request,
     response: Response,

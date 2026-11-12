@@ -83,11 +83,32 @@ session, and keeps the bearer token in memory. The host can call
 are dispatched on `window`. It renders in a shadow root so host styles do not
 change its controls.
 
+The helper console is a separate module; serve it only on a helper-facing page
+so learner pages do not load helper code:
+
+```html
+<script type="module" async src="/assets/dimts-helper-console.js"></script>
+<dimts-helper-console
+  data-api="https://api.example.org/v1"
+  data-language="en"
+></dimts-helper-console>
+```
+
+Helpers enter their token in the console; do not embed it in page markup. The
+learner Help me now action previews the language and optional last three learner
+questions before creating a request. Learners can keep using tutor chat while
+waiting, then chat with and close the assigned helper request. The console
+supports language-filtered queues, request blocking, claiming, chat, and close.
+Its `en`, `am`, and `om` UI strings are served from locale packs; Amharic and
+Afaan Oromoo wording still requires language-lead translation review.
+The open console refreshes its waiting queue every 15 seconds and announces
+new requests. The outside-hours availability response and timeout callback or
+Telegram fallback are not part of this increment; screen sharing remains WP09.
+
 Run `pnpm test:widget` to build the widget and run its browser flows, including
 storage-disabled behavior, reflow, axe checks, and offline shell/language-cache
 recovery. Read-aloud via browser speech synthesis is available when selected;
-microphone recognition and the later human-help workflow are not implemented
-in this increment.
+production microphone recognition remains gated on device and provider review.
 
 ## Dynamic course content
 

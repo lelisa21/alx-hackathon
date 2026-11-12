@@ -66,6 +66,31 @@ export interface HelpAuthStore {
   claimWaitingRequest(requestId: string, helperId: string): Promise<boolean>;
 }
 
+export interface HelpQueueRequest {
+  id: string;
+  lang: string;
+  channel: "web" | "api";
+  createdAt: string;
+  summary: string[] | null;
+}
+
+export type HelpCloseActor =
+  | { role: "learner"; sessionId: string }
+  | { role: "helper"; helperId: string };
+
+export interface HelpStore extends HelpAuthStore {
+  createRequest(
+    sessionId: string,
+    includeSummary: boolean,
+  ): Promise<{ id: string; status: "waiting" } | null>;
+  listWaitingRequests(
+    helperId: string,
+    lang?: string,
+  ): Promise<HelpQueueRequest[]>;
+  blockWaitingRequest(requestId: string, helperId: string): Promise<boolean>;
+  closeRequest(requestId: string, actor: HelpCloseActor): Promise<boolean>;
+}
+
 export interface AppDependencies {
   config: ApiConfig;
   repository: ApiRepository;

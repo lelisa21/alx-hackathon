@@ -1,6 +1,7 @@
 import compression from "compression";
 import cors from "cors";
 import express from "express";
+import type { Server } from "node:http";
 import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import pino from "pino";
@@ -26,14 +27,17 @@ import { fileURLToPath } from "node:url";
 import { parseConfig, configuredOrigins } from "./config.js";
 import { createPool, createPostgresRepository } from "./db/repository.js";
 import { createPostgresHelpAuthStore } from "./db/help-auth-store.js";
+import { createPostgresHelpSocketStore } from "./db/help-socket-store.js";
 import { errorHandler, sendProblem } from "./middleware/problem.js";
 import { createCoreRouter } from "./routes/core.js";
 import { createHelpRouter } from "./routes/help.js";
+import { attachHelpWebSockets } from "./help-sockets.js";
+import type { HelpSocketRuntime, HelpSocketStore } from "./help-sockets.js";
 import { createInternalRouter } from "./routes/internal.js";
 import { createEngineDependencies } from "./engine.js";
 import { createApiProviderRuntime } from "./provider-runtime.js";
 import type { ApiConfig } from "./config.js";
-import type { ApiRepository, HelpAuthStore } from "./types.js";
+import type { ApiRepository, HelpStore } from "./types.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -46,7 +50,8 @@ export interface ApiSourceSyncOptions {
 export interface BuildAppOptions {
   config?: ApiConfig;
   repository?: ApiRepository;
-  helpStore?: HelpAuthStore;
+  helpStore?: HelpStore;
+  helpSocketStore?: HelpSocketStore;
   localesRoot?: string;
   askDependencies?: AskDependencies;
   providerSecrets?: Record<string, string | undefined>;
@@ -76,6 +81,9 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.repository ?? createPostgresRepository(pool ?? createPool(config));
   const helpStore =
     options.helpStore ?? (pool ? createPostgresHelpAuthStore(pool) : undefined);
+  const helpSocketStore =
+    options.helpSocketStore ??
+    (pool ? createPostgresHelpSocketStore(pool) : undefined);
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
   const grounding =
     options.grounding ?? (pool ? new PostgresGrounding(pool) : undefined);
@@ -105,6 +113,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     level: config.NODE_ENV === "test" ? "silent" : "info",
   });
   let sourceSyncManager: SourceSyncManager | undefined;
+  let helpSocketRuntime: HelpSocketRuntime | undefined;
   if (sources.length > 0) {
     const store =
       options.sourceSync?.store ??
@@ -132,7 +141,32 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   }
   app.locals.sourceSyncManager = sourceSyncManager;
   app.locals.sourceSyncReady = sourceSyncManager?.start() ?? Promise.resolve();
+  app.locals.attachHelpWebSockets = (server: Server) => {
+    if (!helpSocketStore) {
+      throw new Error(
+        "Help WebSockets require PostgreSQL or an injected HelpSocketStore.",
+      );
+    }
+    if (helpSocketRuntime) {
+      throw new Error("Help WebSockets are already attached.");
+    }
+    helpSocketRuntime = attachHelpWebSockets(server, {
+      config,
+      store: helpSocketStore,
+      onError(error) {
+        logger.error(
+          {
+            event: "help_websocket_failed",
+            errorType: error instanceof Error ? error.name : typeof error,
+          },
+          "Help WebSocket operation failed",
+        );
+      },
+    });
+  };
+  app.locals.closeHelpWebSockets = () => helpSocketRuntime?.close();
   app.locals.close = async () => {
+    helpSocketRuntime?.close();
     try {
       await sourceSyncManager?.stop();
     } finally {
@@ -201,7 +235,9 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       "/v1",
       createHelpRouter({
         config,
+        repository,
         store: helpStore,
+        onClosed: (requestId) => helpSocketRuntime?.closeRequest(requestId),
       }),
     );
   }

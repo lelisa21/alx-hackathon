@@ -113,6 +113,47 @@ export const HelperLoginRequestSchema = z
 
 export const HelperLoginResponseSchema = z.object({ jwt: z.string() }).strict();
 
+export const HelpCreateRequestSchema = z
+  .object({
+    sessionId: z.string().min(8).max(64),
+    includeSummary: z.boolean(),
+  })
+  .strict();
+
+export const HelpCreateResponseSchema = z
+  .object({
+    id: z.string().min(1).max(128),
+    status: z.literal("waiting"),
+  })
+  .strict();
+
+export const HelpQueueQuerySchema = z
+  .object({
+    lang: z
+      .string()
+      .regex(/^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u)
+      .optional(),
+  })
+  .strict();
+
+export const HelpQueueRequestSchema = z
+  .object({
+    id: z.string().min(1).max(128),
+    lang: z.string().min(2).max(35),
+    channel: z.enum(["web", "api"]),
+    createdAt: z.string().datetime(),
+    summary: z.array(z.string().max(2000)).max(3).nullable(),
+  })
+  .strict();
+
+export const HelpQueueResponseSchema = z
+  .object({ requests: z.array(HelpQueueRequestSchema) })
+  .strict();
+
+export const HelpBlockResponseSchema = z
+  .object({ ok: z.literal(true) })
+  .strict();
+
 export const HelpClaimResponseSchema = z
   .object({ ok: z.literal(true) })
   .strict();

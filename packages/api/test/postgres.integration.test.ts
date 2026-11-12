@@ -8,6 +8,7 @@ import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { applyMigrations } from "../src/db/migrate.js";
 import { provisionLocalHostKey } from "../src/db/local-bootstrap.js";
+import { createPostgresHelpSocketStore } from "../src/db/help-socket-store.js";
 import {
   PostgresGrounding,
   replaceContent,
@@ -207,6 +208,285 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
         createHash("sha256").update(secondToken).digest("hex"),
       ].sort(),
     );
+  });
+
+  it("persists only confirmed request context and helper-scoped blocking", async () => {
+    const sessionId = `help-flow-session-${randomUUID()}`;
+    const sessionToken = randomUUID();
+    const helperOneId = `help-flow-helper-${randomUUID()}`;
+    const helperTwoId = `help-flow-helper-${randomUUID()}`;
+    const helperOneToken = randomUUID();
+    const helperTwoToken = randomUUID();
+    sessionIds.push(sessionId);
+    helperIds.push(helperOneId, helperTwoId);
+
+    await client.query(
+      `INSERT INTO session (id, channel, lang, token_hash)
+       VALUES ($1, 'web', 'en', $2)`,
+      [sessionId, createHash("sha256").update(sessionToken).digest("hex")],
+    );
+    await client.query(
+      `INSERT INTO message (id, session_id, client_msg_id, role, text, lang, kind, created_at)
+       VALUES ($1, $2, 'question-1', 'learner', 'Question one', 'en', 'question', now() - interval '4 minutes'),
+              ($3, $2, 'question-2', 'learner', 'Question two', 'am', 'question', now() - interval '3 minutes'),
+              ($4, $2, 'question-3', 'learner', 'Question three', 'am', 'question', now() - interval '2 minutes'),
+              ($5, $2, 'question-4', 'learner', 'Question four', 'am', 'question', now() - interval '1 minute')`,
+      [
+        randomUUID(),
+        sessionId,
+        randomUUID(),
+        randomUUID(),
+        randomUUID(),
+      ],
+    );
+    await client.query(
+      `INSERT INTO helper (id, display_name, token_hash, langs)
+       VALUES ($1, 'First helper', $2, ARRAY['am']),
+              ($3, 'Second helper', $4, ARRAY['am'])`,
+      [
+        helperOneId,
+        createHash("sha256").update(helperOneToken).digest("hex"),
+        helperTwoId,
+        createHash("sha256").update(helperTwoToken).digest("hex"),
+      ],
+    );
+
+    const created = await request(app)
+      .post("/v1/help")
+      .set("authorization", `Bearer ${sessionToken}`)
+      .send({ sessionId, includeSummary: true });
+    expect(created.status).toBe(201);
+    expect(created.body).toEqual({ id: expect.any(String), status: "waiting" });
+    const requestId = created.body.id as string;
+    const stored = await client.query<{
+      lang: string;
+      channel: string;
+      include_summary: boolean;
+      summary: string[] | null;
+    }>(
+      `SELECT lang, channel, include_summary, summary
+       FROM help_request WHERE id = $1`,
+      [requestId],
+    );
+    expect(stored.rows[0]).toEqual({
+      lang: "am",
+      channel: "web",
+      include_summary: true,
+      summary: ["Question two", "Question three", "Question four"],
+    });
+
+    const [loginOne, loginTwo] = await Promise.all([
+      request(app).post("/v1/helpers/login").send({ token: helperOneToken }),
+      request(app).post("/v1/helpers/login").send({ token: helperTwoToken }),
+    ]);
+    expect(loginOne.status).toBe(200);
+    expect(loginTwo.status).toBe(200);
+    const firstQueue = await request(app)
+      .get("/v1/help/queue?lang=am")
+      .set("authorization", `Bearer ${loginOne.body.jwt}`);
+    expect(firstQueue.status).toBe(200);
+    expect(firstQueue.body.requests).toHaveLength(1);
+    expect(firstQueue.body.requests[0]).toMatchObject({
+      id: requestId,
+      lang: "am",
+      channel: "web",
+      summary: ["Question two", "Question three", "Question four"],
+    });
+
+    const blocked = await request(app)
+      .post(`/v1/help/${requestId}/block`)
+      .set("authorization", `Bearer ${loginOne.body.jwt}`);
+    expect(blocked.status).toBe(200);
+    expect(
+      (
+        await request(app)
+          .get("/v1/help/queue?lang=am")
+          .set("authorization", `Bearer ${loginOne.body.jwt}`)
+      ).body.requests,
+    ).toEqual([]);
+    expect(
+      (
+        await request(app)
+          .get("/v1/help/queue?lang=am")
+          .set("authorization", `Bearer ${loginTwo.body.jwt}`)
+      ).body.requests.map((entry: { id: string }) => entry.id),
+    ).toContain(requestId);
+    expect(
+      (
+        await request(app)
+          .post(`/v1/help/${requestId}/claim`)
+          .set("authorization", `Bearer ${loginOne.body.jwt}`)
+      ).status,
+    ).toBe(409);
+
+    const claimed = await request(app)
+      .post(`/v1/help/${requestId}/claim`)
+      .set("authorization", `Bearer ${loginTwo.body.jwt}`);
+    expect(claimed.status).toBe(200);
+    const helperClose = await request(app)
+      .post(`/v1/help/${requestId}/close`)
+      .set("authorization", `Bearer ${loginTwo.body.jwt}`);
+    expect(helperClose.status).toBe(204);
+
+    const excluded = await request(app)
+      .post("/v1/help")
+      .set("authorization", `Bearer ${sessionToken}`)
+      .send({ sessionId, includeSummary: false });
+    expect(excluded.status).toBe(201);
+    const excludedSummary = await client.query<{
+      include_summary: boolean;
+      summary: string[] | null;
+    }>(
+      "SELECT include_summary, summary FROM help_request WHERE id = $1",
+      [excluded.body.id],
+    );
+    expect(excludedSummary.rows[0]).toEqual({
+      include_summary: false,
+      summary: null,
+    });
+
+    const learnerClose = await request(app)
+      .post(`/v1/help/${excluded.body.id}/close`)
+      .set("authorization", `Bearer ${sessionToken}`)
+      .send({ sessionId });
+    expect(learnerClose.status).toBe(204);
+  });
+
+  it("enforces five help requests per rolling hour under concurrency", async () => {
+    const sessionId = `help-rate-session-${randomUUID()}`;
+    const sessionToken = randomUUID();
+    sessionIds.push(sessionId);
+    await client.query(
+      `INSERT INTO session (id, channel, lang, token_hash)
+       VALUES ($1, 'web', 'en', $2)`,
+      [sessionId, createHash("sha256").update(sessionToken).digest("hex")],
+    );
+
+    const attempts = await Promise.all(
+      Array.from({ length: 6 }, () =>
+        request(app)
+          .post("/v1/help")
+          .set("authorization", `Bearer ${sessionToken}`)
+          .send({ sessionId, includeSummary: false }),
+      ),
+    );
+    expect(attempts.map(({ status }) => status).sort()).toEqual([
+      201, 201, 201, 201, 201, 429,
+    ]);
+    const stored = await client.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM help_request WHERE session_id = $1",
+      [sessionId],
+    );
+    expect(stored.rows[0]?.count).toBe("5");
+  });
+
+  it("persists ordered chat and replays only messages after the cursor", async () => {
+    if (!databaseUrl) throw new Error("DIMTS_TEST_DATABASE_URL is required.");
+    const pool = new pg.Pool({ connectionString: databaseUrl });
+    const store = createPostgresHelpSocketStore(pool);
+    const sessionId = `socket-session-${randomUUID()}`;
+    const requestId = `socket-request-${randomUUID()}`;
+    const helperId = `socket-helper-${randomUUID()}`;
+    const token = randomUUID();
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    sessionIds.push(sessionId);
+    helperIds.push(helperId);
+
+    try {
+      await client.query(
+        `INSERT INTO session (id, channel, lang, token_hash)
+         VALUES ($1, 'web', 'en', $2)`,
+        [sessionId, tokenHash],
+      );
+      await client.query(
+        `INSERT INTO helper (id, display_name, token_hash, langs)
+         VALUES ($1, 'Socket helper', $2, ARRAY['en'])`,
+        [helperId, createHash("sha256").update(randomUUID()).digest("hex")],
+      );
+      await client.query(
+        `INSERT INTO help_request (id, session_id, lang, channel, status)
+         VALUES ($1, $2, 'en', 'web', 'waiting')`,
+        [requestId, sessionId],
+      );
+
+      expect(
+        await store.authenticateLearner(requestId, sessionId, tokenHash),
+      ).toBe(true);
+      expect(
+        await store.authenticateLearner(requestId, sessionId, "wrong-hash"),
+      ).toBe(false);
+      expect(await store.isHelperActive(helperId)).toBe(true);
+      expect(await store.isHelperClaimed(requestId, helperId)).toBe(false);
+
+      await client.query(
+        `UPDATE help_request
+         SET status = 'claimed', helper_id = $2
+         WHERE id = $1`,
+        [requestId, helperId],
+      );
+      expect(await store.isHelperClaimed(requestId, helperId)).toBe(true);
+
+      expect(
+        await store.persistMessage(
+          requestId,
+          "learner",
+          "socket-message-1",
+          "First message",
+        ),
+      ).toBe("stored");
+      expect(
+        await store.persistMessage(
+          requestId,
+          "learner",
+          "socket-message-1",
+          "First message",
+        ),
+      ).toBe("duplicate");
+      expect(
+        await store.persistMessage(
+          requestId,
+          "learner",
+          "socket-message-1",
+          "Changed duplicate",
+        ),
+      ).toBe("rejected");
+      expect(
+        await store.persistMessage(
+          requestId,
+          "helper",
+          "socket-message-2",
+          "Second message",
+        ),
+      ).toBe("stored");
+      expect(
+        await store.listMessagesAfter(requestId, "socket-message-1"),
+      ).toEqual([
+        {
+          id: "socket-message-2",
+          sender: "helper",
+          text: "Second message",
+        },
+      ]);
+
+      await client.query(
+        "UPDATE help_request SET status = 'closed' WHERE id = $1",
+        [requestId],
+      );
+      expect(
+        await store.persistMessage(
+          requestId,
+          "learner",
+          "socket-message-3",
+          "After closure",
+        ),
+      ).toBe("rejected");
+      await client.query("UPDATE helper SET active = FALSE WHERE id = $1", [
+        helperId,
+      ]);
+      expect(await store.isHelperActive(helperId)).toBe(false);
+    } finally {
+      await pool.end();
+    }
   });
 
   it("persists remote-AI consent and its revocation", async () => {
