@@ -89,6 +89,9 @@ importers:
       '@dimts/sms':
         specifier: workspace:*
         version: link:../sms
+      '@dimts/telegram':
+        specifier: workspace:*
+        version: link:../telegram
       compression:
         specifier: ^1.7.4
         version: 1.8.2
@@ -266,9 +269,25 @@ importers:
       '@dimts/engine':
         specifier: workspace:*
         version: link:../engine
+      '@dimts/jobs':
+        specifier: workspace:*
+        version: link:../jobs
+      '@dimts/voice':
+        specifier: workspace:*
+        version: link:../voice
       grammy:
         specifier: ^1.35.0
         version: 1.46.0
+      pg:
+        specifier: ^8.13.3
+        version: 8.23.1
+      zod:
+        specifier: ^3.24.2
+        version: 3.25.76
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.11
+        version: 8.23.1
 
   packages/voice: {}
 

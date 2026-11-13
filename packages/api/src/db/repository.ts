@@ -62,6 +62,12 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
         await client.query(
           "DELETE FROM sms_delivery WHERE created_at < now() - interval '24 hours'",
         );
+        await client.query(
+          "UPDATE telegram_conversation SET private_enc=NULL WHERE expires_at<now()",
+        );
+        await client.query(
+          "DELETE FROM telegram_delivery WHERE created_at < now() - interval '24 hours'",
+        );
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");

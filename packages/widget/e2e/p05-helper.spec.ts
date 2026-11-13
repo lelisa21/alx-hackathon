@@ -5,20 +5,20 @@ import { loadPacks } from "../../locales-tools/src/index.js";
 const pack = loadPacks(resolve("locales")).get("en")!;
 const api = "http://api.test/v1";
 
-async function fixture(page: Page) {
+async function fixture(page: Page, channel: "web" | "telegram" = "web") {
   const state = {
     requests: [
       {
         id: "newer",
         lang: "en",
-        channel: "web",
+        channel,
         createdAt: new Date(Date.now() - 60_000).toISOString(),
         summary: null,
       },
       {
         id: "older",
         lang: "en",
-        channel: "web",
+        channel,
         createdAt: new Date(Date.now() - 180_000).toISOString(),
         summary: null,
       },
@@ -28,6 +28,8 @@ async function fixture(page: Page) {
     frames: [] as Record<string, unknown>[],
     sockets: [] as WebSocketRoute[],
     pictureReads: 0,
+    pictureLists: 0,
+    iceRequests: 0,
     pictureListFails: false,
     pictures: [] as { id: string; expiresAt: string }[],
   };
@@ -87,12 +89,16 @@ async function fixture(page: Page) {
       state.requests = [];
       return route.fulfill({ status: 204 });
     }
-    if (path.endsWith("/ice"))
+    if (path.endsWith("/ice")) {
+      state.iceRequests++;
       return route.fulfill({ json: { iceServers: [] } });
-    if (path.endsWith("/image"))
+    }
+    if (path.endsWith("/image")) {
+      state.pictureLists++;
       return state.pictureListFails
         ? route.fulfill({ status: 503 })
         : route.fulfill({ json: { images: state.pictures } });
+    }
     if (path.includes("/image/")) {
       expect(request.headers().authorization).toBe("Bearer helper-test-jwt");
       state.pictureReads++;
@@ -124,6 +130,90 @@ async function fixture(page: Page) {
   await expect(page.locator("[data-request-id]")).toHaveCount(2);
   return state;
 }
+
+test("P08 FR-TG-07 helper claims Telegram text relay, keeps media unavailable and ends help accessibly", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  const state = await fixture(page, "telegram");
+  const request = page.locator('[data-request-id="older"]');
+  await expect(request.getByText("Channel: Telegram")).toBeVisible();
+  await request.getByRole("button", { name: "Claim", exact: true }).click();
+  await expect
+    .poll(() =>
+      state.frames.some(
+        (frame) => frame.type === "auth" && frame.requestId === "older",
+      ),
+    )
+    .toBe(true);
+  await expect(
+    page.getByText(
+      "Telegram help uses text messages. Ask the learner to describe what they see.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Request screen view", exact: true }),
+  ).toHaveCount(0);
+  state.sockets[0]!.send(
+    JSON.stringify({
+      type: "chat.message",
+      id: "telegram-learner",
+      from: "learner",
+      text: "Telegram learner question",
+    }),
+  );
+  await expect(
+    page.getByText("Telegram learner question", { exact: true }),
+  ).toBeVisible();
+  await page.getByLabel("Message", { exact: true }).fill("Helper text answer");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect
+    .poll(() =>
+      state.frames.some(
+        (frame) =>
+          frame.type === "chat.message" && frame.text === "Helper text answer",
+      ),
+    )
+    .toBe(true);
+  const sent = state.frames.find(
+    (frame) =>
+      frame.type === "chat.message" && frame.text === "Helper text answer",
+  )!;
+  state.sockets[0]!.send(JSON.stringify({ ...sent, from: "helper" }));
+  await expect(
+    page.getByText("Helper text answer", { exact: true }),
+  ).toHaveCount(1);
+  state.sockets[0]!.send(JSON.stringify({ type: "share.accept" }));
+  await expect(page.locator("video")).toHaveCount(0);
+  expect(
+    state.frames.some(
+      (frame) =>
+        String(frame.type).startsWith("share.") ||
+        String(frame.type).startsWith("rtc."),
+    ),
+  ).toBe(false);
+  expect(state.iceRequests).toBe(0);
+  expect(state.pictureLists).toBe(0);
+  const { AxeBuilder } = await import("@axe-core/playwright");
+  expect(
+    (await new AxeBuilder({ page }).analyze()).violations.filter((violation) =>
+      ["critical", "serious"].includes(violation.impact ?? ""),
+    ),
+  ).toEqual([]);
+  expect(
+    await page
+      .locator("dimts-helper-console")
+      .evaluate((element) => element.scrollWidth <= element.clientWidth),
+  ).toBe(true);
+  await page.getByLabel("Was this resolved?").selectOption("yes");
+  await page.getByRole("button", { name: "End help", exact: true }).click();
+  await expect.poll(() => state.closed).toEqual([{ resolved: true }]);
+  await expect(page.getByLabel("Message", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByText("Telegram learner question", { exact: true }),
+  ).toHaveCount(0);
+});
 
 test("FR-HELP-06/14/16 queue wait order, visual announcement, opt-in sound/name and metrics", async ({
   page,

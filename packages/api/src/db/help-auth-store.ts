@@ -160,7 +160,7 @@ export function createPostgresHelpAuthStore(pool: pg.Pool): HelpStore {
         const session = await client.query<{
           id: string;
           lang: string;
-          channel: "web" | "api";
+          channel: "web" | "api" | "telegram";
         }>(
           `SELECT session.id,
                   COALESCE(
@@ -246,7 +246,7 @@ export function createPostgresHelpAuthStore(pool: pg.Pool): HelpStore {
       const result = await pool.query<{
         id: string;
         lang: string;
-        channel: "web" | "api";
+        channel: "web" | "api" | "telegram";
         created_at: Date;
         summary: string[] | null;
       }>(

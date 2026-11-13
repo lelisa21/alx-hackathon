@@ -6,6 +6,11 @@ import {
 import { z } from "zod";
 import { stringify } from "yaml";
 import {
+  TelegramUpdateSchema,
+  TelegramAckSchema,
+  TelegramProblemSchema,
+} from "./telegram-schemas.js";
+import {
   SmsInboundRequestSchema,
   SmsInboundResponseSchema,
   SmsMessageSchema,
@@ -66,6 +71,9 @@ registry.register("FeedbackRequest", FeedbackRequestSchema);
 registry.register("FeedbackResponse", FeedbackResponseSchema);
 registry.register("Reply", ReplySchema);
 registry.register("Problem", ProblemSchema);
+registry.register("TelegramUpdate", TelegramUpdateSchema);
+registry.register("TelegramAck", TelegramAckSchema);
+registry.register("TelegramProblem", TelegramProblemSchema);
 registry.register("SmsInboundRequest", SmsInboundRequestSchema);
 registry.register("SmsMessage", SmsMessageSchema);
 registry.register("SmsInboundResponse", SmsInboundResponseSchema);
@@ -115,6 +123,37 @@ registry.registerComponent("securitySchemes", "smsGatewayBearer", {
 
 const json = (schema: z.ZodTypeAny) => ({
   content: { "application/json": { schema } },
+});
+registry.registerComponent("securitySchemes", "telegramWebhookSecret", {
+  type: "apiKey",
+  in: "header",
+  name: "X-Telegram-Bot-Api-Secret-Token",
+  description:
+    "Separately configured DIMTS_TELEGRAM_SECRET; hosted webhook mode only",
+});
+const telegramProblem = {
+  description: "Localized safe error with no update content or identifiers",
+  content: { "application/problem+json": { schema: TelegramProblemSchema } },
+};
+registry.registerPath({
+  method: "post",
+  path: "/v1/telegram/webhook",
+  summary: "Receive authenticated Telegram private-chat updates",
+  description:
+    "Authenticate the standard secret header before parsing up to 64 KiB of JSON. Nonprivate and unsupported update kinds are acknowledged without effects. Supported private text, voice and callbacks use the same durable channel service as local polling. No identifiers or message content appear in acknowledgments. Malformed or spoofed private updates are rejected. Local delivery receipts suppress replay; ambiguous upstream sends are not blindly retried.",
+  security: [{ telegramWebhookSecret: [] }],
+  request: { body: { required: true, ...json(TelegramUpdateSchema) } },
+  responses: {
+    "200": {
+      description: "Acknowledged or intentionally ignored",
+      ...json(TelegramAckSchema),
+    },
+    "400": telegramProblem,
+    "401": telegramProblem,
+    "413": telegramProblem,
+    "500": telegramProblem,
+    "503": telegramProblem,
+  },
 });
 const problemResponse = {
   description: "Problem response",

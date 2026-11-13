@@ -7,7 +7,7 @@ import boldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-nor
 interface HelpRequest {
   id: string;
   lang: string;
-  channel: "web" | "api";
+  channel: "web" | "api" | "telegram";
   createdAt: string;
   summary: string[] | null;
 }
@@ -89,7 +89,9 @@ function queueRequest(value: unknown): HelpRequest | null {
     !("lang" in value) ||
     typeof value.lang !== "string" ||
     !("channel" in value) ||
-    (value.channel !== "web" && value.channel !== "api") ||
+    (value.channel !== "web" &&
+      value.channel !== "api" &&
+      value.channel !== "telegram") ||
     !("createdAt" in value) ||
     typeof value.createdAt !== "string" ||
     !Number.isFinite(Date.parse(value.createdAt)) ||
@@ -1188,6 +1190,7 @@ export class DimtsHelperConsole extends LitElement {
 
   private initializeShare(): void {
     this.clearMedia();
+    if (this.activeRequest?.channel === "telegram") return;
     const requestId = this.activeRequest?.id;
     this.share = createScreenShareController({
       role: "helper",
@@ -1263,6 +1266,7 @@ export class DimtsHelperConsole extends LitElement {
   }
 
   private async loadPictures(): Promise<void> {
+    if (this.activeRequest?.channel === "telegram") return;
     this.purgeExpiredPictures();
     const requestId = this.activeRequest?.id;
     if (!requestId || !this.jwt) return;
@@ -1417,20 +1421,26 @@ export class DimtsHelperConsole extends LitElement {
   }
 
   private renderShare(): unknown {
+    const textOnly = this.activeRequest?.channel === "telegram";
     const active = ["requested", "connecting", "sharing"].includes(
       this.shareState.status,
     );
     return html`
+      ${textOnly ? html`<p>${this.t("helper.telegramTextOnly")}</p>` : nothing}
       ${this.shareState.status === "sharing" ? html`<video autoplay muted playsinline aria-label=${this.t("helper.screenView")}></video>` : nothing}
       ${this.shareState.status === "fallback" ? html`<p role="status">${this.t("helper.shareFallback")}</p>` : nothing}
       <div class="actions">
-        <button
-          type="button"
-          ?disabled=${active || this.connectionStatus !== "connected"}
-          @click=${() => this.share?.request()}
-        >
-          ${this.t("helper.requestScreen")}
-        </button>
+        ${
+          textOnly
+            ? nothing
+            : html`<button
+                type="button"
+                ?disabled=${active || this.connectionStatus !== "connected"}
+                @click=${() => this.share?.request()}
+              >
+                ${this.t("helper.requestScreen")}
+              </button>`
+        }
         <button
           type="button"
           @click=${() => {

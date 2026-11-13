@@ -13,6 +13,65 @@ const root = path.resolve(
 );
 const packs = loadPacks(path.join(root, "locales"));
 
+it("P08 localizes command descriptions, privacy and worded Telegram buttons within 20 characters", () => {
+  for (const pack of packs.values()) {
+    for (const command of [
+      "start",
+      "language",
+      "help",
+      "jobs",
+      "simple",
+      "stop",
+      "privacy",
+      "endhelp",
+    ])
+      expect(
+        pack.ui[`telegram.command_${command}`],
+        `${pack.meta.code}/${command}`,
+      ).toBeTruthy();
+    for (const button of [
+      "send",
+      "retry",
+      "alerts",
+      "stop",
+      "review",
+      "consent",
+      "decline",
+      "confirm",
+      "cancel",
+      "delete",
+      "endhelp",
+    ]) {
+      const value = pack.ui[`telegram.button_${button}`];
+      expect(value, `${pack.meta.code}/${button}`).toBeTruthy();
+      expect(Array.from(value!).length).toBeLessThanOrEqual(20);
+      expect(value).toMatch(/\p{L}/u);
+    }
+    for (const key of [
+      "privacy",
+      "jobs_consent",
+      "voice_review",
+      "voice_unavailable",
+      "tts_unavailable",
+      "delete_confirm",
+      "error",
+      "unsupported",
+      "too_long",
+    ])
+      expect(
+        pack.ui[`telegram.${key}`],
+        `${pack.meta.code}/${key}`,
+      ).toBeTruthy();
+    expect(pack.ui["telegram.error"]).toContain("/help");
+    expect(pack.ui["telegram.privacy"]).toContain("/privacy");
+    expect(pack.ui["telegram.voice_review"]).toContain("{text}");
+    for (const [key, value] of Object.entries(pack.ui).filter(([key]) =>
+      key.startsWith("telegram."),
+    ))
+      expect(value, `${pack.meta.code}/${key}`).not.toMatch(/[─═┌┐└┘█]/u);
+  }
+});
+
 it("P07 supplies localized simulator, explicit SMS consent and management copy", () => {
   for (const pack of packs.values()) {
     for (const key of [
@@ -186,7 +245,7 @@ function sourceFiles(directory: string): string[] {
 // from call arguments. Keep this list aligned with the actual input domains.
 const computedKeys = [
   ...[100, 150, 200].map((scale) => `settings.scale${scale}`),
-  ...["web", "api"].map((channel) => `helper.channel.${channel}`),
+  ...["web", "api", "telegram"].map((channel) => `helper.channel.${channel}`),
   ...["connecting", "connected", "reconnecting"].map(
     (state) => `help.${state}`,
   ),

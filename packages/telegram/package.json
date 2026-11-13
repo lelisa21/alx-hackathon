@@ -15,6 +15,13 @@
   },
   "dependencies": {
     "@dimts/engine": "workspace:*",
+    "@dimts/jobs": "workspace:*",
+    "pg": "^8.13.3",
+    "zod": "^3.24.2",
+    "@dimts/voice": "workspace:*",
     "grammy": "^1.35.0"
+  },
+  "devDependencies": {
+    "@types/pg": "^8.11.11"
   }
 }

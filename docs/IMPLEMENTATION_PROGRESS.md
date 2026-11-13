@@ -1,6 +1,67 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-07-prompt`.
+Updated: 13 November 2026. Current branch: `phase-08-prompt`.
+
+## P08 — implemented increment; acceptance blocked
+
+The user reported P07 committed/pushed and authorized P08 only. The checkout
+was clean on committed P07; the requested P08 branch was absent locally and
+was created from that commit. No commit/push. Read the full remaining plan,
+P08 original prompt and authoritative Telegram/voice/help/jobs/privacy contracts.
+Requirements quoted before implementation: FR-TG-01–12, FR-VOICE-02/10 and related
+help/security/privacy. Tests preceded the implementation; decisions are in
+`DECISIONS.md` and operator details in `TELEGRAM.md`.
+
+Implemented native grammY private-chat transport, verified canonical webhook,
+local-only polling, all eight localized commands, shared tutor/session/help/P06
+jobs flows, explicit alert review/consent/confirmation, permanent priority STOP,
+encrypted expiring state, HMAC receipts and global-deletion cleanup. Helper UI
+supports Telegram text relay without unavailable browser media controls. Shared
+file-voice ports support fixture-backed review/Send/retry and equivalent-text
+audio; the current browser/none P04 configuration correctly reports unavailable.
+
+Verified automated evidence:
+
+- **FR-TG-01/04/05/09/10/12:** command/language/privacy/error cases, short worded
+  labels, strict private-update projection and safe webhook errors pass. The
+  final focused run passes **117/117 tests**, including 24 domain, 18 transport,
+  12 update, 12 route, 10 runtime and 7 configuration cases.
+- **FR-TG-02/03, FR-VOICE-02/10:** seven Telegram voice cases, one shared file-port
+  case and the real API fixture exercise download bounds, Send/retry/stale-button
+  rejection and equivalent cited text before audio. Default unavailable behavior
+  passes. These fixtures do not verify real STT/TTS or language quality.
+- **FR-TG-07/08/11:** five PostgreSQL and six real HTTP/WebSocket integration
+  cases pass: shared grounded tutor, helper relay/reconnect/end, real P06 alert
+  consent/delivery/STOP, encryption/expiry, out-of-order replay and deletion.
+  Queue pacing, bounded retries, cancellation and uncertainty paths pass.
+- Full Vitest run: **814/816 passed**; the two command-menu tests captured their
+  TDD failure and pass in the final focused rerun. Seven additional cancellation
+  and transport cases also pass: **823 unique tests verified across these runs**,
+  not a claim of a clean single full-suite run.
+- All **136 functional browser cases** pass, including Telegram helper
+  queue/claim/bidirectional chat/close, text-only controls, axe and 320 px reflow.
+  The separate serial **NFR-PERF-02** gate passes: launcher **2,366/3,000 ms**,
+  ready chat **4,364.6/6,000 ms**, with the unchanged 400 kbps/400 ms fixture.
+- Build, lint, typecheck, locale validation, bundle budgets, changed-file
+  formatting and diff checks pass. Initial JS **49,541/61,440 bytes**; helper JS
+  **33,226/61,440**; initial assets **137,673/153,600**. Compose resolves with both
+  disabled and synthetic configured Telegram settings. Existing OpenAPI contracts
+  remain semantically unchanged except the intended Telegram helper-queue channel.
+
+Evidence: ignored `node_modules/.cache/p08-*`, `test-results/p08-final`,
+`test-results/p08-helper-verified` and `test-results/p08-startup`.
+The isolated PostgreSQL cluster on port 55432 was stopped and removed after
+verification; no existing database was used.
+
+Acceptance remains blocked by a compatible server file-voice adapter and any
+required credentials, live BotFather/webhook/delivery verification, native-language
+review, physical-device/assistive-technology testing and review of the oversized
+single-sentence fallback. Locale review flags were not promoted. Telegram cannot
+guarantee exactly-once remote sends after an unknown network outcome; queued
+sends can be cancelled, accepted messages cannot be recalled. Docker runtime
+verification is blocked by the unavailable Docker Desktop Linux daemon.
+
+Stop after P08. P09 requires the user's next instruction and branch.
 
 ## P07 — implemented increment; acceptance blocked
 
