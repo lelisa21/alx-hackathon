@@ -6,6 +6,22 @@ import {
 import { z } from "zod";
 import { stringify } from "yaml";
 import {
+  AccommodationListResponseSchema,
+  AccommodationRequestSchema,
+  AccommodationResponseSchema,
+  AlertsQuerySchema,
+  AlertsResponseSchema,
+  CareerOkSchema,
+  CareerSessionQuerySchema,
+  JobsImportRequestSchema,
+  JobsImportResponseSchema,
+  JobsQuerySchema,
+  JobsResponseSchema,
+  SubscriptionRequestSchema,
+  SubscriptionResponseSchema,
+  SubscriptionsResponseSchema,
+} from "./jobs-schemas.js";
+import {
   AskRequestSchema,
   FeedbackRequestSchema,
   FeedbackResponseSchema,
@@ -543,6 +559,153 @@ registry.registerPath({
       ...json(z.object({ ok: z.boolean() }).strict()),
     },
     "401": problemResponse,
+  },
+});
+
+registry.register("JobImportRequest", JobsImportRequestSchema);
+registry.register("JobImportResponse", JobsImportResponseSchema);
+registry.register("Jobs", JobsResponseSchema);
+registry.register("SubscriptionRequest", SubscriptionRequestSchema);
+registry.register("Subscription", SubscriptionResponseSchema);
+registry.register("AccommodationRequest", AccommodationRequestSchema);
+registry.register("Accommodation", AccommodationResponseSchema);
+registry.registerPath({
+  method: "post",
+  path: "/v1/jobs/import",
+  summary:
+    "Import JSON-LD JobPosting items and atomically publish cited passages",
+  description:
+    "X-Dimts-Key must resolve to a host registry row with key_type secret. The public widget key is never sufficient. postings accepts an item, array or @graph. Required posting fields include url for citation provenance; unknown posting fields are ignored. Invalid indexes are returned without raw data.",
+  security: [{ hostKey: [] }],
+  request: { body: { required: true, ...json(JobsImportRequestSchema) } },
+  responses: {
+    "200": {
+      description: "Partial import results",
+      ...json(JobsImportResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/jobs",
+  summary:
+    "Search public job details, configured delivery availability and locale glossary",
+  description:
+    "No employer contact is returned. Support filters remain client-session-only; unknown query parameters are rejected. deadlineDisplay uses both learner and alternate calendars.",
+  security: [{ sessionBearer: [] }],
+  request: { query: JobsQuerySchema },
+  responses: {
+    "200": { description: "Public job listing", ...json(JobsResponseSchema) },
+    "400": problemResponse,
+    "401": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/subscriptions",
+  summary: "Restore the owning session's subscriptions without contact data",
+  security: [{ sessionBearer: [] }],
+  request: { query: CareerSessionQuerySchema },
+  responses: {
+    "200": {
+      description: "Subscriptions",
+      ...json(SubscriptionsResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/subscriptions",
+  summary: "Create an idempotent consented alert subscription",
+  description:
+    "UI must show localized consent before collecting contact. Contact is encrypted at rest; the response never echoes it. Unconfigured delivery channels are unavailable.",
+  security: [{ sessionBearer: [] }],
+  request: { body: { required: true, ...json(SubscriptionRequestSchema) } },
+  responses: {
+    "201": {
+      description: "Subscription identity",
+      ...json(SubscriptionResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "409": problemResponse,
+    "429": problemResponse,
+    "503": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "delete",
+  path: "/v1/subscriptions/{id}",
+  summary: "Stop an owned subscription and erase its contact",
+  security: [{ sessionBearer: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    query: CareerSessionQuerySchema,
+  },
+  responses: {
+    "200": { description: "Stopped", ...json(CareerOkSchema) },
+    "400": problemResponse,
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/accommodation-requests",
+  summary: "Find owning session's resumable request metadata",
+  security: [{ sessionBearer: [] }],
+  request: { query: CareerSessionQuerySchema },
+  responses: {
+    "200": {
+      description: "Private no-store metadata",
+      ...json(AccommodationListResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/accommodation-requests",
+  summary:
+    "Draft, resume, approve, send or cancel a private interview support request",
+  description:
+    "Only draft accepts needs, optional name and interview time. Draft edits create a new revision; approval freezes the exact message. Approve and send require the exact current revision; send requires explicit prior approval. sendAttempted is durable before external delivery, and blocks editing or cancellation of an uncertain send. Target comes only from the posting's hiringOrganization.contactPoint.email. Retry uses the same durable idempotency key. Responses are no-store; no diagnosis or proof fields are accepted.",
+  security: [{ sessionBearer: [] }],
+  request: { body: { required: true, ...json(AccommodationRequestSchema) } },
+  responses: {
+    "200": {
+      description: "Exact private request for review",
+      ...json(AccommodationResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "404": problemResponse,
+    "409": problemResponse,
+    "429": problemResponse,
+    "503": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/internal/alerts",
+  summary:
+    "Run at most one daily digest per subscriber or preview without sending",
+  security: [{ cronBearer: [] }],
+  request: { query: AlertsQuerySchema },
+  responses: {
+    "200": {
+      description: "Aggregate counts only",
+      ...json(AlertsResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "503": problemResponse,
   },
 });
 

@@ -3,14 +3,17 @@ import express from "express";
 import type { ApiConfig } from "../config.js";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
+import type { JobsApiService } from "./jobs.js";
+import { AlertsQuerySchema, AlertsResponseSchema } from "../jobs-schemas.js";
 
 export function createInternalRouter(
   config: ApiConfig,
   repository: ApiRepository,
+  jobs?: JobsApiService,
 ): express.Router {
   const router = express.Router();
 
-  router.post("/retention", async (request, response) => {
+  router.use(async (request, response, next) => {
     const match = /^Bearer ([^\s]+)$/u.exec(
       request.header("authorization") ?? "",
     );
@@ -24,9 +27,25 @@ export function createInternalRouter(
       sendProblem(response, 401, "unauthorized", "error.generic");
       return;
     }
+    next();
+  });
 
+  router.post("/retention", async (_request, response) => {
+    await jobs?.cleanupExpired();
     await repository.runRetention(config.DIMTS_RETENTION_HOURS);
     response.json({ ok: true });
+  });
+  router.post("/alerts", async (request, response) => {
+    const query = AlertsQuerySchema.parse(request.query);
+    if (!jobs) {
+      sendProblem(response, 503, "internal", "jobs.unavailable");
+      return;
+    }
+    response.json(
+      AlertsResponseSchema.parse(
+        await jobs.runAlerts({ dryRun: query.dry === "1" }),
+      ),
+    );
   });
 
   return router;

@@ -1,4 +1,22 @@
-# Unreviewed seed: SRS 20.6 terms plus sample study-plan vocabulary. Not a 200-term reviewed glossary.
+# Unreviewed seed: SRS 20.6 terms plus study-plan and career vocabulary. Not a 200-term reviewed glossary.
+- id: probation
+  en: "probation"
+  am: "የሙከራ ጊዜ"
+  om: "yeroo yaalii"
+  simple_definition: "Yeroo hojii haaraa jalqabdan, isinifi hojjechiisaan hojii akkamitti akka deemaa jiru itti ilaaltan."
+  do_not_translate: false
+- id: reference
+  en: "reference"
+  am: "ስለ ሥራዎ የሚመሰክር ሰው"
+  om: "nama waa'ee hojii keessanii ragaa kennu"
+  simple_definition: "Nama hayyama keessaniin waa'ee hojii ykn dandeettii keessanii hojjechiisaatti himuu danda'u."
+  do_not_translate: false
+- id: interview_panel
+  en: "interview panel"
+  am: "የቃለ መጠይቅ ቡድን"
+  om: "garee afgaaffii"
+  simple_definition: "Namoota yeroo afgaaffii hojii waliin gaaffii isin gaafatan."
+  do_not_translate: false
 - id: lesson
   en: lesson
   am: ትምህርት

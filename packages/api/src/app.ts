@@ -7,6 +7,8 @@ import helmet from "helmet";
 import pino from "pino";
 import { pinoHttp } from "pino-http";
 import { FrancLanguageDetector } from "@dimts/ai";
+import { JobsService } from "@dimts/jobs";
+import type { JobsDelivery } from "@dimts/jobs";
 import { loadPacks } from "@dimts/locales-tools";
 import {
   PostgresGrounding,
@@ -41,6 +43,10 @@ import type { ApiRepository, HelpStore } from "./types.js";
 import { createPostgresAnswerCache } from "./db/answer-cache.js";
 import { createPostgresConversationStore } from "./db/conversation-state.js";
 import type { ConversationStateStore } from "./db/conversation-state.js";
+import { createJobsRouter } from "./routes/jobs.js";
+import type { JobsApiService } from "./routes/jobs.js";
+import { createHostJobsDelivery } from "./jobs-delivery.js";
+import { createCareerRenderers } from "./jobs-format.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -66,6 +72,8 @@ export interface BuildAppOptions {
   conversationStore?: ConversationStateStore;
   answerCache?: AnswerCache;
   logDestination?: pino.DestinationStream;
+  jobsService?: JobsApiService;
+  jobsDelivery?: JobsDelivery;
 }
 
 const defaultLocalesRoot = path.resolve(
@@ -103,6 +111,18 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.helpSocketStore ??
     (pool ? createPostgresHelpSocketStore(pool) : undefined);
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
+  const jobsDelivery = options.jobsDelivery ?? createHostJobsDelivery(config);
+  const jobsService =
+    options.jobsService ??
+    (pool
+      ? new JobsService({
+          pool,
+          encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
+          hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
+          delivery: jobsDelivery,
+          ...createCareerRenderers(packs),
+        })
+      : undefined);
   const grounding =
     options.grounding ?? (pool ? new PostgresGrounding(pool) : undefined);
   const providerRuntime = createApiProviderRuntime(
@@ -137,6 +157,40 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   let sourceSyncManager: SourceSyncManager | undefined;
   let helpSocketRuntime: HelpSocketRuntime | undefined;
   let mediaCleanupRunning = false;
+  let careerCleanupRunning = false;
+  const cleanupCareer = async () => {
+    if (careerCleanupRunning || !jobsService) return;
+    careerCleanupRunning = true;
+    try {
+      await jobsService.cleanupExpired();
+    } catch {
+      logger.error({ event: "jobs_cleanup_failed" });
+    } finally {
+      careerCleanupRunning = false;
+    }
+  };
+  const careerCleanupTimer = jobsService
+    ? setInterval(() => {
+        void cleanupCareer();
+      }, 60000)
+    : undefined;
+  careerCleanupTimer?.unref();
+  void cleanupCareer();
+  let alertsRunning = false;
+  const alertsTimer =
+    jobsService && config.DIMTS_JOBS_ALERT_INTERVAL_MS > 0
+      ? setInterval(() => {
+          if (alertsRunning) return;
+          alertsRunning = true;
+          void jobsService
+            .runAlerts({ dryRun: false })
+            .catch(() => logger.error({ event: "jobs_alert_run_failed" }))
+            .finally(() => {
+              alertsRunning = false;
+            });
+        }, config.DIMTS_JOBS_ALERT_INTERVAL_MS)
+      : undefined;
+  alertsTimer?.unref();
   const cleanupHelpImages = async () => {
     if (mediaCleanupRunning || !helpStore?.deleteExpiredImages) return;
     mediaCleanupRunning = true;
@@ -207,6 +261,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   };
   app.locals.closeHelpWebSockets = () => helpSocketRuntime?.close();
   app.locals.close = async () => {
+    if (careerCleanupTimer) clearInterval(careerCleanupTimer);
+    if (alertsTimer) clearInterval(alertsTimer);
     if (imageCleanupTimer) clearInterval(imageCleanupTimer);
     helpSocketRuntime?.close();
     try {
@@ -292,7 +348,22 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       }),
     );
   }
-  app.use("/v1/internal", createInternalRouter(config, repository));
+  if (jobsService) {
+    app.use(
+      "/v1",
+      createJobsRouter({
+        service: jobsService,
+        delivery: jobsDelivery,
+        repository,
+        packs,
+        defaultLang: config.DIMTS_DEFAULT_LANG,
+      }),
+    );
+  }
+  app.use(
+    "/v1/internal",
+    createInternalRouter(config, repository, jobsService),
+  );
   app.use((_request, response) => {
     sendProblem(response, 404, "not_found", "error.not_found");
   });

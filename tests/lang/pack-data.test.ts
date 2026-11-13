@@ -13,6 +13,45 @@ const root = path.resolve(
 );
 const packs = loadPacks(path.join(root, "locales"));
 
+it("FR-JOB-11 explains each career term in the learner's locale", () => {
+  for (const lang of ["en", "am", "om"]) {
+    const glossary = packs.get(lang)!.glossary as {
+      id: string;
+      simple_definition: string;
+      [key: string]: unknown;
+    }[];
+    for (const id of [
+      "probation",
+      "deadline",
+      "reference",
+      "interview_panel",
+    ]) {
+      const entry = glossary.find((term) => term.id === id);
+      expect(entry, `${lang}: ${id}`).toBeDefined();
+      expect(entry?.[lang]).toBeTruthy();
+      expect(entry?.simple_definition).toBeTruthy();
+    }
+  }
+});
+
+it("P06 provides career consent, approval, delivery and privacy copy in every pack", () => {
+  for (const pack of packs.values())
+    for (const key of [
+      "jobs.title",
+      "jobs.supportPrivate",
+      "jobs.consent",
+      "jobs.contact",
+      "jobs.reviewMessage",
+      "jobs.approve",
+      "jobs.stop",
+      "jobs.unavailable",
+      "jobs.deliveryUncertain",
+      "jobs.digest_item",
+      "jobs.accommodation_message",
+    ])
+      expect(pack.ui[key], `${pack.meta.code}: ${key}`).toBeTruthy();
+});
+
 it("P05 keeps consent, fallback, image and helper operations in every locale", () => {
   for (const pack of packs.values())
     for (const key of [

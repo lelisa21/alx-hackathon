@@ -7,6 +7,7 @@ import { ownsWorkerRegistration } from "./worker-ownership.js";
 import type { FaqItem } from "./faq.js";
 import type { VoiceContext } from "./voice-runtime.js";
 import type { HelpContext } from "./help-runtime.js";
+import type { CareerContext } from "./career-runtime.js";
 import { installDefaultApi } from "./public-api.js";
 import type { SpeechToText, TextToSpeech } from "@dimts/voice";
 import { suggestLanguageOptions } from "./language.js";
@@ -301,6 +302,51 @@ export class DimtsAssistant extends LitElement {
     typeof import("./voice-runtime.js").voiceRuntime | undefined;
   private helpModule:
     typeof import("./help-runtime.js").helpRuntime | undefined;
+  private careerModule:
+    typeof import("./career-runtime.js").careerRuntime | undefined;
+  private careerContinuity = false;
+
+  private get careerSessionKey(): string {
+    return `dimts.career-session.${this.apiRoot}.${this.hostKey}`;
+  }
+
+  private rememberCareerSession(clear = false): void {
+    try {
+      if (clear) sessionStorage.removeItem(this.careerSessionKey);
+      else if (this.careerContinuity && this.sessionId && this.resumeToken)
+        sessionStorage.setItem(
+          this.careerSessionKey,
+          JSON.stringify({
+            sessionId: this.sessionId,
+            resumeToken: this.resumeToken,
+          }),
+        );
+    } catch {
+      /* Per-tab persistence is optional. */
+    }
+  }
+
+  private async openCareer(): Promise<void> {
+    this.cancelRecording();
+    this.stopSpeech();
+    this.careerContinuity = true;
+    this.rememberCareerSession();
+    const generation = this.sessionGeneration;
+    try {
+      this.careerModule ??= (await import("./career-runtime.js")).careerRuntime;
+      if (
+        generation === this.sessionGeneration &&
+        this.isConnected &&
+        !this.hidden
+      )
+        await this.careerModule.open.call(this as unknown as CareerContext);
+    } catch {
+      if (generation === this.sessionGeneration) {
+        this.notice = this.t("jobs.failed");
+        this.noticeIsError = true;
+      }
+    }
+  }
 
   private async loadVoice() {
     return (this.voiceModule ??= (
@@ -564,6 +610,66 @@ export class DimtsAssistant extends LitElement {
     .welcome,
     .panel {
       padding: 1.25rem;
+    }
+
+    .career-flow,
+    .career-filter {
+      display: grid;
+      gap: 0.75rem;
+      min-inline-size: 0;
+    }
+
+    .career input:not([type="checkbox"]),
+    .career select {
+      inline-size: 100%;
+      min-inline-size: 0;
+      min-block-size: 48px;
+      padding: 0.5rem;
+      border: 2px solid var(--dimts-border);
+      border-radius: var(--dimts-radius, 0.5rem);
+      background: var(--dimts-surface);
+    }
+
+    .career-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-block: 0.75rem;
+    }
+
+    .career fieldset {
+      min-inline-size: 0;
+      margin-block: 1rem;
+    }
+    .career-choice {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      min-block-size: 48px;
+      margin-block: 0.5rem;
+    }
+    .career-choice input {
+      min-inline-size: 24px;
+      min-block-size: 24px;
+    }
+    .career article {
+      border-block-end: 1px solid var(--dimts-border);
+    }
+    .career dd {
+      margin-inline-start: 1rem;
+    }
+    .career-exact {
+      white-space: pre-wrap;
+    }
+
+    .career summary {
+      min-block-size: 48px;
+      cursor: pointer;
+    }
+
+    .career article a {
+      display: inline-flex;
+      align-items: center;
     }
 
     .language-list {
@@ -938,6 +1044,7 @@ export class DimtsAssistant extends LitElement {
       this.cancelRecording();
       this.stopSpeech();
       this.helpModule?.stopSharing.call(this as unknown as HelpContext);
+      this.careerModule?.suspend.call(this as unknown as CareerContext);
     }
   }
 
@@ -976,6 +1083,7 @@ export class DimtsAssistant extends LitElement {
   override disconnectedCallback(): void {
     document.removeEventListener("visibilitychange", this.handleHelpVisibility);
     this.helpModule?.suspend.call(this as unknown as HelpContext);
+    this.careerModule?.suspend.call(this as unknown as CareerContext);
     activeWidgets.delete(this);
     this.lifecycleController.abort();
     this.browserVoiceRun += 1;
@@ -1062,8 +1170,13 @@ export class DimtsAssistant extends LitElement {
   }
 
   clearOwnedStorage(): void {
+    this.careerModule?.dispose.call(this as unknown as CareerContext, true);
+    this.rememberCareerSession(true);
     try {
       globalThis.localStorage?.removeItem("dimts.settings");
+      globalThis.localStorage?.removeItem(
+        `dimts.career.${this.apiRoot}.${this.hostKey}`,
+      );
     } catch {
       /* Storage can be disabled. */
     }
@@ -1329,6 +1442,7 @@ export class DimtsAssistant extends LitElement {
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
     this.cancelRecording();
+    this.careerModule?.suspend.call(this as unknown as CareerContext);
     this.stopSpeech();
     this.fallbackNotice = "";
     this.fallbackPending = false;
@@ -1464,14 +1578,40 @@ export class DimtsAssistant extends LitElement {
     }, 2_000);
     this.sessionTimer = timer;
     try {
+      let careerResume: { sessionId: string; resumeToken: string } | undefined;
+      try {
+        const raw = sessionStorage.getItem(this.careerSessionKey);
+        if (raw) {
+          const parsed = JSON.parse(raw) as Record<string, unknown>;
+          if (
+            typeof parsed.sessionId === "string" &&
+            typeof parsed.resumeToken === "string"
+          ) {
+            careerResume = {
+              sessionId: parsed.sessionId,
+              resumeToken: parsed.resumeToken,
+            };
+            this.careerContinuity = true;
+          }
+        }
+      } catch {
+        /* A fresh session is still available with storage disabled. */
+      }
       const response = await this.request(`${this.apiRoot}/sessions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           "x-dimts-key": this.hostKey,
         },
-        body: JSON.stringify({ lang: this.selectedLang, channel: "web" }),
+        body: JSON.stringify(
+          careerResume ?? { lang: this.selectedLang, channel: "web" },
+        ),
       });
+      if (response.status === 401 && careerResume) {
+        this.resetExpiredSession();
+        await this.startSession();
+        return;
+      }
       if (!response.ok) throw new Error("session");
       const session = (await response.json()) as {
         sessionId: string;
@@ -1493,6 +1633,7 @@ export class DimtsAssistant extends LitElement {
       this.sessionId = session.sessionId;
       this.sessionToken = session.sessionToken;
       this.resumeToken = session.resumeToken;
+      this.rememberCareerSession();
       this.cloudOk = session.cloudOk === true;
       this.notice = "";
       if (this.sessionRestartPending) {
@@ -1564,6 +1705,7 @@ export class DimtsAssistant extends LitElement {
         throw new Error("consent");
       this.sessionToken = session.sessionToken;
       this.resumeToken = session.resumeToken;
+      this.rememberCareerSession();
       this.consentNotice = this.t("privacy.saved");
       // Resuming rotates the credential; a help reconnect must use the new one.
       this.helpSocket?.close();
@@ -1574,6 +1716,14 @@ export class DimtsAssistant extends LitElement {
   }
 
   private resetExpiredSession(): void {
+    this.careerModule?.dispose.call(this as unknown as CareerContext, true);
+    this.rememberCareerSession(true);
+    try {
+      localStorage.removeItem(`dimts.career.${this.apiRoot}.${this.hostKey}`);
+    } catch {
+      /* Storage can be disabled. */
+    }
+    this.careerContinuity = false;
     this.helpModule?.dispose.call(this as unknown as HelpContext);
     // The rotated credential cannot recover an old session after a lost response.
     // Cancel its work before starting an explicitly local-only replacement.
@@ -2017,6 +2167,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private startRecording(): void {
+    this.careerModule?.cancelVoice.call(this as unknown as CareerContext);
     if (this.hidden || !this.canRecord() || this.isRecording) return;
     const generation = this.sessionGeneration;
     const run = this.recordingRun;
@@ -2533,8 +2684,18 @@ export class DimtsAssistant extends LitElement {
             ${this.renderUtilities()}
           </div>
         </header>
-        ${this.renderHelpButton()} ${this.renderHelpSession()}
-        ${this.renderHelpPreview()}
+        ${this.renderHelpButton()}
+        <button
+          class="career-launcher"
+          type="button"
+          lang=${this.uiLanguage}
+          dir=${this.uiDirection}
+          @click=${() => void this.openCareer()}
+        >
+          ${this.t("jobs.title")}
+        </button>
+        ${this.renderHelpSession()} ${this.renderHelpPreview()}
+        ${this.careerModule?.render.call(this as unknown as CareerContext) ?? nothing}
         ${
           this.panel === "language"
             ? html`

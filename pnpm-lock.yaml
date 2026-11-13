@@ -80,6 +80,9 @@ importers:
       '@dimts/grounding':
         specifier: workspace:*
         version: link:../grounding
+      '@dimts/jobs':
+        specifier: workspace:*
+        version: link:../jobs
       '@dimts/locales-tools':
         specifier: workspace:*
         version: link:../locales-tools
@@ -216,6 +219,9 @@ importers:
 
   packages/jobs:
     dependencies:
+      '@dimts/grounding':
+        specifier: workspace:*
+        version: link:../grounding
       pg:
         specifier: ^8.13.3
         version: 8.23.1
