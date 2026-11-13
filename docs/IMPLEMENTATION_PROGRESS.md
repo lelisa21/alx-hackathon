@@ -852,3 +852,16 @@ failed; no remaining P05 feature was added.
 The branch must not be labeled P01 complete until its required evidence and
 content gaps are resolved. The user's later P02 instruction permits the next
 prompt's implementation, but does not supply P01's missing acceptance evidence.
+
+
+### Review fixes applied (13 November 2026)
+
+All four blocking issues from semantic review resolved:
+1. Nonce replay logic inverted → Fixed condition logic
+2. Optional repo methods failing silently → Added explicit undefined checks
+3. State expiry not checked → Added expiry validation on retrieval
+4. OpenAPI YAML not exposed → Added /v1/openapi.yaml and /v1/openapi.json routes
+
+**Status:** Code ready for test/build verification. P10 implementation complete on phase-10-prompt branch.
+
+Verification blocked by: pnpm build (pre-existing insights package error unrelated to P10)
