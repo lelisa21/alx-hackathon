@@ -20,6 +20,7 @@ import {
   HelpClaimResponseSchema,
   LanguageListSchema,
   LocaleUiSchema,
+  LocaleFaqSchema,
   ProblemSchema,
   ReplySchema,
   SessionRequestSchema,
@@ -46,6 +47,7 @@ registry.register("HelpBlockResponse", HelpBlockResponseSchema);
 registry.register("HelpClaimResponse", HelpClaimResponseSchema);
 registry.register("LanguageList", LanguageListSchema);
 registry.register("LocaleUI", LocaleUiSchema);
+registry.register("LocaleFAQ", LocaleFaqSchema);
 registry.registerComponent("securitySchemes", "sessionBearer", {
   type: "http",
   scheme: "bearer",
@@ -132,6 +134,53 @@ registry.registerPath({
       },
     },
     "404": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/locales/{code}/faq",
+  summary: "Get reviewed, actively cited offline FAQ content",
+  description:
+    "Draft or unreviewed packs return an empty list. Preview never authorizes draft answers. Unresolved or ambiguous source references are omitted. No identity or session is required.",
+  request: {
+    params: z.object({ code: z.string() }),
+    query: z.object({ lang_preview: z.enum(["0", "1"]).optional() }),
+    headers: z.object({ "if-none-match": z.string().optional() }),
+  },
+  responses: {
+    "200": {
+      description:
+        "Reviewed FAQ with canonical active passage citations, or an honest empty list",
+      headers: {
+        ETag: {
+          description:
+            "Validator for the complete representation including content version",
+          schema: { type: "string" },
+        },
+        "Cache-Control": {
+          schema: {
+            type: "string",
+            const: "public, max-age=0, must-revalidate",
+          },
+        },
+      },
+      ...json(LocaleFaqSchema),
+    },
+    "304": {
+      description: "Not modified; reuse the previously reviewed representation",
+    },
+    "400": {
+      ...problemResponse,
+      headers: {
+        "Cache-Control": { schema: { type: "string", const: "no-store" } },
+      },
+    },
+    "404": {
+      ...problemResponse,
+      headers: {
+        "Cache-Control": { schema: { type: "string", const: "no-store" } },
+      },
+    },
   },
 });
 registry.registerPath({

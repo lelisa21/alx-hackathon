@@ -43,6 +43,15 @@ interface PassageRow {
   ts_start: number | null;
 }
 
+interface FaqCitation {
+  passageId: string;
+  label: string;
+  url: string;
+  sourceLang: string;
+  sourceType: "course" | "job";
+  timestamp?: number;
+}
+
 export interface ContentClient {
   query(text: string, values?: unknown[]): Promise<unknown>;
   release(): void;
@@ -141,6 +150,66 @@ export class PostgresGrounding {
 
   constructor(pool: Pool) {
     this.pool = pool;
+  }
+
+  /** Batch publication lookup: exact namespace identity, never fuzzy retrieval. */
+  async resolveFaqCitations(
+    sources: string[],
+  ): Promise<Map<string, FaqCitation>> {
+    const requested = [
+      ...new Set(sources.filter((source) => source.trim())),
+    ].slice(0, 100);
+    const resolved = new Map<string, FaqCitation>();
+    if (requested.length === 0) return resolved;
+    const namespaces = await this.pool.query<{
+      source_id: string;
+      source_resource_id: string;
+    }>(
+      `SELECT DISTINCT p.source_id, p.source_resource_id
+       FROM passage p
+       JOIN active_source_generation active
+         ON active.generation_id = p.content_version_id AND active.source_id = p.source_id
+       WHERE p.source_type = 'course'`,
+    );
+    const candidates = new Map(
+      requested.map((source) => [
+        source,
+        new Set([
+          source,
+          ...namespaces.rows.map((row) =>
+            createHash("sha256")
+              .update(
+                JSON.stringify([row.source_id, row.source_resource_id, source]),
+              )
+              .digest("hex"),
+          ),
+        ]),
+      ]),
+    );
+    const result = await this.pool.query<PassageRow>(
+      `SELECT p.id, p.lesson_title, p.section_title, p.url, p.lang, p.source_type, p.ts_start
+       FROM passage p
+       JOIN active_source_generation active
+         ON active.generation_id = p.content_version_id AND active.source_id = p.source_id
+       WHERE p.id = ANY ($1::text[]) AND p.source_type = 'course'`,
+      [[...new Set([...candidates.values()].flatMap((ids) => [...ids]))]],
+    );
+    for (const [source, ids] of candidates) {
+      const matches = result.rows.filter((row) => ids.has(row.id));
+      if (matches.length !== 1) continue;
+      const row = matches[0]!;
+      resolved.set(source, {
+        passageId: row.id,
+        label: [row.lesson_title, row.section_title]
+          .filter(Boolean)
+          .join(" / "),
+        url: row.url,
+        sourceLang: row.lang,
+        sourceType: row.source_type,
+        ...(row.ts_start === null ? {} : { timestamp: row.ts_start }),
+      });
+    }
+    return resolved;
   }
 
   /** Resolve pack authoring IDs without weakening stored citation identity. */

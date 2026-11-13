@@ -40,7 +40,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a5
+          enum: &a6
             - text
             - voice
             - sms
@@ -85,7 +85,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a6
+          enum: &a7
             - answer
             - notfound
             - escalation
@@ -97,7 +97,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a7
+          enum: &a8
             - ltr
             - rtl
         citations:
@@ -116,7 +116,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a8
+                enum: &a9
                   - course
                   - job
               timestamp:
@@ -135,7 +135,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a9
+                enum: &a10
                   - help
                   - more
                   - open_source
@@ -201,7 +201,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a4
+          enum: &a5
             - web
             - api
           default: web
@@ -334,7 +334,7 @@ components:
                 maxLength: 35
               channel:
                 type: string
-                enum: &a10
+                enum: &a11
                   - web
                   - api
               createdAt:
@@ -426,6 +426,95 @@ components:
       type: object
       additionalProperties:
         type: string
+    LocaleFAQ:
+      type: object
+      properties:
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+        dir:
+          type: string
+          enum: &a4
+            - ltr
+            - rtl
+        contentVersion:
+          type: string
+          minLength: 1
+          maxLength: 256
+        reviewedOn:
+          type:
+            - string
+            - "null"
+          pattern: ^\d{4}-\d{2}-\d{2}$
+        items:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 128
+              question:
+                type: string
+                minLength: 1
+                maxLength: 1000
+              answer:
+                type: string
+                minLength: 1
+                maxLength: 4000
+              citations:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    passageId:
+                      type: string
+                      minLength: 1
+                      maxLength: 256
+                    label:
+                      type: string
+                      minLength: 1
+                      maxLength: 1000
+                    url:
+                      type: string
+                      maxLength: 4000
+                      format: uri
+                      pattern: ^https?:\/\/
+                    sourceLang:
+                      type: string
+                      minLength: 1
+                      maxLength: 35
+                    sourceType:
+                      type: string
+                      enum:
+                        - course
+                    timestamp:
+                      type: number
+                  required:
+                    - passageId
+                    - label
+                    - url
+                    - sourceLang
+                    - sourceType
+                  additionalProperties: false
+                minItems: 1
+                maxItems: 1
+            required:
+              - id
+              - question
+              - answer
+              - citations
+            additionalProperties: false
+          maxItems: 100
+      required:
+        - lang
+        - dir
+        - contentVersion
+        - reviewedOn
+        - items
+      additionalProperties: false
   parameters: {}
 paths:
   /v1/docs:
@@ -590,6 +679,195 @@ paths:
                   - code
                   - messageKey
                 additionalProperties: false
+  /v1/locales/{code}/faq:
+    get:
+      summary: Get reviewed, actively cited offline FAQ content
+      description: Draft or unreviewed packs return an empty list. Preview never
+        authorizes draft answers. Unresolved or ambiguous source references are
+        omitted. No identity or session is required.
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: code
+          in: path
+        - schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+          required: false
+          name: lang_preview
+          in: query
+        - schema:
+            type: string
+          required: false
+          name: if-none-match
+          in: header
+      responses:
+        "200":
+          description: Reviewed FAQ with canonical active passage citations, or an honest
+            empty list
+          headers:
+            ETag:
+              description: Validator for the complete representation including content version
+              schema:
+                type: string
+            Cache-Control:
+              schema:
+                type: string
+                const: public, max-age=0, must-revalidate
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  dir:
+                    type: string
+                    enum: *a4
+                  contentVersion:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                  reviewedOn:
+                    type:
+                      - string
+                      - "null"
+                    pattern: ^\d{4}-\d{2}-\d{2}$
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          minLength: 1
+                          maxLength: 128
+                        question:
+                          type: string
+                          minLength: 1
+                          maxLength: 1000
+                        answer:
+                          type: string
+                          minLength: 1
+                          maxLength: 4000
+                        citations:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              passageId:
+                                type: string
+                                minLength: 1
+                                maxLength: 256
+                              label:
+                                type: string
+                                minLength: 1
+                                maxLength: 1000
+                              url:
+                                type: string
+                                maxLength: 4000
+                                format: uri
+                                pattern: ^https?:\/\/
+                              sourceLang:
+                                type: string
+                                minLength: 1
+                                maxLength: 35
+                              sourceType:
+                                type: string
+                                enum:
+                                  - course
+                              timestamp:
+                                type: number
+                            required:
+                              - passageId
+                              - label
+                              - url
+                              - sourceLang
+                              - sourceType
+                            additionalProperties: false
+                          minItems: 1
+                          maxItems: 1
+                      required:
+                        - id
+                        - question
+                        - answer
+                        - citations
+                      additionalProperties: false
+                    maxItems: 100
+                required:
+                  - lang
+                  - dir
+                  - contentVersion
+                  - reviewedOn
+                  - items
+                additionalProperties: false
+        "304":
+          description: Not modified; reuse the previously reviewed representation
+        "400":
+          description: Problem response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                const: no-store
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
   /v1/sessions:
     post:
       summary: Create or resume a learner session
@@ -607,7 +885,7 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a4
+                  enum: *a5
                   default: web
                 sessionId:
                   type: string
@@ -788,7 +1066,7 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a5
+                  enum: *a6
                 simple:
                   type: boolean
                   default: false
@@ -811,14 +1089,14 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a6
+                    enum: *a7
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a7
+                    enum: *a8
                   citations:
                     type: array
                     items:
@@ -835,7 +1113,7 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a8
+                          enum: *a9
                         timestamp:
                           type: number
                       required:
@@ -852,7 +1130,7 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a9
+                          enum: *a10
                         label:
                           type: string
                       required:
@@ -1343,7 +1621,7 @@ paths:
                           maxLength: 35
                         channel:
                           type: string
-                          enum: *a10
+                          enum: *a11
                         createdAt:
                           type: string
                           format: date-time

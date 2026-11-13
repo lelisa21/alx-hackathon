@@ -59,7 +59,9 @@ export interface BuildAppOptions {
   askDependencies?: AskDependencies;
   providerSecrets?: Record<string, string | undefined>;
   grounding?: Pick<PostgresGrounding, "search" | "currentVersion"> &
-    Partial<Pick<PostgresGrounding, "resolveFaqSource">>;
+    Partial<
+      Pick<PostgresGrounding, "resolveFaqSource" | "resolveFaqCitations">
+    >;
   sourceSync?: ApiSourceSyncOptions;
   conversationStore?: ConversationStateStore;
   answerCache?: AnswerCache;
@@ -221,7 +223,12 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       origin(origin, callback) {
         callback(null, !origin || origins.has(origin));
       },
-      allowedHeaders: ["content-type", "x-dimts-key", "authorization"],
+      allowedHeaders: [
+        "content-type",
+        "x-dimts-key",
+        "authorization",
+        "if-none-match",
+      ],
       exposedHeaders: ["ETag", "X-Dimts-Locale-Fallback"],
     }),
   );

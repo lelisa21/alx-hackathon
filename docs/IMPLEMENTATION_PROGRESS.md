@@ -1,6 +1,106 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-02-prompt`.
+Updated: 13 November 2026. Current branch: `phase-03-prompt`.
+
+## P03 — implemented increment; acceptance blocked
+
+The user reported P02 committed/pushed and authorized P03 only on the
+already-created `phase-03-prompt` branch. It started clean. No agent commit
+or push. P04 and later prompts remain out of scope.
+
+Requirements quoted before implementation: FR-UI-06/08–10/14/16/18–20;
+FR-CONV-11/12; FR-AI-05; FR-SIMPLE-02/03; FR-INT-01–04/11;
+NFR-A11Y-01–06; NFR-PERF-01/02/05/06/07; FR-LANG-06–08/14.
+Read the original P03 prompt, Blueprint sections 9–10 and corresponding SRS
+acceptance text. Preserved existing session, provider, source-sync and help
+contracts; the additive reviewed FAQ contract is recorded in `DECISIONS.md`.
+
+Implemented session consent/revocation, reply actions, shortcuts, Simple mode,
+slow-start/ask recovery, reviewed offline FAQ publication/cache, async Level 1
+embedding, guarded host themes, nonce CSP, cleanup and real lazy voice/help
+modules. Kept production voice/help extensions for P04/P05.
+
+Tests preceded implementation. Browser regressions exposed and verified fixes
+for keyboard access to the scrolling help summary, target sizes/spacing at
+200% text, Oromo reflow, host-worker preservation, stale FAQ withdrawal,
+`Vary: Origin` shell-cache misses, Lit global metadata and retry idempotency.
+Abort/409/retry now reuses one client message ID and one learner bubble.
+Final review also reproduced and fixed lost consent-response recovery and
+uninstall after a host replaces the widget's service worker. Recovery creates
+a fresh local-only session, preserves the unsent draft/preferences, and drops
+old replies/help connections. Failed recovery remains retryable; it cannot
+authenticate a server-side close of old help using an invalidated credential.
+
+### Verified P03 evidence
+
+- `pnpm exec vitest run --maxWorkers=1`: **445 tests / 50 files passed**, no
+  skips, including **16 PostgreSQL integration tests**. Used an isolated local
+  PostgreSQL 18 cluster; stopped and removed it afterward. Prior session,
+  provider/privacy, source-sync, help and answer-cache tests remain green.
+- After the final bundle optimization,
+  `pnpm exec vitest run packages/widget/test tests/size-gate.test.ts tests/lang/pack-data.test.ts --maxWorkers=1`:
+  **48 targeted tests / 10 files passed**, including the new real-build graph
+  regression. Most of these repeat cases from the full suite above.
+- `pnpm test:widget --workers=2 --grep-invert NFR-PERF-02`: **93 passed**.
+  The separate serial startup test below also passed (94 browser tests total).
+  Includes consent before the next ask, feedback body minimization, copy,
+  Simple/read-aloud adapters, shortcuts, slow recovery, idempotent retries,
+  script attributes/API/events, strict nonce CSP, no extra globals, host Lit
+  interoperability, uninstall, disabled storage and real offline reload.
+- **Accessibility:** zero serious/critical axe violations in the tested
+  matrix. Welcome/chat/reply/settings/200%-text settings/help preview/FAQ:
+  en/am/om/ar-test × light/contrast × 320/1280px. Embedded launcher/chat adds
+  light/dark/contrast × four packs, keyboard and reduced-motion checks.
+  Target size, spacing, focus, reply announcements and language direction
+  regressions pass. One CSS page-scale check complements text enlargement;
+  native browser zoom and assistive technology still need manual evidence.
+  Test fixtures do not promote draft packs. Reproduce with the command above;
+  per-screen JSON and an Oromo large-text screenshot are written under
+  `test-results/` by `p03-a11y.spec.ts` for P11 review.
+- **Build/static:** `pnpm build`, `pnpm typecheck`, `pnpm lint`,
+  `pnpm lang:check`, `pnpm size`, changed-file Prettier and `git diff --check`
+  pass. Compressed initial widget JS **44,013 / 61,440 bytes**; helper
+  **27,500 / 61,440**; deferred voice/help **4,380**. Total first load
+  **127,626 / 153,600 bytes**, including the regular Ethiopic font, maximum
+  locale UI, service worker/manifest and conservative authored FAQ allowance.
+  No dependency was added; frozen `pages/` and `assets/` were not changed.
+- **Startup measurement:** launcher **2,571 ms / 3,000 ms** and chat ready
+  **4,754 ms / 6,000 ms** in the English cold-start fixture. A failed run
+  exposed an avoidable serial module download; the bootstrap now imports
+  one complete widget entry, with voice/help still deferred. A real Vite
+  build test enforces this graph and the preserved module exports. Run separately,
+  without competing test jobs:
+  `pnpm exec playwright test --config playwright.widget.config.ts packages/widget/e2e/embed-performance.spec.ts --workers=1 --output test-results/performance`.
+  Every HTTP response, including worker requests, has at least 400 ms
+  first-byte delay and shares a gzip-body link capped at 50,000 bytes/second
+  (400 kbps). Browser cache is disabled; headers and tiny uploads are not
+  bandwidth-shaped. The test verifies the cap from server transfer records
+  and saves `throttled-startup.json` under its output directory. Browser frame
+  timestamps capture visible controls, excluding automation reporting delay.
+  This is one local Chromium fixture, not deployed or physical-device evidence. It
+  supersedes the page-only CDP measurement that missed worker requests.
+
+### P03 acceptance still open
+
+- Real native-speaker/co-designer review is absent. Current locale FAQs stay
+  unpublished (empty reviewed endpoint); synthetic reviewed fixtures prove
+  behavior, not content approval. New locale copy remains draft.
+- No 1 GB Android device/memory measurement, TalkBack, NVDA, native browser
+  zoom or signed co-designer session was available. NFR-PERF-05 and the manual
+  portions of NFR-A11Y-01/03/05 remain unverified. P11 must retain these gates.
+- No real cloud/provider call or hosted deployment was made. Policy/consent
+  checks use existing mocked provider contracts; prior P02 credentials and
+  model/language acceptance blockers remain open.
+- Nginx gzip configuration was added, but its container check was not run:
+  Docker CLI exists and the Docker engine is unavailable. Real hosting must
+  serve compressed assets and the host must supply its own offline HTML.
+- Repository-wide `pnpm format:check` still reports **92 untouched baseline
+  files**. Changed supported files pass; unrelated formatting was preserved.
+
+Stop here. The user will review, commit and push; wait for explicit P04
+authorization and their next branch. See `docs/INTEGRATION.md` and `docs/API.md`.
+
+## Historical P02 record
 
 ## P02 — implemented increment; acceptance blocked
 

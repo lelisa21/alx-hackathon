@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dimts Level 1 host example</title>
+  </head>
+  <body>
+    <main>
+      <h1>Host page</h1>
+      <p>The assistant installs from one asynchronous script.</p>
+    </main>
+    <script
+      async
+      src="../packages/widget/dist/dimts-embed.js"
+      data-host-key="PUBLIC_HOST_IDENTIFIER"
+      data-api="http://localhost:3000/v1"
+      data-lang="en"
+      data-theme="light"
+      data-position="end"
+      data-simple="false"
+    ></script>
+  </body>
+</html>

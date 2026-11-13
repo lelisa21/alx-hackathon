@@ -26,6 +26,7 @@ import type { ApiProviderRuntime } from "../provider-runtime.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
 import type { ConversationStateStore } from "../db/conversation-state.js";
+import { buildReviewedFaq } from "../faq.js";
 
 interface CoreRouteOptions {
   config: ApiConfig;
@@ -33,7 +34,8 @@ interface CoreRouteOptions {
   packs: Map<string, LangPack>;
   askDependencies?: AskDependencies;
   providerRuntime?: ApiProviderRuntime;
-  grounding?: Pick<PostgresGrounding, "currentVersion">;
+  grounding?: Pick<PostgresGrounding, "currentVersion"> &
+    Partial<Pick<PostgresGrounding, "resolveFaqCitations">>;
   conversationStore?: ConversationStateStore;
 }
 
@@ -225,6 +227,37 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
     response.json(validateResponse(LocaleUiSchema, resolved.ui));
+  });
+
+  router.get("/locales/:code/faq", async (request, response) => {
+    // Only successful reviewed representations are public cache candidates.
+    response.setHeader("Cache-Control", "no-store");
+    const preview = parsePreviewQuery(request, response);
+    if (preview === null) return;
+    const pack = packs.get(request.params.code ?? "");
+    if (!pack || (pack.meta.status === "draft" && !preview)) {
+      sendProblem(response, 404, "not_found", "error.not_found");
+      return;
+    }
+    const payload = await buildReviewedFaq(
+      pack,
+      (await options.grounding?.currentVersion()) ?? "unavailable",
+      options.grounding?.resolveFaqCitations?.bind(options.grounding),
+    );
+    const etag = `"${createHash("sha256").update(JSON.stringify(payload)).digest("base64url")}"`;
+    response.setHeader("ETag", etag);
+    response.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
+    if (
+      request
+        .header("if-none-match")
+        ?.split(",")
+        .map((value) => value.trim().replace(/^W\//u, ""))
+        .some((value) => value === etag || value === "*")
+    ) {
+      response.status(304).end();
+      return;
+    }
+    response.json(payload);
   });
 
   router.get("/docs", (_request, response) => {

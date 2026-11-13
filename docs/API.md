@@ -71,10 +71,13 @@ For offline shell support, also serve the built
 `packages/widget/dist/service-worker.js` as `/service-worker.js` from the same
 origin as the embedding page and widget module. A cross-origin widget module
 cannot register a service worker for the host page. The worker caches the
-widget shell assets; the widget separately caches static language/UI API
-responses. These caches can restore the language picker, but they do not
-provide offline course answers: the FAQ packs are empty and no FAQ API contract
-is defined.
+widget entry and its static import graph from `dimts-assets.json`; voice and
+help chunks remain on demand. Only Dimts-owned assets and the configured API's
+public language/UI/FAQ GET routes are cached. The widget separately caches
+validated reviewed FAQ responses, so cached questions remain usable when the
+API is asleep or offline. No session, ask, feedback, or help response is cached.
+See [INTEGRATION.md](INTEGRATION.md) for the asynchronous script-tag, CSP, and
+uninstall contract.
 
 The widget loads visible language packs, asks the API for a pseudonymous
 session, and keeps the bearer token in memory. The host can call
@@ -109,6 +112,67 @@ Run `pnpm test:widget` to build the widget and run its browser flows, including
 storage-disabled behavior, reflow, axe checks, and offline shell/language-cache
 recovery. Read-aloud via browser speech synthesis is available when selected;
 production microphone recognition remains gated on device and provider review.
+
+## Reviewed offline FAQ
+
+`GET /v1/locales/{code}/faq` is a public, credential-free response. The optional
+`lang_preview=1` follows the language/UI preview contract; it never authorizes
+publishing draft answers. The canonical Zod/OpenAPI response is:
+
+```json
+{
+  "lang": "en",
+  "dir": "ltr",
+  "contentVersion": "active-source-version",
+  "reviewedOn": "2026-01-01",
+  "items": [
+    {
+      "id": "deterministic-faq-digest",
+      "question": "Example reviewed question?",
+      "answer": "Example reviewed answer.",
+      "citations": [
+        {
+          "passageId": "active-stored-passage-id",
+          "label": "Lesson / Section",
+          "url": "https://course.example/lesson#section",
+          "sourceLang": "en",
+          "sourceType": "course"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The example illustrates the shape, not reviewed production content. A pack
+must be non-draft and have a non-placeholder reviewer and a valid, non-future
+review date. The reviewer name is not exposed. Each answer must resolve its
+authoring `source` to exactly one active course passage in its stored source
+namespace. Missing, retired, ambiguous, or unsafe source links are omitted;
+there is no fuzzy source matching or synthesized answer. Citation shape is the
+same as `/ask`, including optional `timestamp`. Unreviewed packs return
+`reviewedOn: null, items: []`; reviewed packs with no resolvable material retain
+their review date and return an empty list. A missing language or a draft
+without preview returns 404. At this increment the repository's en/am/om packs
+remain unreviewed, so production responses are honestly empty until language
+review and source publication are complete.
+
+Successful responses send `ETag` over the complete representation (including
+active content version) and `Cache-Control: public, max-age=0, must-revalidate`.
+`If-None-Match` permits a 304. The widget fetches with `credentials: omit`,
+validates the language, review date, answer and citation shapes, and keys the
+cache by absolute API URL, locale, and preview flag. The active language's FAQ
+is prefetched without blocking the UI; every browse attempts revalidation.
+A successful empty response replaces older answers; 403/404 removes them.
+Errors are never cached. During network failure, only an already validated
+representation is shown, with a localized saved-on-device notice. When a
+reviewed copy is available and revalidation takes over two seconds, the request
+is cancelled and that saved copy remains usable. Language change or uninstall
+cancellation never returns content to a disconnected screen;
+offline copies can be older than the current server content. No arbitrary
+learner question is answered or stored by this browser FAQ path. Disabled
+CacheStorage leaves network and in-memory operation available. Uninstall
+removes the FAQ cache with the other Dimts-owned storage.
 
 ## Dynamic course content
 
