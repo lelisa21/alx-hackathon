@@ -184,6 +184,46 @@ port 55432 was stopped and removed after verification.
 
 Stop after P07. P08 requires the user's next instruction and branch.
 
+## P01-P06 connected verification
+
+Scope remained limited to P01-P06. FR-AI-08's cache and NFR-PERF-03's
+offline/repeat latency were verified without weakening their limits.
+
+- `pnpm verify:phases-1-6` passed: build, typecheck, lint, locale validation,
+  core and locale coverage, the full test suite, Chromium/axe, tutor evaluation,
+  and bundle budgets. The run covered **617 tests across 67 files**; the
+  targeted coverage gates passed **230 core** and **65 locale** tests. The
+  widget browser/accessibility suite passed **129 tests**. The suite's HTTP
+  benchmark measured cached p95 **29 ms** and offline p95 **41 ms**. Five
+  additional isolated cache runs measured **29-35 ms** cached p95.
+- The PostgreSQL cache adapter now checks the reply content version and every
+  citation against the active passage generation before the engine can return
+  a cache hit without retrieval. Unit and integration tests cover the fast path,
+  absent/retired citations, mismatched versions, and unchanged retrieval for
+  caches without that capability. The separate cold-start performance test
+  passed its 3-second launcher and 6-second ready-chat limits.
+- A live API run against a disposable local PostgreSQL schema returned health
+  with `db: true`, listed `en` as beta and `am`/`om` as draft-only preview
+  languages, and created an authenticated session. After ingesting only
+  `content/sample-course`, `/v1/ask` returned the cited answer "Leave space so
+  you can rest and review." A second request with a distinct message ID returned
+  the same current cited answer in **26.16 ms**. The API, schema, and temporary
+  credentials were stopped and removed afterward.
+- The evaluation reported **0 measured gate failures and 8 acceptance
+  blockers**. It measured English expected-answer recall at **2/12 (16.7%)**;
+  Amharic and Afaan Oromoo produced **0/16** and **0/18** expected answers.
+  Draft FAQ adapter matches are not full-pipeline acceptance.
+- The Savanna boundary remains a generic widget/REST integration contract, not
+  a working Savanna connector. No private Savanna source, API, credentials, or
+  LMS/LTI launch was used. The live demonstration used only the sample fixture.
+
+Acceptance still depends on human/native-speaker and co-designer review,
+reviewed multilingual course/FAQ/evaluation data, real local/cloud provider
+configuration and quality evidence, physical device/assistive-technology
+testing, Docker Compose execution, and an authorized Savanna host/source
+integration. These gates cannot be completed by inventing reviews, data, or
+credentials. Phases 7-14 were not implemented.
+
 ## P06 — implemented increment; acceptance blocked
 
 The user reported P05 committed/pushed and authorized P06 only on their new,
@@ -234,17 +274,11 @@ New locale copy/glossary definitions remain drafts; review status is unchanged.
 
 ### P06 acceptance still open
 
-- P02 cached HTTP p95 measured **56 ms** in the full suite and **94 ms** in an
-  isolated rerun, above the unchanged **50 ms** gate. A temporary diagnostic
-  using the committed API implementation also failed at **54 ms**; it was
-  removed. This supports a local timing concern but does not prove P06 meets
-  the performance requirement. No threshold or assertion was relaxed.
-- Serial startup benchmark failed: launcher **9,964 / 3,000 ms**, chat ready
-  **12,064 / 6,000 ms**. The artifact shows multi-second gaps between static
-  requests despite correctly paced response bodies. Performance remains
-  unverified; reproduce on an idle representative runner and investigate
-  before release. Artifacts: `test-results/p06-performance` and ignored
-  `node_modules/.cache/p06-vitest-final.log`.
+- The prior P02 cache and P03 cold-start failures were superseded by the
+  connected verification above: the HTTP cache gate passed in the full run and
+  five isolated reruns; the isolated startup test passed its enforced timing
+  limits. No performance threshold was relaxed. These local runs do not
+  establish production load or device performance.
 
 Acceptance still requires a configured production host relay and real
 delivery credentials, native-language/co-designer review and physical assistive

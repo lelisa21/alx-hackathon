@@ -525,6 +525,40 @@ test("FR-LANG-15 keeps direct Ethiopic input and removes suggestions when disabl
   await expect(question).toHaveValue("selam");
 });
 
+test("FR-LANG-07 offers an explicit Afaan Oromoo choice for Latin input", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "English" }).click();
+
+  const question = "Torban kana mata duree meeqa filachuu qaba?";
+  const composer = page.locator("#message");
+  await composer.fill(question);
+
+  const prompt = packs.get("en")!.ui["language.suggestion.latin"]!;
+  const suggestions = page.getByRole("region", { name: prompt });
+  await expect(suggestions).toBeVisible();
+  await expect(
+    suggestions.getByRole("button", { name: "Afaan Oromoo" }),
+  ).toHaveAttribute("aria-pressed", "false");
+
+  const askRequest = page.waitForRequest("http://api.test/v1/ask");
+  await suggestions.getByRole("button", { name: "Afaan Oromoo" }).click();
+  await expect(
+    suggestions.getByRole("button", { name: "Afaan Oromoo" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await page
+    .getByRole("button", {
+      name: packs.get("om")!.ui["review.send"],
+      exact: true,
+    })
+    .click();
+  expect((await askRequest).postDataJSON()).toMatchObject({
+    lang: "om",
+    text: question,
+  });
+});
+
 test("FR-LANG-05 announces resolved string fallback once in a learner session", async ({
   page,
 }) => {

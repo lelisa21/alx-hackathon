@@ -1,4 +1,5 @@
 import { createAnswerCacheKey, defaultAnswerCache } from "./cache.js";
+import type { AnswerCache } from "./cache.js";
 import { isAnswerInLanguage } from "./langcheck.js";
 import {
   hasInstructionInjection,
@@ -84,7 +85,7 @@ function isValidCachedAnswer(
   cached: Reply | null,
   lang: string,
   contentVersion: string,
-  passagesById: Map<string, ScoredPassage>,
+  passagesById: Map<string, ScoredPassage> | undefined,
   simple: boolean,
 ): cached is Reply {
   return Boolean(
@@ -97,7 +98,8 @@ function isValidCachedAnswer(
     isAnswerLengthAllowed(cached.text, simple) &&
     !hasInstructionInjection(cached.text) &&
     cached.citations.length > 0 &&
-    cached.citations.every(({ passageId }) => passagesById.has(passageId)),
+    (!passagesById ||
+      cached.citations.every(({ passageId }) => passagesById.has(passageId))),
   );
 }
 
@@ -211,6 +213,31 @@ export async function ask(
     return ruleReply(turnRequest, deps, contentVersion, "escalation");
   }
 
+  const cache: AnswerCache = deps.answerCache ?? defaultAnswerCache(deps);
+  const cacheKey = createAnswerCacheKey(turnRequest, contentVersion);
+  const getCurrent = cache.getCurrent?.bind(cache);
+  const cacheSupportsCurrentValidation = getCurrent !== undefined;
+  const cachedBeforeSearch = getCurrent
+    ? await getCurrent(cacheKey, contentVersion).catch(() => null)
+    : null;
+  if (
+    isValidCachedAnswer(
+      cachedBeforeSearch,
+      turnRequest.lang,
+      contentVersion,
+      undefined,
+      turnRequest.simple ?? false,
+    )
+  ) {
+    deps.cacheEvent?.({ result: "hit" });
+    return {
+      ...cachedBeforeSearch,
+      id: deps.createId(),
+      dir: deps.direction(turnRequest.lang),
+      actions: [],
+    };
+  }
+
   const found = await deps.search(turnRequest.text, turnRequest.lang);
   const passages = found
     .filter(
@@ -227,9 +254,9 @@ export async function ask(
   const passagesById = new Map(
     passages.map((passage) => [passage.id, passage]),
   );
-  const cache = deps.answerCache ?? defaultAnswerCache(deps);
-  const cacheKey = createAnswerCacheKey(turnRequest, contentVersion);
-  const cached = await cache.get(cacheKey).catch(() => null);
+  const cached = cacheSupportsCurrentValidation
+    ? cachedBeforeSearch
+    : await cache.get(cacheKey).catch(() => null);
   if (
     isValidCachedAnswer(
       cached,

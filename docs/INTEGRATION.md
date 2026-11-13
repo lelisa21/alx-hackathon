@@ -29,8 +29,26 @@ The server must generate a fresh unpredictable nonce per HTML response and put
 the same value in the response CSP and script attribute. The placeholder above
 is not a production nonce. No inline script is needed. See
 [`examples/embed-level1.html`](../examples/embed-level1.html) for a blank-host
-example. This example uses a configurable API origin; the real Savanna starter
-integration remains a host/device verification task.
+example. This example uses a configurable API origin; it is a generic host
+contract, not an ALX Savanna deployment.
+
+## Current ALX Savanna integration boundary
+
+There is no Savanna-specific connector, LMS launch, or private course content
+configured in this repository. The existing integration surface is the generic
+Level 1 widget embed and REST API described here and in [API.md](./API.md).
+An authorized host must serve the widget, register its origin and public host
+identifier with the API, and set the API URL and CSP. No Savanna session cookie,
+learner roster, or role-specific content is read.
+
+Course content enters through the generic public-sitemap connector or a
+host-owned `ContentSource`/`HostAuth` adapter documented in [API.md](./API.md).
+The adapter must only publish content authorized for every learner using that
+source. There is no Savanna API endpoint or credential assumed by Dimts, and
+the current widget/REST contract does not implement an LMS/LTI launch.
+The demonstration recorded for this work used only
+[`content/sample-course`](../content/sample-course); it is not ALX course
+material or evidence of a Savanna connection.
 
 `data-host-key` is a **public identifier**, visible in browser requests. Configure
 the API's allowed origins for this host. Do not put an API provider credential or
@@ -106,6 +124,15 @@ The widget does not rely on third-party cookies. Browser storage failures are
 caught: ordinary online text interaction still works, with no persistence promise.
 No provider secrets are shipped in browser assets.
 
+## Start locally and seed sample content
+
+Follow [API.md's local setup](./API.md#local-api): copy `.env.example` to
+`.env`, configure local secrets/origin, then start PostgreSQL/API/widget and
+provision a local host key. The Docker Compose startup command there requires
+Docker Desktop. To try the tracked, non-Savanna sample course after startup,
+run `pnpm content:ingest content/sample-course`. Do not treat that fixture as
+real course/job data.
+
 ## Reproducible checks and limits
 
 Run `pnpm test:widget --workers=1` and `pnpm size` after building. The embed tests
@@ -133,3 +160,25 @@ phone, physical TalkBack/NVDA behavior, or co-designer acceptance. Record those
 separately in the repository progress log after real testing. The browser suite
 separately checks 200% widget text and CSS page render scaling; neither replaces
 a manual check using the browser's native zoom controls with assistive technology.
+
+## Verify Phases 1-6
+
+Run the connected automated checks from the repository root:
+
+```powershell
+pnpm verify:phases-1-6
+```
+
+Set `DIMTS_TEST_DATABASE_URL` to a disposable PostgreSQL database first. The
+command fails before running if it is absent, rather than letting PostgreSQL
+integration tests silently skip. It builds the workspace, runs typecheck,
+lint, locale validation, core and locale coverage gates, the complete Vitest
+suite, widget Playwright/axe and compressed cold-start checks, the offline
+grounded evaluation, and the bundle-size gate. Install the Playwright Chromium runtime once with
+`pnpm exec playwright install chromium` if it is not already present.
+
+This command verifies the offline provider and configured local database; it
+does not claim native-speaker review, real cloud-provider quality, physical
+Android or assistive-technology results, a deployed TURN/host relay, or an
+ALX Savanna connector. The separate `pnpm test:compose` check requires Docker
+Desktop and validates the Compose deployment path.
