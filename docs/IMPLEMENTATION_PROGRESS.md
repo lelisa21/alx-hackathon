@@ -1,6 +1,86 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-03-prompt`.
+Updated: 13 November 2026. Current branch: `phase-04-prompt`.
+
+## P04 — implemented increment; acceptance blocked
+
+The user reported P03 committed/pushed and authorized P04 only on their
+already-created branch, which started clean. No agent commit or push.
+Read P04's original prompt, Blueprint 10.3, the voice SRS requirements and
+the existing adapters, widget, API and evidence records. Requirements quoted
+before implementation: **FR-VOICE-01–10/12, FR-UI-06, FR-LANG-05,
+NFR-A11Y-07**. FR-VOICE-11 audio caching remains removed.
+
+Implemented configured on-device browser recognition/synthesis, reviewed
+capability publication, cancellation/timeouts, editable review and playback,
+localized states, and the voice Beta explanation. Decisions and the additive
+language-catalog declaration are in `DECISIONS.md`; no server engine/audio
+endpoint is selected. Text remains the complete fallback.
+
+Tests preceded changes, with failing tests observed before implementation.
+Browser regressions also verified cancellation when hidden/closed and restored
+disabled-select contrast. Existing host adapters, session recovery, text input,
+offline behavior and lazy voice loading remain covered.
+
+### Verified P04 evidence
+
+- **Voice behavior:** 43 adapter tests cover local-only capability checks,
+  explicit recording, confidence/review handling, stop/cancel, stale callbacks,
+  bounded timeouts and local TTS playback. 36 API tests cover configured,
+  reviewed, language/script-matching capabilities, with draft packs disabled.
+  Two Compose tests cover selector defaults/forwarding. Locale tests require
+  the new copy and keep unreviewed voice disabled.
+- **Full regression:** `pnpm exec vitest run --maxWorkers=1` ran 528 tests
+  across 54 files: 527 passed; the existing P02 cached-response benchmark
+  failed at 91 ms p95 against its 50 ms budget while other checks ran.
+  With competing jobs finished, the complete P02 PostgreSQL integration file
+  passed **5/5**, including that benchmark: cached p95 **17 ms**, offline
+  p95 **95 ms**, ten samples each. The other 15 PostgreSQL cases passed in
+  the full run. All 528 cases therefore have passing evidence, but the full
+  suite invocation itself exited with a failure. The isolated PostgreSQL 18
+  cluster on port 55432 was stopped and removed afterward.
+- **Browser/accessibility:** **101/101** functional and accessibility tests
+  passed with `pnpm exec playwright test --config playwright.widget.config.ts
+--workers=2 --grep-invert NFR-PERF-02 --output=test-results/p04-final`.
+  Includes eight new native-API-double voice scenarios, editable confirmation,
+  explicit sending, unavailable capabilities, language/session/close cleanup,
+  localized Beta copy, playback and voice-review axe checks. The inherited
+  en/am/om/ar-test, theme, viewport, 200%-text, keyboard, embed and offline
+  regressions pass. These doubles do not verify real speech intelligibility.
+- **Startup:** the separate serial `embed-performance.spec.ts` passed:
+  launcher **2,474 ms / 3,000 ms**, chat ready **4,892 ms / 6,000 ms**.
+  Same cold Chromium fixture as P03: shared 400 kbps gzip-body link,
+  400 ms minimum first-byte delay, worker requests included, cache disabled.
+  Evidence is generated under `test-results/p04-performance/`; total browser
+  coverage is **102 passed** across the functional and separate timing runs.
+- **Build/static:** `pnpm build`, `pnpm typecheck`, `pnpm lint`,
+  `pnpm lang:check`, `pnpm size`, changed-file Prettier and `git diff --check`
+  pass. Compressed initial JS **44,769 / 61,440 bytes**; helper
+  **27,500 / 61,440**; deferred voice/help **6,395**; total initial assets
+  **128,578 / 153,600**. No dependencies added or frozen pages/assets changed.
+  Repository-wide `pnpm format:check` reports **90 untouched baseline files**;
+  no changed-file warning remains. Docker Compose configuration resolves all
+  four none/browser selector combinations; container execution is unverified.
+
+### P04 acceptance still open
+
+Physical Android eight-of-ten STT/TTS results, native-speaker/co-designer
+review, TalkBack/NVDA and an Ethiopic Read-aloud alternative remain unverified.
+All shipped voice flags and engine declarations remain disabled. The fixed
+draft corpus and result protocol are in `docs/VOICE_TEST.md`. FR-VOICE-01 and
+NFR-A11Y-07 are not complete; automated behavior coverage does not replace
+these human/device acceptance gates. Locale copy remains unreviewed.
+
+P08 must account for the current browser-only scope: Telegram audio requires
+a selected server engine, explicit data policy and endpoint contract. Existing
+question/passage consent does not authorize audio transmission. No server
+voice credentials were needed or tested. Docker runtime verification remains
+unavailable because its daemon is unavailable; preserve inherited P03
+device/review gates.
+
+Stop after P04; wait for the user's review/commit/push and explicit P05 instruction.
+
+## Historical P03 record
 
 ## P03 — implemented increment; acceptance blocked
 

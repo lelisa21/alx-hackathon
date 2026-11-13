@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isMatchingVoiceLanguage } from "./voice-capabilities.js";
 
 export const AskRequestSchema = z
   .object({
@@ -248,8 +249,32 @@ export const LanguageSchema = z
     status: z.enum(["live", "beta", "draft"]),
     stt: z.boolean(),
     tts: z.boolean(),
+    voice: z
+      .object({
+        engine: z.literal("browser"),
+        bcp_tag: z.string().min(2).max(35),
+      })
+      .strict()
+      .nullable()
+      .describe(
+        "Reviewed browser declaration when at least one voice direction is enabled; otherwise null. The BCP 47 tag must match the pack language and script.",
+      ),
   })
-  .strict();
+  .strict()
+  .superRefine((language, context) => {
+    const enabled = language.stt || language.tts;
+    if (
+      enabled !== Boolean(language.voice) ||
+      (enabled && language.status === "draft") ||
+      (language.voice &&
+        !isMatchingVoiceLanguage(language.code, language.voice.bcp_tag))
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "Voice requires an enabled, non-draft, matching declaration",
+        path: ["voice"],
+      });
+  });
 
 export const LanguageListSchema = z
   .object({ languages: z.array(LanguageSchema) })

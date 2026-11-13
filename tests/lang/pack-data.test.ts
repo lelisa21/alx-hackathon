@@ -13,6 +13,24 @@ const root = path.resolve(
 );
 const packs = loadPacks(path.join(root, "locales"));
 
+it("P04 provides localized voice states without enabling unreviewed engines", () => {
+  for (const pack of packs.values()) {
+    for (const key of [
+      "voice.lowConfidence",
+      "voice.timeout",
+      "voice.soundCues",
+      "voice.listening",
+      "voice.processing",
+      "voice.betaNote",
+    ])
+      expect(pack.ui[key], `${pack.meta.code}: ${key}`).toBeTruthy();
+    if (!pack.meta.reviewed_by || !pack.meta.reviewed_on) {
+      expect(pack.meta.stt).toBe(false);
+      expect(pack.meta.tts).toBe(false);
+    }
+  }
+});
+
 // P03: consent and recovery must remain usable in every supported UI locale.
 it("P03 provides localized consent, reply actions and keyboard settings", () => {
   const keys = [

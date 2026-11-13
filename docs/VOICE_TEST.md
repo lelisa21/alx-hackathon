@@ -1,8 +1,28 @@
 # Voice and screen-reader evidence
 
-Recorded 13 November 2026 for P01. **Status: not tested on a physical device.**
+Updated 13 November 2026 for P04. **Status: not tested on a physical device.**
 This is an evidence register and test protocol, not a voice acceptance sign-off.
-Production adapters remain P04 work.
+
+P04 implements browser STT and TTS behind the existing interfaces. Set
+`DIMTS_STT_ENGINE=browser` and/or `DIMTS_TTS_ENGINE=browser` to allow an
+approved pack's corresponding capability; both default to `none`. A pack needs
+non-draft status, valid review metadata, its approved `stt`/`tts` flag, and
+`voice.yaml` with `engine: browser` and the tested `bcp_tag`. Runtime capability
+checks may still disable voice. Preview does not authorize draft voice.
+
+Recognition requires explicitly available on-device processing; synthesis uses
+only a matching local-service voice. These checks use the
+[Web Speech API's local-processing and voice contracts](https://webaudio.github.io/web-speech-api/).
+The widget does not install language models, upload audio, silently select a
+remote voice, or store recordings. Unsupported browsers retain text and a
+localized reason. No server engine is selected or supported in this increment,
+so `/v1/stt` and `/v1/tts` are not added. A future server/Telegram voice path
+needs an engine selection, data-policy review and explicit endpoint contract;
+the current browser adapter cannot transcribe a Telegram audio attachment.
+
+Recording sounds can be disabled separately. An explicit voice-input action
+still permits transcript/error read-back when local TTS is available; the
+reply Read-aloud preference governs automatic reading of tutor replies.
 
 Requirements: **FR-VOICE-01** requires the same ten sentences per language on
 a real mid-range Android phone, with at least eight intelligible results
@@ -33,6 +53,14 @@ The blueprint supersedes obsolete SRS engine assumptions. See
 Mock-adapter browser tests are useful interaction checks. They do not establish
 real microphone recognition, native pronunciation, screen-reader intelligibility,
 or the eight-of-ten engine threshold. No engine is approved by this document.
+
+P04 automated evidence: 43 browser-adapter unit tests, 36 API capability tests
+and eight new native-API-double browser scenarios passed, including voice-review
+accessibility checks. The full browser regression passed 101 functional and
+accessibility cases plus the separate startup check. See
+[implementation progress](./IMPLEMENTATION_PROGRESS.md) for commands, limits
+and the full-suite benchmark rerun. These results do not change any physical
+device or reviewer status below.
 
 ## Physical-device protocol
 
@@ -73,6 +101,72 @@ or the eight-of-ten engine threshold. No engine is approved by this document.
    Re-run `pnpm lang:check` and the relevant browser tests. Store the actual
    result and reviewer reference here; never replace “not tested” with a pass
    solely because configuration validation succeeds.
+
+## Fixed candidate corpus — P04-2026-11-13-1
+
+The following sentences reproduce `q-<language>-001` through `010` from the
+existing draft checks. They are **not approved linguistic evidence**. A native
+reviewer must approve or revise the set before testing; revision requires a
+new corpus version and rerunning every compared engine on that same version.
+Use the exact ten sentences for both STT and TTS, without recording audio in
+this repository. The job named below is a fictional test fixture.
+
+### English (`en-US` candidate)
+
+1. How many topics should I choose this week?
+2. How should I write my study goal?
+3. Where should I record my study times?
+4. Why should I leave space between study sessions?
+5. When should I review my progress?
+6. How many minutes must each study session last?
+7. Which calendar app should I install?
+8. What is tomorrow's weather?
+9. Who won yesterday's football match?
+10. Where is the Community Garden Assistant job?
+
+### Amharic (`am-ET` candidate)
+
+1. በዚህ ሳምንት ስንት ርዕሶችን ልምረጥ?
+2. የጥናት ግቤን እንዴት ልጻፍ?
+3. የጥናት ጊዜዎቼን የት ልመዝግብ?
+4. በጥናት ጊዜዎች መካከል ክፍተት ለምን ልተው?
+5. እድገቴን መቼ ልገምግም?
+6. እያንዳንዱ የጥናት ጊዜ ስንት ደቂቃ መሆን አለበት?
+7. የትኛውን የቀን መቁጠሪያ መተግበሪያ ልጫን?
+8. የነገው የአየር ሁኔታ ምንድን ነው?
+9. የትናንቱን የእግር ኳስ ጨዋታ ማን አሸነፈ?
+10. የማኅበረሰብ አትክልት ስፍራ ረዳት ስራ የት ነው?
+
+### Afaan Oromoo (`om-ET` candidate)
+
+1. Torban kana mata duree meeqa filachuu qaba?
+2. Kaayyoo qo'annoo koo akkamitti barreessuu qaba?
+3. Yeroo qo'annoo koo eessatti galmeessuu qaba?
+4. Yeroo qo'annoo gidduutti maaliif boqonnaa kaa'uu qaba?
+5. Guddina koo yoom ilaaluun qaba?
+6. Yeroon qo'annoo tokko daqiiqaa meeqa turuu qaba?
+7. Appii kalaandarii kam fe'achuu qaba?
+8. Haalli qilleensaa boruu maal fakkaata?
+9. Tapha kubbaa miilaa kaleessaa eenyutu mo'e?
+10. Hojiin gargaaraa iddoo biqiltuu hawaasaa eessa jira?
+
+## Result records to complete on a real device
+
+All six direction results are **not tested / not approved**, not zero scores:
+English browser STT and TTS; Amharic browser STT and TTS; Afaan Oromoo browser
+STT and TTS. The six screen-reader combinations (en/am/om × TalkBack/NVDA)
+are likewise **not tested**. No usable Ethiopic voice has been verified; Read
+aloud is an alternative only after a local TTS voice passes the protocol.
+
+For each language, engine and direction, record: corpus revision/approval,
+date, device/OS/browser/engine versions, BCP tag, network mode, sentence 1–10
+pass/fail, intelligible total, reviewer reference and enable/disable decision.
+For each language/screen reader record its version and installed voice, reading
+result for interface/review/reply controls, limitations and the tested Read
+aloud alternative. Keep failed and unavailable engines visible in the record.
+Only an actual result of at least 8/10 permits that direction's pack flag.
+Afaan Oromoo's visible voice Beta explanation must accompany an approved
+capability while the pack has beta status; it never implies a passing result.
 
 ## Outstanding evidence
 

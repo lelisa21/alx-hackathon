@@ -53,6 +53,31 @@ unless `?lang_preview=1` is supplied.
 `POST /v1/sessions` requires `X-Dimts-Key` and an allowed browser origin.
 `POST /v1/ask` requires the returned session bearer token and `sessionId`.
 
+## Voice capability configuration
+
+`DIMTS_STT_ENGINE` and `DIMTS_TTS_ENGINE` independently accept `none` (the
+default) or `browser`; unsupported values fail API startup. Browser voice
+requires on-device recognition and a matching local-service synthesis voice.
+No selected adapter needs a server audio transport, so `/v1/stt` and `/v1/tts`
+are not implemented or advertised. Remote/server engines need a separately
+reviewed data policy, adapter and API contract. Question/passage consent does
+not authorize sending audio. Audio is never stored or cached.
+
+Each `GET /v1/languages` item includes the existing fields plus
+`voice: {engine: "browser", bcp_tag: string} | null`. `stt` and `tts` are true
+only when that direction is configured as `browser`, its pack flag is true,
+and the pack has a valid browser declaration matching its language and script,
+non-placeholder reviewer, real non-future review date, and beta/live status.
+The declaration is null when neither direction is available. Review metadata
+and identities are not exposed. `?lang_preview=1` makes draft text packs visible
+but never enables their voice. Clients must also check actual device support;
+the API does not claim that a particular browser has a suitable local voice.
+
+Pack flags represent human approval of the per-language, per-direction
+eight-of-ten device protocol in [VOICE_TEST.md](VOICE_TEST.md); they are not
+inferred from authored sentences or automated test fixtures. All shipped
+voice flags remain false until that evidence and native review are supplied.
+
 ## Embed the widget
 
 Build the static ES module with `pnpm --filter @dimts/widget build`, then serve

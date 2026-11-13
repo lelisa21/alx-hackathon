@@ -27,6 +27,7 @@ import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
 import type { ConversationStateStore } from "../db/conversation-state.js";
 import { buildReviewedFaq } from "../faq.js";
+import { getVoiceCapabilities } from "../voice-capabilities.js";
 
 interface CoreRouteOptions {
   config: ApiConfig;
@@ -199,8 +200,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       script: pack.meta.script,
       dir: pack.meta.dir,
       status: pack.meta.status,
-      stt: pack.meta.stt,
-      tts: pack.meta.tts,
+      ...getVoiceCapabilities(pack, config),
     }));
     response.json(validateResponse(LanguageListSchema, { languages }));
   });

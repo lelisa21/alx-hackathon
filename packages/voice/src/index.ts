@@ -3,6 +3,8 @@ export type VoiceErrorCode =
   | "microphone-unavailable"
   | "no-speech"
   | "low-confidence"
+  | "timeout"
+  | "cancelled"
   | "unavailable";
 
 export class VoiceError extends Error {
@@ -19,6 +21,8 @@ export interface SpeechToText {
   supported(lang: string): boolean;
   start(lang: string): Promise<string>;
   stop(): void;
+  cancel?(): void;
+  dispose?(): void;
 }
 
 export interface TextToSpeech {
@@ -27,6 +31,10 @@ export interface TextToSpeech {
   pause(): void;
   resume(): void;
   stop(): void;
+  dispose?(): void;
 }
 
 export const MAX_RECORDING_MS = 60_000;
+
+export { createBrowserVoiceAdapters } from "./browser.js";
+export type { BrowserVoiceAdapters, BrowserVoiceLanguage } from "./browser.js";

@@ -51,6 +51,7 @@ export interface Language {
   status: "live" | "beta" | "draft";
   stt: boolean;
   tts: boolean;
+  voice: { engine: "browser"; bcp_tag: string } | null;
 }
 
 interface Citation {
@@ -91,6 +92,7 @@ export interface WidgetSettings {
   dataSaver: boolean;
   readAloud: "off" | "ask" | "always";
   speechRate: 0.75 | 1 | 1.25;
+  soundCues: boolean;
   shortcuts: boolean;
 }
 
@@ -102,6 +104,7 @@ const defaultSettings: WidgetSettings = {
   dataSaver: false,
   readAloud: "off",
   speechRate: 1,
+  soundCues: true,
   shortcuts: true,
 };
 
@@ -123,6 +126,10 @@ const storage = {
 };
 
 export class DimtsAssistant extends LitElement {
+  static override get observedAttributes(): string[] {
+    return [...super.observedAttributes, "hidden"];
+  }
+
   static override properties = {
     api: { attribute: "data-api" },
     hostKey: { attribute: "data-host-key" },
@@ -147,6 +154,7 @@ export class DimtsAssistant extends LitElement {
     transliterationSuggestion: { state: true },
     settings: { state: true },
     isRecording: { state: true },
+    recordingStopRequested: { state: true },
     speechReview: { state: true },
     speakingMessageId: { state: true },
     speechPaused: { state: true },
@@ -213,10 +221,17 @@ export class DimtsAssistant extends LitElement {
   declare private helpNoticeIsError: boolean;
   declare private helpAnnouncement: string;
   private recordingTimer: number | undefined;
-  private recordingStopRequested = false;
+  declare private recordingStopRequested: boolean;
   private recordingRun = 0;
   private recordingCueActive = false;
   private speechRun = 0;
+  private speechRequest = 0;
+  private browserVoiceRun = 0;
+  private browserVoice:
+    | Awaited<
+        ReturnType<typeof import("@dimts/voice").createBrowserVoiceAdapters>
+      >
+    | undefined;
   private audioContext: AudioContext | undefined;
   private helpSocket: WebSocket | undefined;
   private helpReconnectTimer: number | undefined;
@@ -239,7 +254,13 @@ export class DimtsAssistant extends LitElement {
   private askPromise: Promise<void> | undefined;
   private askController: AbortController | undefined;
   private pendingQuestion:
-    | { text: string; lang: string; simple: boolean; clientMsgId: string }
+    | {
+        text: string;
+        lang: string;
+        simple: boolean;
+        clientMsgId: string;
+        via: "text" | "voice";
+      }
     | undefined;
   private consentPromise: Promise<void> | undefined;
   private startupTimer: ReturnType<typeof setTimeout> | undefined;
@@ -287,6 +308,54 @@ export class DimtsAssistant extends LitElement {
     ).voiceRuntime);
   }
 
+  private async configureBrowserVoice(): Promise<void> {
+    const run = ++this.browserVoiceRun;
+    this.disposeBrowserVoice();
+    if (
+      !this.languages.some(
+        (language) => language.voice && (language.stt || language.tts),
+      )
+    )
+      return;
+    try {
+      const runtime = await this.loadVoice();
+      if (!this.isConnected || run !== this.browserVoiceRun) return;
+      const adapters = await runtime.createBrowserAdapters({
+        languages: this.languages.map((language) => ({
+          ...language,
+          voice: language.voice ?? null,
+        })),
+        onCapabilitiesChanged: () => {
+          if (this.isConnected && run === this.browserVoiceRun)
+            this.requestUpdate();
+        },
+      });
+      if (!this.isConnected || run !== this.browserVoiceRun) {
+        adapters.dispose();
+        return;
+      }
+      this.browserVoice = adapters;
+      // A host can still supply either port explicitly, before or after startup.
+      this.speechToText ??= adapters.speechToText;
+      this.textToSpeech ??= adapters.textToSpeech;
+      this.requestUpdate();
+    } catch {
+      // Text stays ready when device capability detection fails.
+      if (this.isConnected) this.requestUpdate();
+    }
+  }
+
+  private disposeBrowserVoice(): void {
+    const adapters = this.browserVoice;
+    if (!adapters) return;
+    if (this.speechToText === adapters.speechToText)
+      this.speechToText = undefined;
+    if (this.textToSpeech === adapters.textToSpeech)
+      this.textToSpeech = undefined;
+    adapters.dispose();
+    this.browserVoice = undefined;
+  }
+
   private async loadHelp() {
     return (this.helpModule ??= (
       await import("./help-runtime.js")
@@ -329,6 +398,7 @@ export class DimtsAssistant extends LitElement {
     this.transliterationSuggestion = null;
     this.settings = this.readSettings();
     this.isRecording = false;
+    this.recordingStopRequested = false;
     this.speechReview = false;
     this.speakingMessageId = null;
     this.speechPaused = false;
@@ -423,9 +493,11 @@ export class DimtsAssistant extends LitElement {
       overflow-wrap: anywhere;
     }
 
-    button:disabled {
+    button:disabled,
+    select:disabled {
       cursor: not-allowed;
       border-style: dashed;
+      opacity: 1;
     }
 
     :focus-visible {
@@ -834,6 +906,18 @@ export class DimtsAssistant extends LitElement {
     if (this.helpRequestId) this.connectHelpSocket();
   }
 
+  override attributeChangedCallback(
+    name: string,
+    previous: string | null,
+    value: string | null,
+  ): void {
+    super.attributeChangedCallback(name, previous, value);
+    if (name === "hidden" && value !== null) {
+      this.cancelRecording();
+      this.stopSpeech();
+    }
+  }
+
   protected override updated(): void {
     // Populate an already mounted live region, including after initial startup.
     if (!this.loading) this.announceFallback();
@@ -869,6 +953,10 @@ export class DimtsAssistant extends LitElement {
   override disconnectedCallback(): void {
     activeWidgets.delete(this);
     this.lifecycleController.abort();
+    this.browserVoiceRun += 1;
+    this.cancelRecording();
+    this.stopSpeech();
+    this.disposeBrowserVoice();
     window.removeEventListener("offline", this.handleOffline);
     window.removeEventListener("online", this.handleOnline);
     window.removeEventListener("keydown", this.handleShortcut);
@@ -895,21 +983,7 @@ export class DimtsAssistant extends LitElement {
     }
     this.helpSocket?.close();
     this.helpSocket = undefined;
-    try {
-      if (this.isRecording) {
-        this.stopRecordingCue();
-        this.speechToText?.stop();
-      }
-    } catch {
-      this.notice = this.t("voice.retry");
-      this.noticeIsError = true;
-    } finally {
-      this.recordingRun += 1;
-      this.isRecording = false;
-      this.recordingStopRequested = false;
-      this.stopSpeech();
-      super.disconnectedCallback();
-    }
+    super.disconnectedCallback();
   }
 
   private readonly handleOffline = (): void => {
@@ -1151,6 +1225,7 @@ export class DimtsAssistant extends LitElement {
       this.languages = body.languages.filter(
         (language) => language.status !== "draft" || Boolean(this.previewQuery),
       );
+      void this.configureBrowserVoice();
       if (this.languages.length === 0) throw new Error("languages");
       const stored =
         this.getAttribute("data-lang") || storage.get("dimts.lang");
@@ -1215,6 +1290,7 @@ export class DimtsAssistant extends LitElement {
     const lifecycle = this.lifecycleController.signal;
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
+    this.cancelRecording();
     this.stopSpeech();
     this.fallbackNotice = "";
     this.fallbackPending = false;
@@ -1471,10 +1547,7 @@ export class DimtsAssistant extends LitElement {
     this.sessionPromise = undefined;
     clearTimeout(this.workingTimer);
     clearTimeout(this.sessionTimer);
-    this.stopRecording();
-    this.recordingRun += 1;
-    this.isRecording = false;
-    this.recordingStopRequested = false;
+    this.cancelRecording();
     this.speechReview = false;
     this.stopSpeech();
     clearTimeout(this.helpReconnectTimer);
@@ -1653,7 +1726,7 @@ export class DimtsAssistant extends LitElement {
   private async askQuestion(): Promise<void> {
     const generation = this.sessionGeneration;
     const text = this.draft.trim();
-    if (!text || this.busy || this.consentFailed) return;
+    if (!text || this.busy || this.isRecording || this.consentFailed) return;
     await this.consentPromise;
     if (
       this.busy ||
@@ -1672,9 +1745,11 @@ export class DimtsAssistant extends LitElement {
         lang: this.selectedLang,
         simple: this.settings.simple,
         clientMsgId: crypto.randomUUID(),
+        via: this.speechReview ? "voice" : "text",
       };
     }
     const question = this.pendingQuestion;
+    this.stopSpeech();
     const learnerMessage: ConversationMessage = {
       id: question.clientMsgId,
       role: "learner",
@@ -1719,7 +1794,7 @@ export class DimtsAssistant extends LitElement {
           clientMsgId: question.clientMsgId,
           lang: question.lang,
           text,
-          via: "text",
+          via: question.via,
           simple: question.simple,
         }),
       });
@@ -1879,10 +1954,16 @@ export class DimtsAssistant extends LitElement {
 
   private async speak(text: string, lang: string, id: string): Promise<void> {
     const generation = this.sessionGeneration;
-    if (!this.canSpeak(lang)) return;
+    const request = ++this.speechRequest;
+    if (this.hidden || !this.canSpeak(lang)) return;
     try {
       const runtime = await this.loadVoice();
-      if (this.isConnected && generation === this.sessionGeneration)
+      if (
+        this.isConnected &&
+        !this.hidden &&
+        generation === this.sessionGeneration &&
+        request === this.speechRequest
+      )
         return runtime.speak.call(
           this as unknown as VoiceContext,
           text,
@@ -1897,11 +1978,17 @@ export class DimtsAssistant extends LitElement {
   }
 
   private startRecording(): void {
-    if (!this.canRecord() || this.isRecording) return;
+    if (this.hidden || !this.canRecord() || this.isRecording) return;
     const generation = this.sessionGeneration;
+    const run = this.recordingRun;
     void this.loadVoice()
       .then((runtime) => {
-        if (this.isConnected && generation === this.sessionGeneration)
+        if (
+          this.isConnected &&
+          !this.hidden &&
+          generation === this.sessionGeneration &&
+          run === this.recordingRun
+        )
           runtime.startRecording.call(this as unknown as VoiceContext);
       })
       .catch(() => {
@@ -1930,6 +2017,27 @@ export class DimtsAssistant extends LitElement {
     return this.voiceModule?.stopRecording.call(
       this as unknown as VoiceContext,
     );
+  }
+
+  private cancelRecording(): void {
+    this.recordingRun += 1;
+    if (this.recordingTimer !== undefined)
+      window.clearTimeout(this.recordingTimer);
+    this.recordingTimer = undefined;
+    // Cancellation is silent: leaving a language or widget must not start audio.
+    this.recordingCueActive = false;
+    try {
+      if (this.isRecording) {
+        if (this.speechToText?.cancel) this.speechToText.cancel();
+        else this.speechToText?.stop();
+      }
+    } catch {
+      // Invalidate the result even when a host adapter cannot cancel cleanly.
+    } finally {
+      this.isRecording = false;
+      this.recordingStopRequested = false;
+      this.speechReview = false;
+    }
   }
 
   private startRecordingCue(): void {
@@ -1981,6 +2089,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private stopSpeech(): void {
+    this.speechRequest += 1;
     return this.voiceModule?.stopSpeech.call(this as unknown as VoiceContext);
   }
 
@@ -2050,6 +2159,7 @@ export class DimtsAssistant extends LitElement {
           parsed.speechRate === 1.25
             ? parsed.speechRate
             : 1,
+        soundCues: parsed.soundCues !== false,
       };
     } catch {
       return { ...defaultSettings };
@@ -2057,6 +2167,8 @@ export class DimtsAssistant extends LitElement {
   }
 
   private updateSettings(patch: Partial<WidgetSettings>): void {
+    if (patch.readAloud === "off" || patch.speechRate !== undefined)
+      this.stopSpeech();
     this.settings = { ...this.settings, ...patch };
     if (this.settings.simple) {
       this.settings.textScale = this.settings.textScale === 200 ? 200 : 150;
@@ -2149,6 +2261,7 @@ export class DimtsAssistant extends LitElement {
             this.settings.stopMotion,
             (value) => this.updateSettings({ stopMotion: value }),
           )}
+          ${this.renderToggle("voice.soundCues", this.settings.soundCues, (value) => this.updateSettings({ soundCues: value }))}
           ${this.renderToggle(
             "settings.simple",
             this.settings.simple,
@@ -2497,7 +2610,12 @@ export class DimtsAssistant extends LitElement {
                                 </button>
                                 ${this.renderSpeechControls(message.id)}
                               `
-                            : nothing
+                            : html`<span
+                                class="muted"
+                                lang=${this.uiLanguage}
+                                dir=${this.uiDirection}
+                                >${this.t("voice.unavailable")}</span
+                              >`
                         }
                       </div>
                     </article>
@@ -2562,6 +2680,8 @@ export class DimtsAssistant extends LitElement {
               }}
             ></textarea>
             ${this.renderTransliteration()}
+            ${this.currentLanguage?.status === "beta" && (this.canRecord() || this.canSpeak(this.selectedLang)) ? html`<p class="muted">${this.t("status.beta")}: ${this.t("voice.betaNote")}</p>` : nothing}
+            ${this.isRecording ? html`<p class="status" role="status" aria-live="polite">${this.t(this.recordingStopRequested ? "voice.processing" : "voice.listening")}</p>` : nothing}
             ${
               this.speechReview
                 ? html`
@@ -2640,32 +2760,33 @@ export class DimtsAssistant extends LitElement {
                       ${this.t("voice.inputUnavailable")}
                     </span>`
               }
-              <button
-                class="mic"
-                type="button"
-                lang=${this.selectedLang}
-                dir=${this.currentDirection}
-                aria-describedby=${
-                  this.canRecord() ? nothing : "voice-input-unavailable"
-                }
-                aria-label=${this.t(
-                  this.isRecording ? "mic.stop" : "mic.start",
-                )}
-                aria-pressed=${this.isRecording}
-                ?disabled=${!this.canRecord() || this.busy}
-                @click=${() =>
-                  this.isRecording
-                    ? this.stopRecording()
-                    : this.startRecording()}
-              >
-                ${this.t(this.isRecording ? "mic.stop" : "mic.start")}
-              </button>
+              ${
+                this.canRecord()
+                  ? html`<button
+                      class="mic"
+                      type="button"
+                      lang=${this.selectedLang}
+                      dir=${this.currentDirection}
+                      aria-label=${this.t(
+                        this.isRecording ? "mic.stop" : "mic.start",
+                      )}
+                      aria-pressed=${this.isRecording}
+                      ?disabled=${this.busy || this.recordingStopRequested}
+                      @click=${() =>
+                        this.isRecording
+                          ? this.stopRecording()
+                          : this.startRecording()}
+                    >
+                      ${this.t(this.isRecording ? "mic.stop" : "mic.start")}
+                    </button>`
+                  : nothing
+              }
               <button
                 class=${this.helpPreviewOpen || this.helpRequestId ? "send-action" : "primary send-action"}
                 type="submit"
                 lang=${this.selectedLang}
                 dir=${this.currentDirection}
-                ?disabled=${this.busy || this.consentBusy || this.consentFailed}
+                ?disabled=${this.busy || this.isRecording || this.consentBusy || this.consentFailed}
               >
                 ${this.t("review.send")}
               </button>

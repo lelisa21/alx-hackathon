@@ -1,4 +1,8 @@
-import { MAX_RECORDING_MS, VoiceError } from "@dimts/voice";
+import {
+  createBrowserVoiceAdapters,
+  MAX_RECORDING_MS,
+  VoiceError,
+} from "@dimts/voice";
 import type { SpeechToText, TextToSpeech } from "@dimts/voice";
 import type { WidgetSettings } from "./index.js";
 
@@ -38,6 +42,7 @@ export interface VoiceContext {
 }
 
 export const voiceRuntime = {
+  createBrowserAdapters: createBrowserVoiceAdapters,
   async speak(
     this: VoiceContext,
     text: string,
@@ -52,9 +57,14 @@ export const voiceRuntime = {
     this.speechPaused = false;
     try {
       await adapter.speak(text, lang, this.settings.speechRate);
-    } catch {
+    } catch (error) {
       if (run === this.speechRun) {
-        this.notice = this.t("voice.outputFailed");
+        if (error instanceof VoiceError && error.code === "cancelled") return;
+        this.notice = this.t(
+          error instanceof VoiceError && error.code === "timeout"
+            ? "voice.timeout"
+            : "voice.outputFailed",
+        );
         this.noticeIsError = true;
       }
     } finally {
@@ -113,12 +123,19 @@ export const voiceRuntime = {
           : typeof error === "object" && error !== null && "code" in error
             ? error.code
             : undefined;
+      if (code === "cancelled") return;
       if (code === "permission-denied") {
         this.notice = this.t("voice.permissionDenied");
       } else if (code === "microphone-unavailable") {
         this.notice = this.t("voice.microphoneUnavailable");
       } else {
-        this.notice = this.t("voice.retry");
+        this.notice = this.t(
+          code === "low-confidence"
+            ? "voice.lowConfidence"
+            : code === "timeout"
+              ? "voice.timeout"
+              : "voice.retry",
+        );
         if (this.canSpeak(lang)) {
           void this.speak(this.notice, lang, "voice-retry");
         }
@@ -170,29 +187,42 @@ export const voiceRuntime = {
   },
 
   playTone(this: VoiceContext, frequency: number): void {
+    if (!this.settings.soundCues) return;
     const AudioContextConstructor = window.AudioContext;
     if (typeof AudioContextConstructor !== "function") return;
-    if (!this.audioContext || this.audioContext.state === "closed") {
-      this.audioContext = new AudioContextConstructor();
-    }
+    try {
+      if (!this.audioContext || this.audioContext.state === "closed") {
+        this.audioContext = new AudioContextConstructor();
+      }
 
-    const context = this.audioContext;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const now = context.currentTime;
-    oscillator.frequency.setValueAtTime(frequency, now);
-    gain.gain.setValueAtTime(0.04, now);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.08);
+      const context = this.audioContext;
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      const now = context.currentTime;
+      oscillator.frequency.setValueAtTime(frequency, now);
+      gain.gain.setValueAtTime(0.04, now);
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.start(now);
+      oscillator.stop(now + 0.08);
+    } catch {
+      // Recording state remains visible when the browser cannot play a cue.
+    }
   },
 
   vibrate(this: VoiceContext, pattern: number | number[]): void {
-    if (this.settings.stopMotion || typeof navigator.vibrate !== "function") {
+    if (
+      this.settings.stopMotion ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches ||
+      typeof navigator.vibrate !== "function"
+    ) {
       return;
     }
-    navigator.vibrate(pattern);
+    try {
+      navigator.vibrate(pattern);
+    } catch {
+      // Haptics are a redundant cue, never a prerequisite for recording.
+    }
   },
 
   pauseSpeech(this: VoiceContext): void {

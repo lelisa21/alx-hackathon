@@ -409,6 +409,26 @@ components:
                 type: boolean
               tts:
                 type: boolean
+              voice:
+                type:
+                  - object
+                  - "null"
+                properties:
+                  engine:
+                    type: string
+                    enum:
+                      - browser
+                  bcp_tag:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                required:
+                  - engine
+                  - bcp_tag
+                additionalProperties: false
+                description: Reviewed browser declaration when at least one voice direction is
+                  enabled; otherwise null. The BCP 47 tag must match the pack
+                  language and script.
             required:
               - code
               - nameNative
@@ -418,6 +438,7 @@ components:
               - status
               - stt
               - tts
+              - voice
             additionalProperties: false
       required:
         - languages
@@ -563,6 +584,19 @@ paths:
   /v1/languages:
     get:
       summary: List available language packs
+      description: Voice flags intersect configured browser engines with reviewed,
+        non-draft pack approvals and a matching BCP 47 declaration. Preview
+        never enables draft voice. Browser capabilities may further disable a
+        direction.
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+          required: false
+          name: lang_preview
+          in: query
       responses:
         "200":
           description: Available languages
@@ -594,6 +628,26 @@ paths:
                           type: boolean
                         tts:
                           type: boolean
+                        voice:
+                          type:
+                            - object
+                            - "null"
+                          properties:
+                            engine:
+                              type: string
+                              enum:
+                                - browser
+                            bcp_tag:
+                              type: string
+                              minLength: 2
+                              maxLength: 35
+                          required:
+                            - engine
+                            - bcp_tag
+                          additionalProperties: false
+                          description: Reviewed browser declaration when at least one voice direction is
+                            enabled; otherwise null. The BCP 47 tag must match
+                            the pack language and script.
                       required:
                         - code
                         - nameNative
@@ -603,9 +657,35 @@ paths:
                         - status
                         - stt
                         - tts
+                        - voice
                       additionalProperties: false
                 required:
                   - languages
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
                 additionalProperties: false
   /v1/locales/{code}/ui:
     get:
