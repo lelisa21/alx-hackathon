@@ -32,7 +32,9 @@ import { createPostgresHelpAuthStore } from "./db/help-auth-store.js";
 import { createPostgresHelpSocketStore } from "./db/help-socket-store.js";
 import { errorHandler, sendProblem } from "./middleware/problem.js";
 import { createCoreRouter } from "./routes/core.js";
+
 import { createHelpRouter } from "./routes/help.js";
+import { createInsightsRouter } from "./routes/insights.js";
 import { attachHelpWebSockets } from "./help-sockets.js";
 import type { HelpSocketRuntime, HelpSocketStore } from "./help-sockets.js";
 import { createInternalRouter } from "./routes/internal.js";
@@ -463,6 +465,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       }),
     );
   }
+  app.use("/v1", createInsightsRouter(repository));
   app.use(
     "/v1/internal",
     createInternalRouter(config, repository, jobsService),

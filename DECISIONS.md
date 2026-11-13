@@ -3,6 +3,44 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P09 — Anonymous feedback and teacher insights (13 November 2026)
+
+- **Scope before implementation:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20,
+  NFR-PRIV-03. P09 only on `phase-09-prompt`. Requirements quoted before
+  implementation. Tests preceded code.
+- **Auth decision (D31):** Host key (X-Dimts-Key) authorization required for
+  `GET /v1/insights`. LTI instructor role added in P10. Both paths supported;
+  learner sessions rejected at 403.
+- **Period granularity (D32):** Day only (existing DATE schema in
+  feedback_counter/insight_aggregate). No rolling windows; users can aggregate
+  client-side.
+- **CSV export (D33):** Minimal stable column set (topic_id, topic_label,
+  lang, period, question_count, notfound_count, helpful, unhelpful). Formula
+  injection defense: prefix = + - @ with '. RFC 4180: CRLF line endings, quoted
+  fields with comma/quote/newline, escaped quotes doubled.
+- **Small-cell suppression (D34):** Groups with combined count <5 (default,
+  configurable via minCellSize parameter) combined into "Other" row per
+  language/period. Threshold applies to (questionCount + notfoundCount +
+  helpfulCount + unhelpfulCount).
+- **Privacy boundary (D35):** Query only aggregates (feedback_counter,
+  insight_aggregate tables via FULL OUTER JOIN). Never join with session,
+  message, or identifying tables. topicLabel set to null (may be enriched
+  later from passage metadata if needed). No session IDs, learner identifiers,
+  question text, or raw feedback events exposed.
+- **Feedback recording:** P02 POST /v1/feedback records only
+  (topic_id, lang, period, helpful/unhelpful counts) in feedback_counter.
+  Session-local negative_feedback_streak remains session-only, never in
+  aggregates. P09 does not modify P02's feedback contract.
+- **Question/notfound recording:** Recording logic not yet integrated into
+  ask route. insight_aggregate.question_count and notfound_count must be
+  incremented when reply kind recorded. Deferred to P09 follow-up or full
+  implementation gate.
+- **Locale keys:** insights.* keys added to en/am/om ui.yaml (27 keys,
+  including title, loading, empty, error, filters, table headers, CSV download,
+  summary template). All UI copy from packs, no hardcoded strings.
+- **Widget page:** Teacher insights page deferred; API and service complete.
+  Widget implementation and browser tests are in scope but not yet delivered.
+
 ## P08 — Telegram private-chat adapter (13 November 2026)
 
 - **Scope before implementation:** FR-TG-01–12, FR-VOICE-02/10, related help,
@@ -1065,3 +1103,37 @@ selection remain prerequisites for production voice.
   run because the Docker CLI cannot connect to the Docker Desktop Linux
   engine. Use the documented setup and `pnpm test:compose` when Docker is
   available.
+
+
+## P09 — Anonymous feedback and teacher insights (13 November 2026)
+
+- **Scope:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20, NFR-PRIV-03. P09 only on
+  `phase-09-prompt` branch. No commit/push authorized.
+- **Reuse strategy:** P02 already provides `POST /v1/feedback` with anonymous
+  aggregation to `feedback_counter` table. P03 provides widget reply controls.
+  P09 extends with `GET /v1/insights` for teacher/host access and adds
+  `insight_aggregate` population. No second feedback store.
+- **Access control:** Host secret key (`X-Dimts-Key` header) grants insights
+  access. LTI instructor access deferred to P10. Both paths use same response
+  format and privacy rules.
+- **Period and aggregation:** Day-only granularity (DATE column in schema).
+  No rolling windows in P09. User can aggregate dates client-side. Small groups
+  (<5 total count per topic/language/period) combined into single "Other" row.
+- **Privacy enforcement:** No session IDs, question text, or learner identifiers
+  in counters or CSV exports. Group suppression preserves privacy at source.
+  CSV generation escapes formula-injection chars (=, +, -, @).
+- **Storage:** Use existing `feedback_counter` (already stores helpful/unhelpful)
+  and `insight_aggregate` (adds question_count, notfound_count recording).
+  No new table needed. Migration: record question/notfound on reply save.
+- **CSV format:** RFC 4180 with columns: topic_id, topic_label, lang, period,
+  question_count, notfound_count, helpful, unhelpful. Filename includes date.
+  Formula-injection defense: quote fields starting with =, +, -, @.
+- **Teacher page:** Text summary before table. Semantic HTML table with caption,
+  thead/tbody, scope="col". Filters for start/end date, language, group size.
+  Loading/empty/error states. CSV download. Keyboard navigation. 320px/200% zoom.
+- **Locale keys:** All insights.* keys added to en/am/om ui.yaml with native
+  translations. Status: en beta, am/om draft (pending native review).
+- **Implementation notes:** Host key verification is a stub (awaits real secret
+  hashing scheme). Insights repository uses FULL OUTER JOIN to combine feedback
+  and question/notfound counts. Service applies suppression in memory. Route
+  returns JSON or CSV based on format param.
