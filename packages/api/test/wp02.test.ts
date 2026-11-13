@@ -348,6 +348,7 @@ describe("WP02 configuration and API contracts", () => {
         status: "draft",
         stt: false,
         tts: false,
+        voice: null,
       });
       expect((await request(app).get("/v1/locales/ti/ui")).status).toBe(404);
       const ui = await request(app).get("/v1/locales/ti/ui?lang_preview=1");

@@ -1780,12 +1780,17 @@ test("keeps default and high-contrast text at 7:1 without fading disabled contro
 
   await assertPalette();
   await page.getByRole("button", { name: "English" }).click();
-  const mic = widget.locator(".mic");
-  await expect(mic).toBeDisabled();
-  await expect
-    .poll(() => mic.evaluate((element) => getComputedStyle(element).opacity))
-    .toBe("1");
+  await expect(widget.locator(".mic")).toHaveCount(0);
   await page.getByRole("button", { name: "Settings" }).click();
+  const unavailableReadAloud = page.getByLabel("Read replies aloud");
+  await expect(unavailableReadAloud).toBeDisabled();
+  await expect
+    .poll(() =>
+      unavailableReadAloud.evaluate(
+        (element) => getComputedStyle(element).opacity,
+      ),
+    )
+    .toBe("1");
   await page.getByLabel("High contrast").check();
   await assertPalette();
 });
@@ -1970,7 +1975,7 @@ test("reads replies aloud only after the learner selects the read-aloud mode", a
     .toMatchObject({ pauses: 1, resumes: 1, stops: 1 });
 });
 
-test("keeps unconfigured voice disabled while typed questions still work", async ({
+test("hides unconfigured voice while typed questions still work", async ({
   page,
 }) => {
   await page.addInitScript(() => {
@@ -1990,9 +1995,9 @@ test("keeps unconfigured voice disabled while typed questions still work", async
   await openWidget(page);
   await page.getByRole("button", { name: "English" }).click();
 
-  await expect(
-    page.getByRole("button", { name: "Start talking" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start talking" })).toHaveCount(
+    0,
+  );
   await expect(
     page.getByText("Voice input is not enabled for this language."),
   ).toBeVisible();
@@ -2017,7 +2022,7 @@ test("keeps unconfigured voice disabled while typed questions still work", async
   ).toBe(0);
 });
 
-test("disables injected adapters that do not support the selected language", async ({
+test("hides injected adapters that do not support the selected language", async ({
   page,
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
@@ -2039,9 +2044,9 @@ test("disables injected adapters that do not support the selected language", asy
     await widget.updateComplete;
   });
 
-  await expect(
-    page.getByRole("button", { name: "Start talking" }),
-  ).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Start talking" })).toHaveCount(
+    0,
+  );
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(page.getByLabel("Read replies aloud")).toBeDisabled();
 });

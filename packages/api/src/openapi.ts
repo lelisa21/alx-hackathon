@@ -97,8 +97,14 @@ registry.registerPath({
   method: "get",
   path: "/v1/languages",
   summary: "List available language packs",
+  description:
+    "Voice flags intersect configured browser engines with reviewed, non-draft pack approvals and a matching BCP 47 declaration. Preview never enables draft voice. Browser capabilities may further disable a direction.",
+  request: {
+    query: z.object({ lang_preview: z.enum(["0", "1"]).optional() }),
+  },
   responses: {
     "200": { description: "Available languages", ...json(LanguageListSchema) },
+    "400": problemResponse,
   },
 });
 registry.registerPath({

@@ -3,6 +3,40 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P04 — controlled browser voice (13 November 2026)
+
+- **Requirements before implementation:** FR-VOICE-01–10/12, FR-UI-06,
+  FR-LANG-05 and NFR-A11Y-07. FR-VOICE-11 is removed. The user authorized
+  P04 only on `phase-04-prompt`; no commit or push by the agent.
+- **Supported engines and privacy:** `DIMTS_STT_ENGINE` and
+  `DIMTS_TTS_ENGINE` accept `none` (default) or `browser`. Browser STT must
+  explicitly support on-device recognition and report the declared language
+  available locally; TTS must select a matching local-service voice. No
+  automatic language-model download, remote fallback, audio storage or audio
+  cache. Existing question/passage consent is not consent to transmit audio.
+  No selected engine requires server STT/TTS, so `/v1/stt` and `/v1/tts` are
+  not introduced. Remote/server engines require a separately reviewed data
+  policy, binding and endpoint contract before they can be selected.
+- **Configuration transport:** extend each existing `/v1/languages` item
+  with `voice: {engine: "browser", bcp_tag: string} | null`, reusing the
+  locale voice declaration names. Existing `stt`/`tts` booleans describe the
+  intersection of deployment selection and reviewed, non-draft pack flags.
+  Preview never authorizes draft voice. Runtime browser capability may reduce
+  these flags further. Keep Zod, OpenAPI and the widget in sync; no new
+  configuration endpoint or private credentials are exposed.
+- **Interaction and cleanup:** confidence below 0.5 or a non-finite confidence
+  requests another attempt. Stop finalizes a recording; cancel discards it.
+  Language/session changes, hide/close and disconnect cancel native work and
+  invalidate late results. Voice does not fall back to another language;
+  localized UI reasons keep the existing text fallback. Recording sounds are
+  separately switchable; explicit voice review keeps transcript read-back,
+  while the Read-aloud preference controls automatic tutor replies.
+- **Evidence:** all shipped voice declarations/flags remain disabled until
+  real per-language, per-direction eight-of-ten Android results and native
+  review exist. Automated browser doubles prove behavior, not intelligibility
+  or screen-reader support. Candidate sentences and pending results must be
+  distinguished from approved evidence in `docs/VOICE_TEST.md`.
+
 ## P03 — widget, offline FAQ and Level 1 embedding (13 November 2026)
 
 - **Requirements before implementation:** FR-UI-06/08–10/14/16/18–20;

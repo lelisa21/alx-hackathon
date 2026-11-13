@@ -246,6 +246,8 @@ const environmentSchema = z
     DIMTS_CRON_SECRET: z.string().min(24),
     DIMTS_HOST_ORIGINS: z.string().default(""),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
+    DIMTS_STT_ENGINE: z.enum(["none", "browser"]).default("none"),
+    DIMTS_TTS_ENGINE: z.enum(["none", "browser"]).default("none"),
     DIMTS_LANGUAGE_DETECTION_CONFIDENCE: z.coerce
       .number()
       .min(0)
