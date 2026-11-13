@@ -73,6 +73,26 @@ export interface ApiRepository {
     ltiContext?: NewSession["ltiContext"];
   } | null>;
   touchSession(sessionId: string): Promise<void>;
+  // LTI P10 nonce/state/replay prevention
+  storeLtiState?(
+    state: string,
+    platformId: string,
+    nonce: string,
+    expiresAt: Date,
+  ): Promise<void>;
+  getLtiStateAndNonce?(
+    state: string,
+  ): Promise<{ platformId: string; nonce: string } | null>;
+  deleteLtiState?(state: string): Promise<void>;
+  checkAndMarkNonceUsed?(
+    nonce: string,
+    sessionId: string,
+  ): Promise<boolean>;
+  checkAndMarkTokenReplayed?(
+    tokenHash: string,
+    platformId: string,
+    sessionId: string,
+  ): Promise<boolean>;
   findReply(sessionId: string, clientMsgId: string): Promise<ApiReply | null>;
   countRecentQuestions(sessionId: string): Promise<number>;
   claimQuestion(question: ClaimedQuestion): Promise<boolean>;

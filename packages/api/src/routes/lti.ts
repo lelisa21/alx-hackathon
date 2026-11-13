@@ -48,20 +48,10 @@ export function createLtiRouter(options: {
   logger?: pino.Logger;
   jwtSecret?: string;
   platformConfigs?: Map<string, LtiPlatformConfig>;
-  nonceSeen?: Set<string>;
-  tokenHashSeen?: Set<string>;
 }): Router {
   const router = Router();
   const logger = options.logger || pino();
   const platformConfigs = options.platformConfigs || new Map();
-  const nonceSeen = options.nonceSeen || new Set();
-  const tokenHashSeen = options.tokenHashSeen || new Set();
-
-  // Store for state-to-nonce mapping (in-memory for single instance; use Redis for multi-instance)
-  const stateToNonce = new Map<
-    string,
-    { nonce: string; expiresAt: number; platformId: string }
-  >();
 
   /**
    * POST /v1/lti/login - OIDC login initiation
@@ -95,13 +85,12 @@ export function createLtiRouter(options: {
       // Generate state (expires in 5 min) and nonce
       const { state } = generateLtiState(platformId);
       const nonce = generateLtiNonce();
+      const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
-      // Store nonce for later validation
-      stateToNonce.set(state, {
-        nonce,
-        expiresAt: Date.now() + 5 * 60 * 1000,
-        platformId,
-      });
+      // Store nonce for later validation using database (persistent across restarts)
+      if (options.repository.storeLtiState) {
+        await options.repository.storeLtiState(state, platformId, nonce, expiresAt);
+      }
 
       // In production: redirect to platform's auth_login_url with state/client_id/redirect_uri
       res.json({
@@ -132,20 +121,10 @@ export function createLtiRouter(options: {
     try {
       const payload = LtiLaunchRequestSchema.parse(req.body);
 
-      // Validate state
-      const stateData = stateToNonce.get(payload.state);
+      // Validate state using database
+      const stateData = await options.repository.getLtiStateAndNonce?.(payload.state);
       if (!stateData) {
         return sendProblem(res, 403, "forbidden", "lti.launch.state_invalid");
-      }
-
-      if (Date.now() > stateData.expiresAt) {
-        stateToNonce.delete(payload.state);
-        return sendProblem(
-          res,
-          403,
-          "forbidden",
-          "lti.launch.state_expired"
-        );
       }
 
       // Get platform config
@@ -168,20 +147,27 @@ export function createLtiRouter(options: {
         return sendProblem(res, 401, "unauthorized", "lti.launch.invalid_token");
       }
 
-      // Check for token replay (hash the signature)
+      // Check for token replay (using database for persistence)
       const tokenHash = Buffer.from(payload.id_token.split(".")[2] || "")
         .toString("hex")
         .slice(0, 64);
-      if (tokenHashSeen.has(tokenHash)) {
+      
+      const isReplayed = await options.repository.checkAndMarkTokenReplayed?.(
+        tokenHash,
+        stateData.platformId,
+        ""
+      );
+      if (isReplayed) {
         logger.warn({ platformId: stateData.platformId }, "Token replay detected");
         return sendProblem(res, 403, "forbidden", "lti.launch.replay");
       }
-      tokenHashSeen.add(tokenHash);
-      nonceSeen.add(stateData.nonce);
 
-      // Check nonce one-time use
-      if (nonceSeen.has(stateData.nonce)) {
-        // Already saw this nonce in a previous request
+      // Check nonce one-time use (using database for persistence)
+      const nonceUsed = await options.repository.checkAndMarkNonceUsed?.(
+        stateData.nonce,
+        ""
+      );
+      if (!nonceUsed) {
         logger.warn("Nonce replay detected");
         return sendProblem(res, 403, "forbidden", "lti.launch.nonce_replay");
       }
@@ -229,8 +215,8 @@ export function createLtiRouter(options: {
         return sendProblem(res, 500, "internal", "error.session");
       }
 
-      // Clean up state
-      stateToNonce.delete(payload.state);
+      // Clean up state (database record will expire naturally after 5 minutes)
+      await options.repository.deleteLtiState?.(payload.state);
 
       res.json(
         LtiLaunchResponseSchema.parse({

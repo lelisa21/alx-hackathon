@@ -246,5 +246,76 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
       const { createInsightsRepository } = require("./insights-repository.js");
       return createInsightsRepository(pool);
     },
+    async getSessionDetails(sessionId) {
+      const result = await pool.query<{
+        id: string;
+        channel: string;
+        lti_context: NewSession["ltiContext"] | null;
+      }>(
+        "SELECT id, channel, lti_context FROM session WHERE id = $1",
+        [sessionId],
+      );
+      const row = result.rows[0];
+      return row
+        ? {
+            id: row.id,
+            channel: row.channel,
+            ltiContext: row.lti_context,
+          }
+        : null;
+    },
+    async storeLtiState(state: string, platformId: string, nonce: string, expiresAt: Date) {
+      await pool.query(
+        `INSERT INTO lti_nonce_state (state, platform_id, nonce, expires_at)
+         VALUES ($1, $2, $3, $4)
+         ON CONFLICT (state) DO NOTHING`,
+        [state, platformId, nonce, expiresAt],
+      );
+    },
+    async getLtiStateAndNonce(state: string) {
+      const result = await pool.query<{ platform_id: string; nonce: string }>(
+        `SELECT platform_id, nonce FROM lti_nonce_state
+         WHERE state = $1 AND expires_at > now()`,
+        [state],
+      );
+      const row = result.rows[0];
+      return row
+        ? { platformId: row.platform_id, nonce: row.nonce }
+        : null;
+    },
+    async deleteLtiState(state: string) {
+      await pool.query("DELETE FROM lti_nonce_state WHERE state = $1", [state]);
+    },
+    async checkAndMarkNonceUsed(nonce: string, sessionId: string) {
+      const result = await pool.query<{ nonce: string }>(
+        `SELECT nonce FROM lti_nonce_used WHERE nonce = $1`,
+        [nonce],
+      );
+      if (result.rows.length > 0) {
+        return false; // Nonce already used (replay)
+      }
+      await pool.query(
+        `INSERT INTO lti_nonce_used (nonce, session_id) VALUES ($1, $2)
+         ON CONFLICT (nonce) DO NOTHING`,
+        [nonce, sessionId],
+      );
+      return true;
+    },
+    async checkAndMarkTokenReplayed(tokenHash: string, platformId: string, sessionId: string) {
+      const result = await pool.query<{ token_hash: string }>(
+        `SELECT token_hash FROM lti_token_replay WHERE token_hash = $1`,
+        [tokenHash],
+      );
+      if (result.rows.length > 0) {
+        return true; // Token was already replayed
+      }
+      await pool.query(
+        `INSERT INTO lti_token_replay (token_hash, platform_id, session_id)
+         VALUES ($1, $2, $3)
+         ON CONFLICT (token_hash) DO NOTHING`,
+        [tokenHash, platformId, sessionId],
+      );
+      return false;
+    },
   };
 }
