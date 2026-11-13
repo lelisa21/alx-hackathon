@@ -65,6 +65,13 @@ export interface ApiRepository {
     sessionId: string,
   ): Promise<{ cloudOk: boolean; consentVersion: string | null } | null>;
   getSessionTokenHash(sessionId: string): Promise<string | null>;
+  getSessionDetails?(
+    sessionId: string,
+  ): Promise<{
+    id: string;
+    channel: string;
+    ltiContext?: NewSession["ltiContext"];
+  } | null>;
   touchSession(sessionId: string): Promise<void>;
   findReply(sessionId: string, clientMsgId: string): Promise<ApiReply | null>;
   countRecentQuestions(sessionId: string): Promise<number>;

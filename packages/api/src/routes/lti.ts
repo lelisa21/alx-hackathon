@@ -5,7 +5,6 @@ import {
   mapLtiRoles,
   generateLtiState,
   generateLtiNonce,
-  deriveLtiSessionKey,
   type LtiPlatformConfig,
   type LtiIdTokenClaims,
 } from "@dimts/lti";
@@ -191,12 +190,6 @@ export function createLtiRouter(options: {
       const { roles, insightsAccess } = mapLtiRoles(claims);
 
       // Create or resume session (pseudonymous, no account creation)
-      const _sessionKey = deriveLtiSessionKey(
-        platformConfig.issuer,
-        stateData.platformId,
-        claims.sub
-      );
-
       // Generate session ID from key (in production, use HMAC)
       const sessionId =
         "session-" +

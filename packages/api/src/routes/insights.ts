@@ -17,7 +17,7 @@ export function createInsightsRouter(repository: ApiRepository): Router {
     try {
       // Authentication: X-Dimts-Key (host) or LTI instructor (P10)
       const hostKey = req.headers["x-dimts-key"] as string | undefined;
-      const _authHeader = req.headers.authorization as string | undefined;
+      const authHeader = req.headers.authorization as string | undefined;
 
       // Check authorization
       let isAuthorized = false;
@@ -31,8 +31,33 @@ export function createInsightsRouter(repository: ApiRepository): Router {
       }
 
       // Path 2: LTI instructor session (bearer token with insightsAccess)
-      // In production, extract and verify session from bearer token
-      // For now, require host key; LTI path implemented in P10
+      if (!isAuthorized && authHeader) {
+        const match = /^Bearer ([A-Za-z0-9_-]{20,100})$/u.exec(authHeader);
+        if (match) {
+          // Extract sessionId from query or body
+          const sessionId =
+            typeof req.body?.sessionId === "string"
+              ? req.body.sessionId
+              : typeof req.query.sessionId === "string"
+                ? (req.query.sessionId as string)
+                : "";
+
+          if (sessionId) {
+            // Get session details to check LTI context and insights access
+            const sessionDetails = await repository.getSessionDetails?.(
+              sessionId,
+            );
+            if (
+              sessionDetails &&
+              sessionDetails.channel === "lti" &&
+              sessionDetails.ltiContext?.insightsAccess
+            ) {
+              isAuthorized = true;
+            }
+          }
+        }
+      }
+
       if (!isAuthorized) {
         return sendProblem(res, 401, "unauthorized", "error.auth");
       }

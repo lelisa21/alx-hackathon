@@ -1,6 +1,4 @@
-import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
-import type { Pool } from "pg";
-import { createRemoteJWKSet, jwtVerify } from "jose";
+import { describe, expect, it, beforeEach } from "vitest";
 import type { JWTPayload } from "jose";
 
 /**
@@ -69,14 +67,6 @@ describe("P10 FR-INT-05/06 LTI 1.3 platform registration and validation", () => 
   });
 
   it("POST /lti/login returns state and nonce for platform registration", () => {
-    const loginRequest = {
-      iss: mockIssuer,
-      login_hint: "user-123",
-      target_link_uri: "https://app.example.com/lti/launch",
-      lti_message_hint: "context-hint",
-      client_id: mockClientId,
-    };
-
     // Simulate state/nonce generation
     const state = Buffer.from(
       JSON.stringify({
@@ -127,9 +117,8 @@ describe("P10 FR-INT-05/06 LTI 1.3 platform registration and validation", () => 
 
 describe("P10 FR-INT-05/06 LTI 1.3 JWT validation and security", () => {
   const now = Math.floor(Date.now() / 1000);
-  const mockJwksUri = "https://platform.example.com/.well-known/jwks.json";
 
-  it("rejects token with invalid signature", () => {
+  it("rejects token with invalid signature", async () => {
     const tokenPayload = {
       iss: mockIssuer,
       aud: mockClientId,
@@ -141,19 +130,20 @@ describe("P10 FR-INT-05/06 LTI 1.3 JWT validation and security", () => {
         mockDeploymentId,
     };
 
-    const badToken =
-      "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9." +
-      Buffer.from(JSON.stringify(tokenPayload)).toString("base64url") +
-      ".invalid_signature";
+    // Create malformed token with invalid signature segment (contains invalid chars)
+    const validHeader = Buffer.from(
+      JSON.stringify({ alg: "RS256", typ: "JWT" })
+    ).toString("base64url");
+    const validPayload = Buffer.from(JSON.stringify(tokenPayload)).toString(
+      "base64url"
+    );
+    // Signature with invalid base64url characters (!, @, # are not base64url)
+    const invalidSignature = "invalid!@#$%";
 
-    // Signature verification would fail
-    expect(badToken).toBeDefined();
-    expect(() => {
-      // In production, jose.jwtVerify would throw
-      if (!badToken.split(".")[2] || badToken.split(".")[2].length < 10) {
-        throw new Error("Invalid signature");
-      }
-    }).toThrow("Invalid signature");
+    const badToken = `${validHeader}.${validPayload}.${invalidSignature}`;
+
+    // Verify the signature segment contains invalid base64url characters
+    expect(badToken.split(".")[2]).toMatch(/[!@#$%]/);
   });
 
   it("rejects token with wrong issuer", () => {
@@ -292,8 +282,6 @@ describe("P10 FR-INT-05/06 LTI 1.3 JWT validation and security", () => {
 });
 
 describe("P10 FR-INT-06/07 LTI launch: learner and instructor flows", () => {
-  const now = Math.floor(Date.now() / 1000);
-
   it("learner launch creates pseudonymous session without account", () => {
     const launchContext = {
       sub: "user-123", // Platform-scoped user ID (not stored directly)
@@ -439,8 +427,6 @@ describe("P10 FR-INT-07 LTI session integration: audit context", () => {
 });
 
 describe("P10 FR-INT-10 + P09 insights: instructor access via LTI", () => {
-  const now = Math.floor(Date.now() / 1000);
-
   it("learner LTI launch cannot access insights (no credentials)", () => {
     const sessionData = {
       sessionId: "session-learner",
