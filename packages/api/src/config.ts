@@ -225,6 +225,28 @@ const base64Key = (length: number) =>
       );
     }, `must be ${length} random bytes in base64`);
 
+const optionalSmsSecret = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z.string().min(24).regex(/^\S+$/u).optional(),
+);
+const optionalSmsUrl = z.preprocess(
+  (value) => (value === "" ? undefined : value),
+  z
+    .string()
+    .url()
+    .refine((value) => {
+      const url = new URL(value);
+      return (
+        url.protocol === "https:" &&
+        !url.username &&
+        !url.password &&
+        !url.search &&
+        !url.hash
+      );
+    }, "must use HTTPS without credentials, query or fragment")
+    .optional(),
+);
+
 const environmentSchema = z
   .object({
     NODE_ENV: z
@@ -316,7 +338,13 @@ const environmentSchema = z
     DIMTS_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
     DIMTS_TELEGRAM_TOKEN: z.string().optional(),
     DIMTS_TELEGRAM_SECRET: z.string().optional(),
-    DIMTS_SMS_MODE: z.string().default("simulator"),
+    DIMTS_SMS_MODE: z.enum(["simulator", "gateway"]).default("simulator"),
+    DIMTS_SMS_GATEWAY_SECRET: optionalSmsSecret,
+    DIMTS_SMS_GATEWAY_URL: optionalSmsUrl,
+    DIMTS_SMS_GATEWAY_TOKEN: optionalSmsSecret,
+    DIMTS_SMS_CALLBACK_URL: optionalSmsUrl,
+    DIMTS_SMS_CALLBACK_SECRET: optionalSmsSecret,
+    DIMTS_SMS_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(20),
     DIMTS_TURN_API_KEY: z.string().optional(),
     DIMTS_TURN_APP: z.preprocess(
       (value) => (value === "" ? undefined : value),
@@ -335,6 +363,45 @@ const environmentSchema = z
     DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {
+    if (
+      Boolean(config.DIMTS_SMS_GATEWAY_URL) !==
+        Boolean(config.DIMTS_SMS_GATEWAY_TOKEN) ||
+      (config.DIMTS_SMS_MODE === "gateway" && !config.DIMTS_SMS_GATEWAY_URL)
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_SMS_GATEWAY_URL"],
+        message:
+          "SMS gateway URL and token must be configured together; gateway mode requires both",
+      });
+    if (
+      Boolean(config.DIMTS_SMS_CALLBACK_URL) !==
+      Boolean(config.DIMTS_SMS_CALLBACK_SECRET)
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_SMS_CALLBACK_URL"],
+        message: "SMS callback URL and secret must be configured together",
+      });
+    if (
+      config.DIMTS_SMS_GATEWAY_SECRET &&
+      [
+        config.DIMTS_ENC_KEY,
+        config.DIMTS_HASH_KEY,
+        config.DIMTS_JWT_SECRET,
+        config.DIMTS_CRON_SECRET,
+        config.DIMTS_JOBS_RELAY_SECRET,
+        config.DIMTS_SMS_GATEWAY_TOKEN,
+        config.DIMTS_SMS_CALLBACK_SECRET,
+        config.DIMTS_TELEGRAM_SECRET,
+      ].includes(config.DIMTS_SMS_GATEWAY_SECRET)
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_SMS_GATEWAY_SECRET"],
+        message:
+          "SMS inbound secret must differ from other configured credentials",
+      });
     if (
       Boolean(config.DIMTS_JOBS_RELAY_URL) !==
         Boolean(config.DIMTS_JOBS_RELAY_SECRET) ||

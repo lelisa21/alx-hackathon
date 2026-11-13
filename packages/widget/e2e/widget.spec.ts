@@ -236,11 +236,19 @@ test("P03 shortcuts are documented, work with modifiers, and can be disabled", a
 }) => {
   await openWidget(page);
   await page.getByRole("button", { name: "English" }).click();
+  await expect(page.getByRole("button", { name: "Settings" })).toBeFocused();
+  await expect(page.locator("#message")).toBeEnabled();
   await page.keyboard.press("Alt+Shift+L");
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   await page.keyboard.press("Alt+Shift+H");
   await expect(page.getByRole("dialog")).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", {
+      name: packs.get("en")!.ui["help.includeSummary"],
+    }),
+  ).toBeFocused();
   await page.keyboard.press("Escape");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(
     page.getByText(

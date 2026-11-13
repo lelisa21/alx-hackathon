@@ -79,6 +79,45 @@ describe.skipIf(!url)("P06 durable jobs gateway", () => {
       await pool.end();
     }
   });
+  it("P07 STOP revokes every consented subscription for one transient channel contact", async () => {
+    const originalConsentIds = (
+      await pool.query<{ id: string }>("SELECT id FROM consent_log")
+    ).rows.map((row) => row.id);
+    const contact = "+251911223344";
+    const first = await service.subscribe({
+      sessionId: session,
+      clientRequestId: "sms-stop-a",
+      channel: "sms",
+      contact,
+      lang: "en",
+      consent: { accepted: true, noticeVersion: "job-alerts-v1" },
+    });
+    const second = await service.subscribe({
+      sessionId: "other-session",
+      clientRequestId: "sms-stop-b",
+      channel: "sms",
+      contact,
+      lang: "om",
+      consent: { accepted: true, noticeVersion: "job-alerts-v1" },
+    });
+    await service.stopContact({ channel: "sms", contact });
+    const rows = await pool.query(
+      "SELECT contact_enc,contact_hash,stopped_at FROM subscription WHERE id=ANY($1::text[])",
+      [[first.id, second.id]],
+    );
+    expect(rows.rows).toHaveLength(2);
+    for (const row of rows.rows) {
+      expect(row.contact_enc).toBeNull();
+      expect(row.contact_hash).toBeNull();
+      expect(row.stopped_at).not.toBeNull();
+    }
+    await pool.query("DELETE FROM subscription WHERE id=ANY($1::text[])", [
+      [first.id, second.id],
+    ]);
+    await pool.query("DELETE FROM consent_log WHERE NOT(id=ANY($1::text[]))", [
+      originalConsentIds,
+    ]);
+  });
   it("imports valid items atomically without replacing existing course/source generations; filters and grounded citations work", async () => {
     await replaceContent(
       pool,

@@ -23,3 +23,23 @@ keywords:
     - JOBS
     - ስራ
     - HOJII
+  person: [PERSON, HELP, "2", ሰው, NAMA]
+  confirm: [Y, YES, አዎ, EE]
+  cancel: [CANCEL, ሰርዝ, HAQI]
+  all: [ALL, ሁሉም, HUNDA]
+welcome: "የትምህርት ጥያቄ ይጠይቁ። HELP ለሰው፣ JOBS ለሥራ፣ STOP ለማቆም።"
+invalid: "ከተዘረዘሩት ምርጫዎች አንዱን ይላኩ።"
+unavailable: "ይህ አገልግሎት አልተዘጋጀም። ጥያቄ አልተላከም። መማር ይችላሉ።"
+callback_sent: "የመልሶ መደወል ጥያቄዎ ተቀብሏል። የመደወያ ሰዓት አልተረጋገጠም።"
+jobs_type: "ምን ዓይነት ሥራ? ለሁሉም ALL፣ ለመሰረዝ CANCEL ይላኩ።"
+jobs_region: "የትኛው ክልል? ለሁሉም ALL፣ ለመሰረዝ CANCEL ይላኩ።"
+jobs_language: "የሥራ መልእክት ቋንቋ፦ 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_consent: "በዚህ ቁጥር ዕለታዊ የሥራ መልእክት ለ30 ቀናት? ለመፍቀድ Y፣ ለማቆም STOP።"
+jobs_active: "የሥራ መልእክት ለ30 ቀናት በርቷል። JOBS ለማስተዳደር፣ STOP ሁሉን ለማቆም።"
+jobs_stopped: "የሥራ መልእክቶች ቆመዋል፣ ቁጥሩ ተሰርዟል። መማር መቀጠል ይችላሉ።"
+jobs_manage: "1 አዲስ የሥራ መልእክት። 2 የሥራ መልእክት አቁም። STOP ሁሉን ያቆማል።"
+limit: "የዕለቱ የመልእክት ገደብ ደርሷል። ነገ ይሞክሩ። STOP ይሠራል።"
+no_more: "ተጨማሪ የተቀመጠ ጽሑፍ የለም። ሌላ ጥያቄ ይጠይቁ።"
+error: "ጥያቄው አልተሳካም። ያንኑ መልእክት እንደገና ይሞክሩ።"
+cancelled: "ተሰርዟል። መማር መቀጠል ይችላሉ።"
+conflict: "ይህ የመልእክት መለያ አስቀድሞ ተጠቅሟል። አዲስ መልእክት ይላኩ።"

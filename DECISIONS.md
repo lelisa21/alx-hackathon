@@ -3,6 +3,62 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P07 — SMS and simulator (13 November 2026)
+
+- **Scope before implementation:** FR-SMS-01–12, FR-LANG-12/17 and channel
+  privacy. P07 only on `phase-07-prompt`; P06 performance/review gates remain
+  open. Reuse the conversation engine and P06 subscriptions, not parallel stores.
+- **Agreed API contract:** `POST /v1/sms/inbound` takes `{id,from,text}` under
+  `Authorization: Bearer DIMTS_SMS_GATEWAY_SECRET`; the separate secret is never
+  bundled in the simulator. Return `{messages,stopped,lang}`, where messages
+  contain `{id,text,encoding,units,segments,status}` and no phone number.
+  IDs deduplicate by keyed phone identity; changing the body under an existing
+  ID is a conflict. The simulator uses this same endpoint with operator-entered,
+  memory-only settings. No real SMS operator is claimed or required for P07.
+- **Gateway boundary:** Preserve the documented `send/onInbound/status` port;
+  add optional idempotency metadata. The optional HTTPS adapter uses version
+  `dimts.sms.gateway.v1`, a separate Bearer token, and POST actions `send` and
+  `status`. Send accepts `{to,text,lang,idempotencyKey}` and requires a receipt
+  with the same key plus `{id,segments,status}`. Status takes `{id}` and returns
+  `{id,status}`. Both responses carry the version. Adapters must durably
+  deduplicate before external delivery, including after receipt loss. Calls
+  are bounded to 2.5 seconds each; two retries reuse the same key.
+- **Privacy and recovery:** Store HMAC phone identities and permanent STOP
+  tombstones. Persist no phone outside encrypted, explicitly consented P06
+  subscriptions. Conversation/continuation and replay payloads are encrypted,
+  bounded and retained only as needed; daily counters/delivery IDs are durable.
+  STOP takes priority, revokes all matching P06 subscriptions across sessions,
+  erases pending content, confirms once, and prevents later delivery.
+- **Callback:** HELP/person asks for a separate Y. Only then may an optional
+  authenticated HTTPS callback port receive the transient number. Its version
+  is `dimts.sms.callback.v1`; payload `{from,sessionId,lang,idempotencyKey}` and
+  matching accepted receipt. No durable callback phone store. Missing host
+  configuration produces a localized unavailable response, not a fake request.
+- **Encoding and continuation:** Count the actual transmitted text using the
+  authoritative GSM-7/UCS-2 calculator, including extension units and UTF-16
+  units. Normalize curly quotes/apostrophes only for SMS transmission and
+  keyword matching. Prefer complete sentences, including Ethiopic full stops,
+  within three segments including the continuation cue. An indivisible oversized
+  sentence falls back to bounded word/code-point chunks so continuation makes
+  progress without splitting surrogate pairs; cap at ten pages and never offer
+  continuation beyond stored content. Source text and locale review status stay
+  unchanged. Draft keywords/translations require native-language review.
+- **Operational bounds and simulator:** Tutor/callback/subscription failures keep
+  the pending inbound identity so retries can recover. STOP revokes outside
+  the per-phone queue, erases P06 contacts before acquiring the confirmation
+  lock, and retains only the canned confirmation intent for crash recovery.
+  Three HTTP send attempts use 2.5-second deadlines; the first status read
+  uses the send receipt, keeping delivery within P06's bound. STOP's single
+  confirmation is permitted even after the daily cap; all other output is
+  capped. The standalone simulator requires a test server and operator-entered
+  test credentials; changing UI language does not change the numeric SMS menu.
+  A new thread clears browser memory and cannot reset a server STOP tombstone.
+- **P06 delivery compatibility:** Default application wiring routes every SMS
+  digest through the native SMS service, including when a legacy host relay
+  advertises SMS. Without configured native SMS, that channel is unavailable;
+  it cannot bypass STOP or daily budgets. Host Telegram and accommodation
+  delivery remain intact; explicit injected delivery ports remain test seams.
+
 ## P06 — jobs, alerts and private accommodation (13 November 2026)
 
 - **Scope before implementation:** FR-JOB-01–11, FR-INT-07, FR-TUTOR-09,

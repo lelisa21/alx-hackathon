@@ -1,0 +1,213 @@
+import { createHash, randomUUID } from "node:crypto";
+import { countSms, normalizeForSms } from "./segments.js";
+
+export type SmsDeliveryStatus = "queued" | "sent" | "delivered" | "failed";
+export type SmsInboundHandler = (
+  from: string,
+  text: string,
+  metadata?: { id: string },
+) => Promise<void>;
+export interface SmsGateway {
+  send(
+    to: string,
+    text: string,
+    opts?: { lang: string; idempotencyKey?: string },
+  ): Promise<{ id: string; segments: number }>;
+  onInbound(handler: SmsInboundHandler): void;
+  status(id: string): Promise<SmsDeliveryStatus>;
+}
+export class SmsGatewayError extends Error {
+  constructor() {
+    super("SMS gateway delivery failed");
+    this.name = "SmsGatewayError";
+  }
+}
+function status(value: unknown): value is SmsDeliveryStatus {
+  return ["queued", "sent", "delivered", "failed"].includes(String(value));
+}
+/** In-process simulation only. Durable retries/counters belong to SmsService. */
+export class SimulatedSmsGateway implements SmsGateway {
+  private handler: SmsInboundHandler | undefined;
+  private readonly receipts = new Map<
+    string,
+    {
+      id: string;
+      segments: number;
+      fingerprint: string;
+      attempts: number;
+      status: SmsDeliveryStatus;
+    }
+  >();
+  private readonly failures: number;
+  constructor(options: { failuresBeforeSuccess?: number } = {}) {
+    this.failures = options.failuresBeforeSuccess ?? 0;
+    if (
+      !Number.isInteger(this.failures) ||
+      this.failures < 0 ||
+      this.failures > 3
+    )
+      throw new RangeError("Invalid simulator failure count");
+  }
+  onInbound(handler: SmsInboundHandler): void {
+    this.handler = handler;
+  }
+  async receive(input: {
+    id: string;
+    from: string;
+    text: string;
+  }): Promise<void> {
+    if (!this.handler) throw new SmsGatewayError();
+    await this.handler(input.from, input.text, { id: input.id });
+  }
+  async send(
+    to: string,
+    raw: string,
+    opts?: { lang: string; idempotencyKey?: string },
+  ): Promise<{ id: string; segments: number }> {
+    const text = normalizeForSms(raw);
+    const key = opts?.idempotencyKey ?? randomUUID();
+    const fingerprint = createHash("sha256")
+      .update(JSON.stringify([to, text, opts?.lang ?? "en"]))
+      .digest("hex");
+    let receipt = this.receipts.get(key);
+    if (receipt && receipt.fingerprint !== fingerprint)
+      throw new SmsGatewayError();
+    if (!receipt) {
+      receipt = {
+        id: `sim-${createHash("sha256").update(key).digest("hex").slice(0, 24)}`,
+        segments: countSms(text).segments,
+        fingerprint,
+        attempts: 0,
+        status: "queued",
+      };
+      this.receipts.set(key, receipt);
+    }
+    if (receipt.status === "delivered")
+      return { id: receipt.id, segments: receipt.segments };
+    receipt.attempts++;
+    if (receipt.attempts <= this.failures) {
+      receipt.status = "failed";
+      throw new SmsGatewayError();
+    }
+    receipt.status = "delivered";
+    return { id: receipt.id, segments: receipt.segments };
+  }
+  async status(id: string): Promise<SmsDeliveryStatus> {
+    const receipt = [...this.receipts.values()].find(
+      (entry) => entry.id === id,
+    );
+    if (!receipt) throw new SmsGatewayError();
+    return receipt.status;
+  }
+}
+export const SMS_GATEWAY_VERSION = "dimts.sms.gateway.v1";
+/** Operator bridge protocol, not an assertion that any operator is configured. */
+export class HttpSmsGateway implements SmsGateway {
+  private readonly acknowledgements = new Map<string, SmsDeliveryStatus>();
+  private readonly url: string;
+  private readonly token: string;
+  private readonly transport: typeof fetch;
+  private handler: SmsInboundHandler | undefined;
+  constructor(options: {
+    url: string;
+    token: string;
+    transport?: typeof fetch;
+  }) {
+    const url = new URL(options.url);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      options.token.length < 24
+    )
+      throw new SmsGatewayError();
+    this.url = url.href;
+    this.token = options.token;
+    this.transport = options.transport ?? fetch;
+  }
+  onInbound(handler: SmsInboundHandler): void {
+    this.handler = handler;
+  }
+  async receive(input: {
+    id: string;
+    from: string;
+    text: string;
+  }): Promise<void> {
+    if (!this.handler) throw new SmsGatewayError();
+    await this.handler(input.from, input.text, { id: input.id });
+  }
+  private async call(
+    body: Record<string, unknown>,
+  ): Promise<Record<string, unknown>> {
+    try {
+      const response = await this.transport(this.url, {
+        method: "POST",
+        redirect: "error",
+        // Three attempts stay within the P06 delivery port's ten-second bound.
+        signal: AbortSignal.timeout(2500),
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${this.token}`,
+          ...(typeof body.idempotencyKey === "string"
+            ? { "Idempotency-Key": body.idempotencyKey }
+            : {}),
+        },
+        body: JSON.stringify({ version: SMS_GATEWAY_VERSION, ...body }),
+      });
+      if (!response.ok) throw new SmsGatewayError();
+      const result: unknown = await response.json();
+      if (
+        typeof result !== "object" ||
+        !result ||
+        !("version" in result) ||
+        result.version !== SMS_GATEWAY_VERSION
+      )
+        throw new SmsGatewayError();
+      return result as Record<string, unknown>;
+    } catch {
+      throw new SmsGatewayError();
+    }
+  }
+  async send(
+    to: string,
+    raw: string,
+    opts?: { lang: string; idempotencyKey?: string },
+  ): Promise<{ id: string; segments: number }> {
+    const text = normalizeForSms(raw);
+    const idempotencyKey = opts?.idempotencyKey ?? randomUUID();
+    const segments = countSms(text).segments;
+    const result = await this.call({
+      action: "send",
+      to,
+      text,
+      lang: opts?.lang ?? "en",
+      idempotencyKey,
+    });
+    if (
+      result.idempotencyKey !== idempotencyKey ||
+      typeof result.id !== "string" ||
+      !result.id ||
+      result.id.length > 256 ||
+      result.segments !== segments ||
+      !status(result.status) ||
+      result.status === "failed"
+    )
+      throw new SmsGatewayError();
+    if (this.acknowledgements.size >= 1024)
+      this.acknowledgements.delete(this.acknowledgements.keys().next().value!);
+    this.acknowledgements.set(result.id, result.status);
+    return { id: result.id, segments };
+  }
+  async status(id: string): Promise<SmsDeliveryStatus> {
+    const acknowledged = this.acknowledgements.get(id);
+    if (acknowledged) {
+      this.acknowledgements.delete(id);
+      return acknowledged;
+    }
+    const result = await this.call({ action: "status", id });
+    if (result.id !== id || !status(result.status)) throw new SmsGatewayError();
+    return result.status;
+  }
+}

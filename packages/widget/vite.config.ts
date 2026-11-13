@@ -3,9 +3,11 @@ import { loadPacks } from "../locales-tools/src/index.js";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
+import { smsPagePlugin } from "./sms-page-plugin.js";
 
 export default defineConfig({
   plugins: [
+    smsPagePlugin(),
     {
       name: "dimts-private-lit-metadata",
       enforce: "pre",

@@ -38,7 +38,8 @@ export type JobsApiService = Pick<
   | "listAccommodationRequests"
   | "runAlerts"
   | "cleanupExpired"
->;
+> &
+  Partial<Pick<JobsService, "stopContact">>;
 
 export function createJobsRouter(options: {
   service: JobsApiService;
