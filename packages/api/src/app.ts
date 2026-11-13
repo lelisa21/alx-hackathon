@@ -478,6 +478,17 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     "/v1/internal",
     createInternalRouter(config, repository, jobsService),
   );
+
+  // OpenAPI documentation
+  app.get("/v1/openapi.yaml", (req, res) => {
+    res.setHeader("Content-Type", "application/yaml");
+    res.send(registry.toYaml());
+  });
+
+  app.get("/v1/openapi.json", (req, res) => {
+    res.json(registry.toObject());
+  });
+
   app.use((_request, response) => {
     sendProblem(response, 404, "not_found", "error.not_found");
   });

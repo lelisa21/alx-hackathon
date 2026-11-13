@@ -1,12 +1,8 @@
-# P10 LTI 1.3 and OpenAPI: Code Review
+# LTI 1.3 Platform Registration and Secure Launch Integration
 
-LTI 1.3 integration with OIDC login flow and JWT validation is implemented with comprehensive security tests. Session binding to platform identity is pseudonymous and role-based insights access is wired. However, the OpenAPI schema has not been updated with LTI routes, and insights authorization logic requires completion.
+Implements FR-INT-05/06/07/10 (LTI 1.3 OIDC login, token validation, role mapping, instructor insights access) plus NFR-ADOPT-01/02 (setup docs, OpenAPI). The implementation adds three routes (POST /lti/login, POST /lti/launch, GET /lti/jwks), validates JWT signatures, enforces state/nonce one-time use, maps LTI roles to session attributes, and gates instructor insights access. Session stores platform issuer, deployment ID, and user ID for audit.
 
-**Watch for:**
-- **confirmed** OpenAPI schema missing LTI endpoints (`/lti/login`, `/lti/launch`, `/lti/jwks`) and insights security scheme
-- **confirmed** Insights route accepts `X-Dimts-Key` or session bearer but lacks LTI instructor role verification in the authorize path
-- **confirmed** One test failing: token signature validation test has incorrect assertion (doesn't throw as expected)
-- **likely** LTI session nonce/state/token replay detection uses in-memory storage that won't survive restart or horizontal scaling
+Watch for: **Nonce replay check has inverted logic** — rejects first-time nonce use and allows replays (line 171 in routes/lti.ts). State and token replay checks are correct but optional repository methods may fail silently if not implemented. OpenAPI YAML does not render LTI routes when generated (missing schema registration step).
 
 **Verdict**: NEEDS_CHANGES
 
@@ -14,97 +10,103 @@ LTI 1.3 integration with OIDC login flow and JWT validation is implemented with 
 
 ## High-level view
 
-LTI 1.3 token validation is complete: the `@dimts/lti` package validates signatures against platform JWKS, enforces issuer/audience/deployment matching, rejects replayed nonces and tokens, and applies 5-minute expiry limits. The route handlers in `packages/api/src/routes/lti.ts` implement login/launch flows and parse role claims to determine instructor access.
+The OIDC login flow generates state and nonce, stores them in the database, and returns them to the platform. On launch, the LTI route validates the signed id_token against the platform's JWKS, enforces signature, issuer, audience, deployment, nonce, and expiry checks, then creates a pseudonymous session with LTI context for audit. Role mapping extracts the Instructor flag and sets insightsAccess on the session, allowing instructors to access insights via bearer token without needing a separate X-Dimts-Key.
 
-Session creation ties LTI identity to a pseudonymous session ID derived from platform and user hash, with launch context stored for audit (platform issuer, deployment, user ID, roles, course context). The integration with `createSession()` appears sound for channel=lti binding.
+State expires after 5 minutes; nonce is one-time use; JWT expiry is capped at 5 minutes in future. Token signature hash is recorded to prevent replay. Learner sessions get normal access; instructor sessions get insightsAccess flag that gates /v1/insights endpoint (verified in POST path with bearer token). All security-sensitive log statements strip sensitive values (truncate state to first 8 chars, redact token content).
 
-However, two blocking gaps remain. First, the OpenAPI schema (`packages/api/openapi.yaml`) does not document the three LTI routes or their request/response schemas; the generated spec is incomplete. Second, the insights route accepts both host key and bearer token but the code comment in `insights.ts` says "LTI path implemented in P10" — the actual LTI instructor path is stubbed and not implemented. The insights repository method `verifyHostKey` is called, but there is no corresponding code to extract and verify an LTI instructor session from the bearer token and check the `insightsAccess` flag.
-
-Security testing is thorough (signature, nonce replay, state expiry, deployment mismatch, token age), but three concerns remain unaddressed: in-memory nonce/state/token-hash stores are not persistent across restarts, session context is not validated against a real platform registry, and the test suite has one failing assertion that masks test correctness.
+OpenAPI documents the three routes and security schemes but the generated YAML does not include LTI paths (registry registration appears correct in code but the openapi.ts generate step may not be running or YAML file not being rebuilt). Repository methods for nonce/token replay checking exist and are correctly implemented but calls in routes use optional chaining that may mask failures.
 
 ---
 
 <details>
-<summary>Issues (5)</summary>
+<summary>Issues (4)</summary>
 
-1. **OpenAPI schema incomplete** — LTI routes and request/response schemas not added to `packages/api/openapi.yaml`. The generated spec will not document `/v1/lti/login`, `/v1/lti/launch`, `/v1/lti/jwks`, or the LTI security scheme. Update `packages/api/src/openapi.ts` to register LTI path definitions and schemas.
+1. **Nonce replay logic inverted** — checkAndMarkNonceUsed returns true on first use (allow) and false on replay (reject), but lti.ts line 171 checks `if (!nonceUsed)` to reject, which rejects valid launches and allows replays. Swap the condition to `if (nonceUsed === false)` or negate the variable name. **confirmed**
 
-2. **Insights bearer token path not implemented** — `packages/api/src/routes/insights.ts` comment says "LTI path implemented in P10" but the code only checks `X-Dimts-Key`. No code extracts the bearer token, verifies it as a valid session, or checks `insightsAccess` flag. Implement the LTI instructor authorization path: parse bearer token, validate session, check `insightsAccess` flag, or reject with 401.
+2. **Optional repository methods may fail silently** — checkAndMarkTokenReplayed, checkAndMarkNonceUsed, deleteLtiState, getLtiStateAndNonce are optional chaining calls that silently skip if not implemented. If repo doesn't implement them (e.g., test harness), nonce/state/token checks are bypassed entirely, leaving the security model unenforced. Make these mandatory or add explicit fallback to Set-based store. **confirmed**
 
-3. **Nonce/state/token-hash store is in-memory** — `stateToNonce` and `tokenHashSeen` in `routes/lti.ts` and `nonceSeen` in the router options will not survive API restart or horizontal scaling. Replay attacks are possible if the process restarts before token-hash cleanup or if requests hit different instances. Move to Redis or PostgreSQL: store with expiry key, check before validation, and delete on success.
+3. **OpenAPI YAML does not render LTI routes** — Code registers three LTI paths in openapi.ts (lines 795–898) but grep on the built openapi.yaml shows zero matches for "/lti". The build process either does not regenerate openapi.yaml or the registry is not being exported. Verify build step and ensure paths are exported to YAML. **likely**
 
-4. **Test assertion incorrect** — `p10-lti.test.ts` line 156 test "rejects token with invalid signature" expects a thrown error but the test's mock function does not actually throw under the bad-signature condition. The signature validation is incomplete: `badToken.split(".")[2].length < 10` is not a real signature check. Fix the test to use actual jose library validation or stub it properly.
-
-5. **Platform registry not validated** — Session creation stores `ltiContext` with platform config details but does not validate that the platform is registered in the database or that deployment IDs match a live enrollment. The `platformConfigs` map is initialized as an empty `new Map()` by default and never populated. Clarify whether platform configs should be loaded from the database at startup or passed in at router creation time; ensure deployment ID is checked against the database record.
+4. **State storage does not verify expiry on retrieval** — getLtiStateAndNonce retrieves state from DB but does not check expiry timestamp. If the query returns a stale row, validation proceeds with an expired nonce. The 5-minute window is enforced in the token claims (exp check in validateLtiToken) but state freshness is not checked. Add explicit `if (now > stateData.expiresAt)` after retrieval. **likely**
 
 </details>
 
 ---
 
-## Token validation and security (confirmed)
+<details>
+<summary>Details</summary>
 
-The `validateLtiToken` function in `packages/lti/src/index.ts` enforces all required JWT claims: valid signature (against JWKS), issuer, audience (client_id), deployment ID (if configured), nonce (one-time use, enforced by caller), and expiry within 5 minutes. The signature is verified using `jose.jwtVerify` against a remote JWKS endpoint, which is correct for LTI 1.3.
+### Token Validation and Replay Protection
 
-Nonce handling is split between the library (comparison only) and the route handler (tracking in a Set). The route handler adds each validated nonce to `nonceSeen` and checks replay before validation. State expiry is enforced at the route level: `stateToNonce` entries expire after 5 minutes and are checked before token validation proceeds.
+JWT signature verification delegates to `validateLtiToken` in the @dimts/lti package, which calls `jwtVerify` with issuer and audience checks, nonce validation, and expiry enforcement capping at 5 minutes in future. This is correct per spec.
 
-Token replay is detected by hashing the signature (third segment of the JWT) and storing it in `tokenHashSeen`. The check happens after nonce validation but before session creation, which is the correct order.
+Token replay is checked by hashing the signature segment (third component) and querying lti_token_replay table to see if seen before. The logic is correct: if found, reject with 403; if not, insert and allow. Repository method returns false on first use (good to proceed), true on replay (reject). The route calls `checkAndMarkTokenReplayed` and checks `if (isReplayed)` to reject, which is correct.
 
-All of these checks are necessary and implemented correctly. However, the in-memory storage means they will be lost on restart, and horizontal scaling will allow an attacker on a different instance to replay a token that was already validated elsewhere.
+**Issue: nonce check is inverted.** The repository's `checkAndMarkNonceUsed` returns true if the nonce was NOT previously seen (first-time use, OK to allow) and false if already used (replay, reject). The route at line 171 checks `if (!nonceUsed) { throw("nonce replay") }`, which means: if NOT-used (true becomes false), reject. This rejects all valid launches. The condition should be `if (nonceUsed === false)` or the variable should be renamed `nonces Consumed = !checkAndMarkNonceUsed(...)` then check `if (!noncesConsumed)`.
 
-## Login and launch flows (likely)
+### State Validation and Expiry
 
-The login route (`POST /lti/login`) accepts the OIDC login request, looks up the platform by issuer in `platformConfigs`, generates a state and nonce, stores them in `stateToNonce` with a 5-minute expiry, and returns the state, nonce, and platform auth URL to the client. The logic is sound, but the platform lookup depends on `platformConfigs` being populated; by default, it is empty and all requests will return 404.
+State is generated via `generateLtiState()` with a 5-minute expiry window encoded in the state payload itself (used for initial validation). The state is stored in the database via `storeLtiState()` with an expiresAt timestamp. On launch, `getLtiStateAndNonce()` retrieves the row. The code does not check expiry after retrieval; it proceeds to validate the JWT. Token expiry is checked by `validateLtiToken`, which enforces 5-minute max. However, the state could be old while the token is fresh, and the code doesn't check `if (now > stateData.expiresAt)` after retrieval. The frontend (platform) should not send an old state, but the server should validate it anyway. Add explicit expiry check after line 118 in lti.ts.
 
-The launch route (`POST /lti/launch`) validates state expiry, retrieves the platform config, calls `validateLtiToken` with the stored nonce, checks token and nonce replay, maps roles to determine instructor access, derives a pseudonymous session ID from the LTI user ID (using `deriveLtiSessionKey`), and calls `repository.createSession` with channel=lti and `ltiContext` containing platform, deployment, user ID, roles, and context ID.
+### Role Mapping and Instructor Access
 
-The session creation logic assumes `repository.createSession` accepts an `ltiContext` field. The code does not show whether the repository interface actually supports this field or whether it is silently ignored. If the field is not persisted, the audit context (issuer, deployment, user ID) will be lost, breaking compliance with FR-INT-07.
+`mapLtiRoles()` extracts role URLs from the LTI claims and looks for the Instructor role URL. If found, sets `insightsAccess: true`. This is stored in session.ltiContext.insightsAccess. The insights route checks this flag in the session details before allowing access. Path 1 (X-Dimts-Key) is host-only. Path 2 (bearer token) checks that the session channel is "lti" and ltiContext.insightsAccess is true. This is correct for the specified requirements.
 
-Role mapping uses `mapLtiRoles` to extract instructor status from the IMS LTI roles URL. The mapping extracts the fragment identifier (e.g., "Instructor") and checks for the full instructor URL. Learner role sets `insightsAccess: false`; instructor role sets it to `true`. This is correct.
+### Session Storage and Audit Context
 
-## Session pseudonymity and audit context (confirmed)
+Session is created via `createSession()` with channel="lti" and ltiContext containing issuer, platformId, deploymentId, ltiUserId, roles, contextId, and insightsAccess flag. All required audit fields are stored. Session expiresAt is set to 24 hours (not configurable, reasonable default). Session token is 32 bytes random hex (64 chars), suitable for bearer use.
 
-The launch handler derives a session ID using `deriveLtiSessionKey(issuer, platformId, ltiUserId)`, which returns a prefixed key but notes in the comment that "actual session ID generation in API". The route then constructs the session ID as `"session-" + Buffer.from(claims.sub).toString("hex").slice(0, 12).padEnd(12, "0")`. This is a deterministic hash based on the platform user ID, ensuring the same platform+user combination always maps to the same session (or at least the same prefix), which supports session resumption.
+### Logging and Privacy
 
-The session is stored with `ltiContext` containing issuer, platformId, deploymentId, ltiUserId, roles, contextId, insightsAccess, and timestamp. This audit context is required for FR-INT-07 and FR-INT-10 (instructor role tracking for insights access). However, without confirmation that `repository.createSession` persists the `ltiContext` field, this cannot be fully verified.
+Log statements avoid logging message text, learner names, or sensitive token values. State is truncated to first 8 characters before logging. Nonce is not logged at all. Token hash is not logged. platformId is safe to log. This meets privacy requirements.
 
-## Insights authorization (likely)
+### Optional Repository Methods Risk
 
-The insights route in `packages/api/src/routes/insights.ts` checks for host key authorization first (`X-Dimts-Key`) and calls `repository.verifyHostKey`. If that succeeds, the route is authorized. The code comment says "LTI path implemented in P10; bearer token with insightsAccess", but there is no corresponding code. The function only checks `isAuthorized` before the host-key path; if that fails, it returns 401 without trying the bearer token path.
+Five methods are called via optional chaining in routes/lti.ts: `storeLtiState`, `getLtiStateAndNonce`, `checkAndMarkTokenReplayed`, `checkAndMarkNonceUsed`, `deleteLtiState`. If repository is a test mock that doesn't implement these, all calls silently return undefined and security checks are skipped. The code should either (a) make these mandatory in the ApiRepository interface (already are, but optional chaining masks that), or (b) fall back to an in-memory Set store if methods don't exist. Currently no fallback; test harnesses must implement or security is disabled.
 
-For LTI instructor access to work (FR-INT-10), the route must extract the bearer token from the Authorization header, validate it as a session token in the repository, check the session's `ltiContext.insightsAccess` flag, and only then grant access. This path is completely missing.
+Example: if test provides a minimal repository without `checkAndMarkNonceUsed`, line 171 sets `nonceUsed = undefined`, then `if (!undefined)` is true, and nonce replay *always* rejects. But in production with full repo, logic is inverted (rejects valid use).
 
-## OpenAPI schema (confirmed)
+### OpenAPI Documentation
 
-The OpenAPI specification at `packages/api/openapi.yaml` is generated from `packages/api/src/openapi.ts` using `@asteasolutions/zod-to-openapi`. The file registers routes, request/response schemas, and security schemes. Searching for "lti" in the schema yields no results, confirming that no LTI routes or schemas have been registered in the OpenAPI generation code.
+The code registers LTI routes in openapi.ts (lines 795–898) including POST /v1/lti/login, POST /v1/lti/launch, GET /v1/lti/jwks, with request/response schemas derived from Zod validators. The registry.registerPath calls look correct. However, the generated openapi.yaml file does not contain any /lti paths. This could mean:
 
-To fix this, `openapi.ts` must register three `registerPath` definitions:
-- `POST /v1/lti/login` with `LtiLoginRequestSchema` (iss, client_id, login_hint, target_link_uri, lti_message_hint)
-- `POST /v1/lti/launch` with `LtiLaunchRequestSchema` (id_token, state) → `LtiLaunchResponseSchema` (sessionId, sessionToken, roles, insightsAccess, contextId)
-- `GET /v1/lti/jwks` → JWKS response (keys array)
+1. The build process doesn't run the OpenAPI generation step.
+2. The paths are registered but not exported to YAML.
+3. The YAML file was checked in before LTI code was added and hasn't been regenerated.
 
-A new security scheme for LTI JWT validation is not needed; the bearer token used for insights access should reference the existing `sessionBearer` scheme.
+The OpenAPI generation code appears in app.ts where openapi.ts is imported, but the build step and YAML export are not visible in the diff. Recommend running the build, confirming openapi.yaml is regenerated, and checking that GET /v1/openapi.yaml serves the updated spec.
 
-## Test coverage (confirmed)
+### Examples and Documentation
 
-The test suite `p10-lti.test.ts` has 28 tests covering:
-- Platform registration storage and state/nonce generation
-- JWT validation (issuer, audience, deployment, nonce, expiry, replay)
-- Learner and instructor launch flows
-- Session context storage
-- Insights access control (learner denied, instructor granted, both X-Dimts-Key and bearer token paths)
-- OpenAPI documentation
+examples/lti-level3/README.md provides clear setup checklist, flow diagrams, API contracts, and curl examples. API.md does not mention LTI but INTEGRATION.md (if checked) may. The examples/lti-level3/launch.json file contains a valid LTI token payload. All good.
 
-27 tests pass. One test fails: "rejects token with invalid signature" at line 156. The test creates a malformed JWT and expects the assertion to throw an error on calling the code under test. However, the test's mock function checks `badToken.split(".")[2].length < 10` as a proxy for signature validation, which does not actually validate the signature. The test should either use `jose.jwtVerify` with a known-bad signature or stub the validation properly. The failing test masks whether actual signature validation is working.
+### Deep Link and Content Hints
 
-Additional test gaps: no tests verify that platform configs are loaded from the database or that deployment IDs are validated against a live enrollment; no tests verify that restarting the API clears nonce/state/token-hash storage and allows replays; no tests verify that insights bearer token path extracts and checks the session's `insightsAccess` flag.
+Tests show that deep-link context with content items is supported via the lti-dl claim. Not fully validated in code, but tests confirm shape and extraction. Sessions store contextId; deep-link items would be in contextId or separate payload (code doesn't extract them to session, but they're available in claims).
 
-## Repository interface assumption (likely)
+### Missing Coverage
 
-The launch handler calls `repository.createSession` with a new field `ltiContext` that does not appear to be defined in the existing session schema. If this field is not supported by the repository, it will be silently ignored, and the audit context required by FR-INT-07 will be lost. The code assumes this works but does not validate it. This must be verified or corrected in the repository schema.
+- No explicit test of state expiry check (relies on token exp check).
+- No test of learner being denied insights access (test structure shows paths but not enforcement in integration test).
+- No end-to-end integration test with mocked platform JWKS and real token flow.
+- OpenAPI rendering not verified (no test of GET /v1/openapi.yaml including LTI routes).
 
-## Documentation (confirmed)
+</details>
 
-The LTI integration guide at `examples/lti-level3/README.md` is clear and comprehensive, covering platform registration, learner/instructor launch flows, security guarantees, API contracts, and troubleshooting. The HTTP examples at `examples/api-level2.http` include sample requests for LTI login, learner launch, instructor launch, and insights access. These are well-written and executable with minimal changes (replacing placeholder token/state values).
+---
 
-However, the examples assume platform configs are already registered (the `/lti/login` route would return 404 without them), and there is no documented path for an admin to register a platform. If platform registration is only possible via a separate admin API or database insert, that must be documented.
+<details>
+<summary>File map</summary>
+
+- **packages/api/src/routes/lti.ts** — LTI router; POST /login (state/nonce generation), POST /launch (token validation, session creation), GET /jwks (stub). **Contains inverted nonce logic.**
+- **packages/lti/src/index.ts** — LTI validation library; JWT validation, role mapping, state/nonce generation. Correct.
+- **packages/api/src/routes/insights.ts** — Insights route with dual auth (X-Dimts-Key or LTI bearer + insightsAccess flag). Updated to check ltiContext.
+- **packages/api/src/types.ts** — ApiRepository interface includes optional LTI methods and NewSession with ltiContext. Correct.
+- **packages/api/src/db/repository.ts** — PostgreSQL repository implements nonce/token replay tracking and state storage. Correct logic.
+- **packages/api/src/openapi.ts** — OpenAPI spec registration for LTI paths and security schemes. Code looks correct but generated YAML doesn't include routes.
+- **packages/api/src/app.ts** — LTI router mounted at /v1. Correct wiring.
+- **packages/api/test/p10-lti.test.ts** — Comprehensive test suite (28 tests) covering platform registration, token validation (signature, issuer, audience, deployment, expiry, nonce, replay), learner/instructor flows, and audit context. Tests pass but don't verify the inverted nonce logic catches replays.
+- **examples/lti-level3/README.md** — Clear setup checklist, flow diagrams, security guarantees, API contracts, curl examples. Well-written.
+
+</details>
 

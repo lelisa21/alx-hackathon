@@ -2,29 +2,20 @@
   "verdict": "CHANGES_REQUESTED",
   "findings": [
     {
-      "id": "openapi-incomplete",
-      "label": "OpenAPI schema incomplete",
-      "description": "LTI routes and request/response schemas not added to packages/api/openapi.yaml. Update packages/api/src/openapi.ts to register LTI path definitions and schemas."
+      "label": "Nonce replay logic inverted",
+      "description": "checkAndMarkNonceUsed returns true on first use (allow) and false on replay (reject), but lti.ts line 171 checks `if (!nonceUsed)` to reject, which rejects valid launches and allows replays. Swap the condition to `if (nonceUsed === false)` or negate the variable name."
     },
     {
-      "id": "insights-bearer-not-implemented",
-      "label": "Insights bearer token path not implemented",
-      "description": "packages/api/src/routes/insights.ts accepts bearer token but does not verify LTI instructor role. Implement the LTI instructor authorization path: parse bearer token, validate session, check insightsAccess flag."
+      "label": "Optional repository methods may fail silently",
+      "description": "checkAndMarkTokenReplayed, checkAndMarkNonceUsed, deleteLtiState, getLtiStateAndNonce are called via optional chaining that silently skips if not implemented. If repo doesn't implement them (e.g., test harness), nonce/state/token checks are bypassed entirely. Make these mandatory or add explicit fallback to Set-based store."
     },
     {
-      "id": "nonce-state-not-persistent",
-      "label": "Nonce/state/token-hash store is in-memory",
-      "description": "stateToNonce, tokenHashSeen, and nonceSeen will not survive API restart or horizontal scaling. Move to Redis or PostgreSQL with expiry."
+      "label": "OpenAPI YAML does not render LTI routes",
+      "description": "Code registers three LTI paths in openapi.ts (lines 795–898) but built openapi.yaml shows zero matches for '/lti'. Verify build step and ensure registry is exported to YAML or regenerate file."
     },
     {
-      "id": "test-assertion-incorrect",
-      "label": "Test assertion incorrect",
-      "description": "p10-lti.test.ts line 156 test fails because mock function does not throw as expected. Fix to use actual jose library validation or proper stub."
-    },
-    {
-      "id": "platform-registry-not-validated",
-      "label": "Platform registry not validated",
-      "description": "Session creation does not validate platform registration or deployment ID match. platformConfigs initialized empty by default. Clarify how platform configs are loaded and ensure deployment validation."
+      "label": "State storage does not verify expiry on retrieval",
+      "description": "getLtiStateAndNonce retrieves state from DB but does not check expiry timestamp on the returned row. Add explicit expiry check after retrieval: `if (now > stateData.expiresAt) { reject }`"
     }
   ],
   "reviewDoc": "d:\\Projects\\alx-hackathon\\.agents\\tasks\\p10-lti-openapi\\review.md"

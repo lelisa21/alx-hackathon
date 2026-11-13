@@ -127,6 +127,11 @@ export function createLtiRouter(options: {
         return sendProblem(res, 403, "forbidden", "lti.launch.state_invalid");
       }
 
+      // Check state expiry
+      if (Date.now() > new Date(stateData.expiresAt).getTime()) {
+        return sendProblem(res, 403, "forbidden", "lti.launch.state_expired");
+      }
+
       // Get platform config
       const platformConfig = platformConfigs.get(stateData.platformId);
       if (!platformConfig) {
@@ -157,19 +162,28 @@ export function createLtiRouter(options: {
         stateData.platformId,
         ""
       );
-      if (isReplayed) {
+      if (isReplayed === true) {
         logger.warn({ platformId: stateData.platformId }, "Token replay detected");
         return sendProblem(res, 403, "forbidden", "lti.launch.replay");
       }
+      if (isReplayed === undefined) {
+        logger.error("Token replay check unavailable (repository method not implemented)");
+        return sendProblem(res, 500, "internal", "error.token_check");
+      }
 
       // Check nonce one-time use (using database for persistence)
-      const nonceUsed = await options.repository.checkAndMarkNonceUsed?.(
+      // Check nonce one-time use (checkAndMarkNonceUsed returns true if ALREADY used = replay)
+      const nonceAlreadyUsed = await options.repository.checkAndMarkNonceUsed?.(
         stateData.nonce,
         ""
       );
-      if (!nonceUsed) {
+      if (nonceAlreadyUsed === true) {
         logger.warn("Nonce replay detected");
         return sendProblem(res, 403, "forbidden", "lti.launch.nonce_replay");
+      }
+      if (nonceAlreadyUsed === undefined) {
+        logger.error("Nonce validation unavailable (repository method not implemented)");
+        return sendProblem(res, 500, "internal", "error.nonce_check");
       }
 
       // Map roles and determine insights access
