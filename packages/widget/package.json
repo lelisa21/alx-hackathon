@@ -18,6 +18,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@dimts/help": "workspace:*",
     "@dimts/voice": "workspace:*",
     "intl-messageformat": "^10.7.16",
     "lit": "^3.2.1"

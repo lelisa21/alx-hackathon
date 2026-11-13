@@ -3,6 +3,58 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P05 — human help and sharing (13 November 2026)
+
+- **Scope before implementation:** FR-HELP-04–19, regression coverage for
+  FR-HELP-01–03, and help-related NFR-SEC, NFR-REL and NFR-PRIV. P05 only on
+  the user's `phase-05-prompt`; no agent commit/push. Preserve existing
+  request, claim, block, chat replay and session authentication contracts.
+- **Fallback decision:** the user delegated the unspecified choice to the
+  implementer. Use an explicit Leave a message action in the existing waiting
+  request for waiting, five-minute timeout and outside-hours fallback. The
+  SRS permits this alternative. Persist through the existing help chat, with
+  the same authorization and retention; no second request type, contact field
+  or implied callback delivery. Telegram/callback delivery requires the later
+  channel integration and an actual configured destination/contact policy.
+- **API/client agreement before coding:** authenticated
+  `GET /v1/help/availability?sessionId=...` returns
+  `{available,nextOpenAt?,waitTimeoutMs}` using validated UTC helper hours.
+  Claims respect those hours; creating a waiting message request remains
+  possible outside them. The default wait threshold is 300,000 ms, without
+  a countdown. Availability describes schedule, not a promise of staffing.
+- **Media contracts:** `POST /v1/help/{id}/ice` accepts learner `{sessionId}`
+  or helper `{}`, returns `{iceServers,expiresAt?}`, and authorizes active
+  participants. Metered secrets stay server-side; absent credentials use
+  public STUN. `POST /v1/help/{id}/image?sessionId=...` accepts raw validated
+  JPEG/PNG/WebP bytes up to 2 MiB, returns `{id,expiresAt}`. Authenticated
+  `GET /v1/help/{id}/image` lists `{images:[{id,expiresAt}]}`;
+  `GET /v1/help/{id}/image/{imageId}` returns authorized bytes. Learners own
+  the request; helpers must be active and assigned. No original filenames,
+  disk storage or public image URLs; delete on close/session end or at two hours.
+  Use the Apache-2.0 `sharp` decoder for bounded full-image validation and
+  metadata stripping; signature checks alone cannot validate compressed images.
+  Bound decoded pictures to 16 million pixels, one frame, and five unexpired
+  pictures per request. Retrieval rejects expired bytes at two hours; the
+  running API's 60-second cleanup sweep removes expired database rows with
+  up to one minute of scheduling lag. Close/session deletion is immediate.
+- **Helper opt-in and aggregate outcomes:** authenticated GET/PATCH
+  `/v1/helpers/profile` uses `{displayName:string|null}`, absent by default.
+  Helper close may supply `resolved:boolean`; omission means unknown.
+  `GET /v1/help/metrics` returns only
+  `{closedCount,resolvedCount,unresolvedCount,totalWaitMs,totalResolutionMs}`.
+  No content, request/session/helper identifiers or individual timing rows.
+- **Transient sharing:** helper requests; learner accepts or declines before
+  browser permission. Role-checked `share.*` and `rtc.*` frames are never
+  persisted/replayed. No audio, recording or control; cap at 5 fps/300 kbps.
+  Either-side stop, disconnect, hidden widget, session replacement and browser
+  stop end media. Unsupported or failed capture offers picture and words.
+  `help.joined` gains `helperJoined:boolean` and optional opted-in `helperName`
+  so socket authentication is not mistaken for a person joining.
+  A valid learner `share.accept` records only a random consent-row ID, channel,
+  notice version `screen-share-v1`, purpose `screen-share` and timestamp in
+  the existing consent log. No request/session/helper ID or content is stored.
+  Failure to record consent prevents negotiation; decline records nothing.
+
 ## P04 — controlled browser voice (13 November 2026)
 
 - **Requirements before implementation:** FR-VOICE-01–10/12, FR-UI-06,

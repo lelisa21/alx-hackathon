@@ -1,5 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { messageFor } from "./messages.js";
+import { createScreenShareController, type ShareState } from "@dimts/help";
 import regularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
 import boldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
 
@@ -15,6 +16,20 @@ interface ChatMessage {
   id: string;
   from: "learner" | "helper";
   text: string;
+}
+
+interface HelpMetrics {
+  closedCount: number;
+  resolvedCount: number;
+  unresolvedCount: number;
+  totalWaitMs: number;
+  totalResolutionMs: number;
+}
+
+interface HelpPicture {
+  id: string;
+  expiresAt: string;
+  url?: string;
 }
 
 interface HelperLanguage {
@@ -114,6 +129,13 @@ export class DimtsHelperConsole extends LitElement {
     announcement: { state: true },
     providerStatus: { state: true },
     providerState: { state: true },
+    sounds: { state: true },
+    displayName: { state: true },
+    profileBusy: { state: true },
+    metrics: { state: true },
+    resolution: { state: true },
+    shareState: { state: true },
+    pictures: { state: true },
   };
 
   declare api: string;
@@ -143,6 +165,32 @@ export class DimtsHelperConsole extends LitElement {
   private reconnectAttempt = 0;
   private queueLoaded = false;
   private knownRequestIds = new Set<string>();
+  declare private sounds: boolean;
+  declare private displayName: string;
+  declare private profileBusy: boolean;
+  declare private metrics: HelpMetrics | null;
+  declare private resolution: "" | "yes" | "no";
+  declare private shareState: ShareState;
+  declare private pictures: HelpPicture[];
+  private share: ReturnType<typeof createScreenShareController> | undefined;
+  private remoteStream: MediaStream | null = null;
+  private lastReceivedMessageId: string | undefined;
+  private audio: AudioContext | undefined;
+  private pictureExpiryTimer: number | undefined;
+  private readonly stopOnShortcut = (event: KeyboardEvent) => {
+    if (
+      this.shareState.status !== "idle" &&
+      event.altKey &&
+      event.shiftKey &&
+      event.key.toLowerCase() === "s"
+    ) {
+      event.preventDefault();
+      this.share?.stop();
+    }
+  };
+  private readonly stopWhenHidden = () => {
+    if (document.hidden) this.share?.stop("hidden");
+  };
 
   constructor() {
     super();
@@ -164,6 +212,13 @@ export class DimtsHelperConsole extends LitElement {
     this.announcement = "";
     this.providerStatus = null;
     this.providerState = "loading";
+    this.sounds = false;
+    this.displayName = "";
+    this.profileBusy = false;
+    this.metrics = null;
+    this.resolution = "";
+    this.shareState = { status: "idle" };
+    this.pictures = [];
   }
 
   static override styles = css`
@@ -326,6 +381,40 @@ export class DimtsHelperConsole extends LitElement {
       min-block-size: 1.5em;
     }
 
+    .profile {
+      display: grid;
+      gap: 0.5rem;
+      margin-block: 1rem;
+    }
+
+    .profile input {
+      inline-size: 100%;
+      max-inline-size: 28rem;
+    }
+
+    input[type="checkbox"] {
+      inline-size: 48px;
+      vertical-align: middle;
+    }
+
+    .share-banner {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      background: var(--surface);
+      border: 2px solid var(--primary);
+      padding: 0.75rem;
+      margin-block: 0.75rem;
+    }
+
+    video,
+    .picture {
+      display: block;
+      max-inline-size: 100%;
+      max-block-size: 28rem;
+      margin-block: 0.75rem;
+    }
+
     .visually-hidden {
       block-size: 1px;
       clip-path: inset(50%);
@@ -345,14 +434,24 @@ export class DimtsHelperConsole extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    window.addEventListener("keydown", this.stopOnShortcut);
+    document.addEventListener("visibilitychange", this.stopWhenHidden);
     void this.initialize();
     if (this.jwt) {
       void this.loadQueue();
-      if (this.activeRequest) this.connectSocket();
+      if (this.activeRequest) {
+        this.initializeShare();
+        this.connectSocket();
+      }
     }
   }
 
   override disconnectedCallback(): void {
+    window.removeEventListener("keydown", this.stopOnShortcut);
+    document.removeEventListener("visibilitychange", this.stopWhenHidden);
+    this.clearMedia();
+    void this.audio?.close();
+    this.audio = undefined;
     if (this.reconnectTimer !== undefined) {
       window.clearTimeout(this.reconnectTimer);
       this.reconnectTimer = undefined;
@@ -368,6 +467,12 @@ export class DimtsHelperConsole extends LitElement {
     this.socket?.close();
     this.socket = undefined;
     super.disconnectedCallback();
+  }
+
+  protected override updated(): void {
+    const video = this.renderRoot.querySelector<HTMLVideoElement>("video");
+    if (video && video.srcObject !== this.remoteStream)
+      video.srcObject = this.remoteStream;
   }
 
   private get apiRoot(): string {
@@ -548,6 +653,8 @@ export class DimtsHelperConsole extends LitElement {
       if (tokenInput) tokenInput.value = "";
       this.notice = "";
       this.noticeIsError = false;
+      void this.loadProfile();
+      void this.loadMetrics();
       await this.loadQueue();
     } catch {
       this.notice = this.t("helper.actionError");
@@ -584,9 +691,9 @@ export class DimtsHelperConsole extends LitElement {
         throw new Error("helper queue");
       }
       if (this.jwt !== jwt || this.filter !== filter) return;
-      const nextRequests = requests.filter(
-        (request): request is HelpRequest => request !== null,
-      );
+      const nextRequests = requests
+        .filter((request): request is HelpRequest => request !== null)
+        .sort((a, b) => Date.parse(a.createdAt) - Date.parse(b.createdAt));
       const addedRequests = nextRequests.filter(
         ({ id }) => !this.knownRequestIds.has(id),
       );
@@ -599,6 +706,7 @@ export class DimtsHelperConsole extends LitElement {
       this.requests = nextRequests;
       if (this.queueLoaded && addedRequests.length > 0) {
         this.announce(this.t("helper.newRequest"));
+        this.playChime();
       }
       this.queueLoaded = true;
     } catch {
@@ -607,7 +715,10 @@ export class DimtsHelperConsole extends LitElement {
         this.noticeIsError = true;
       }
     } finally {
-      if (this.jwt === jwt) this.scheduleQueueRefresh();
+      if (this.jwt === jwt) {
+        this.scheduleQueueRefresh();
+        if (this.activeRequest) void this.loadPictures();
+      }
     }
   }
 
@@ -668,6 +779,7 @@ export class DimtsHelperConsole extends LitElement {
   private async postAction(
     requestId: string,
     action: "block" | "claim" | "close",
+    body?: Record<string, unknown>,
   ): Promise<boolean> {
     if (!this.jwt) return false;
     try {
@@ -675,7 +787,11 @@ export class DimtsHelperConsole extends LitElement {
         `${this.apiRoot}/help/${encodeURIComponent(requestId)}/${action}`,
         {
           method: "POST",
-          headers: { authorization: `Bearer ${this.jwt}` },
+          headers: {
+            authorization: `Bearer ${this.jwt}`,
+            ...(body ? { "content-type": "application/json" } : {}),
+          },
+          ...(body ? { body: JSON.stringify(body) } : {}),
         },
       );
       if (!response.ok) throw new Error("helper action");
@@ -700,7 +816,10 @@ export class DimtsHelperConsole extends LitElement {
     if (await this.postAction(request.id, "claim")) {
       this.activeRequest = request;
       this.messages = [];
+      this.lastReceivedMessageId = undefined;
       this.draft = "";
+      this.resolution = "";
+      this.initializeShare();
       this.connectionStatus = "connecting";
       this.connectSocket();
       await this.loadQueue();
@@ -711,7 +830,15 @@ export class DimtsHelperConsole extends LitElement {
   private async closeRequest(): Promise<void> {
     if (!this.activeRequest || this.busy) return;
     this.busy = true;
-    if (await this.postAction(this.activeRequest.id, "close")) {
+    this.share?.stop();
+    if (
+      await this.postAction(
+        this.activeRequest.id,
+        "close",
+        this.resolution ? { resolved: this.resolution === "yes" } : undefined,
+      )
+    ) {
+      this.clearMedia();
       this.activeRequest = null;
       this.messages = [];
       this.draft = "";
@@ -724,12 +851,19 @@ export class DimtsHelperConsole extends LitElement {
         this.reconnectTimer = undefined;
       }
       this.reconnectAttempt = 0;
+      void this.loadMetrics();
       await this.loadQueue();
     }
     this.busy = false;
   }
 
   private signOut(): void {
+    this.clearMedia();
+    void this.audio?.close();
+    this.audio = undefined;
+    this.sounds = false;
+    this.displayName = "";
+    this.metrics = null;
     this.jwt = "";
     this.providerRequest += 1;
     this.providerStatus = null;
@@ -773,7 +907,7 @@ export class DimtsHelperConsole extends LitElement {
           socket.close();
           return;
         }
-        const lastMessageId = this.messages.at(-1)?.id;
+        const lastMessageId = this.lastReceivedMessageId;
         socket.send(
           JSON.stringify({
             type: "auth",
@@ -785,11 +919,13 @@ export class DimtsHelperConsole extends LitElement {
         );
       };
       socket.onmessage = (event: MessageEvent<unknown>) =>
-        this.handleSocketFrame(event.data);
+        this.socket === socket && this.handleSocketFrame(event.data);
       socket.onerror = () => {
-        this.connectionStatus = "reconnecting";
+        if (this.socket === socket) this.connectionStatus = "reconnecting";
       };
       socket.onclose = (event: CloseEvent) => {
+        if (this.socket !== socket) return;
+        this.share?.stop("disconnect");
         if (this.socket === socket) this.socket = undefined;
         if (event.code === 4401) {
           this.connectionStatus = "";
@@ -849,6 +985,7 @@ export class DimtsHelperConsole extends LitElement {
       return;
     }
     if (frame.type === "help.closed") {
+      this.clearMedia();
       this.activeRequest = null;
       this.messages = [];
       this.draft = "";
@@ -860,6 +997,15 @@ export class DimtsHelperConsole extends LitElement {
         this.reconnectTimer = undefined;
       }
       void this.loadQueue();
+      void this.loadMetrics();
+      return;
+    }
+    if (frame.type === "chat.typing") return;
+    if (
+      typeof frame.type === "string" &&
+      (frame.type.startsWith("share.") || frame.type.startsWith("rtc."))
+    ) {
+      void this.share?.handleFrame(frame);
       return;
     }
     if (
@@ -869,18 +1015,37 @@ export class DimtsHelperConsole extends LitElement {
       !("text" in frame) ||
       typeof frame.text !== "string" ||
       !("from" in frame) ||
-      frame.from !== "learner"
+      (frame.from !== "learner" && frame.from !== "helper")
     ) {
       this.notice = this.t("helper.actionError");
       this.noticeIsError = true;
       return;
     }
+    this.lastReceivedMessageId = frame.id;
     if (this.messages.some((message) => message.id === frame.id)) return;
     this.messages = [
       ...this.messages,
-      { id: frame.id, from: "learner", text: frame.text },
+      { id: frame.id, from: frame.from, text: frame.text },
     ];
-    this.announce(this.t("helper.newMessage"));
+    if (frame.from === "learner") {
+      this.announce(this.t("helper.newMessage"));
+      const messageId = frame.id;
+      const activeElement =
+        this.renderRoot instanceof ShadowRoot
+          ? this.renderRoot.activeElement
+          : document.activeElement;
+      if (
+        activeElement?.matches(
+          "input, textarea, select, [contenteditable='true']",
+        )
+      )
+        return;
+      void this.updateComplete.then(() => {
+        [...this.renderRoot.querySelectorAll<HTMLElement>("[data-message-id]")]
+          .find((element) => element.dataset.messageId === messageId)
+          ?.focus();
+      });
+    }
   }
 
   private sendMessage(event: SubmitEvent): void {
@@ -901,6 +1066,405 @@ export class DimtsHelperConsole extends LitElement {
     }
     this.messages = [...this.messages, { id, from: "helper", text }];
     this.draft = "";
+  }
+
+  private async loadProfile(): Promise<void> {
+    const jwt = this.jwt;
+    try {
+      const response = await fetch(`${this.apiRoot}/helpers/profile`, {
+        headers: { authorization: `Bearer ${jwt}` },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const body = (await response.json()) as { displayName?: unknown };
+      if (
+        this.jwt === jwt &&
+        !this.displayName &&
+        typeof body.displayName === "string"
+      ) {
+        this.displayName = body.displayName;
+      }
+    } catch {
+      // Optional profile loading must not interrupt queue or chat.
+    }
+  }
+
+  private async saveProfile(event: SubmitEvent): Promise<void> {
+    event.preventDefault();
+    if (!this.jwt || this.profileBusy) return;
+    const jwt = this.jwt;
+    this.profileBusy = true;
+    try {
+      const response = await fetch(`${this.apiRoot}/helpers/profile`, {
+        method: "PATCH",
+        headers: {
+          authorization: `Bearer ${jwt}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ displayName: this.displayName.trim() || null }),
+      });
+      if (!response.ok) throw new Error("helper profile");
+      if (this.jwt === jwt) {
+        this.notice = this.t("helper.profileSaved");
+        this.noticeIsError = false;
+      }
+    } catch {
+      if (this.jwt === jwt) {
+        this.notice = this.t("helper.actionError");
+        this.noticeIsError = true;
+      }
+    } finally {
+      this.profileBusy = false;
+    }
+  }
+
+  private async loadMetrics(): Promise<void> {
+    const jwt = this.jwt;
+    if (!jwt) return;
+    try {
+      const response = await fetch(`${this.apiRoot}/help/metrics`, {
+        headers: { authorization: `Bearer ${jwt}` },
+        cache: "no-store",
+      });
+      if (!response.ok) return;
+      const body = (await response.json()) as HelpMetrics;
+      if (
+        this.jwt === jwt &&
+        [
+          body.closedCount,
+          body.resolvedCount,
+          body.unresolvedCount,
+          body.totalWaitMs,
+          body.totalResolutionMs,
+        ].every(
+          (value) =>
+            typeof value === "number" && Number.isFinite(value) && value >= 0,
+        )
+      ) {
+        this.metrics = body;
+      }
+    } catch {
+      // Aggregate reporting is independent of live support.
+    }
+  }
+
+  private setSounds(enabled: boolean): void {
+    this.sounds = enabled;
+    if (!enabled) {
+      void this.audio?.close();
+      this.audio = undefined;
+      return;
+    }
+    try {
+      this.audio ??= new AudioContext();
+      void this.audio.resume().catch(() => undefined);
+    } catch {
+      this.audio = undefined;
+    }
+  }
+
+  private playChime(): void {
+    if (!this.sounds || this.audio?.state !== "running") return;
+    try {
+      const oscillator = this.audio.createOscillator();
+      const gain = this.audio.createGain();
+      gain.gain.setValueAtTime(0.04, this.audio.currentTime);
+      gain.gain.exponentialRampToValueAtTime(
+        0.001,
+        this.audio.currentTime + 0.15,
+      );
+      oscillator.frequency.value = 660;
+      oscillator.connect(gain).connect(this.audio.destination);
+      oscillator.onended = () => {
+        oscillator.disconnect();
+        gain.disconnect();
+      };
+      oscillator.start();
+      oscillator.stop(this.audio.currentTime + 0.15);
+    } catch {
+      // Visual and polite announcements remain the primary signal.
+    }
+  }
+
+  private initializeShare(): void {
+    this.clearMedia();
+    const requestId = this.activeRequest?.id;
+    this.share = createScreenShareController({
+      role: "helper",
+      send: (frame) => {
+        if (this.socket?.readyState === WebSocket.OPEN)
+          this.socket.send(JSON.stringify(frame));
+      },
+      loadIceServers: async () => {
+        if (!requestId || this.activeRequest?.id !== requestId)
+          throw new Error("inactive help");
+        const response = await fetch(
+          `${this.apiRoot}/help/${encodeURIComponent(requestId)}/ice`,
+          {
+            method: "POST",
+            headers: {
+              authorization: `Bearer ${this.jwt}`,
+              "content-type": "application/json",
+            },
+            body: "{}",
+            cache: "no-store",
+          },
+        );
+        if (!response.ok) throw new Error("help ice");
+        const body = (await response.json()) as { iceServers: RTCIceServer[] };
+        if (!Array.isArray(body.iceServers)) throw new Error("help ice");
+        return body.iceServers;
+      },
+      onState: (state) => {
+        this.shareState = state;
+      },
+      onRemoteStream: (stream) => {
+        this.remoteStream = stream;
+        this.requestUpdate();
+      },
+    });
+  }
+
+  private clearMedia(): void {
+    if (this.pictureExpiryTimer !== undefined)
+      window.clearTimeout(this.pictureExpiryTimer);
+    this.pictureExpiryTimer = undefined;
+    this.share?.dispose();
+    this.share = undefined;
+    this.remoteStream = null;
+    const video = this.renderRoot?.querySelector<HTMLVideoElement>("video");
+    if (video) video.srcObject = null;
+    this.shareState = { status: "idle" };
+    this.pictures.forEach((picture) => {
+      if (picture.url) URL.revokeObjectURL(picture.url);
+    });
+    this.pictures = [];
+  }
+
+  private purgeExpiredPictures(): void {
+    if (this.pictureExpiryTimer !== undefined)
+      window.clearTimeout(this.pictureExpiryTimer);
+    this.pictureExpiryTimer = undefined;
+    const now = Date.now();
+    this.pictures = this.pictures.filter((picture) => {
+      if (Date.parse(picture.expiresAt) > now) return true;
+      if (picture.url) URL.revokeObjectURL(picture.url);
+      return false;
+    });
+    if (this.pictures.length) {
+      const nextExpiry = Math.min(
+        ...this.pictures.map(({ expiresAt }) => Date.parse(expiresAt)),
+      );
+      this.pictureExpiryTimer = window.setTimeout(
+        () => this.purgeExpiredPictures(),
+        Math.max(1, nextExpiry - now),
+      );
+    }
+  }
+
+  private async loadPictures(): Promise<void> {
+    this.purgeExpiredPictures();
+    const requestId = this.activeRequest?.id;
+    if (!requestId || !this.jwt) return;
+    try {
+      const response = await fetch(
+        `${this.apiRoot}/help/${encodeURIComponent(requestId)}/image`,
+        {
+          headers: { authorization: `Bearer ${this.jwt}` },
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) return;
+      const body = (await response.json()) as { images?: unknown };
+      if (this.activeRequest?.id !== requestId || !Array.isArray(body.images))
+        return;
+      const next = body.images
+        .filter(
+          (picture): picture is HelpPicture =>
+            typeof picture === "object" &&
+            picture !== null &&
+            typeof picture.id === "string" &&
+            typeof picture.expiresAt === "string" &&
+            Date.parse(picture.expiresAt) > Date.now(),
+        )
+        .map((picture) => ({
+          ...picture,
+          ...this.pictures.find(({ id }) => id === picture.id),
+        }));
+      this.pictures.forEach((picture) => {
+        if (picture.url && !next.some(({ id }) => id === picture.id))
+          URL.revokeObjectURL(picture.url);
+      });
+      this.pictures = next;
+      this.purgeExpiredPictures();
+    } catch {
+      // Pictures are an optional fallback; chat remains available.
+    }
+  }
+
+  private async viewPicture(picture: HelpPicture): Promise<void> {
+    const requestId = this.activeRequest?.id;
+    if (!requestId || picture.url) return;
+    try {
+      const response = await fetch(
+        `${this.apiRoot}/help/${encodeURIComponent(requestId)}/image/${encodeURIComponent(picture.id)}`,
+        {
+          headers: { authorization: `Bearer ${this.jwt}` },
+          cache: "no-store",
+        },
+      );
+      if (!response.ok) throw new Error("help picture");
+      const blob = await response.blob();
+      if (
+        !["image/jpeg", "image/png", "image/webp"].includes(blob.type) ||
+        blob.size > 2 * 1024 * 1024
+      )
+        throw new Error("help picture");
+      if (
+        this.activeRequest?.id !== requestId ||
+        !this.pictures.some(
+          ({ id, expiresAt, url }) =>
+            id === picture.id && Date.parse(expiresAt) > Date.now() && !url,
+        )
+      )
+        return;
+      const url = URL.createObjectURL(blob);
+      this.pictures = this.pictures.map((item) =>
+        item.id === picture.id ? { ...item, url } : item,
+      );
+    } catch {
+      if (this.activeRequest?.id === requestId) {
+        this.notice = this.t("helper.pictureError");
+        this.noticeIsError = true;
+      }
+    }
+  }
+
+  private renderPreferences(): unknown {
+    if (!this.jwt) return nothing;
+    return html`
+      <label>
+        <input
+          type="checkbox"
+          .checked=${this.sounds}
+          @change=${(event: Event) => this.setSounds((event.currentTarget as HTMLInputElement).checked)}
+        />
+        ${this.t("helper.sound")}
+      </label>
+      <form
+        class="profile"
+        @submit=${(event: SubmitEvent) => void this.saveProfile(event)}
+      >
+        <label for="helper-name">${this.t("helper.profileName")}</label>
+        <input
+          id="helper-name"
+          type="text"
+          maxlength="40"
+          autocomplete="off"
+          aria-describedby="helper-name-note"
+          .value=${this.displayName}
+          @input=${(event: Event) => {
+            this.displayName = (event.currentTarget as HTMLInputElement).value;
+          }}
+        />
+        <p id="helper-name-note">${this.t("helper.profileNote")}</p>
+        <button type="submit" ?disabled=${this.profileBusy}>
+          ${this.t("helper.profileSave")}
+        </button>
+      </form>
+      ${
+        this.metrics
+          ? html` <section aria-labelledby="helper-metrics-heading">
+              <h2 id="helper-metrics-heading">${this.t("helper.metrics")}</h2>
+              <p>
+                ${this.t("helper.metricsCounts", { closed: this.metrics.closedCount, resolved: this.metrics.resolvedCount, unresolved: this.metrics.unresolvedCount })}
+              </p>
+              <p>
+                ${this.t("helper.metricsTimes", { wait: Math.floor(this.metrics.totalWaitMs / 60_000), resolution: Math.floor(this.metrics.totalResolutionMs / 60_000) })}
+              </p>
+            </section>`
+          : nothing
+      }
+    `;
+  }
+
+  private renderShareBanner(): unknown {
+    const active = ["requested", "connecting", "sharing"].includes(
+      this.shareState.status,
+    );
+    return html`
+      ${
+        active
+          ? html` <div
+              class="share-banner"
+              role="region"
+              aria-label=${this.t("helper.screenView")}
+            >
+              <p role="status">
+                ${this.t(this.shareState.status === "requested" ? "helper.shareRequested" : this.shareState.status === "connecting" ? "helper.shareConnecting" : "helper.shareViewing")}
+              </p>
+              <button
+                type="button"
+                aria-keyshortcuts="Alt+Shift+S"
+                @click=${() => this.share?.stop()}
+              >
+                ${this.t("helper.shareStop")}
+              </button>
+            </div>`
+          : nothing
+      }
+    `;
+  }
+
+  private renderShare(): unknown {
+    const active = ["requested", "connecting", "sharing"].includes(
+      this.shareState.status,
+    );
+    return html`
+      ${this.shareState.status === "sharing" ? html`<video autoplay muted playsinline aria-label=${this.t("helper.screenView")}></video>` : nothing}
+      ${this.shareState.status === "fallback" ? html`<p role="status">${this.t("helper.shareFallback")}</p>` : nothing}
+      <div class="actions">
+        <button
+          type="button"
+          ?disabled=${active || this.connectionStatus !== "connected"}
+          @click=${() => this.share?.request()}
+        >
+          ${this.t("helper.requestScreen")}
+        </button>
+        <button
+          type="button"
+          @click=${() => {
+            this.draft = this.t("helper.describeMessage");
+            void this.updateComplete.then(() =>
+              this.renderRoot
+                .querySelector<HTMLTextAreaElement>("#helper-message")
+                ?.focus(),
+            );
+          }}
+        >
+          ${this.t("helper.describe")}
+        </button>
+      </div>
+      ${
+        this.pictures.length
+          ? html` <section aria-labelledby="helper-pictures-heading">
+              <h3 id="helper-pictures-heading">${this.t("helper.pictures")}</h3>
+              ${this.pictures.map(
+                (picture, index) => html`
+                  <button
+                    type="button"
+                    @click=${() => void this.viewPicture(picture)}
+                    ?disabled=${Boolean(picture.url)}
+                  >
+                    ${this.t("helper.viewPicture", { number: index + 1 })}
+                  </button>
+                  ${picture.url ? html`<img class="picture" src=${picture.url} alt=${this.t("helper.pictureAlt")} />` : nothing}
+                `,
+              )}
+            </section>`
+          : nothing
+      }
+    `;
   }
 
   private renderLogin(): unknown {
@@ -969,6 +1533,9 @@ export class DimtsHelperConsole extends LitElement {
                         <h3>${request.id}</h3>
                         <p>${this.languageName(request.lang)}</p>
                         <p>
+                          ${this.t("helper.waitMinutes", { minutes: Math.max(0, Math.floor((Date.now() - Date.parse(request.createdAt)) / 60_000)) })}
+                        </p>
+                        <p>
                           ${this.t("helper.channel")}:
                           ${this.t(`helper.channel.${request.channel}`)}
                         </p>
@@ -1028,10 +1595,15 @@ export class DimtsHelperConsole extends LitElement {
         <p role="status" aria-live="polite">
           ${this.t(`help.${this.connectionStatus || "connecting"}`)}
         </p>
+        ${this.renderShare()}
         <div class="messages" aria-live="off">
           ${this.messages.map(
             (message) => html`
-              <article data-sender=${message.from}>
+              <article
+                data-sender=${message.from}
+                data-message-id=${message.id}
+                tabindex="-1"
+              >
                 <strong>
                   ${this.t(message.from === "learner" ? "helper.learner" : "help.helper")}
                 </strong>
@@ -1052,6 +1624,19 @@ export class DimtsHelperConsole extends LitElement {
             @input=${(event: Event) =>
               (this.draft = (event.currentTarget as HTMLTextAreaElement).value)}
           ></textarea>
+          <label for="helper-resolution">${this.t("helper.resolution")}</label>
+          <select
+            id="helper-resolution"
+            .value=${this.resolution}
+            @change=${(event: Event) => {
+              this.resolution = (event.currentTarget as HTMLSelectElement)
+                .value as "" | "yes" | "no";
+            }}
+          >
+            <option value="">${this.t("helper.resolutionUnknown")}</option>
+            <option value="yes">${this.t("helper.resolutionYes")}</option>
+            <option value="no">${this.t("helper.resolutionNo")}</option>
+          </select>
           <div class="actions">
             <button
               class="primary"
@@ -1101,6 +1686,7 @@ export class DimtsHelperConsole extends LitElement {
               : nothing
           }
         </header>
+        ${this.renderShareBanner()}
         ${
           this.notice
             ? html`
@@ -1114,7 +1700,7 @@ export class DimtsHelperConsole extends LitElement {
               `
             : nothing
         }
-        <p class="visually-hidden" role="status" aria-live="polite">
+        <p class="status" role="status" aria-live="polite" aria-atomic="true">
           ${this.announcement}
         </p>
         ${
@@ -1147,7 +1733,8 @@ export class DimtsHelperConsole extends LitElement {
               `
             : this.renderLogin()
         }
-        ${this.renderQueue()} ${this.renderActiveRequest()}
+        ${this.renderPreferences()} ${this.renderQueue()}
+        ${this.renderActiveRequest()}
       </main>
     `;
   }

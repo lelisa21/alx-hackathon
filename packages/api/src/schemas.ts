@@ -209,6 +209,73 @@ export const HelpClaimResponseSchema = z
   .object({ ok: z.literal(true) })
   .strict();
 
+export const HelpAvailabilityQuerySchema = z
+  .object({ sessionId: z.string().min(8).max(64) })
+  .strict();
+export const HelpAvailabilityResponseSchema = z
+  .object({
+    available: z.boolean(),
+    nextOpenAt: z.string().datetime().optional(),
+    waitTimeoutMs: z.number().int().positive(),
+  })
+  .strict();
+export const HelperProfileSchema = z
+  .object({
+    displayName: z
+      .string()
+      .trim()
+      .min(1)
+      .max(40)
+      .refine((value) =>
+        [...value].every(
+          (character) =>
+            character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127,
+        ),
+      )
+      .nullable(),
+  })
+  .strict();
+export const HelpMetricsSchema = z
+  .object({
+    closedCount: z.number().int().nonnegative(),
+    resolvedCount: z.number().int().nonnegative(),
+    unresolvedCount: z.number().int().nonnegative(),
+    totalWaitMs: z.number().nonnegative(),
+    totalResolutionMs: z.number().nonnegative(),
+  })
+  .strict();
+export const HelpIceRequestSchema = z
+  .object({ sessionId: z.string().min(8).max(64).optional() })
+  .strict();
+export const HelpIceServerSchema = z
+  .object({
+    urls: z.union([
+      z.string().regex(/^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u),
+      z
+        .array(z.string().regex(/^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u))
+        .min(1)
+        .max(16),
+    ]),
+    username: z.string().max(1024).optional(),
+    credential: z.string().max(1024).optional(),
+  })
+  .strict();
+export const HelpIceResponseSchema = z
+  .object({
+    iceServers: z.array(HelpIceServerSchema).min(1).max(16),
+    expiresAt: z.string().datetime().optional(),
+  })
+  .strict();
+export const HelpImageResponseSchema = z
+  .object({ id: z.string().min(1).max(128), expiresAt: z.string().datetime() })
+  .strict();
+export const HelpImageListSchema = z
+  .object({ images: z.array(HelpImageResponseSchema) })
+  .strict();
+export const HelperCloseRequestSchema = z
+  .object({ resolved: z.boolean().optional() })
+  .strict();
+
 export const ProblemSchema = z
   .object({
     type: z.string(),

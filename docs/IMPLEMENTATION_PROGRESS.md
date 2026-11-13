@@ -1,6 +1,86 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-04-prompt`.
+Updated: 13 November 2026. Current branch: `phase-05-prompt`.
+
+## P05 — implemented increment; acceptance blocked
+
+The user reported P04 committed/pushed and authorized P05 only on their new,
+clean `phase-05-prompt` branch. No agent commit or push. Read the original P05
+prompt, Blueprint help contracts, corresponding SRS requirements and existing
+help code/tests. Requirements quoted before implementation: FR-HELP-04–19,
+FR-HELP-01–03 regression, and help-related NFR-SEC, NFR-REL and NFR-PRIV.
+
+Tests preceded changes. API/WS/media, learner/helper browser and locale tests
+cover the new behavior. The user delegated the unspecified fallback decision:
+leave a message in the existing help request during waiting, after timeout or
+outside hours. No callback/contact storage or imaginary Telegram destination.
+API/client agreements are recorded in `DECISIONS.md` before implementation.
+
+Implemented schedule/timeout handling, optional helper name and sound,
+anonymous outcomes, authorized signaling and local consent-controlled media,
+database pictures with validation/expiry, anonymous consent records, and cleanup.
+The new `sharp` dependency validates complete images and removes metadata;
+the existing help package is now a local widget dependency. Existing tutor,
+voice, embedding, offline, queue, claim, block and replay behavior is preserved.
+
+### Verified P05 evidence
+
+- `pnpm exec vitest run --maxWorkers=1`: **572 tests / 60 files passed**,
+  no skips, including **19 PostgreSQL integration cases** and **28 WebSocket
+  tests**. A subsequent media-file run passed **7/7**, adding a regression for
+  empty Compose TURN defaults (six cases overlap the full run). The earlier
+  run exposed a missing method in the test harness; corrected before the
+  final full pass. The isolated PostgreSQL 18 cluster was stopped and removed.
+- Real PostgreSQL/HTTP/WS flow verifies waiting-message persistence, summary
+  opt-out, claim, replay, name opt-in/removal, consent metadata, image access
+  and end cleanup. Database tests cover concurrent claims, the five-per-hour
+  limit, expiry, session cascade and anonymous outcome durability. The real
+  flow caught retained chat rows; close now atomically deletes messages/images
+  and clears the summary. Controller tests **7/7** cover consent, bounded
+  async cancellation, 5 fps/300 kbps limits, quality reduction and track cleanup.
+- Browser regression: **111/113** passed initially. Updated the existing
+  shortcut-copy assertion for Alt+Shift+S and used one click for the voice
+  recovery test whose expected consent state is unchecked; both passed their
+  focused rerun. All **113 functional/accessibility cases** have passing
+  evidence, including **12 new P05 cases**. The en/am/om/ar-test widget matrix,
+  helper axe/keyboard checks, native canvas-track stops, unavailable capture,
+  image expiry during API failure, replay and optional name/sound pass.
+  Browser API doubles and synthetic video do not prove physical-device sharing.
+- Separate serial startup benchmark passed: launcher **2,266 / 3,000 ms**,
+  chat ready **4,135 / 6,000 ms** under the existing real gzip-response
+  400 kbps/400 ms fixture. This adds one browser case (**114 total**).
+  Reproduce with `pnpm exec playwright test --config playwright.widget.config.ts
+packages/widget/e2e/embed-performance.spec.ts --workers=1`; the functional
+  run uses `--workers=2 --grep-invert NFR-PERF-02`. Artifacts are under
+  `test-results/p05-final`, `p05-regressions` and `p05-performance`.
+- Build, typecheck, lint, `lang:check`, size, changed-file Prettier and
+  `git diff --check` pass. Final compressed initial JS **45,996 / 61,440 bytes**,
+  helper **33,159 / 61,440**, deferred **11,097**, initial assets
+  **130,986 / 153,600**. The isolated full-suite P02 HTTP cached p95 was
+  **37 ms** and offline p95 **11 ms**, ten samples each. Whole-repository
+  formatting still flags **80 unchanged baseline files**. Compose default and
+  configured help/TURN forwarding passed CLI resolution with synthetic values.
+
+### P05 acceptance still open
+
+- No configured Metered account/credential or real TURN call was available.
+  Real browser permission/capture, restrictive-network and readable 3G sharing,
+  physical stop latency, NVDA/TalkBack, native-language/co-designer review and
+  deployment retention remain unverified. Draft translations were not promoted.
+- Expired images are inaccessible at two hours. The running API sweeps physical
+  database rows every 60 seconds, so deletion may lag by one minute; an offline
+  API cannot run that sweep. This is a documented strict-retention limitation,
+  not an unconditional two-hour deletion claim. Close/session cleanup is
+  verified. P11 must verify deployment scheduling and the complete privacy gate.
+- Docker configuration passed; container execution was blocked by the absent
+  Docker daemon. No coturn path was selected; P11 owns its optional local
+  Compose profile. Production uses Metered/public STUN with picture/text fallback.
+
+See `docs/HELP.md` for the test protocol and `docs/PRIVACY.md` for the scoped
+help privacy notes. Preserve inherited P01–P04 review/device gates. Stop before
+P06; the user will review, commit, push and explicitly authorize the next phase.
+
+## Historical P04 record
 
 ## P04 — implemented increment; acceptance blocked
 

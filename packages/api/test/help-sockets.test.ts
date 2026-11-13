@@ -46,6 +46,7 @@ function createStore() {
     isHelperActive: async (id) => id === "helper-one",
     isHelperClaimed: async (id, helperId) =>
       id === requestId && helperId === "helper-one",
+    recordShareConsent: vi.fn(async () => true),
     listMessagesAfter: async (id, lastMessageId) => {
       if (id !== requestId) return [];
       const lastIndex = lastMessageId
@@ -80,6 +81,8 @@ async function createHelperJwt(): Promise<string> {
 }
 
 interface SocketHarness {
+  store: HelpSocketStore;
+  refreshHelper(helperId: string): Promise<void>;
   connect(): Promise<WebSocket>;
   closeRequest(requestId: string): Promise<void>;
   close(): Promise<void>;
@@ -93,6 +96,7 @@ async function createHarness(): Promise<SocketHarness> {
   const socketServer = attachHelpWebSockets(server, {
     config,
     store,
+    refreshHelper: (id) => socketServer.refreshHelper(id),
     onError: errors,
   });
   await new Promise<void>((resolve, reject) => {
@@ -106,6 +110,7 @@ async function createHarness(): Promise<SocketHarness> {
   const url = `ws://127.0.0.1:${address.port}/v1/help/ws`;
   const clients: WebSocket[] = [];
   return {
+    store,
     errors,
     connect: async () => {
       const socket = new WebSocket(url);
@@ -116,6 +121,7 @@ async function createHarness(): Promise<SocketHarness> {
       });
     },
     closeRequest: (id) => socketServer.closeRequest(id),
+    refreshHelper: (id) => socketServer.refreshHelper(id),
     close: async () => {
       for (const client of clients) client.terminate();
       socketServer.close();
@@ -218,6 +224,238 @@ afterEach(async () => {
 });
 
 describe("WP07 help WebSocket", () => {
+  async function pair() {
+    const harness = await createHarness();
+    harnesses.push(harness);
+    const helper = await harness.connect();
+    const helperWelcome = nextMessage(helper);
+    sendAuth(helper, "helper", await createHelperJwt(), seedMessage.id);
+    await helperWelcome;
+    const learner = await harness.connect();
+    const learnerWelcome = nextMessage(learner);
+    sendAuth(learner, "learner", undefined, seedMessage.id);
+    await learnerWelcome;
+    return { harness, learner, helper };
+  }
+
+  it("FR-HELP-08 permits only requested learner consent and ordered RTC roles", async () => {
+    const { helper, learner } = await pair();
+    const relay = async (from: WebSocket, to: WebSocket, frame: object) => {
+      const received = nextMessage(to);
+      from.send(JSON.stringify(frame));
+      expect(await received).toEqual(frame);
+    };
+    await relay(helper, learner, { type: "share.request" });
+    await relay(learner, helper, { type: "share.accept" });
+    await relay(learner, helper, { type: "rtc.offer", sdp: "v=0\r\n" });
+    await relay(helper, learner, { type: "rtc.answer", sdp: "v=0\r\n" });
+    await relay(helper, learner, {
+      type: "rtc.ice",
+      candidate: { candidate: "candidate:1", sdpMid: "0" },
+    });
+    await relay(learner, helper, { type: "share.stop", reason: "learner" });
+    const ended = closed(learner);
+    learner.send(JSON.stringify({ type: "rtc.offer", sdp: "v=0\r\n" }));
+    expect(await ended).toBe(1008);
+  });
+
+  it("NFR-PRIV-04 records only valid learner consent once without frame content", async () => {
+    const { harness, helper, learner } = await pair();
+    const requested = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await requested;
+    const declined = nextMessage(helper);
+    learner.send(JSON.stringify({ type: "share.decline" }));
+    await declined;
+    expect(harness.store.recordShareConsent).not.toHaveBeenCalled();
+
+    const requestedAgain = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await requestedAgain;
+    const accepted = nextMessage(helper);
+    learner.send(JSON.stringify({ type: "share.accept" }));
+    expect(await accepted).toEqual({ type: "share.accept" });
+    expect(harness.store.recordShareConsent).toHaveBeenCalledExactlyOnceWith(
+      requestId,
+    );
+    const ended = closed(learner);
+    learner.send(JSON.stringify({ type: "share.accept" }));
+    expect(await ended).toBe(1008);
+    expect(harness.store.recordShareConsent).toHaveBeenCalledTimes(1);
+  });
+
+  it.each(["helper", "learner"] as const)(
+    "NFR-PRIV-04 does not audit unauthorized %s acceptance",
+    async (role) => {
+      const { harness, helper, learner } = await pair();
+      const socket = role === "helper" ? helper : learner;
+      const ended = closed(socket);
+      socket.send(JSON.stringify({ type: "share.accept" }));
+      expect(await ended).toBe(1008);
+      expect(harness.store.recordShareConsent).not.toHaveBeenCalled();
+    },
+  );
+
+  it("NFR-PRIV-04 fails closed if request ends before consent can be stored", async () => {
+    const { harness, helper, learner } = await pair();
+    const requested = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await requested;
+    harness.store.recordShareConsent = vi.fn(async () => false);
+    const stopped = nextMessage(helper);
+    const ended = closed(learner);
+    learner.send(JSON.stringify({ type: "share.accept" }));
+    expect(await stopped).toEqual({ type: "share.stop", reason: "ended" });
+    expect(await ended).toBe(4401);
+  });
+
+  it.each([
+    ["learner", { type: "share.request" }],
+    ["helper", { type: "share.accept" }],
+    ["helper", { type: "share.decline" }],
+    ["helper", { type: "rtc.offer", sdp: "v=0" }],
+    ["learner", { type: "rtc.answer", sdp: "v=0" }],
+    ["learner", { type: "share.accept" }],
+    ["learner", { type: "rtc.ice", candidate: { candidate: "candidate:1" } }],
+  ] as const)(
+    "FR-HELP-08 rejects role/state spoofing by %s: %j",
+    async (role, frame) => {
+      const peers = await pair();
+      const socket = peers[role];
+      const ended = closed(socket);
+      socket.send(JSON.stringify(frame));
+      expect(await ended).toBe(1008);
+    },
+  );
+
+  it("FR-HELP-08 declining leaves chat open and disconnect cancels consent", async () => {
+    const { harness, helper, learner } = await pair();
+    const request = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await request;
+    const decline = nextMessage(helper);
+    learner.send(JSON.stringify({ type: "share.decline" }));
+    expect(await decline).toEqual({ type: "share.decline" });
+    const chat = nextMessage(helper);
+    learner.send(
+      JSON.stringify({
+        type: "chat.message",
+        id: "after-decline",
+        text: "Continue here",
+      }),
+    );
+    expect(await chat).toMatchObject({
+      type: "chat.message",
+      id: "after-decline",
+    });
+    const requested = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await requested;
+    const stopped = nextMessage(helper);
+    learner.close();
+    expect(await stopped).toEqual({ type: "share.stop", reason: "disconnect" });
+    const fresh = await harness.connect();
+    const welcome = nextMessage(fresh);
+    sendAuth(fresh, "learner", undefined, "after-decline");
+    await welcome;
+    const ended = closed(fresh);
+    fresh.send(JSON.stringify({ type: "share.accept" }));
+    expect(await ended).toBe(1008);
+  });
+
+  it.each(["learner", "helper"] as const)(
+    "revalidates revoked %s credentials on every frame",
+    async (role) => {
+      const { harness, learner, helper } = await pair();
+      if (role === "learner")
+        harness.store.authenticateLearner = async () => false;
+      else harness.store.isHelperActive = async () => false;
+      const socket = role === "learner" ? learner : helper;
+      const ended = closed(socket);
+      socket.send(JSON.stringify({ type: "chat.typing" }));
+      expect(await ended).toBe(4401);
+    },
+  );
+
+  it("does not deliver chat to a helper revoked while its socket is idle", async () => {
+    const { harness, learner, helper } = await pair();
+    harness.store.isHelperClaimed = async () => false;
+    const ended = closed(helper);
+    learner.send(
+      JSON.stringify({
+        type: "chat.message",
+        id: "private",
+        text: "Do not relay",
+      }),
+    );
+    expect(await ended).toBe(4401);
+  });
+
+  it("FR-HELP-16 identifies helper presence and only the deliberate public name", async () => {
+    const harness = await createHarness();
+    harnesses.push(harness);
+    harness.store.getHelperName = async () => "Public first name";
+    const learner = await harness.connect();
+    const welcome = nextMessage(learner);
+    sendAuth(learner, "learner", undefined, seedMessage.id);
+    expect(await welcome).toEqual({ type: "help.joined", helperJoined: false });
+    const helper = await harness.connect();
+    const helperWelcome = nextMessage(helper);
+    const joined = nextMessage(learner);
+    sendAuth(helper, "helper", await createHelperJwt(), seedMessage.id);
+    await helperWelcome;
+    expect(await joined).toEqual({
+      type: "help.joined",
+      helperJoined: true,
+      helperName: "Public first name",
+    });
+    harness.store.getHelperName = async () => undefined;
+    const cleared = nextMessage(learner);
+    await harness.refreshHelper("helper-one");
+    expect(await cleared).toEqual({ type: "help.joined", helperJoined: true });
+  });
+
+  it("drops unknown types without closing chat and rejects malformed known signals", async () => {
+    const { learner, helper } = await pair();
+    learner.send(JSON.stringify({ type: "share.future" }));
+    learner.send(JSON.stringify({ type: "future.message" }));
+    const message = nextMessage(helper);
+    learner.send(
+      JSON.stringify({
+        type: "chat.message",
+        id: "unknown-after",
+        text: "Still connected",
+      }),
+    );
+    expect(await message).toMatchObject({ id: "unknown-after" });
+    const ended = closed(learner);
+    learner.send(
+      JSON.stringify({ type: "rtc.offer", sdp: "v=0", deviceId: "forbidden" }),
+    );
+    expect(await ended).toBe(1008);
+  });
+
+  it("FR-HELP-09 either-side stop and help closure end active sharing", async () => {
+    const { learner, helper, harness } = await pair();
+    const request = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await request;
+    const accept = nextMessage(helper);
+    learner.send(JSON.stringify({ type: "share.accept" }));
+    await accept;
+    const stopped = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.stop" }));
+    expect(await stopped).toEqual({ type: "share.stop", reason: "ended" });
+    const requestedAgain = nextMessage(learner);
+    helper.send(JSON.stringify({ type: "share.request" }));
+    await requestedAgain;
+    const learnerStop = nextMessage(learner);
+    const helperStop = nextMessage(helper);
+    await harness.closeRequest(requestId);
+    expect(await learnerStop).toEqual({ type: "share.stop", reason: "ended" });
+    expect(await helperStop).toEqual({ type: "share.stop", reason: "ended" });
+  });
+
   it("exposes the help WebSocket attachment in API composition", async () => {
     const { store } = createStore();
     const app = buildApp({ config, helpSocketStore: store });
@@ -236,6 +474,39 @@ describe("WP07 help WebSocket", () => {
     expect(await closedPromise).toBe(4401);
   });
 
+  it("does not join or replay to a socket closed while its queued authentication completes", async () => {
+    const harness = await createHarness();
+    harnesses.push(harness);
+    let resume!: () => void;
+    let entered!: () => void;
+    const pending = new Promise<void>((resolve) => {
+      resume = resolve;
+    });
+    const waiting = new Promise<void>((resolve) => {
+      entered = resolve;
+    });
+    let checks = 0;
+    harness.store.authenticateLearner = async () => {
+      checks += 1;
+      if (checks === 2) {
+        entered();
+        await pending;
+      }
+      return true;
+    };
+    const replay = vi.fn(async () => []);
+    harness.store.listMessagesAfter = replay;
+    const socket = await harness.connect();
+    sendAuth(socket, "learner");
+    await waiting;
+    const ended = closed(socket);
+    socket.close();
+    await ended;
+    resume();
+    await new Promise<void>((resolve) => setImmediate(resolve));
+    expect(replay).not.toHaveBeenCalled();
+  });
+
   it("closes unauthenticated sockets after five seconds", async () => {
     const harness = await createHarness();
     harnesses.push(harness);
@@ -251,7 +522,7 @@ describe("WP07 help WebSocket", () => {
     const learnerWelcome = nextMessage(learner);
     const firstReplay = nextMessage(learner);
     sendAuth(learner, "learner");
-    expect(await learnerWelcome).toEqual({ type: "help.joined" });
+    expect(await learnerWelcome).toMatchObject({ type: "help.joined" });
     expect(await firstReplay).toEqual({
       type: "chat.message",
       id: seedMessage.id,
@@ -262,7 +533,12 @@ describe("WP07 help WebSocket", () => {
     const helper = await harness.connect();
     const helperWelcome = nextMessage(helper);
     sendAuth(helper, "helper", await createHelperJwt(), seedMessage.id);
-    expect(await helperWelcome).toEqual({ type: "help.joined" });
+    expect(await helperWelcome).toMatchObject({ type: "help.joined" });
+
+    expect(await nextMessage(learner)).toMatchObject({
+      type: "help.joined",
+      helperJoined: true,
+    });
 
     const firstHelperMessage = nextMessage(helper);
     learner.send(
@@ -326,7 +602,7 @@ describe("WP07 help WebSocket", () => {
     const firstReplayedMessage = nextMessage(reconnectedLearner);
     const secondReplayedMessage = nextMessage(reconnectedLearner);
     sendAuth(reconnectedLearner, "learner", undefined, "learner-message-1");
-    expect(await reconnectWelcome).toEqual({ type: "help.joined" });
+    expect(await reconnectWelcome).toMatchObject({ type: "help.joined" });
     expect(await firstReplayedMessage).toEqual({
       type: "chat.message",
       id: "learner-message-2",
@@ -349,7 +625,7 @@ describe("WP07 help WebSocket", () => {
     const learnerWelcome = nextMessage(learner);
     const learnerReplay = nextMessage(learner);
     sendAuth(learner, "learner");
-    expect(await learnerWelcome).toEqual({ type: "help.joined" });
+    expect(await learnerWelcome).toMatchObject({ type: "help.joined" });
     expect(await learnerReplay).toEqual({
       type: "chat.message",
       id: seedMessage.id,
@@ -360,7 +636,12 @@ describe("WP07 help WebSocket", () => {
     const helper = await harness.connect();
     const helperWelcome = nextMessage(helper);
     sendAuth(helper, "helper", await createHelperJwt(), seedMessage.id);
-    expect(await helperWelcome).toEqual({ type: "help.joined" });
+    expect(await helperWelcome).toMatchObject({ type: "help.joined" });
+
+    expect(await nextMessage(learner)).toMatchObject({
+      type: "help.joined",
+      helperJoined: true,
+    });
 
     const learnerClosedFrame = nextMessage(learner);
     const helperClosedFrame = nextMessage(helper);

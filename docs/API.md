@@ -310,6 +310,72 @@ passage data, without identity, history, glossary or job text. Job passages
 remain available to local/offline providers. Provider identity appears in
 `GET /v1/health` and the authenticated helper console, never learner replies.
 
+## Human help availability, media and service quality (P05)
+
+Requirements: FR-HELP-01–18 (the SRS has no FR-HELP-19), NFR-SEC,
+NFR-REL and NFR-PRIV. The existing confirmed request remains
+`POST /v1/help {sessionId,includeSummary}`. The same request and ordered
+WebSocket chat retain a leave-message fallback while waiting, after the
+configured timeout and outside hours. No callback contact or Telegram
+destination is collected. The tutor stays usable while waiting.
+
+- `GET /v1/help/availability?sessionId=…` requires the session bearer and
+  returns `{available,nextOpenAt?,waitTimeoutMs}`. Availability means the UTC
+  schedule permits help, not proof that a helper is online. `nextOpenAt` is an
+  ISO timestamp and is absent for an empty schedule. The default wait is
+  300000 ms; `DIMTS_HELP_WAIT_TIMEOUT_MS` accepts 1000–3600000. Claims outside
+  the validated `DIMTS_HELPER_HOURS` intervals return 409; confirmed waiting
+  requests and existing conversations remain usable.
+- `POST /v1/help/{id}/ice` accepts `{sessionId}` from the owning learner or
+  `{}` from the assigned helper JWT. Only claimed requests qualify. The
+  response is `{iceServers:[{urls,username?,credential?}],expiresAt?}` with
+  `Cache-Control: no-store`. `DIMTS_TURN_APP` is the Metered app subdomain;
+  `DIMTS_TURN_API_KEY` is its server-only secret key. Configure both or neither.
+  The server creates credentials with a one-hour lifetime and omits the
+  application secret and provider API key from responses. Unconfigured or
+  failed TURN returns `stun:stun.l.google.com:19302`. Metered documents up to
+  two minutes of propagation for new credentials; a cold first share can
+  require retry or the picture/words fallback. Real TURN/NAT quality remains
+  a host validation step. See the [provider API](https://www.metered.ca/docs/turn-server-service/creating-turn-credentials/).
+- `POST /v1/help/{id}/image?sessionId=…` accepts raw `image/jpeg`, `image/png`
+  or `image/webp` bytes with the owning learner bearer; no multipart envelope.
+  Maximum input and retained output size is 2097152 bytes. Full pixel decoding
+  rejects corrupt/truncated images, type mismatches, animation and images
+  above 16 million pixels. Re-encoding removes EXIF/GPS/comments. At most five
+  unexpired pictures are retained per request. Success 201 is `{id,expiresAt}`;
+  invalid content is 400, oversize 413, unavailable request/storage slot 404.
+- `GET /v1/help/{id}/image` returns `{images:[{id,expiresAt}]}` in creation
+  order. `GET /v1/help/{id}/image/{imageId}` returns private image bytes with
+  `no-store` and `nosniff`. Learners supply sessionId in the query and their
+  bearer; helpers supply their JWT. Only the owning learner or the active,
+  assigned helper can retrieve media; waiting pictures are private to their
+  learner. Helpers poll metadata and choose to fetch a picture.
+
+Pictures reside only in PostgreSQL. Read-time expiration prevents access at
+two hours; startup plus a 60-second sweep removes expired bytes (at most one
+minute scheduling lag while the API runs). The retention job also removes
+expired images. A database trigger removes pictures atomically on request
+close, clears the summary and deletes chat rows; session deletion cascades
+through help data. A request-row lock
+serializes upload with close. After restart, the first sweep removes expired
+bytes. No image data, filenames or peer identity is logged.
+
+`GET/PATCH /v1/helpers/profile` requires an active helper JWT. Its exact body
+and response are `{displayName:string|null}` (trimmed 1–40 characters, null
+removes it). Default is null regardless of the existing private staff name.
+An explicit update refreshes active `help.joined` frames. Helper close accepts
+an optional `{resolved:boolean}`; omission remains unknown. Learner close
+continues to accept only `{sessionId}`. `GET /v1/help/metrics` is helper-only
+and returns `{closedCount,resolvedCount,unresolvedCount,totalWaitMs,totalResolutionMs}`.
+Durations total only claimed requests when closed; unknown outcomes contribute
+only to closedCount. One database aggregate contains no request/session/helper
+IDs, language, content or contact fields. It survives session deletion.
+
+Automated evidence is in `p05-help.test.ts`, `p05-media.test.ts` and
+`p05-postgres.integration.test.ts`; the PostgreSQL suite requires an isolated
+`DIMTS_TEST_DATABASE_URL`. Physical device, real TURN, bandwidth and human
+accessibility evidence are separate release checks.
+
 ## Feedback and conversation signals
 
 `POST /v1/feedback` accepts only `{ "replyId": "...", "helpful": false }`

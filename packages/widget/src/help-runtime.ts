@@ -1,4 +1,5 @@
 import { html, nothing } from "lit";
+import { createScreenShareController, type ShareState } from "@dimts/help";
 import type {
   Language,
   ConversationMessage,
@@ -30,6 +31,8 @@ export interface HelpContext {
   helpReconnectTimer: number | undefined;
   helpReconnectAttempt: number;
   isConnected: boolean;
+  hidden: boolean;
+  requestUpdate(): void;
   renderRoot: HTMLElement | ShadowRoot;
   updateComplete: Promise<boolean>;
   currentDirection: "ltr" | "rtl";
@@ -47,13 +50,300 @@ export interface HelpContext {
   closeHelpRequest(): Promise<void>;
 }
 
+interface HelpExtras {
+  available?: boolean;
+  nextOpenAt?: string | undefined;
+  waitTimeoutMs: number;
+  availabilityFailed: boolean;
+  joined: boolean;
+  helperName?: string | undefined;
+  timedOut: boolean;
+  timer?: number;
+  waitStartedAt?: number;
+  lastServerMessageId?: string;
+  share: ShareState;
+  controller?: ReturnType<typeof createScreenShareController> | undefined;
+  imageBusy: boolean;
+  imageNotice: string;
+  imageFailed: boolean;
+}
+const extras = new WeakMap<HelpContext, HelpExtras>();
+function state(context: HelpContext): HelpExtras {
+  let value = extras.get(context);
+  if (!value) {
+    value = {
+      waitTimeoutMs: 300000,
+      availabilityFailed: false,
+      joined: false,
+      timedOut: false,
+      share: { status: "idle" },
+      imageBusy: false,
+      imageNotice: "",
+      imageFailed: false,
+    };
+    extras.set(context, value);
+  }
+  return value;
+}
+function focusMessage(context: HelpContext): void {
+  context.renderRoot
+    .querySelector<HTMLTextAreaElement>(".help-chat textarea")
+    ?.focus();
+}
+function scheduleWait(context: HelpContext): void {
+  const value = state(context);
+  clearTimeout(value.timer);
+  if (
+    value.joined ||
+    value.waitStartedAt === undefined ||
+    !context.helpRequestId ||
+    !context.isConnected
+  )
+    return;
+  value.timer = window.setTimeout(
+    () => {
+      if (!value.joined && context.helpRequestId) {
+        value.timedOut = true;
+        context.requestUpdate();
+      }
+    },
+    Math.max(0, value.waitStartedAt + value.waitTimeoutMs - Date.now()),
+  );
+}
+function sharing(context: HelpContext) {
+  const value = state(context);
+  return (value.controller ??= createScreenShareController({
+    role: "learner",
+    send(frame) {
+      if (context.helpSocket?.readyState !== WebSocket.OPEN)
+        throw new Error("disconnected");
+      context.helpSocket.send(JSON.stringify(frame));
+    },
+    async loadIceServers() {
+      const response = await context.request(
+        `${context.apiRoot}/help/${encodeURIComponent(context.helpRequestId)}/ice`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${context.sessionToken}`,
+            "content-type": "application/json",
+          },
+          body: JSON.stringify({ sessionId: context.sessionId }),
+        },
+      );
+      if (!response.ok) throw new Error("ice");
+      const body = (await response.json()) as { iceServers: RTCIceServer[] };
+      return body.iceServers;
+    },
+    onState(next) {
+      value.share = next;
+      context.requestUpdate();
+      if (next.status === "requested")
+        void context.updateComplete.then(() =>
+          context.renderRoot
+            .querySelector<HTMLButtonElement>(".share-dialog button")
+            ?.focus(),
+        );
+      if (next.status === "idle" || next.status === "fallback")
+        void context.updateComplete.then(() => focusMessage(context));
+    },
+  }));
+}
+async function loadAvailability(context: HelpContext): Promise<void> {
+  const generation = context.sessionGeneration;
+  const value = state(context);
+  try {
+    if (!context.sessionId || !context.sessionToken) return;
+    const response = await context.request(
+      `${context.apiRoot}/help/availability?sessionId=${encodeURIComponent(context.sessionId)}`,
+      { headers: { authorization: `Bearer ${context.sessionToken}` } },
+    );
+    if (!response.ok) throw new Error("availability");
+    const body = (await response.json()) as {
+      available: boolean;
+      nextOpenAt?: string;
+      waitTimeoutMs: number;
+    };
+    if (
+      typeof body.available !== "boolean" ||
+      !Number.isFinite(body.waitTimeoutMs) ||
+      body.waitTimeoutMs < 1000 ||
+      body.waitTimeoutMs > 3600000
+    )
+      throw new Error("availability");
+    if (generation !== context.sessionGeneration) return;
+    value.available = body.available;
+    value.nextOpenAt = body.nextOpenAt;
+    value.waitTimeoutMs = body.waitTimeoutMs;
+    value.availabilityFailed = false;
+    scheduleWait(context);
+  } catch {
+    if (generation === context.sessionGeneration)
+      value.availabilityFailed = true;
+  }
+  if (generation === context.sessionGeneration) context.requestUpdate();
+}
+function availability(context: HelpContext) {
+  const value = state(context);
+  let date = "";
+  if (value.nextOpenAt && Number.isFinite(Date.parse(value.nextOpenAt))) {
+    date = new Intl.DateTimeFormat(context.uiLanguage, {
+      dateStyle: "medium",
+      timeStyle: "short",
+      timeZone: "UTC",
+    }).format(new Date(value.nextOpenAt));
+  }
+  return html`<p data-help-availability role="status">
+    ${context.t(value.availabilityFailed ? "help.availabilityFailed" : value.available === undefined ? "help.availabilityLoading" : value.available ? "help.hoursOpen" : "help.hoursClosed")}
+    ${!value.available && date ? context.t("help.nextOpen", { date }) : nothing}
+  </p>`;
+}
+async function uploadImage(context: HelpContext, event: Event): Promise<void> {
+  const input = event.currentTarget as HTMLInputElement;
+  const file = input.files?.[0];
+  input.value = "";
+  if (!file) return;
+  const value = state(context);
+  if (value.imageBusy || !context.helpRequestId) return;
+  value.imageFailed = false;
+  if (
+    !["image/jpeg", "image/png", "image/webp"].includes(file.type) ||
+    file.size === 0 ||
+    file.size > 2097152
+  ) {
+    value.imageFailed = true;
+    value.imageNotice = context.t("share.imageInvalid");
+    context.requestUpdate();
+    return;
+  }
+  value.imageBusy = true;
+  value.imageNotice = "";
+  context.requestUpdate();
+  const generation = context.sessionGeneration,
+    requestId = context.helpRequestId;
+  try {
+    const response = await context.request(
+      `${context.apiRoot}/help/${encodeURIComponent(requestId)}/image?sessionId=${encodeURIComponent(context.sessionId)}`,
+      {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${context.sessionToken}`,
+          "content-type": file.type,
+        },
+        body: file,
+      },
+    );
+    if (!response.ok) throw new Error("image");
+    if (
+      generation === context.sessionGeneration &&
+      requestId === context.helpRequestId
+    )
+      value.imageNotice = context.t("share.imageSent");
+  } catch {
+    if (
+      generation === context.sessionGeneration &&
+      requestId === context.helpRequestId
+    ) {
+      value.imageFailed = true;
+      value.imageNotice = context.t("share.imageFailed");
+    }
+  } finally {
+    value.imageBusy = false;
+    context.requestUpdate();
+  }
+}
+function renderSharing(context: HelpContext) {
+  const value = state(context);
+  if (value.share.status === "requested")
+    return html`<div class="help-backdrop">
+      <section
+        class="help-dialog share-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="share-title"
+        @keydown=${(event: KeyboardEvent) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            sharing(context).decline();
+            return;
+          }
+          if (event.key !== "Tab") return;
+          const controls =
+            context.renderRoot.querySelectorAll<HTMLButtonElement>(
+              ".share-dialog button",
+            );
+          const active =
+            context.renderRoot instanceof ShadowRoot
+              ? context.renderRoot.activeElement
+              : null;
+          if (event.shiftKey && active === controls[0]) {
+            event.preventDefault();
+            controls[1]?.focus();
+          } else if (!event.shiftKey && active === controls[1]) {
+            event.preventDefault();
+            controls[0]?.focus();
+          }
+        }}
+      >
+        <h2 id="share-title">${context.t("share.ask")}</h2>
+        <p>${context.t("share.privacy")}</p>
+        <div class="help-actions">
+          <button type="button" @click=${() => sharing(context).decline()}>
+            ${context.t("help.cancel")}</button
+          ><button type="button" @click=${() => void sharing(context).accept()}>
+            ${context.t("share.accept")}
+          </button>
+        </div>
+      </section>
+    </div>`;
+  if (value.share.status === "sharing" || value.share.status === "connecting")
+    return html`<aside
+      class="share-banner"
+      role="region"
+      aria-label=${context.t("share.active")}
+    >
+      <span role="status"
+        >${context.t(value.share.status === "sharing" ? "share.active" : "share.connecting")}</span
+      ><button
+        type="button"
+        aria-keyshortcuts="Alt+Shift+S"
+        @click=${() => sharing(context).stop()}
+      >
+        ${context.t("share.stop")}
+      </button>
+    </aside>`;
+  return nothing;
+}
+
 export const helpRuntime = {
+  stopSharing(this: HelpContext): void {
+    state(this).controller?.stop();
+  },
+  suspend(this: HelpContext): void {
+    const value = extras.get(this);
+    if (!value) return;
+    clearTimeout(value.timer);
+    value.controller?.dispose();
+    value.controller = undefined;
+    value.share = { status: "idle" };
+  },
+  dispose(this: HelpContext): void {
+    const value = extras.get(this);
+    if (!value) return;
+    clearTimeout(value.timer);
+    value.controller?.dispose();
+    extras.delete(this);
+  },
+  shareDialogOpen(this: HelpContext): boolean {
+    return state(this).share.status === "requested";
+  },
   async openHelpPreview(this: HelpContext): Promise<void> {
     if (this.helpRequestId || this.helpBusy) return;
     this.helpIncludeSummary = true;
     this.helpNotice = "";
     this.helpNoticeIsError = false;
     this.helpPreviewOpen = true;
+    void loadAvailability(this);
     await this.updateComplete;
     this.renderRoot
       .querySelector<HTMLInputElement>(".help-dialog input")
@@ -150,6 +440,12 @@ export const helpRuntime = {
       this.helpPreviewOpen = false;
       this.helpNotice = "";
       this.helpNoticeIsError = false;
+      const value = state(this);
+      value.joined = false;
+      value.timedOut = false;
+      value.helperName = undefined;
+      value.waitStartedAt = Date.now();
+      scheduleWait(this);
       this.connectHelpSocket();
       await this.updateComplete;
       this.renderRoot
@@ -165,6 +461,7 @@ export const helpRuntime = {
   },
 
   connectHelpSocket(this: HelpContext): void {
+    scheduleWait(this);
     if (
       !this.isConnected ||
       !this.helpRequestId ||
@@ -186,7 +483,7 @@ export const helpRuntime = {
           socket.close();
           return;
         }
-        const lastMessageId = this.helpMessages.at(-1)?.id;
+        const lastMessageId = state(this).lastServerMessageId;
         socket.send(
           JSON.stringify({
             type: "auth",
@@ -199,12 +496,15 @@ export const helpRuntime = {
         );
       };
       socket.onmessage = (event: MessageEvent<unknown>) => {
+        if (this.helpSocket !== socket) return;
         this.handleHelpFrame(event.data);
       };
       socket.onerror = () => {
         this.helpStatus = "reconnecting";
       };
       socket.onclose = (event: CloseEvent) => {
+        if (this.helpSocket !== socket) return;
+        state(this).controller?.stop();
         if (this.helpSocket === socket) this.helpSocket = undefined;
         if (event.code === 4401) {
           this.helpStatus = "";
@@ -257,13 +557,25 @@ export const helpRuntime = {
       return;
     }
     if (frame.type === "help.joined") {
+      const value = state(this);
+      value.joined = !("helperJoined" in frame) || frame.helperJoined === true;
+      value.helperName =
+        "helperName" in frame && typeof frame.helperName === "string"
+          ? frame.helperName
+          : undefined;
+      if (value.joined) {
+        clearTimeout(value.timer);
+        value.timedOut = false;
+      }
       this.helpStatus = "connected";
       this.helpReconnectAttempt = 0;
       this.helpNotice = "";
       this.helpNoticeIsError = false;
+      this.requestUpdate();
       return;
     }
     if (frame.type === "help.closed") {
+      helpRuntime.dispose.call(this);
       this.helpRequestId = "";
       this.helpMessages = [];
       this.helpDraft = "";
@@ -280,24 +592,38 @@ export const helpRuntime = {
       return;
     }
     if (
+      typeof frame.type === "string" &&
+      (frame.type.startsWith("share.") || frame.type.startsWith("rtc."))
+    ) {
+      if (this.hidden || !this.isConnected) return;
+      void sharing(this).handleFrame(frame);
+      return;
+    }
+    if (frame.type === "chat.typing") return;
+    if (
       frame.type !== "chat.message" ||
       !("id" in frame) ||
       typeof frame.id !== "string" ||
       !("text" in frame) ||
       typeof frame.text !== "string" ||
       !("from" in frame) ||
-      frame.from !== "helper"
+      (frame.from !== "helper" && frame.from !== "learner")
     ) {
       this.helpNotice = this.t("help.error");
       this.helpNoticeIsError = true;
       return;
     }
+    state(this).lastServerMessageId = frame.id;
     if (this.helpMessages.some((message) => message.id === frame.id)) return;
     this.helpMessages = [
       ...this.helpMessages,
-      { id: frame.id, from: "helper", text: frame.text },
+      { id: frame.id, from: frame.from, text: frame.text },
     ];
-    this.helpAnnouncement = this.t("help.newMessage");
+    if (frame.from !== "helper") return;
+    this.helpAnnouncement = "";
+    void this.updateComplete.then(() => {
+      if (this.helpRequestId) this.helpAnnouncement = this.t("help.newMessage");
+    });
   },
 
   sendHelpMessage(this: HelpContext, event: SubmitEvent): void {
@@ -324,6 +650,7 @@ export const helpRuntime = {
     const generation = this.sessionGeneration;
     if (!this.helpRequestId || this.helpBusy) return;
     this.helpBusy = true;
+    helpRuntime.stopSharing.call(this);
     this.helpNotice = "";
     this.helpNoticeIsError = false;
     try {
@@ -340,6 +667,7 @@ export const helpRuntime = {
       );
       if (generation !== this.sessionGeneration) return;
       if (!response.ok) throw new Error("help close");
+      helpRuntime.dispose.call(this);
       this.helpRequestId = "";
       this.helpMessages = [];
       this.helpDraft = "";
@@ -364,7 +692,7 @@ export const helpRuntime = {
   },
 
   renderHelpPreview(this: HelpContext): unknown {
-    if (!this.helpPreviewOpen) return nothing;
+    if (!this.helpPreviewOpen) return renderSharing(this);
     const questions = this.messages
       .filter((message) => message.role === "learner")
       .slice(-3);
@@ -380,6 +708,7 @@ export const helpRuntime = {
           @keydown=${(event: KeyboardEvent) => this.trapHelpDialog(event)}
         >
           <h2 id="help-preview-title">${this.t("help.preview.title")}</h2>
+          ${availability(this)}
           <p>
             ${this.t("help.preview.language", {
               language: this.currentLanguage?.nameNative ?? this.selectedLang,
@@ -455,6 +784,7 @@ export const helpRuntime = {
 
   renderHelpSession(this: HelpContext): unknown {
     if (!this.helpRequestId) return nothing;
+    const value = state(this);
     return html`
       <section
         class="panel"
@@ -463,9 +793,20 @@ export const helpRuntime = {
         dir=${this.currentDirection}
       >
         <h2 id="help-chat-heading">${this.t("help.chat")}</h2>
-        <p>${this.t("help.waiting")}</p>
+        ${
+          !value.joined
+            ? html`<p>${this.t("help.waiting")}</p>
+                ${availability(this)}${value.timedOut ? html`<p data-help-timeout role="status">${this.t("help.timeout")}</p>` : nothing}<button
+                  type="button"
+                  @click=${() => focusMessage(this)}
+                >
+                  ${this.t("help.leaveMessage")}
+                </button>`
+            : nothing
+        }
+        ${value.helperName ? html`<p>${this.t("help.named", { name: value.helperName })}</p>` : nothing}
         <p role="status" aria-live="polite">
-          ${this.t(`help.${this.helpStatus || "connecting"}`)}
+          ${this.t(`help.${this.helpStatus === "connected" && !value.joined ? "messageReady" : this.helpStatus || "connecting"}`)}
         </p>
         ${
           this.helpNotice
@@ -501,6 +842,31 @@ export const helpRuntime = {
         <p class="visually-hidden" role="status" aria-live="polite">
           ${this.helpAnnouncement}
         </p>
+        ${value.share.status === "fallback" ? html`<p role="status">${this.t("share.fallback")}</p>` : nothing}
+        ${
+          value.joined || value.share.status === "fallback"
+            ? html`<section
+                class="share-fallback"
+                aria-label=${this.t("share.alternatives")}
+              >
+                <label for="help-picture">${this.t("share.picture")}</label
+                ><input
+                  id="help-picture"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  ?disabled=${value.imageBusy}
+                  @change=${(event: Event) => void uploadImage(this, event)}
+                />
+                <p>${this.t("share.imagePrivacy")}</p>
+                <button type="button" @click=${() => focusMessage(this)}>
+                  ${this.t("share.describe")}
+                </button>
+                <p role=${value.imageFailed ? "alert" : "status"}>
+                  ${value.imageBusy ? this.t("share.imageUploading") : value.imageNotice}
+                </p>
+              </section>`
+            : nothing
+        }
         <form
           class="help-chat"
           @submit=${(event: SubmitEvent) => this.sendHelpMessage(event)}

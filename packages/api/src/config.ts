@@ -164,7 +164,7 @@ const helperHoursSchema = z
   .string()
   .optional()
   .transform((value, context) => {
-    if (value === undefined) return undefined;
+    if (value === undefined || value === "") return undefined;
     let decoded: unknown;
     try {
       decoded = JSON.parse(value);
@@ -265,11 +265,30 @@ const environmentSchema = z
     DIMTS_TELEGRAM_SECRET: z.string().optional(),
     DIMTS_SMS_MODE: z.string().default("simulator"),
     DIMTS_TURN_API_KEY: z.string().optional(),
-    DIMTS_TURN_APP: z.string().optional(),
+    DIMTS_TURN_APP: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u)
+        .optional(),
+    ),
     DIMTS_HELPER_HOURS: helperHoursSchema,
+    DIMTS_HELP_WAIT_TIMEOUT_MS: z.coerce
+      .number()
+      .int()
+      .min(1000)
+      .max(3600000)
+      .default(300000),
     DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {
+    if (Boolean(config.DIMTS_TURN_API_KEY) !== Boolean(config.DIMTS_TURN_APP)) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "DIMTS_TURN_API_KEY and DIMTS_TURN_APP must be configured together",
+      });
+    }
     const secrets = [
       config.DIMTS_ENC_KEY,
       config.DIMTS_HASH_KEY,

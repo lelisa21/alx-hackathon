@@ -136,6 +136,25 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const app = express();
   let sourceSyncManager: SourceSyncManager | undefined;
   let helpSocketRuntime: HelpSocketRuntime | undefined;
+  let mediaCleanupRunning = false;
+  const cleanupHelpImages = async () => {
+    if (mediaCleanupRunning || !helpStore?.deleteExpiredImages) return;
+    mediaCleanupRunning = true;
+    try {
+      await helpStore.deleteExpiredImages();
+    } catch {
+      logger.error({ event: "help_image_cleanup_failed" });
+    } finally {
+      mediaCleanupRunning = false;
+    }
+  };
+  const imageCleanupTimer = helpStore?.deleteExpiredImages
+    ? setInterval(() => {
+        void cleanupHelpImages();
+      }, 60000)
+    : undefined;
+  imageCleanupTimer?.unref();
+  void cleanupHelpImages();
   if (sources.length > 0) {
     const store =
       options.sourceSync?.store ??
@@ -188,6 +207,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   };
   app.locals.closeHelpWebSockets = () => helpSocketRuntime?.close();
   app.locals.close = async () => {
+    if (imageCleanupTimer) clearInterval(imageCleanupTimer);
     helpSocketRuntime?.close();
     try {
       await sourceSyncManager?.stop();
@@ -267,6 +287,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         repository,
         store: helpStore,
         onClosed: (requestId) => helpSocketRuntime?.closeRequest(requestId),
+        onProfileChanged: (helperId) =>
+          helpSocketRuntime?.refreshHelper(helperId),
       }),
     );
   }

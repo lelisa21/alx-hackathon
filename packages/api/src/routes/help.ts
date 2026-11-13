@@ -14,15 +14,30 @@ import {
   HelperLoginRequestSchema,
   HelperLoginResponseSchema,
   HelpClaimResponseSchema,
+  HelpAvailabilityQuerySchema,
+  HelpAvailabilityResponseSchema,
+  HelperProfileSchema,
+  HelpMetricsSchema,
+  HelpIceRequestSchema,
+  HelpIceResponseSchema,
+  HelpImageResponseSchema,
+  HelpImageListSchema,
+  HelperCloseRequestSchema,
 } from "../schemas.js";
+import { isHelperAvailable, nextHelperOpening } from "../help-hours.js";
+import { createHelpIceProvider } from "../help-ice.js";
+import { validateHelpImage } from "../help-image.js";
 import { createSessionAuth } from "../middleware/auth.js";
-import type { ApiRepository, HelpStore } from "../types.js";
+import type { ApiRepository, HelpStore, HelpCloseActor } from "../types.js";
 
 interface HelpRouteOptions {
   config: ApiConfig;
   repository: Pick<ApiRepository, "getSessionTokenHash" | "touchSession">;
   store: HelpStore;
   onClosed?(requestId: string): Promise<void> | void;
+  onProfileChanged?(helperId: string): Promise<void> | void;
+  now?(): Date;
+  fetch?: typeof fetch;
 }
 
 function sendUnauthorized(response: express.Response): void {
@@ -58,6 +73,60 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
   const router = express.Router();
   const key = new TextEncoder().encode(options.config.DIMTS_JWT_SECRET);
   const requireSession = createSessionAuth(options.repository);
+  const now = options.now ?? (() => new Date());
+  const ice = createHelpIceProvider(options.config, options.fetch, now);
+  const requireHelper: express.RequestHandler = async (
+    request,
+    response,
+    next,
+  ) => {
+    const id = await getHelperId(request.header("authorization") ?? "", key);
+    if (!id || !(await options.store.isHelperActive(id))) {
+      sendUnauthorized(response);
+      return;
+    }
+    response.locals.helperId = id;
+    next();
+  };
+  const participant =
+    (claimedOnly: boolean): express.RequestHandler =>
+    async (request, response, next) => {
+      const id = helpRequestId(request.params.id);
+      if (!id) {
+        sendProblem(response, 400, "invalid_request", "error.invalid");
+        return;
+      }
+      const helperId = await getHelperId(
+        request.header("authorization") ?? "",
+        key,
+      );
+      const authorize = async (actor: HelpCloseActor) => {
+        if (!(await options.store.authorizeRequest?.(id, actor, claimedOnly))) {
+          sendProblem(response, 404, "not_found", "error.not_found");
+          return;
+        }
+        response.locals.helpActor = actor;
+        next();
+      };
+      if (helperId) {
+        if (!(await options.store.isHelperActive(helperId))) {
+          sendUnauthorized(response);
+          return;
+        }
+        await authorize({ role: "helper", helperId });
+      } else {
+        await requireSession(request, response, () => {
+          const sessionId =
+            typeof request.body?.sessionId === "string"
+              ? request.body.sessionId
+              : request.query.sessionId;
+          void authorize({
+            role: "learner",
+            sessionId: String(sessionId),
+          }).catch(next);
+        });
+      }
+    };
   const loginLimit = rateLimit({
     windowMs: 15 * 60 * 1000,
     limit: 10,
@@ -112,6 +181,146 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
       next(error);
     }
   });
+
+  router.get("/help/availability", requireSession, (request, response) => {
+    HelpAvailabilityQuerySchema.parse(request.query);
+    const available = isHelperAvailable(
+      options.config.DIMTS_HELPER_HOURS,
+      now(),
+    );
+    const nextOpenAt = available
+      ? undefined
+      : nextHelperOpening(options.config.DIMTS_HELPER_HOURS, now());
+    response.set("Cache-Control", "no-store").json(
+      HelpAvailabilityResponseSchema.parse({
+        available,
+        ...(nextOpenAt ? { nextOpenAt } : {}),
+        waitTimeoutMs: options.config.DIMTS_HELP_WAIT_TIMEOUT_MS,
+      }),
+    );
+  });
+  router.get("/helpers/profile", requireHelper, async (_request, response) => {
+    if (!options.store.getHelperProfile) {
+      sendProblem(response, 404, "not_found", "error.not_found");
+      return;
+    }
+    response
+      .set("Cache-Control", "no-store")
+      .json(
+        HelperProfileSchema.parse(
+          await options.store.getHelperProfile(
+            response.locals.helperId as string,
+          ),
+        ),
+      );
+  });
+  router.patch("/helpers/profile", requireHelper, async (request, response) => {
+    const profile = HelperProfileSchema.parse(request.body);
+    if (!options.store.setHelperProfile) {
+      sendProblem(response, 404, "not_found", "error.not_found");
+      return;
+    }
+    const saved = await options.store.setHelperProfile(
+      response.locals.helperId as string,
+      profile.displayName,
+    );
+    await options.onProfileChanged?.(response.locals.helperId as string);
+    response
+      .set("Cache-Control", "no-store")
+      .json(HelperProfileSchema.parse(saved));
+  });
+  router.get("/help/metrics", requireHelper, async (_request, response) => {
+    if (!options.store.getMetrics) {
+      sendProblem(response, 404, "not_found", "error.not_found");
+      return;
+    }
+    response
+      .set("Cache-Control", "no-store")
+      .json(HelpMetricsSchema.parse(await options.store.getMetrics()));
+  });
+  router.post("/help/:id/ice", participant(true), async (request, response) => {
+    HelpIceRequestSchema.parse(request.body ?? {});
+    response
+      .set("Cache-Control", "no-store")
+      .json(HelpIceResponseSchema.parse(await ice()));
+  });
+  router.post(
+    "/help/:id/image",
+    requireSession,
+    participant(false),
+    express.raw({
+      type: ["image/jpeg", "image/png", "image/webp"],
+      limit: 2097152,
+    }),
+    async (request, response) => {
+      const mime = request.header("content-type")?.split(";")[0]?.trim() ?? "";
+      const normalized = Buffer.isBuffer(request.body)
+        ? await validateHelpImage(request.body, mime)
+        : null;
+      if (!normalized) {
+        sendProblem(response, 400, "invalid_request", "error.invalid");
+        return;
+      }
+      const saved = await options.store.saveImage?.(
+        String(request.params.id),
+        String(request.query.sessionId),
+        mime,
+        normalized,
+      );
+      if (!saved) {
+        sendProblem(response, 404, "not_found", "error.not_found");
+        return;
+      }
+      response
+        .status(201)
+        .set("Cache-Control", "no-store")
+        .json(HelpImageResponseSchema.parse(saved));
+    },
+  );
+  router.get(
+    "/help/:id/image",
+    participant(false),
+    async (request, response) => {
+      if (!options.store.listImages) {
+        sendProblem(response, 404, "not_found", "error.not_found");
+        return;
+      }
+      response.set("Cache-Control", "no-store").json(
+        HelpImageListSchema.parse({
+          images: await options.store.listImages(
+            String(request.params.id),
+            response.locals.helpActor as HelpCloseActor,
+          ),
+        }),
+      );
+    },
+  );
+  router.get(
+    "/help/:id/image/:imageId",
+    participant(false),
+    async (request, response) => {
+      const imageId = helpRequestId(request.params.imageId);
+      const image = imageId
+        ? await options.store.getImage?.(
+            String(request.params.id),
+            imageId,
+            response.locals.helpActor as HelpCloseActor,
+          )
+        : null;
+      if (!image) {
+        sendProblem(response, 404, "not_found", "error.not_found");
+        return;
+      }
+      response
+        .set({
+          "Cache-Control": "no-store",
+          "X-Content-Type-Options": "nosniff",
+          "Content-Security-Policy": "default-src 'none'; sandbox",
+        })
+        .type(image.mime)
+        .send(image.data);
+    },
+  );
 
   router.get("/help/queue", async (request, response, next) => {
     const parsed = HelpQueueQuerySchema.safeParse(request.query);
@@ -181,6 +390,10 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
         return;
       }
 
+      if (!isHelperAvailable(options.config.DIMTS_HELPER_HOURS, now())) {
+        sendProblem(response, 409, "conflict", "error.generic");
+        return;
+      }
       const claimed = await options.store.claimWaitingRequest(id, helperId);
       if (!claimed) {
         sendProblem(response, 409, "conflict", "error.generic");
@@ -213,10 +426,15 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
           sendUnauthorized(response);
           return;
         }
-        const closed = await options.store.closeRequest(id, {
+        const outcome = HelperCloseRequestSchema.parse(request.body ?? {});
+        const actor: HelpCloseActor = {
           role: "helper",
           helperId,
-        });
+        };
+        const closed =
+          outcome.resolved === undefined
+            ? await options.store.closeRequest(id, actor)
+            : await options.store.closeRequest(id, actor, outcome.resolved);
         if (!closed) {
           sendProblem(response, 404, "not_found", "error.not_found");
           return;

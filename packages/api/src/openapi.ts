@@ -18,6 +18,15 @@ import {
   HelperLoginRequestSchema,
   HelperLoginResponseSchema,
   HelpClaimResponseSchema,
+  HelpAvailabilityQuerySchema,
+  HelpAvailabilityResponseSchema,
+  HelperProfileSchema,
+  HelpMetricsSchema,
+  HelpIceRequestSchema,
+  HelpIceResponseSchema,
+  HelpImageResponseSchema,
+  HelpImageListSchema,
+  HelperCloseRequestSchema,
   LanguageListSchema,
   LocaleUiSchema,
   LocaleFaqSchema,
@@ -45,6 +54,12 @@ registry.register("HelpCreateResponse", HelpCreateResponseSchema);
 registry.register("HelpQueueResponse", HelpQueueResponseSchema);
 registry.register("HelpBlockResponse", HelpBlockResponseSchema);
 registry.register("HelpClaimResponse", HelpClaimResponseSchema);
+registry.register("HelpAvailabilityResponse", HelpAvailabilityResponseSchema);
+registry.register("HelperProfile", HelperProfileSchema);
+registry.register("HelpMetrics", HelpMetricsSchema);
+registry.register("HelpIceResponse", HelpIceResponseSchema);
+registry.register("HelpImage", HelpImageResponseSchema);
+registry.register("HelpImageList", HelpImageListSchema);
 registry.register("LanguageList", LanguageListSchema);
 registry.register("LocaleUI", LocaleUiSchema);
 registry.register("LocaleFAQ", LocaleFaqSchema);
@@ -73,6 +88,157 @@ const problemResponse = {
   description: "Problem response",
   content: { "application/problem+json": { schema: ProblemSchema } },
 };
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/availability",
+  summary: "Get scheduled helper availability and calm waiting threshold",
+  security: [{ sessionBearer: [] }],
+  request: { query: HelpAvailabilityQuerySchema },
+  responses: {
+    "200": {
+      description: "UTC schedule, not live helper presence",
+      ...json(HelpAvailabilityResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+  },
+});
+for (const method of ["get", "patch"] as const)
+  registry.registerPath({
+    method,
+    path: "/v1/helpers/profile",
+    summary:
+      "Read or deliberately change the optional public helper first name",
+    security: [{ helperBearer: [] }],
+    ...(method === "patch"
+      ? {
+          request: {
+            body: {
+              content: { "application/json": { schema: HelperProfileSchema } },
+            },
+          },
+        }
+      : {}),
+    responses: {
+      "200": {
+        description: "Null disables public name",
+        ...json(HelperProfileSchema),
+      },
+      "400": problemResponse,
+      "401": problemResponse,
+    },
+  });
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/metrics",
+  summary: "Anonymous service totals without content or identifiers",
+  description:
+    "closedCount includes unclassified outcomes. Only explicit helper resolved true/false increments resolvedCount/unresolvedCount. Wait and resolution totals include only claimed requests that have closed; units are milliseconds. No per-session or helper breakdown is stored.",
+  security: [{ helperBearer: [] }],
+  responses: {
+    "200": {
+      description: "Aggregate counts and duration totals",
+      ...json(HelpMetricsSchema),
+    },
+    "401": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/help/{id}/ice",
+  summary:
+    "Get short-lived ICE configuration for a claimed request participant",
+  description:
+    "Authenticated owning session or assigned active helper. Public STUN only when TURN is unconfigured/unavailable; application TURN secrets are never returned. Responses are no-store.",
+  security: [{ sessionBearer: [] }, { helperBearer: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: {
+      required: false,
+      content: { "application/json": { schema: HelpIceRequestSchema } },
+    },
+  },
+  responses: {
+    "200": { description: "ICE configuration", ...json(HelpIceResponseSchema) },
+    "400": problemResponse,
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
+const participantQuery = z
+  .object({ sessionId: z.string().min(8).max(64).optional() })
+  .strict();
+registry.registerPath({
+  method: "post",
+  path: "/v1/help/{id}/image",
+  summary: "Upload a learner-selected screen picture",
+  description:
+    "Raw JPEG/PNG/WebP, maximum 2097152 bytes, fully decoded with a 16 million pixel cap, single frame, metadata stripped before database-only storage. Owning learner of a waiting or claimed request. At most five retained images per request. No filenames or data URLs. Expires after two hours or earlier close/session deletion.",
+  security: [{ sessionBearer: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    query: HelpAvailabilityQuerySchema,
+    body: {
+      required: true,
+      content: Object.fromEntries(
+        ["image/jpeg", "image/png", "image/webp"].map((mime) => [
+          mime,
+          { schema: z.string().openapi({ format: "binary" }) },
+        ]),
+      ),
+    },
+  },
+  responses: {
+    "201": {
+      description: "Stored image metadata",
+      ...json(HelpImageResponseSchema),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "404": problemResponse,
+    "413": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/{id}/image",
+  summary: "List unexpired help picture metadata",
+  security: [{ sessionBearer: [] }, { helperBearer: [] }],
+  request: { params: z.object({ id: z.string() }), query: participantQuery },
+  responses: {
+    "200": {
+      description: "Private no-store image metadata",
+      ...json(HelpImageListSchema),
+    },
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "get",
+  path: "/v1/help/{id}/image/{imageId}",
+  summary: "Retrieve an authorized unexpired help picture",
+  security: [{ sessionBearer: [] }, { helperBearer: [] }],
+  request: {
+    params: z.object({ id: z.string(), imageId: z.string() }),
+    query: participantQuery,
+  },
+  responses: {
+    "200": {
+      description:
+        "Private no-store image bytes with nosniff; owner or assigned active helper only",
+      content: Object.fromEntries(
+        ["image/jpeg", "image/png", "image/webp"].map((mime) => [
+          mime,
+          { schema: z.string().openapi({ format: "binary" }) },
+        ]),
+      ),
+    },
+    "401": problemResponse,
+    "404": problemResponse,
+  },
+});
 
 registry.registerPath({
   method: "get",
@@ -341,7 +507,10 @@ registry.registerPath({
       required: false,
       content: {
         "application/json": {
-          schema: z.object({ sessionId: z.string().min(8).max(64) }).strict(),
+          schema: z.union([
+            z.object({ sessionId: z.string().min(8).max(64) }).strict(),
+            HelperCloseRequestSchema,
+          ]),
         },
       },
     },
