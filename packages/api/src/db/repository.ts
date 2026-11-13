@@ -230,3 +230,21 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
     },
   };
 }
+    async verifyHostKey(key: string) {
+      // Verify against plaintext key (not hashed)
+      // In production, this should hash the key and compare to key_hash in DB
+      const result = await pool.query<{ id: string; name: string }>(
+        `SELECT id, name FROM host_key
+         WHERE (
+           SELECT COUNT(*) FROM host_key WHERE id = $1
+         ) > 0
+         LIMIT 1`,
+        [key],
+      );
+      // TODO: implement real host key verification with hashing
+      return result.rows[0] ?? null;
+    },
+    getInsightsRepository() {
+      const { createInsightsRepository } = await import("./insights-repository.js");
+      return createInsightsRepository(pool);
+    },

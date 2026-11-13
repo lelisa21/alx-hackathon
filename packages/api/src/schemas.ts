@@ -164,6 +164,41 @@ export const FeedbackResponseSchema = z
   .object({ ok: z.literal(true) })
   .strict();
 
+// P09: Insights schemas
+export const InsightRowSchema = z
+  .object({
+    topicId: z.string().min(1).max(256),
+    topicLabel: z.string().max(1000).nullable(),
+    lang: z.string().min(2).max(35),
+    period: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+    questionCount: z.number().int().nonnegative(),
+    notfoundCount: z.number().int().nonnegative(),
+    helpfulCount: z.number().int().nonnegative(),
+    unhelpfulCount: z.number().int().nonnegative(),
+  })
+  .strict();
+
+export const InsightsQuerySchema = z
+  .object({
+    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
+    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
+    lang: z.string().min(2).max(35).optional(),
+    minCellSize: z.number().int().min(1).max(100).default(5),
+    format: z.enum(["json", "csv"]).default("json").optional(),
+  })
+  .strict();
+
+export const InsightsResponseSchema = z
+  .object({
+    insights: z.array(InsightRowSchema),
+    period: z.object({
+      start: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+      end: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u),
+    }),
+    exportedAt: z.string().datetime(),
+  })
+  .strict();
+
 export const HelpCreateRequestSchema = z
   .object({
     sessionId: z.string().min(8).max(64),
@@ -351,4 +386,46 @@ export const LocaleUiSchema = z.record(z.string());
 
 export const PreviewQuerySchema = z
   .object({ lang_preview: z.enum(["0", "1"]).optional() })
+  .strict();
+
+
+// P09: Insights schemas
+export const InsightsQuerySchema = z
+  .object({
+    startDate: z.string().date().optional(),
+    endDate: z.string().date().optional(),
+    lang: z.string().min(2).max(8).optional(),
+    minCellSize: z
+      .string()
+      .transform((v) => parseInt(v, 10))
+      .pipe(z.number().int().min(1).max(100))
+      .default("5"),
+    format: z.enum(["json", "csv"]).default("json"),
+  })
+  .strict();
+
+export const InsightRowSchema = z
+  .object({
+    topicId: z.string(),
+    topicLabel: z.string().nullable(),
+    lang: z.string(),
+    period: z.string(),
+    questionCount: z.number().nonnegative(),
+    notfoundCount: z.number().nonnegative(),
+    helpfulCount: z.number().nonnegative(),
+    unhelpfulCount: z.number().nonnegative(),
+  })
+  .strict();
+
+export const InsightsResponseSchema = z
+  .object({
+    insights: z.array(InsightRowSchema),
+    period: z
+      .object({
+        start: z.string().date(),
+        end: z.string().date(),
+      })
+      .strict(),
+    exportedAt: z.string().datetime(),
+  })
   .strict();

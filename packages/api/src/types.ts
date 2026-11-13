@@ -1,6 +1,7 @@
 import type { ApiConfig } from "./config.js";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ReplySchema } from "./schemas.js";
+import type { InsightsRepository } from "@dimts/insights";
 import type { z } from "zod";
 
 export type ApiReply = z.infer<typeof ReplySchema>;
@@ -32,6 +33,8 @@ export interface ApiRepository {
   ping(): Promise<boolean>;
   runRetention(retentionHours: number): Promise<void>;
   getHostByHash(keyHash: string): Promise<{ origins: string[] } | null>;
+  verifyHostKey(key: string): Promise<{ id: string; name: string } | null>;
+  getInsightsRepository?(): InsightsRepository | undefined;
   createSession(session: NewSession): Promise<void>;
   resumeSession(session: {
     id: string;
