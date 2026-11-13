@@ -26,6 +26,45 @@ export const CitationSchema = z
   })
   .strict();
 
+export const LocaleFaqCitationSchema = CitationSchema.extend({
+  passageId: z.string().min(1).max(256),
+  label: z.string().min(1).max(1000),
+  url: z
+    .string()
+    .url()
+    .max(4000)
+    .regex(/^https?:\/\//iu),
+  sourceLang: z.string().min(1).max(35),
+  sourceType: z.literal("course"),
+});
+
+export const LocaleFaqSchema = z
+  .object({
+    lang: z.string().min(2).max(35),
+    dir: z.enum(["ltr", "rtl"]),
+    contentVersion: z.string().min(1).max(256),
+    reviewedOn: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/u)
+      .nullable(),
+    items: z
+      .array(
+        z
+          .object({
+            id: z.string().min(1).max(128),
+            question: z.string().min(1).max(1000),
+            answer: z.string().min(1).max(4000),
+            citations: z.array(LocaleFaqCitationSchema).min(1).max(1),
+          })
+          .strict(),
+      )
+      .max(100),
+  })
+  .strict()
+  .refine((faq) => faq.items.length === 0 || faq.reviewedOn !== null, {
+    message: "Published FAQ answers require review metadata",
+  });
+
 export const ActionSchema = z
   .object({
     type: z.enum([

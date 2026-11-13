@@ -12,6 +12,35 @@ const root = path.resolve(
   "../..",
 );
 const packs = loadPacks(path.join(root, "locales"));
+
+// P03: consent and recovery must remain usable in every supported UI locale.
+it("P03 provides localized consent, reply actions and keyboard settings", () => {
+  const keys = [
+    "privacy.remoteNotice",
+    "privacy.cloudOk",
+    "privacy.localOnly",
+    "privacy.saving",
+    "privacy.saved",
+    "privacy.failed",
+    "privacy.sessionRestarted",
+    "answer.copy",
+    "answer.copied",
+    "answer.copyFailed",
+    "answer.helpful",
+    "answer.notHelpful",
+    "answer.feedbackSaved",
+    "answer.feedbackFailed",
+    "settings.shortcuts",
+    "settings.shortcutsHelp",
+  ];
+  for (const pack of packs.values()) {
+    for (const key of keys)
+      expect(pack.ui[key], `${pack.meta.code}: ${key}`).toBeTruthy();
+  }
+  expect(packs.get("en")!.ui["privacy.remoteNotice"]).toMatch(
+    /question.*course passages/u,
+  );
+});
 const source = readFileSync(
   path.join(root, "content/sample-course/study-plan.md"),
   "utf8",

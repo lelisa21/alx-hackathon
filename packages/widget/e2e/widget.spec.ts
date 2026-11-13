@@ -4,6 +4,447 @@ import { getVisiblePacks, loadPacks } from "../../locales-tools/src/index.js";
 
 const packs = loadPacks(resolve("locales"));
 
+test("P03 consent persists opt-in and revocation before the next question", async ({
+  page,
+}) => {
+  const sessions: Record<string, unknown>[] = [];
+  const calls: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/sessions")) {
+      sessions.push(request.postDataJSON());
+      calls.push("session");
+    }
+    if (request.url().endsWith("/ask")) calls.push("ask");
+  });
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  const consent = page.getByRole("checkbox", {
+    name: "Allow remote AI for this session",
+  });
+  await expect(consent).not.toBeChecked();
+  await consent.check();
+  await expect.poll(() => sessions.at(-1)?.cloudOk).toBe(true);
+  expect(sessions.at(-1)).toMatchObject({
+    sessionId: "session-12345678",
+    resumeToken: "resume-token-12345678901234567890",
+    consentVersion: "remote-ai-v1",
+  });
+  await consent.uncheck();
+  await page.locator("#message").fill("Help me study");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.locator('[data-role="assistant"]')).toBeVisible();
+  expect(sessions.at(-1)?.cloudOk).toBe(false);
+  expect(calls.at(-2)).toBe("session");
+  expect(calls.at(-1)).toBe("ask");
+});
+
+test("P03 failed revocation blocks another ask and provides a retry", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  const consent = page.getByRole("checkbox", {
+    name: "Allow remote AI for this session",
+  });
+  await consent.check();
+  await expect(
+    page.getByText("Your choice is saved for this session."),
+  ).toBeVisible();
+  await page.route("http://api.test/v1/sessions", (route) =>
+    route.fulfill({ status: 503, json: {} }),
+  );
+  await consent.uncheck();
+  await expect(
+    page.getByText("Your choice could not be saved. Try again before sending."),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Send", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.locator(".consent").getByRole("button", { name: "Try again" }),
+  ).toBeEnabled();
+});
+
+for (const scenario of [
+  "opt-in",
+  "revocation",
+  "fresh-session-retry",
+] as const) {
+  test(`P03 lost consent response recovers ${scenario} with a fresh local-only session`, async ({
+    page,
+  }) => {
+    const helpAuth: Record<string, unknown>[] = [];
+    await page.routeWebSocket("ws://api.test/v1/help/ws", (socket) => {
+      socket.onMessage((raw) => {
+        const frame = JSON.parse(String(raw)) as Record<string, unknown>;
+        if (frame.type === "auth") {
+          helpAuth.push(frame);
+          socket.send(JSON.stringify({ type: "help.joined" }));
+        }
+      });
+    });
+    await openWidget(page);
+    await page.getByRole("button", { name: "English" }).click();
+    const consent = page.getByRole("checkbox", {
+      name: "Allow remote AI for this session",
+    });
+    if (scenario !== "opt-in") {
+      await consent.check();
+      await expect(
+        page.getByText("Your choice is saved for this session."),
+      ).toBeVisible();
+    }
+    await page.locator("#message").fill("Previous question");
+    const previousAsk = page.waitForRequest("http://api.test/v1/ask");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const oldClientMessageId = (await previousAsk).postDataJSON()
+      .clientMsgId as string;
+    await page
+      .locator('[data-role="assistant"]')
+      .getByRole("button", { name: "Helpful", exact: true })
+      .click();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("checkbox", { name: "High contrast" }).check();
+    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await page.getByRole("button", { name: "Help me now" }).click();
+    await page
+      .getByRole("button", { name: "Send request", exact: true })
+      .click();
+    await expect.poll(() => helpAuth.length).toBe(1);
+    await page.locator("#message").fill("Keep this unfinished question.");
+    const sessionBodies: Record<string, unknown>[] = [];
+    let resumeAttempts = 0;
+    let freshAttempts = 0;
+    await page.route("http://api.test/v1/sessions", async (route) => {
+      const body = route.request().postDataJSON() as Record<string, unknown>;
+      sessionBodies.push(body);
+      if (body.sessionId) {
+        resumeAttempts += 1;
+        if (resumeAttempts === 1) return route.abort("failed");
+        return route.fulfill({ status: 401, json: {} });
+      }
+      freshAttempts += 1;
+      if (scenario === "fresh-session-retry" && freshAttempts === 1)
+        return route.fulfill({ status: 503, json: {} });
+      return route.fulfill({
+        status: 201,
+        json: {
+          sessionId: "fresh-session-12345678",
+          sessionToken: "fresh-session-token",
+          resumeToken: "fresh-resume-token-1234567890",
+          lang: "en",
+          cloudOk: false,
+          consentVersion: null,
+        },
+      });
+    });
+    if (scenario === "opt-in") await consent.check();
+    else await consent.uncheck();
+    await expect(
+      page.getByText(
+        "Your choice could not be saved. Try again before sending.",
+      ),
+    ).toBeVisible();
+    await page
+      .locator(".consent")
+      .getByRole("button", { name: "Try again" })
+      .click();
+    if (scenario === "fresh-session-retry") {
+      await expect(
+        page.getByText(packs.get("en")!.ui["error.network"]!, { exact: true }),
+      ).toBeVisible();
+      await page
+        .getByRole("button", { name: "Try again", exact: true })
+        .click();
+    }
+    await expect(
+      page.getByText(
+        "Your previous chat ended. A new chat is ready with remote AI off.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await expect(consent).not.toBeChecked();
+    await expect(page.locator("dimts-assistant")).toHaveAttribute(
+      "high-contrast",
+      "",
+    );
+    await expect(page.locator("#message")).toHaveValue(
+      "Keep this unfinished question.",
+    );
+    await expect(
+      page.locator(
+        '[data-role="assistant"], [data-role="learner"], .help-chat',
+      ),
+    ).toHaveCount(0);
+    expect(resumeAttempts).toBe(2);
+    expect(freshAttempts).toBe(scenario === "fresh-session-retry" ? 2 : 1);
+    expect(sessionBodies.filter((body) => !body.sessionId)).toEqual(
+      Array.from({ length: freshAttempts }, () => ({
+        lang: "en",
+        channel: "web",
+      })),
+    );
+    const request = page.waitForRequest("http://api.test/v1/ask");
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    const nextAsk = await request;
+    expect(nextAsk.headers().authorization).toBe("Bearer fresh-session-token");
+    expect(nextAsk.postDataJSON()).toEqual({
+      sessionId: "fresh-session-12345678",
+      clientMsgId: expect.any(String),
+      lang: "en",
+      text: "Keep this unfinished question.",
+      via: "text",
+      simple: false,
+    });
+    expect(nextAsk.postDataJSON().clientMsgId).not.toBe(oldClientMessageId);
+    await page.clock.install();
+    await page.clock.fastForward(35_000);
+    expect(helpAuth).toHaveLength(1);
+  });
+}
+
+test("P03 reply actions copy and submit only the reply id and helpful flag", async ({
+  page,
+  context,
+}) => {
+  await context.grantPermissions(["clipboard-read", "clipboard-write"]);
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.locator("#message").fill("Help me study");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const reply = page.locator('[data-role="assistant"]');
+  await expect(reply).toBeFocused();
+  await reply.getByRole("button", { name: "Copy", exact: true }).click();
+  await expect
+    .poll(() => page.evaluate(() => navigator.clipboard.readText()))
+    .toBe("Choose one topic to learn this week.");
+  const feedback = page.waitForRequest("http://api.test/v1/feedback");
+  await reply.getByRole("button", { name: "Not helpful", exact: true }).click();
+  const request = await feedback;
+  expect(request.postDataJSON()).toEqual({
+    replyId: "reply-1",
+    helpful: false,
+  });
+  expect(request.headers().authorization).toBe("Bearer session-token");
+  await expect(
+    reply.getByRole("button", { name: "Not helpful", exact: true }),
+  ).toHaveAttribute("aria-pressed", "true");
+});
+
+test("P03 shortcuts are documented, work with modifiers, and can be disabled", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.keyboard.press("Alt+Shift+L");
+  await expect(page.getByRole("button", { name: "English" })).toBeVisible();
+  await page.keyboard.press("Alt+Shift+H");
+  await expect(page.getByRole("dialog")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(
+    page.getByText(
+      "Alt+Shift+M: microphone; Alt+Shift+H: help; Alt+Shift+L: language.",
+    ),
+  ).toBeVisible();
+  await page.getByRole("checkbox", { name: "Keyboard shortcuts" }).uncheck();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.keyboard.press("Alt+Shift+H");
+  await expect(page.getByRole("dialog")).toHaveCount(0);
+  await page.locator("#message").fill("hml");
+  await expect(page.locator("#message")).toHaveValue("hml");
+});
+
+test("P03 Simple mode makes text large, hides advanced controls, and keeps one citation", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await page.getByRole("checkbox", { name: "Simple mode" }).check();
+  await expect(page.getByRole("checkbox", { name: "Data saver" })).toHaveCount(
+    0,
+  );
+  await expect(page.locator("#speech-rate")).toHaveCount(0);
+  const scale = await page
+    .locator("dimts-assistant")
+    .evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+  expect(scale).toBeGreaterThanOrEqual(24);
+  await page.getByRole("button", { name: "English" }).click();
+  await page.route("http://api.test/v1/ask", (route) =>
+    route.fulfill({
+      json: {
+        id: "simple-1",
+        kind: "answer",
+        text: "Choose one topic.",
+        lang: "en",
+        dir: "ltr",
+        citations: [
+          { label: "Best", url: "https://course.test/best" },
+          { label: "Other", url: "https://course.test/other" },
+        ],
+      },
+    }),
+  );
+  await page.locator("#message").fill("Study");
+  const ask = page.waitForRequest("http://api.test/v1/ask");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  expect((await ask).postDataJSON().simple).toBe(true);
+  await expect(
+    page.locator('[data-role="assistant"] .citations a'),
+  ).toHaveCount(1);
+  await expect(page.locator(".primary")).toHaveCount(1);
+  await expect(page.locator(".primary [aria-hidden=true]")).toHaveCount(1);
+});
+
+test("P03 slow startup and reply announce once with usable help and retry", async ({
+  page,
+}) => {
+  await openWidget(page);
+  let finishSession: (() => void) | undefined;
+  await page.route("http://api.test/v1/sessions", async (route) => {
+    await new Promise<void>((resolve) => {
+      finishSession = resolve;
+    });
+    await route.fulfill({ status: 503, json: {} });
+  });
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(
+    page
+      .locator('[role="status"]')
+      .filter({ hasText: packs.get("en")!.ui["waking.message"]! }),
+  ).toHaveAttribute("aria-live", "polite", { timeout: 5000 });
+  await expect(page.getByRole("button", { name: "Help me now" })).toBeEnabled();
+  finishSession?.();
+  await expect(page.getByRole("button", { name: "Try again" })).toBeEnabled();
+});
+
+test("P03 a slow question announces politely once and provides retry and help", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.locator("#message")).toBeVisible();
+  let finish: (() => void) | undefined;
+  const clientMessageIds: string[] = [];
+  await page.route("http://api.test/v1/ask", async (route) => {
+    clientMessageIds.push(route.request().postDataJSON().clientMsgId as string);
+    if (clientMessageIds.length === 1) {
+      await new Promise<void>((resolve) => {
+        finish = resolve;
+      });
+      // The browser cancels this request while the server may still be working.
+      await route.fulfill({ status: 503, json: {} }).catch(() => undefined);
+    } else if (clientMessageIds.length === 2) {
+      await route.fulfill({ status: 409, json: {} });
+    } else {
+      await route.fulfill({
+        json: {
+          id: "slow-reply",
+          kind: "answer",
+          text: "Choose one topic.",
+          lang: "en",
+          dir: "ltr",
+          citations: [],
+        },
+      });
+    }
+  });
+  await page.evaluate(() => {
+    const status = document
+      .querySelector("dimts-assistant")!
+      .shadowRoot!.querySelector(".chat > .status")!;
+    (
+      window as Window & { __workingAnnouncements?: number }
+    ).__workingAnnouncements = 0;
+    new MutationObserver(() => {
+      if (status.textContent?.includes("Working on it"))
+        (
+          window as Window & { __workingAnnouncements: number }
+        ).__workingAnnouncements += 1;
+    }).observe(status, { childList: true, subtree: true, characterData: true });
+  });
+  await page.locator("#message").fill("A slow question");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  const status = page.locator(".chat > .status");
+  await expect(status).toContainText("Working on it", { timeout: 5000 });
+  await expect(status).toHaveAttribute("aria-live", "polite");
+  await expect(status.getByRole("button", { name: "Try again" })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Help me now" })).toBeEnabled();
+  expect(
+    await page.evaluate(
+      () =>
+        (window as Window & { __workingAnnouncements: number })
+          .__workingAnnouncements,
+    ),
+  ).toBe(1);
+  await status.getByRole("button", { name: "Try again" }).click();
+  await expect.poll(() => clientMessageIds.length).toBe(2);
+  finish?.();
+  await expect(page.locator("#message")).toHaveValue("A slow question");
+  await status.getByRole("button", { name: "Try again" }).click();
+  await expect(page.locator('[data-role="assistant"]')).toBeFocused();
+  expect(clientMessageIds).toEqual([
+    clientMessageIds[0],
+    clientMessageIds[0],
+    clientMessageIds[0],
+  ]);
+  await expect(page.locator('[data-role="learner"]')).toHaveCount(1);
+});
+
+test("P03 Simple replies read aloud and the microphone shortcut preserves review", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: voiceEnabledTestLanguages });
+  await page.getByRole("button", { name: "English" }).click();
+  await page.locator("dimts-assistant").evaluate(async (element) => {
+    const widget = element as WidgetElement;
+    const target = window as TestWindow;
+    target.__spoken = [];
+    target.__voice = { starts: [], stops: 0 };
+    widget.textToSpeech = {
+      supported: () => true,
+      speak: async (text, lang, rate) => {
+        target.__spoken?.push({ text, lang, rate });
+      },
+      pause() {},
+      resume() {},
+      stop() {},
+    };
+    widget.speechToText = {
+      supported: () => true,
+      start: (lang) =>
+        new Promise<string>((resolve) => {
+          target.__voice!.starts.push(lang);
+          target.__voice!.resolve = resolve;
+        }),
+      stop: () => {
+        target.__voice!.stops += 1;
+        target.__voice!.resolve?.("Review these words");
+      },
+    };
+    await widget.updateComplete;
+  });
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Simple mode" }).check();
+  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.keyboard.press("Alt+Shift+M");
+  await expect(
+    page.getByRole("button", { name: "Stop talking", exact: true }),
+  ).toBeVisible();
+  await page.keyboard.press("Alt+Shift+M");
+  await expect(page.locator("#message")).toHaveValue("Review these words");
+  await expect(page.locator('[data-role="assistant"]')).toHaveCount(0);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect
+    .poll(() =>
+      page.evaluate(() => (window as TestWindow).__spoken?.at(-1)?.text),
+    )
+    .toBe("Choose one topic to learn this week.");
+});
+
 test("FR-LANG-15 proposes editable text only after opt-in and requires confirmation before sending", async ({
   page,
 }) => {
@@ -308,7 +749,7 @@ async function openWidget(
         body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
       }),
   );
-  await page.route("http://api.test/v1/**", async (route) => {
+  await page.context().route("http://api.test/v1/**", async (route) => {
     const url = new URL(route.request().url());
     if (
       networkOffline &&
@@ -337,7 +778,8 @@ async function openWidget(
       return;
     }
     if (url.pathname.endsWith("/sessions")) {
-      const requestLanguage = route.request().postDataJSON().lang as string;
+      const sessionBody = route.request().postDataJSON();
+      const requestLanguage = sessionBody.lang as string;
       if (
         options.languages?.some(
           (language) =>
@@ -354,8 +796,14 @@ async function openWidget(
           sessionToken: "session-token",
           resumeToken: "resume-token-12345678901234567890",
           lang: "en",
+          cloudOk: sessionBody.cloudOk === true,
+          consentVersion: sessionBody.cloudOk ? "remote-ai-v1" : null,
         },
       });
+      return;
+    }
+    if (url.pathname.endsWith("/feedback")) {
+      await route.fulfill({ json: { ok: true } });
       return;
     }
     if (url.pathname.endsWith("/help") && route.request().method() === "POST") {
@@ -617,13 +1065,14 @@ test("refreshes cached shell assets while online", async ({ page }) => {
     (await fetch("/dimts-widget.js")).text(),
   );
   expect(bundle).not.toBe("stale shell");
-  expect(bundle).toContain("dimts-assistant");
+  expect(bundle).toContain("DimtsAssistant");
 });
 
 test("keeps Help me now fixed in one corner and within the first five tab stops", async ({
   page,
 }) => {
   await openWidget(page);
+  await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   const helpButton = page.getByRole("button", { name: "Help me now" });
   const welcomeCorner = await helpButton.evaluate((element) => {
     const style = getComputedStyle(element);
@@ -659,6 +1108,10 @@ test("keeps Help me now fixed in one corner and within the first five tab stops"
   await languageButton.focus();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("button", { name: "Settings" })).toBeFocused();
+  await page.keyboard.press("Tab");
+  await expect(
+    page.getByRole("button", { name: packs.get("en")!.ui["faq.action"]! }),
+  ).toBeFocused();
   await page.keyboard.press("Tab");
   await expect(helpButton).toBeFocused();
   await expect
@@ -1116,9 +1569,29 @@ test("keeps at least 8px between interactive targets", async ({ page }) => {
           ),
         )
           .filter((control) => control.getClientRects().length > 0)
-          .map((control) => {
-            const { left, right, top, bottom } =
-              control.getBoundingClientRect();
+          .flatMap((control) => {
+            let { left, right, top, bottom } = control.getBoundingClientRect();
+            // A scroll viewport reserves the fixed Help corner. Only the visible
+            // intersection is interactive; clipped off-screen rows cannot overlap it.
+            if (getComputedStyle(control).position !== "fixed") {
+              for (
+                let ancestor = control.parentElement;
+                ancestor;
+                ancestor = ancestor.parentElement
+              ) {
+                const style = getComputedStyle(ancestor);
+                const bounds = ancestor.getBoundingClientRect();
+                if (/(auto|scroll|hidden|clip)/u.test(style.overflowX)) {
+                  left = Math.max(left, bounds.left);
+                  right = Math.min(right, bounds.right);
+                }
+                if (/(auto|scroll|hidden|clip)/u.test(style.overflowY)) {
+                  top = Math.max(top, bounds.top);
+                  bottom = Math.min(bottom, bounds.bottom);
+                }
+              }
+            }
+            if (right <= left || bottom <= top) return [];
             return {
               label: control.textContent?.trim() || control.tagName,
               left,
@@ -1150,6 +1623,12 @@ test("keeps at least 8px between interactive targets", async ({ page }) => {
   await assertSpacing();
   await page.getByRole("button", { name: "Settings" }).click();
   await assertSpacing();
+  await page.locator("#settings-shortcuts").focus();
+  const focused = await page.locator("#settings-shortcuts").boundingBox();
+  const help = await page
+    .getByRole("button", { name: "Help me now" })
+    .boundingBox();
+  expect(focused!.y + focused!.height).toBeLessThanOrEqual(help!.y - 8);
 });
 
 test("remembers a language choice across page loads", async ({ page }) => {
@@ -1684,6 +2163,9 @@ test("stops a recording at 60 seconds and announces silence for retry", async ({
   });
   await page.clock.install();
   await page.getByRole("button", { name: "Start talking" }).click();
+  await expect(
+    page.getByRole("button", { name: "Stop talking" }),
+  ).toBeVisible();
   await page.clock.fastForward(60_000);
   await expect(page.getByRole("alert")).toContainText("Please say it again.");
   await expect

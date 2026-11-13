@@ -3,6 +3,78 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P03 — widget, offline FAQ and Level 1 embedding (13 November 2026)
+
+- **Requirements before implementation:** FR-UI-06/08–10/14/16/18–20;
+  FR-CONV-11/12; FR-AI-05; FR-SIMPLE-02/03; FR-INT-01–04/11;
+  NFR-A11Y-01–06; NFR-PERF-01/02/05/06/07; FR-LANG-06–08/14.
+  The user reported P02 committed/pushed and authorized P03 only on
+  `phase-03-prompt`. Preserve the existing API, widget and source-sync contracts.
+- **Additive FAQ contract approval:** P03 explicitly authorizes
+  `GET /v1/locales/{code}/faq`; this entry records that authorization and the
+  agreed API/client contract before implementation. Return
+  `{lang, dir, contentVersion, reviewedOn, items}`; `reviewedOn` is a date or
+  null, and each item is `{id, question, answer, citations}` using the existing
+  canonical Citation schema. The normal locale/preview visibility rules apply,
+  but preview never publishes unreviewed answers. Unreviewed packs return no
+  items and null review date. Reviewed items require exact, unambiguous active
+  course provenance; omit unresolved, removed or ambiguous sources. Review
+  metadata describes the pack, so a reviewed pack can still return no items.
+  No reviewer identity is public. Hash the complete response for ETag and use
+  `public, max-age=0, must-revalidate`; conditional requests may return 304.
+  Cache only validated successful responses. Offline content is explicitly
+  identified as saved content, never generated as a new course answer.
+- **Review boundary:** locale additions remain authoring drafts under the
+  existing pack status. Fixtures establish behavior, not human approval.
+  Physical 1 GB Android memory, native assistive technology and co-designer
+  acceptance require real evidence and remain open until supplied.
+- **Consent and feedback:** keep cloud use off until an explicit session
+  choice. Use the existing `remote-ai-v1` notice/session contract, rotate
+  credentials through session resume, and block the next ask while a choice
+  is pending or failed. Do not persist consent in browser preferences. Feedback
+  uses only `{replyId, helpful}` plus the existing bearer authorization; P02
+  retains anonymous topic counters and the bounded session streak.
+  If a saved consent response is lost and the rotated resume token is rejected,
+  recover through the existing new-session contract with remote AI off. Clear
+  expired conversation/help state, preserve the unsent draft and preferences,
+  and explain the fresh session in localized copy. Never replay an opt-in
+  automatically or submit another question with uncertain consent.
+  Detach the old help connection locally; a rotated-away credential cannot
+  authenticate a server-side close, so recovery does not claim that closure.
+- **Embedding and cleanup:** support the existing four-method public API and
+  element events through a classic async bootstrap plus ES module chunks.
+  Removing the installing script uninstalls its widget. Preserve unrelated
+  host storage, service workers and pre-existing Lit diagnostic globals.
+  Keep bundled Lit property metadata in a private build-time module; reuse a
+  pre-existing host map for interoperability rather than deleting functional
+  metadata. Browser tests exercise a fresh subclass and reinstall.
+  Recheck all active, waiting and installing worker URLs before registration
+  or unregistering: the host may replace a registration after widget startup.
+  Nonces use the native nonce property. All user copy, including cold-start
+  copy injected at build time, comes from locale packs.
+- **Offline ownership:** cache only public widget assets, language UI and
+  reviewed FAQ data scoped to the API origin/path. Prefetch the active FAQ
+  without delaying chat; revalidate on browse, identify offline copies, and
+  remove withdrawn answers. A saved FAQ can be used after a two-second wake
+  timeout; user cancellation still aborts. Error responses are not cached.
+  The host remains responsible for its own offline HTML/router; a third-party
+  script cannot safely cache arbitrary host pages or replace a host worker.
+- **Fonts and budgets:** retain the self-hosted regular Ethiopic font and
+  browser-synthesized bold in the learner widget, avoiding a second 75 KB
+  initial font download. Frozen assets remain unchanged. Measure the static
+  import graph separately from deferred voice/help, and include the font,
+  largest locale UI and conservative authored-FAQ representation in the first
+  load budget. Timing tests use real compressed local HTTP responses with
+  server-side latency and a shared body-rate cap, covering service-worker
+  requests as well as page requests. Headers and small uploads are unshaped;
+  this fixture does not establish production hosting or device performance.
+  The classic bootstrap imports the complete widget module directly, avoiding
+  a serial loader/facade round trip. The single entry retains DimtsAssistant
+  and installEmbed exports plus internal Lit aliases needed by deferred help;
+  those aliases are not a supported host API. The four-method window API is
+  unchanged. Record first-visible browser-frame timestamps rather than the
+  later time at which automation receives the observation.
+
 ## P02 — tutor and provider contracts (13 November 2026)
 
 - **Requirements before implementation:** FR-CONV-05–09/13/14;

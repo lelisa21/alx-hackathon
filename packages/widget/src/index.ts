@@ -1,6 +1,13 @@
 import { LitElement, css, html, nothing } from "lit";
 import { messageFor } from "./messages.js";
-import { MAX_RECORDING_MS, VoiceError } from "@dimts/voice";
+import bootstrapUi from "virtual:dimts-bootstrap-ui";
+import { applyThemeGuard } from "./theme.js";
+import { clearFaqCache, loadFaq } from "./faq.js";
+import { ownsWorkerRegistration } from "./worker-ownership.js";
+import type { FaqItem } from "./faq.js";
+import type { VoiceContext } from "./voice-runtime.js";
+import type { HelpContext } from "./help-runtime.js";
+import { installDefaultApi } from "./public-api.js";
 import type { SpeechToText, TextToSpeech } from "@dimts/voice";
 import { suggestLanguageOptions } from "./language.js";
 import {
@@ -8,30 +15,34 @@ import {
   suggestTransliteration,
 } from "./transliteration.js";
 import ethiopicRegularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
-import ethiopicBoldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
+let ethiopicFont: FontFace | undefined;
+const ethiopicFontUsers = new Set<HTMLElement>();
+const activeWidgets = new Set<DimtsAssistant>();
 
-let ethiopicFontsRegistered = false;
-
-function registerEthiopicFonts(): void {
-  if (ethiopicFontsRegistered) return;
-  document.fonts.add(
-    new FontFace("Noto Sans Ethiopic", `url(${ethiopicRegularFontUrl})`, {
+function registerEthiopicFonts(widget: HTMLElement): void {
+  ethiopicFontUsers.add(widget);
+  if (ethiopicFont) return;
+  ethiopicFont = new FontFace(
+    "Noto Sans Ethiopic",
+    `url(${ethiopicRegularFontUrl})`,
+    {
       display: "swap",
       weight: "400",
       unicodeRange: "U+1200-137F, U+1380-139F",
-    }),
+    },
   );
-  document.fonts.add(
-    new FontFace("Noto Sans Ethiopic", `url(${ethiopicBoldFontUrl})`, {
-      display: "swap",
-      weight: "700",
-      unicodeRange: "U+1200-137F, U+1380-139F",
-    }),
-  );
-  ethiopicFontsRegistered = true;
+  document.fonts.add(ethiopicFont);
 }
 
-interface Language {
+function releaseEthiopicFont(widget: HTMLElement): void {
+  ethiopicFontUsers.delete(widget);
+  if (!ethiopicFontUsers.size && ethiopicFont) {
+    document.fonts.delete(ethiopicFont);
+    ethiopicFont = undefined;
+  }
+}
+
+export interface Language {
   code: string;
   nameNative: string;
   nameEn: string;
@@ -57,7 +68,7 @@ interface Reply {
   actions: { type: string; label: string }[];
 }
 
-interface ConversationMessage {
+export interface ConversationMessage {
   id: string;
   role: "learner" | "assistant";
   text: string;
@@ -66,13 +77,13 @@ interface ConversationMessage {
   citations: Citation[];
 }
 
-interface HelpChatMessage {
+export interface HelpChatMessage {
   id: string;
   from: "learner" | "helper";
   text: string;
 }
 
-interface WidgetSettings {
+export interface WidgetSettings {
   textScale: 100 | 150 | 200;
   highContrast: boolean;
   stopMotion: boolean;
@@ -80,6 +91,7 @@ interface WidgetSettings {
   dataSaver: boolean;
   readAloud: "off" | "ask" | "always";
   speechRate: 0.75 | 1 | 1.25;
+  shortcuts: boolean;
 }
 
 const defaultSettings: WidgetSettings = {
@@ -90,6 +102,7 @@ const defaultSettings: WidgetSettings = {
   dataSaver: false,
   readAloud: "off",
   speechRate: 1,
+  shortcuts: true,
 };
 
 const storage = {
@@ -148,6 +161,16 @@ export class DimtsAssistant extends LitElement {
     helpNotice: { state: true },
     helpNoticeIsError: { state: true },
     helpAnnouncement: { state: true },
+    cloudOk: { state: true },
+    consentBusy: { state: true },
+    consentFailed: { state: true },
+    consentNotice: { state: true },
+    faqState: { state: true },
+    faqItems: { state: true },
+    faqCached: { state: true },
+    feedback: { state: true },
+    startingSession: { state: true },
+    slowRequest: { state: true },
   };
 
   declare api: string;
@@ -165,7 +188,7 @@ export class DimtsAssistant extends LitElement {
   declare private offlineSupportAvailable: boolean;
   declare private busy: boolean;
   declare private retryAvailable: boolean;
-  declare private panel: "language" | "settings" | null;
+  declare private panel: "language" | "settings" | "faq" | null;
   declare private notice: string;
   declare private fallbackNotice: string;
   private fallbackAnnounced = false;
@@ -198,6 +221,88 @@ export class DimtsAssistant extends LitElement {
   private helpSocket: WebSocket | undefined;
   private helpReconnectTimer: number | undefined;
   private helpReconnectAttempt = 0;
+  declare private cloudOk: boolean;
+  declare private consentBusy: boolean;
+  declare private consentFailed: boolean;
+  declare private consentNotice: string;
+  declare private faqState: "idle" | "loading" | "ready" | "failed";
+  declare private faqItems: FaqItem[];
+  declare private faqCached: boolean;
+  declare private feedback: Record<string, boolean>;
+  declare private startingSession: boolean;
+  declare private slowRequest: boolean;
+  private resumeToken = "";
+  private sessionGeneration = 0;
+  private sessionRestartPending = false;
+  private sessionPromise: Promise<void> | undefined;
+  private initializationPromise: Promise<void> | undefined;
+  private askPromise: Promise<void> | undefined;
+  private askController: AbortController | undefined;
+  private pendingQuestion:
+    | { text: string; lang: string; simple: boolean; clientMsgId: string }
+    | undefined;
+  private consentPromise: Promise<void> | undefined;
+  private startupTimer: ReturnType<typeof setTimeout> | undefined;
+  private workingTimer: ReturnType<typeof setTimeout> | undefined;
+  private disposeTheme: (() => void) | undefined;
+  private faqRun = 0;
+  private faqController: AbortController | undefined;
+  private lifecycleController = new AbortController();
+  private sessionTimer: ReturnType<typeof setTimeout> | undefined;
+  private ownedWorker: ServiceWorkerRegistration | undefined;
+  private uiLang = "en";
+  private helpSizeObserver: ResizeObserver | undefined;
+  private observedHelp: Element | undefined;
+
+  get uiLanguage(): string {
+    return this.uiLang;
+  }
+
+  get uiDirection(): "ltr" | "rtl" {
+    return (
+      this.languages.find((language) => language.code === this.uiLang)?.dir ??
+      "ltr"
+    );
+  }
+
+  private async request(
+    url: string,
+    init: RequestInit = {},
+  ): Promise<Response> {
+    const signal = init.signal
+      ? AbortSignal.any([this.lifecycleController.signal, init.signal])
+      : this.lifecycleController.signal;
+    const response = await fetch(url, { ...init, credentials: "omit", signal });
+    signal.throwIfAborted();
+    return response;
+  }
+  private voiceModule:
+    typeof import("./voice-runtime.js").voiceRuntime | undefined;
+  private helpModule:
+    typeof import("./help-runtime.js").helpRuntime | undefined;
+
+  private async loadVoice() {
+    return (this.voiceModule ??= (
+      await import("./voice-runtime.js")
+    ).voiceRuntime);
+  }
+
+  private async loadHelp() {
+    return (this.helpModule ??= (
+      await import("./help-runtime.js")
+    ).helpRuntime);
+  }
+
+  protected override createRenderRoot(): ShadowRoot {
+    const root = this.shadowRoot ?? this.attachShadow({ mode: "open" });
+    // A host nonce also supports browsers without constructable stylesheets.
+    const style = document.createElement("style");
+    if (this.nonce) style.nonce = this.nonce;
+    style.textContent = DimtsAssistant.styles.cssText;
+    root.append(style);
+    this.renderOptions.renderBefore = root.firstChild;
+    return root;
+  }
 
   constructor() {
     super();
@@ -207,7 +312,7 @@ export class DimtsAssistant extends LitElement {
     this.textToSpeech = undefined;
     this.languages = [];
     this.selectedLang = "";
-    this.ui = {};
+    this.ui = { ...bootstrapUi };
     this.messages = [];
     this.sessionId = "";
     this.sessionToken = "";
@@ -238,20 +343,24 @@ export class DimtsAssistant extends LitElement {
     this.helpNotice = "";
     this.helpNoticeIsError = false;
     this.helpAnnouncement = "";
+    this.cloudOk = false;
+    this.consentBusy = false;
+    this.consentFailed = false;
+    this.consentNotice = "";
+    this.faqState = "idle";
+    this.faqItems = [];
+    this.faqCached = false;
+    this.feedback = {};
+    this.startingSession = false;
+    this.slowRequest = false;
   }
 
   static override styles = css`
     :host {
-      --dimts-surface: #ffffff;
-      --dimts-text: #14232b;
-      --dimts-muted: #344b55;
-      --dimts-primary: #164e63;
-      --dimts-primary-text: #ffffff;
-      --dimts-border: #526773;
       color: var(--dimts-text);
       display: block;
       font-family:
-        system-ui,
+        var(--dimts-font-family, system-ui),
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
@@ -271,13 +380,10 @@ export class DimtsAssistant extends LitElement {
       line-height: 1.65;
     }
 
-    :host([high-contrast]) {
-      --dimts-surface: #ffffff;
-      --dimts-text: #000000;
-      --dimts-muted: #1a1a1a;
-      --dimts-primary: #000000;
-      --dimts-primary-text: #ffffff;
-      --dimts-border: #000000;
+    [lang="am"] {
+      font-family:
+        "Noto Sans Ethiopic", var(--dimts-font-family, system-ui), sans-serif;
+      line-height: 1.65;
     }
 
     :host([hidden]) {
@@ -301,18 +407,20 @@ export class DimtsAssistant extends LitElement {
     textarea,
     a {
       min-block-size: 48px;
+      min-inline-size: 48px;
     }
 
     button,
     select {
       border: 2px solid var(--dimts-border);
-      border-radius: 0.5rem;
+      border-radius: var(--dimts-radius, 0.5rem);
       background: var(--dimts-surface);
       padding: 0.625rem 0.875rem;
     }
 
     button {
       cursor: pointer;
+      overflow-wrap: anywhere;
     }
 
     button:disabled {
@@ -321,21 +429,29 @@ export class DimtsAssistant extends LitElement {
     }
 
     :focus-visible {
-      outline: 3px solid #005fcc;
+      outline: 3px solid var(--dimts-focus);
       outline-offset: 2px;
+      box-shadow: 0 0 0 2px var(--dimts-surface);
     }
 
     main {
+      --dimts-available-height: max(
+        6rem,
+        calc(100dvh - var(--dimts-help-reserve, 5em) - 2rem)
+      );
       background: var(--dimts-surface);
       border: 1px solid var(--dimts-border);
-      border-radius: 0.75rem;
+      border-radius: var(--dimts-radius, 0.75rem);
       display: flex;
       flex-direction: column;
       margin-inline: auto;
       max-inline-size: 42rem;
-      min-block-size: 32rem;
+      min-block-size: min(32rem, var(--dimts-available-height));
+      max-block-size: var(--dimts-available-height);
+      overflow-y: auto;
+      scroll-padding-block: 1rem;
       overflow-wrap: anywhere;
-      padding-block-end: 4.5rem;
+      padding-block-end: 1rem;
       position: relative;
     }
 
@@ -356,6 +472,21 @@ export class DimtsAssistant extends LitElement {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+    }
+
+    .reply-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-block-start: 0.75rem;
+    }
+
+    .consent {
+      padding: 0.75rem;
+    }
+
+    .action-icon {
+      margin-inline-end: 0.5rem;
     }
 
     .welcome,
@@ -406,7 +537,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     article[data-role="learner"] {
-      background: #f0f5f7;
+      background: var(--dimts-surface);
     }
 
     article p {
@@ -423,7 +554,7 @@ export class DimtsAssistant extends LitElement {
 
     a {
       align-items: center;
-      color: #064b70;
+      color: var(--dimts-text);
       display: inline-flex;
       overflow-wrap: anywhere;
       padding: 0.25rem;
@@ -435,6 +566,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     textarea {
+      background: var(--dimts-surface);
       border: 2px solid var(--dimts-border);
       border-radius: 0.5rem;
       display: block;
@@ -480,6 +612,7 @@ export class DimtsAssistant extends LitElement {
       align-items: center;
       background: rgb(0 0 0 / 55%);
       display: grid;
+      grid-template-columns: minmax(0, 1fr);
       inset: 0;
       overflow-y: auto;
       padding: 1rem;
@@ -494,6 +627,7 @@ export class DimtsAssistant extends LitElement {
       margin-inline: auto;
       max-block-size: 100%;
       max-inline-size: 36rem;
+      min-inline-size: 0;
       overflow-y: auto;
       padding: 1.25rem;
       inline-size: 100%;
@@ -624,7 +758,6 @@ export class DimtsAssistant extends LitElement {
     @media (max-width: 24rem) {
       main {
         border-radius: 0;
-        min-block-size: 100%;
       }
 
       header {
@@ -634,7 +767,7 @@ export class DimtsAssistant extends LitElement {
 
       .composer-actions {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+        grid-template-columns: minmax(0, 1fr);
       }
 
       .composer-actions > .muted {
@@ -643,14 +776,14 @@ export class DimtsAssistant extends LitElement {
       }
 
       .composer-actions .mic {
-        grid-column: 2;
-        grid-row: 1;
+        grid-column: 1;
+        grid-row: 2;
         justify-self: center;
       }
 
-      .composer-actions .primary {
-        grid-column: 3;
-        grid-row: 1;
+      .composer-actions .send-action {
+        grid-column: 1;
+        grid-row: 3;
         justify-self: end;
       }
     }
@@ -676,14 +809,26 @@ export class DimtsAssistant extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
+    activeWidgets.add(this);
+    this.lifecycleController = new AbortController();
     window.addEventListener("offline", this.handleOffline);
     window.addEventListener("online", this.handleOnline);
+    window.addEventListener("keydown", this.handleShortcut);
+    if (this.selectedLang === "am") registerEthiopicFonts(this);
+    if (this.hasAttribute("data-simple")) {
+      this.updateSettings({
+        simple: this.getAttribute("data-simple") === "true",
+      });
+    } else if (this.settings.simple) {
+      this.updateSettings({ simple: true });
+    }
     this.toggleAttribute("high-contrast", this.settings.highContrast);
     this.toggleAttribute("stop-motion", this.settings.stopMotion);
     this.style.setProperty(
       "--dimts-scale",
       String(this.settings.textScale / 100),
     );
+    this.disposeTheme = applyThemeGuard(this);
     void this.enableOfflineSupport();
     void this.initialize();
     if (this.helpRequestId) this.connectHelpSocket();
@@ -692,11 +837,54 @@ export class DimtsAssistant extends LitElement {
   protected override updated(): void {
     // Populate an already mounted live region, including after initial startup.
     if (!this.loading) this.announceFallback();
+    const help = this.renderRoot.querySelector(".help");
+    if (help && help !== this.observedHelp) {
+      this.helpSizeObserver?.disconnect();
+      this.observedHelp = help;
+      this.helpSizeObserver = new ResizeObserver(() => {
+        if (this.isConnected)
+          this.style.setProperty(
+            "--dimts-help-reserve",
+            `${Math.ceil(help.getBoundingClientRect().height) + 24}px`,
+          );
+      });
+      this.helpSizeObserver.observe(help);
+    }
+    for (const control of this.renderRoot.querySelectorAll("button, a")) {
+      const icon = control.querySelector(".action-icon");
+      if (this.settings.simple && !icon) {
+        const decoration = document.createElement("span");
+        decoration.className = "action-icon";
+        decoration.setAttribute("aria-hidden", "true");
+        decoration.textContent = control.classList.contains("help")
+          ? "?"
+          : control.classList.contains("mic")
+            ? "●"
+            : "›";
+        control.prepend(decoration);
+      } else if (!this.settings.simple) icon?.remove();
+    }
   }
 
   override disconnectedCallback(): void {
+    activeWidgets.delete(this);
+    this.lifecycleController.abort();
     window.removeEventListener("offline", this.handleOffline);
     window.removeEventListener("online", this.handleOnline);
+    window.removeEventListener("keydown", this.handleShortcut);
+    this.disposeTheme?.();
+    this.disposeTheme = undefined;
+    this.helpSizeObserver?.disconnect();
+    this.helpSizeObserver = undefined;
+    this.observedHelp = undefined;
+    clearTimeout(this.startupTimer);
+    clearTimeout(this.workingTimer);
+    clearTimeout(this.sessionTimer);
+    this.faqRun += 1;
+    this.faqController?.abort();
+    releaseEthiopicFont(this);
+    void this.audioContext?.close();
+    this.audioContext = undefined;
     if (this.recordingTimer !== undefined) {
       window.clearTimeout(this.recordingTimer);
       this.recordingTimer = undefined;
@@ -732,6 +920,92 @@ export class DimtsAssistant extends LitElement {
     this.offline = false;
   };
 
+  private readonly handleShortcut = (event: KeyboardEvent): void => {
+    if (
+      !this.settings.shortcuts ||
+      this.hidden ||
+      !this.isConnected ||
+      !event.altKey ||
+      !event.shiftKey ||
+      event.ctrlKey ||
+      event.metaKey ||
+      event.repeat
+    )
+      return;
+    const key = event.key.toLowerCase();
+    if (!["m", "h", "l"].includes(key)) return;
+    // A modal owns its keyboard focus until explicitly dismissed.
+    if (this.helpPreviewOpen) return;
+    event.preventDefault();
+    if (key === "h") this.escalate();
+    if (key === "l") this.panel = this.panel === "language" ? null : "language";
+    if (key === "m" && this.canRecord() && !this.busy) {
+      if (this.isRecording) this.stopRecording();
+      else this.startRecording();
+    }
+  };
+
+  uiText(key: string): string {
+    return this.t(key);
+  }
+
+  clearOwnedStorage(): void {
+    try {
+      globalThis.localStorage?.removeItem("dimts.settings");
+    } catch {
+      /* Storage can be disabled. */
+    }
+    const others = [...activeWidgets].filter((widget) => widget !== this);
+    const base = new URL(this.apiRoot, location.origin);
+    if (
+      others.some(
+        (widget) => new URL(widget.apiRoot, location.origin).href === base.href,
+      )
+    )
+      return;
+    void clearFaqCache(this.apiRoot);
+    if (
+      this.ownedWorker &&
+      ownsWorkerRegistration(this.ownedWorker, this.workerUrl)
+    )
+      void this.ownedWorker.unregister();
+    void Promise.resolve()
+      .then(async () => {
+        for (const name of await caches.keys()) {
+          if (!others.length && /^dimts-shell-v\d+$/u.test(name)) {
+            await caches.delete(name);
+            continue;
+          }
+          if (name !== "dimts-static-v1" && name !== "dimts-public-v1")
+            continue;
+          const cache = await caches.open(name);
+          for (const request of await cache.keys()) {
+            const url = new URL(request.url);
+            const matches =
+              name === "dimts-static-v1"
+                ? url.searchParams.get("apiOrigin") === base.origin &&
+                  url.pathname.startsWith(`/__dimts_cache${base.pathname}/`)
+                : url.origin === base.origin &&
+                  url.pathname.startsWith(`${base.pathname}/`);
+            if (matches) await cache.delete(request);
+          }
+          if (!(await cache.keys()).length) await caches.delete(name);
+        }
+      })
+      .catch(() => undefined);
+  }
+
+  private get workerUrl(): URL {
+    const workerUrl = new URL("/service-worker.js", location.origin);
+    workerUrl.searchParams.set("asset", import.meta.url);
+    workerUrl.searchParams.set("owner", "dimts");
+    workerUrl.searchParams.set(
+      "api",
+      new URL(this.apiRoot, location.origin).href,
+    );
+    return workerUrl;
+  }
+
   private async enableOfflineSupport(): Promise<void> {
     if (
       !("serviceWorker" in navigator) ||
@@ -740,10 +1014,22 @@ export class DimtsAssistant extends LitElement {
       return;
     }
 
-    const workerUrl = new URL("/service-worker.js", location.origin);
-    workerUrl.searchParams.set("asset", import.meta.url);
+    const workerUrl = this.workerUrl;
     try {
-      await navigator.serviceWorker.register(workerUrl, { scope: "/" });
+      const existing = await navigator.serviceWorker.getRegistration(
+        location.href,
+      );
+      if (existing && !ownsWorkerRegistration(existing, workerUrl)) return;
+      if (!this.isConnected) return;
+      const registration = await navigator.serviceWorker.register(workerUrl, {
+        scope: "/",
+      });
+      if (!this.isConnected) {
+        if (!existing && ownsWorkerRegistration(registration, workerUrl))
+          await registration.unregister();
+        return;
+      }
+      this.ownedWorker = registration;
       this.offlineSupportAvailable = true;
     } catch {
       this.offlineSupportAvailable = false;
@@ -779,7 +1065,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     try {
-      const response = await fetch(url);
+      const response = await this.request(url);
       if (response.ok) this.offline = !navigator.onLine;
       if (response.ok && cache) {
         try {
@@ -794,6 +1080,8 @@ export class DimtsAssistant extends LitElement {
       }
       return response;
     } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError")
+        throw error;
       this.offline = true;
       if (cache) {
         let cached: Response | undefined;
@@ -825,17 +1113,47 @@ export class DimtsAssistant extends LitElement {
   }
 
   private async initialize(): Promise<void> {
+    if (this.initializationPromise) return this.initializationPromise;
+    this.initializationPromise = this.startInitialize();
+    try {
+      await this.initializationPromise;
+    } finally {
+      this.initializationPromise = undefined;
+    }
+  }
+
+  private async retryStartup(): Promise<void> {
+    const sessionOnly = !this.loading && this.languages.length > 0;
+    this.lifecycleController.abort();
+    this.lifecycleController = new AbortController();
+    await this.initializationPromise;
+    await this.sessionPromise;
+    if (!this.isConnected) return;
+    if (sessionOnly) await this.createSession();
+    else await this.initialize();
+  }
+
+  private async startInitialize(): Promise<void> {
+    const lifecycle = this.lifecycleController.signal;
+    this.loading = true;
+    this.notice = "";
+    clearTimeout(this.startupTimer);
+    this.startupTimer = setTimeout(() => {
+      this.notice = this.t("waking.message");
+    }, 2_000);
     try {
       const response = await this.fetchStatic(
         `${this.apiRoot}/languages${this.previewQuery}`,
       );
       if (!response.ok) throw new Error("languages");
       const body = (await response.json()) as { languages: Language[] };
+      lifecycle.throwIfAborted();
       this.languages = body.languages.filter(
         (language) => language.status !== "draft" || Boolean(this.previewQuery),
       );
       if (this.languages.length === 0) throw new Error("languages");
-      const stored = storage.get("dimts.lang");
+      const stored =
+        this.getAttribute("data-lang") || storage.get("dimts.lang");
       const remembered = this.languages.find(({ code }) => code === stored);
       if (remembered) {
         await this.chooseLanguage(remembered.code, false);
@@ -846,7 +1164,10 @@ export class DimtsAssistant extends LitElement {
     } catch {
       this.notice = this.t("error.network");
     } finally {
+      clearTimeout(this.startupTimer);
       this.loading = false;
+      if (this.isConnected && !lifecycle.aborted)
+        this.dispatchEvent(new Event("dimts:ready"));
     }
   }
 
@@ -859,6 +1180,8 @@ export class DimtsAssistant extends LitElement {
         );
         if (!response.ok) continue;
         this.ui = (await response.json()) as Record<string, unknown>;
+        this.uiLang = code;
+        void this.refreshFaq();
         if (
           code !== lang ||
           response.headers.get("X-Dimts-Locale-Fallback") === "1"
@@ -866,33 +1189,50 @@ export class DimtsAssistant extends LitElement {
           this.fallbackPending = true;
         }
         return;
-      } catch {
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError")
+          return;
         continue;
       }
     }
-    this.ui = {};
+    this.ui = { ...bootstrapUi };
+    this.uiLang = "en";
   }
 
   private setSelectedLanguage(code: string): void {
-    if (code === "am") registerEthiopicFonts();
+    if (code === "am") registerEthiopicFonts(this);
     this.selectedLang = code;
     this.transliterationEnabled = false;
     this.transliterationSuggestion = null;
     this.setAttribute("lang", code);
+    this.setAttribute(
+      "dir",
+      this.languages.find((language) => language.code === code)?.dir ?? "ltr",
+    );
   }
 
   private async chooseLanguage(code: string, persist = true): Promise<void> {
+    const lifecycle = this.lifecycleController.signal;
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
     this.stopSpeech();
     this.fallbackNotice = "";
     this.fallbackPending = false;
     this.setSelectedLanguage(selected.code);
+    this.faqRun += 1;
+    this.faqController?.abort();
+    this.faqState = "idle";
+    this.faqItems = [];
     await this.loadUi(selected.code);
+    if (lifecycle.aborted || !this.isConnected) return;
     if (persist) {
       storage.set("dimts.lang", selected.code);
-      window.dispatchEvent(
-        new CustomEvent("dimts:language", { detail: { lang: selected.code } }),
+      this.dispatchEvent(
+        new CustomEvent("dimts:language", {
+          bubbles: true,
+          composed: true,
+          detail: { lang: selected.code },
+        }),
       );
     }
     this.panel = null;
@@ -906,7 +1246,8 @@ export class DimtsAssistant extends LitElement {
   }
 
   setLanguage(code: string): void {
-    void this.chooseLanguage(code);
+    this.setAttribute("data-lang", code);
+    if (this.languages.length) void this.chooseLanguage(code);
   }
 
   escalate(): void {
@@ -921,319 +1262,95 @@ export class DimtsAssistant extends LitElement {
   }
 
   private async openHelpPreview(): Promise<void> {
-    if (this.helpRequestId || this.helpBusy) return;
-    this.helpIncludeSummary = true;
-    this.helpNotice = "";
-    this.helpNoticeIsError = false;
-    this.helpPreviewOpen = true;
-    await this.updateComplete;
-    this.renderRoot
-      .querySelector<HTMLInputElement>(".help-dialog input")
-      ?.focus();
+    const generation = this.sessionGeneration;
+    try {
+      const runtime = await this.loadHelp();
+      if (this.isConnected && generation === this.sessionGeneration)
+        return runtime.openHelpPreview.call(this as unknown as HelpContext);
+    } catch {
+      if (generation !== this.sessionGeneration) return;
+      this.notice = this.t("help.error");
+      this.noticeIsError = true;
+    }
   }
 
   private async cancelHelpPreview(): Promise<void> {
-    this.helpPreviewOpen = false;
-    await this.updateComplete;
-    this.renderRoot.querySelector<HTMLButtonElement>(".help")?.focus();
+    return await this.helpModule?.cancelHelpPreview.call(
+      this as unknown as HelpContext,
+    );
   }
 
   private trapHelpDialog(event: KeyboardEvent): void {
-    if (event.key === "Escape") {
-      event.preventDefault();
-      void this.cancelHelpPreview();
-      return;
-    }
-    if (event.key !== "Tab") return;
-    const controls = [
-      ...this.renderRoot.querySelectorAll<HTMLElement>(
-        ".help-dialog input, .help-dialog button",
-      ),
-    ];
-    const first = controls[0];
-    const last = controls.at(-1);
-    const activeElement =
-      this.renderRoot instanceof ShadowRoot
-        ? this.renderRoot.activeElement
-        : null;
-    if (!first || !last) return;
-    if (event.shiftKey && activeElement === first) {
-      event.preventDefault();
-      last.focus();
-    } else if (!event.shiftKey && activeElement === last) {
-      event.preventDefault();
-      first.focus();
-    }
+    return this.helpModule?.trapHelpDialog.call(
+      this as unknown as HelpContext,
+      event,
+    );
   }
 
   private async createHelpRequest(): Promise<void> {
-    if (this.helpBusy || !this.helpPreviewOpen) return;
-    this.helpBusy = true;
-    this.helpNotice = "";
-    this.helpNoticeIsError = false;
-    try {
-      if (!this.sessionId || !this.sessionToken) {
-        await this.createSession();
-      }
-      if (!this.sessionId || !this.sessionToken) {
-        this.helpNotice = this.t("help.error");
-        this.helpNoticeIsError = true;
-        return;
-      }
-      const response = await fetch(`${this.apiRoot}/help`, {
-        method: "POST",
-        headers: {
-          authorization: `Bearer ${this.sessionToken}`,
-          "content-type": "application/json",
-        },
-        body: JSON.stringify({
-          sessionId: this.sessionId,
-          includeSummary: this.helpIncludeSummary,
-        }),
-      });
-      if (!response.ok) {
-        this.helpNotice = this.t(
-          response.status === 429 ? "help.limit" : "help.error",
-        );
-        this.helpNoticeIsError = true;
-        return;
-      }
-      const request = (await response.json()) as {
-        id: string;
-        status: "waiting";
-      };
-      if (
-        typeof request.id !== "string" ||
-        request.id.length === 0 ||
-        request.status !== "waiting"
-      ) {
-        this.helpNotice = this.t("help.error");
-        this.helpNoticeIsError = true;
-        return;
-      }
-      this.helpRequestId = request.id;
-      this.helpMessages = [];
-      this.helpDraft = "";
-      this.helpStatus = "connecting";
-      this.helpPreviewOpen = false;
-      this.helpNotice = "";
-      this.helpNoticeIsError = false;
-      this.connectHelpSocket();
-      await this.updateComplete;
-      this.renderRoot
-        .querySelector<HTMLTextAreaElement>(".help-chat textarea")
-        ?.focus();
-    } catch {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-    } finally {
-      this.helpBusy = false;
-    }
+    return await this.helpModule?.createHelpRequest.call(
+      this as unknown as HelpContext,
+    );
   }
 
   private connectHelpSocket(): void {
-    if (
-      !this.isConnected ||
-      !this.helpRequestId ||
-      !this.sessionId ||
-      !this.sessionToken
-    ) {
-      return;
-    }
-    if (this.helpSocket && this.helpSocket.readyState < WebSocket.CLOSING) {
-      return;
-    }
-    try {
-      const url = new URL(`${this.apiRoot}/help/ws`, location.origin);
-      url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
-      const socket = new WebSocket(url);
-      this.helpSocket = socket;
-      socket.onopen = () => {
-        if (!this.helpRequestId || this.helpSocket !== socket) {
-          socket.close();
-          return;
-        }
-        const lastMessageId = this.helpMessages.at(-1)?.id;
-        socket.send(
-          JSON.stringify({
-            type: "auth",
-            requestId: this.helpRequestId,
-            role: "learner",
-            sessionId: this.sessionId,
-            token: this.sessionToken,
-            ...(lastMessageId ? { lastMessageId } : {}),
-          }),
-        );
-      };
-      socket.onmessage = (event: MessageEvent<unknown>) => {
-        this.handleHelpFrame(event.data);
-      };
-      socket.onerror = () => {
-        this.helpStatus = "reconnecting";
-      };
-      socket.onclose = (event: CloseEvent) => {
-        if (this.helpSocket === socket) this.helpSocket = undefined;
-        if (event.code === 4401) {
-          this.helpStatus = "";
-          this.helpNotice = this.t("help.error");
-          this.helpNoticeIsError = true;
-        } else if (this.isConnected && this.helpRequestId) {
-          this.helpStatus = "reconnecting";
-          this.scheduleHelpReconnect();
-        }
-      };
-    } catch {
-      this.helpStatus = "reconnecting";
-      this.scheduleHelpReconnect();
-    }
+    return this.helpModule?.connectHelpSocket.call(
+      this as unknown as HelpContext,
+    );
   }
 
   private scheduleHelpReconnect(): void {
-    if (
-      !this.isConnected ||
-      !this.helpRequestId ||
-      this.helpReconnectTimer !== undefined
-    ) {
-      return;
-    }
-    const delay = Math.min(1_000 * 2 ** this.helpReconnectAttempt, 30_000);
-    this.helpReconnectAttempt += 1;
-    this.helpReconnectTimer = window.setTimeout(() => {
-      this.helpReconnectTimer = undefined;
-      this.connectHelpSocket();
-    }, delay);
+    return this.helpModule?.scheduleHelpReconnect.call(
+      this as unknown as HelpContext,
+    );
   }
 
   private handleHelpFrame(raw: unknown): void {
-    if (typeof raw !== "string") {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-      return;
-    }
-    let frame: unknown;
-    try {
-      frame = JSON.parse(raw);
-    } catch {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-      return;
-    }
-    if (typeof frame !== "object" || frame === null || !("type" in frame)) {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-      return;
-    }
-    if (frame.type === "help.joined") {
-      this.helpStatus = "connected";
-      this.helpReconnectAttempt = 0;
-      this.helpNotice = "";
-      this.helpNoticeIsError = false;
-      return;
-    }
-    if (frame.type === "help.closed") {
-      this.helpRequestId = "";
-      this.helpMessages = [];
-      this.helpDraft = "";
-      this.helpStatus = "";
-      this.helpAnnouncement = "";
-      this.helpSocket?.close();
-      this.helpSocket = undefined;
-      if (this.helpReconnectTimer !== undefined) {
-        window.clearTimeout(this.helpReconnectTimer);
-        this.helpReconnectTimer = undefined;
-      }
-      this.notice = this.t("help.ended");
-      this.noticeIsError = false;
-      return;
-    }
-    if (
-      frame.type !== "chat.message" ||
-      !("id" in frame) ||
-      typeof frame.id !== "string" ||
-      !("text" in frame) ||
-      typeof frame.text !== "string" ||
-      !("from" in frame) ||
-      frame.from !== "helper"
-    ) {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-      return;
-    }
-    if (this.helpMessages.some((message) => message.id === frame.id)) return;
-    this.helpMessages = [
-      ...this.helpMessages,
-      { id: frame.id, from: "helper", text: frame.text },
-    ];
-    this.helpAnnouncement = this.t("help.newMessage");
+    return this.helpModule?.handleHelpFrame.call(
+      this as unknown as HelpContext,
+      raw,
+    );
   }
 
   private sendHelpMessage(event: SubmitEvent): void {
-    event.preventDefault();
-    const text = this.helpDraft.trim();
-    const socket = this.helpSocket;
-    if (!text || !socket || socket.readyState !== WebSocket.OPEN) {
-      this.helpStatus = "reconnecting";
-      return;
-    }
-    const id = crypto.randomUUID();
-    try {
-      socket.send(JSON.stringify({ type: "chat.message", id, text }));
-    } catch {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-      return;
-    }
-    this.helpMessages = [...this.helpMessages, { id, from: "learner", text }];
-    this.helpDraft = "";
+    return this.helpModule?.sendHelpMessage.call(
+      this as unknown as HelpContext,
+      event,
+    );
   }
 
   private async closeHelpRequest(): Promise<void> {
-    if (!this.helpRequestId || this.helpBusy) return;
-    this.helpBusy = true;
-    this.helpNotice = "";
-    this.helpNoticeIsError = false;
-    try {
-      const response = await fetch(
-        `${this.apiRoot}/help/${encodeURIComponent(this.helpRequestId)}/close`,
-        {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${this.sessionToken}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({ sessionId: this.sessionId }),
-        },
-      );
-      if (!response.ok) throw new Error("help close");
-      this.helpRequestId = "";
-      this.helpMessages = [];
-      this.helpDraft = "";
-      this.helpStatus = "";
-      this.helpAnnouncement = "";
-      this.helpSocket?.close();
-      this.helpSocket = undefined;
-      this.helpReconnectAttempt = 0;
-      this.notice = this.t("help.ended");
-      this.noticeIsError = false;
-      if (this.helpReconnectTimer !== undefined) {
-        window.clearTimeout(this.helpReconnectTimer);
-        this.helpReconnectTimer = undefined;
-      }
-    } catch {
-      this.helpNotice = this.t("help.error");
-      this.helpNoticeIsError = true;
-    } finally {
-      this.helpBusy = false;
-    }
+    return await this.helpModule?.closeHelpRequest.call(
+      this as unknown as HelpContext,
+    );
   }
 
   private async createSession(): Promise<void> {
+    if (this.sessionPromise) return this.sessionPromise;
+    const pending = this.startSession();
+    this.sessionPromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.sessionPromise === pending) this.sessionPromise = undefined;
+    }
+  }
+
+  private async startSession(): Promise<void> {
+    const generation = this.sessionGeneration;
     if (!this.hostKey) {
       this.notice = this.t("error.host");
       return;
     }
+    this.startingSession = true;
+    this.notice = "";
+    const timer = setTimeout(() => {
+      if (generation === this.sessionGeneration)
+        this.notice = this.t("waking.message");
+    }, 2_000);
+    this.sessionTimer = timer;
     try {
-      const response = await fetch(`${this.apiRoot}/sessions`, {
+      const response = await this.request(`${this.apiRoot}/sessions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
@@ -1245,25 +1362,321 @@ export class DimtsAssistant extends LitElement {
       const session = (await response.json()) as {
         sessionId: string;
         sessionToken: string;
+        resumeToken: string;
+        cloudOk: boolean;
       };
+      if (generation !== this.sessionGeneration) return;
+      if (
+        this.sessionRestartPending &&
+        (session.cloudOk !== false ||
+          !session.sessionId ||
+          !session.sessionToken ||
+          !session.resumeToken)
+      )
+        throw new Error("session");
       if (this.sessionId && this.sessionId !== session.sessionId)
         this.fallbackAnnounced = false;
       this.sessionId = session.sessionId;
       this.sessionToken = session.sessionToken;
+      this.resumeToken = session.resumeToken;
+      this.cloudOk = session.cloudOk === true;
       this.notice = "";
+      if (this.sessionRestartPending) {
+        this.sessionRestartPending = false;
+        this.consentFailed = false;
+        this.consentNotice = this.t("privacy.sessionRestarted");
+      }
       await this.updateComplete;
       this.renderRoot.querySelector<HTMLTextAreaElement>("textarea")?.focus();
     } catch {
-      this.notice = this.t("error.network");
+      if (generation === this.sessionGeneration)
+        this.notice = this.t("error.network");
+    } finally {
+      clearTimeout(timer);
+      if (this.sessionTimer === timer) this.sessionTimer = undefined;
+      if (generation === this.sessionGeneration) this.startingSession = false;
     }
+  }
+
+  private async changeConsent(cloudOk: boolean): Promise<void> {
+    if (this.consentBusy) return;
+    this.cloudOk = cloudOk;
+    this.consentBusy = true;
+    this.consentFailed = false;
+    this.consentNotice = this.t("privacy.saving");
+    this.consentPromise = this.persistConsent(cloudOk);
+    try {
+      await this.consentPromise;
+    } finally {
+      this.consentPromise = undefined;
+      this.consentBusy = false;
+    }
+  }
+
+  private async persistConsent(cloudOk: boolean): Promise<void> {
+    try {
+      const response = await this.request(`${this.apiRoot}/sessions`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-dimts-key": this.hostKey,
+        },
+        body: JSON.stringify({
+          sessionId: this.sessionId,
+          resumeToken: this.resumeToken,
+          cloudOk,
+          ...(cloudOk ? { consentVersion: "remote-ai-v1" } : {}),
+        }),
+      });
+      if (response.status === 401) {
+        this.resetExpiredSession();
+        await this.createSession();
+        if (!this.sessionId) throw new Error("session");
+        return;
+      }
+      if (!response.ok) throw new Error("consent");
+      const session = (await response.json()) as {
+        sessionId: string;
+        sessionToken: string;
+        resumeToken: string;
+        cloudOk: boolean;
+      };
+      if (
+        session.sessionId !== this.sessionId ||
+        session.cloudOk !== cloudOk ||
+        !session.sessionToken ||
+        !session.resumeToken
+      )
+        throw new Error("consent");
+      this.sessionToken = session.sessionToken;
+      this.resumeToken = session.resumeToken;
+      this.consentNotice = this.t("privacy.saved");
+      // Resuming rotates the credential; a help reconnect must use the new one.
+      this.helpSocket?.close();
+    } catch {
+      this.consentFailed = true;
+      this.consentNotice = this.t("privacy.failed");
+    }
+  }
+
+  private resetExpiredSession(): void {
+    // The rotated credential cannot recover an old session after a lost response.
+    // Cancel its work before starting an explicitly local-only replacement.
+    this.sessionGeneration += 1;
+    this.lifecycleController.abort();
+    this.lifecycleController = new AbortController();
+    this.askController?.abort();
+    this.askController = undefined;
+    this.askPromise = undefined;
+    this.sessionPromise = undefined;
+    clearTimeout(this.workingTimer);
+    clearTimeout(this.sessionTimer);
+    this.stopRecording();
+    this.recordingRun += 1;
+    this.isRecording = false;
+    this.recordingStopRequested = false;
+    this.speechReview = false;
+    this.stopSpeech();
+    clearTimeout(this.helpReconnectTimer);
+    this.helpReconnectTimer = undefined;
+    const socket = this.helpSocket;
+    this.helpSocket = undefined;
+    if (socket) {
+      socket.onopen = socket.onmessage = socket.onerror = socket.onclose = null;
+      socket.close();
+    }
+    this.helpReconnectAttempt = 0;
+    this.helpPreviewOpen = false;
+    this.helpRequestId = "";
+    this.helpMessages = [];
+    this.helpDraft = "";
+    this.helpBusy = false;
+    this.helpStatus = "";
+    this.helpNotice = "";
+    this.helpNoticeIsError = false;
+    this.helpAnnouncement = "";
+    this.sessionId = "";
+    this.sessionToken = "";
+    this.resumeToken = "";
+    this.sessionRestartPending = true;
+    this.cloudOk = false;
+    this.consentFailed = false;
+    this.consentNotice = "";
+    this.pendingQuestion = undefined;
+    this.feedback = {};
+    this.messages = [];
+    this.busy = false;
+    this.slowRequest = false;
+    this.retryAvailable = false;
+    this.noticeIsError = false;
+    this.panel = null;
+    this.fallbackPending = this.fallbackPending || this.fallbackAnnounced;
+    this.fallbackAnnounced = false;
+    this.fallbackNotice = "";
+  }
+
+  private renderConsent(): unknown {
+    return html`<section
+      class="consent"
+      aria-label=${this.t("privacy.cloudOk")}
+    >
+      <p>${this.t("privacy.remoteNotice")}</p>
+      <label class="setting-row" for="cloud-consent"
+        ><span>${this.t("privacy.cloudOk")}</span
+        ><input
+          lang=${this.uiLanguage}
+          dir=${this.uiDirection}
+          id="cloud-consent"
+          type="checkbox"
+          .checked=${this.cloudOk}
+          ?disabled=${this.consentBusy}
+          @change=${(event: Event) => void this.changeConsent((event.currentTarget as HTMLInputElement).checked)}
+      /></label>
+      ${!this.cloudOk ? html`<p>${this.t("privacy.localOnly")}</p>` : nothing}
+      <p role="status" aria-live="polite">${this.consentNotice}</p>
+      ${this.consentFailed ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.changeConsent(this.cloudOk)}>${this.t("error.retry")}</button>` : nothing}
+    </section>`;
+  }
+
+  private async copyReply(message: ConversationMessage): Promise<void> {
+    try {
+      await navigator.clipboard.writeText(message.text);
+      this.notice = this.t("answer.copied");
+      this.noticeIsError = false;
+    } catch {
+      this.notice = this.t("answer.copyFailed");
+      this.noticeIsError = true;
+    }
+  }
+
+  private async rateReply(replyId: string, helpful: boolean): Promise<void> {
+    const generation = this.sessionGeneration;
+    try {
+      await this.consentPromise;
+      if (generation !== this.sessionGeneration) return;
+      const response = await this.request(`${this.apiRoot}/feedback`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${this.sessionToken}`,
+        },
+        body: JSON.stringify({ replyId, helpful }),
+      });
+      if (generation !== this.sessionGeneration) return;
+      if (!response.ok) throw new Error("feedback");
+      this.feedback = { ...this.feedback, [replyId]: helpful };
+      this.notice = this.t("answer.feedbackSaved");
+      this.noticeIsError = false;
+    } catch {
+      if (generation !== this.sessionGeneration) return;
+      this.notice = this.t("answer.feedbackFailed");
+      this.noticeIsError = true;
+    }
+  }
+
+  private async openFaq(): Promise<void> {
+    this.panel = "faq";
+    await this.refreshFaq();
+  }
+
+  private async refreshFaq(): Promise<void> {
+    const run = ++this.faqRun;
+    this.faqController?.abort();
+    const controller = new AbortController();
+    this.faqController = controller;
+    const timeout = setTimeout(() => controller.abort(), 8_000);
+    this.faqState = "loading";
+    this.faqItems = [];
+    try {
+      const result = await loadFaq(
+        this.apiRoot,
+        this.selectedLang || "en",
+        Boolean(this.previewQuery),
+        { signal: controller.signal },
+      );
+      if (run !== this.faqRun || !this.isConnected) return;
+      this.faqItems = result.items;
+      this.faqCached = result.cached;
+      this.faqState = "ready";
+    } catch {
+      if (run === this.faqRun) {
+        this.faqItems = [];
+        this.faqState = "failed";
+      }
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private renderFaq(): unknown {
+    if (this.panel !== "faq") return nothing;
+    return html`<section class="panel" aria-labelledby="faq-heading">
+      <h2 id="faq-heading">${this.t("faq.title")}</h2>
+      <p role="status" aria-live="polite">
+        ${this.t(this.faqState === "loading" ? "faq.loading" : this.faqState === "failed" ? "faq.failed" : !this.faqItems.length ? "faq.empty" : this.faqCached ? "faq.cached" : "")}
+      </p>
+      ${this.faqState === "failed" ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.openFaq()}>${this.t("error.retry")}</button>` : nothing}
+      ${this.faqItems.map(
+        (item) =>
+          html`<article lang=${item.lang} dir=${item.dir}>
+            <h3>${item.question}</h3>
+            <p>${item.answer}</p>
+            <div class="citations">
+              ${(this.settings.simple ? item.citations.slice(0, 1) : item.citations).map((citation) => html`<a lang=${this.uiLanguage} dir=${this.uiDirection} href=${citation.url} target="_blank" rel="noopener">${this.t("answer.source", { lesson: citation.label })}</a>`)}
+            </div>
+          </article>`,
+      )}
+    </section>`;
   }
 
   private async submit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
+    if (this.askPromise) return;
+    const pending = this.askQuestion();
+    this.askPromise = pending;
+    try {
+      await pending;
+    } finally {
+      if (this.askPromise === pending) this.askPromise = undefined;
+    }
+  }
+
+  private async retryQuestion(): Promise<void> {
+    this.askController?.abort();
+    await this.askPromise;
+    if (this.isConnected)
+      this.renderRoot
+        .querySelector<HTMLFormElement>(".composer")
+        ?.requestSubmit();
+  }
+
+  private async askQuestion(): Promise<void> {
+    const generation = this.sessionGeneration;
     const text = this.draft.trim();
-    if (!text || this.busy) return;
+    if (!text || this.busy || this.consentFailed) return;
+    await this.consentPromise;
+    if (
+      this.busy ||
+      this.consentFailed ||
+      generation !== this.sessionGeneration
+    )
+      return;
+    if (
+      !this.pendingQuestion ||
+      this.pendingQuestion.text !== text ||
+      this.pendingQuestion.lang !== this.selectedLang ||
+      this.pendingQuestion.simple !== this.settings.simple
+    ) {
+      this.pendingQuestion = {
+        text,
+        lang: this.selectedLang,
+        simple: this.settings.simple,
+        clientMsgId: crypto.randomUUID(),
+      };
+    }
+    const question = this.pendingQuestion;
     const learnerMessage: ConversationMessage = {
-      id: crypto.randomUUID(),
+      id: question.clientMsgId,
       role: "learner",
       text,
       lang: this.selectedLang,
@@ -1275,11 +1688,17 @@ export class DimtsAssistant extends LitElement {
     this.transliterationSuggestion = null;
     this.speechReview = false;
     this.busy = true;
+    this.slowRequest = false;
+    const controller = new AbortController();
+    this.askController = controller;
     this.notice = "";
     this.noticeIsError = false;
     this.retryAvailable = false;
-    const workingTimer = setTimeout(() => {
-      if (this.busy) this.notice = this.t("status.working");
+    this.workingTimer = setTimeout(() => {
+      if (this.busy) {
+        this.notice = this.t("status.working");
+        this.slowRequest = true;
+      }
     }, 2_000);
     try {
       if (!this.sessionId || !this.sessionToken) {
@@ -1288,7 +1707,8 @@ export class DimtsAssistant extends LitElement {
       if (!this.sessionId || !this.sessionToken) {
         throw new Error("session");
       }
-      const response = await fetch(`${this.apiRoot}/ask`, {
+      const response = await this.request(`${this.apiRoot}/ask`, {
+        signal: controller.signal,
         method: "POST",
         headers: {
           authorization: `Bearer ${this.sessionToken}`,
@@ -1296,15 +1716,16 @@ export class DimtsAssistant extends LitElement {
         },
         body: JSON.stringify({
           sessionId: this.sessionId,
-          clientMsgId: crypto.randomUUID(),
-          lang: this.selectedLang,
+          clientMsgId: question.clientMsgId,
+          lang: question.lang,
           text,
           via: "text",
-          simple: this.settings.simple,
+          simple: question.simple,
         }),
       });
       if (!response.ok) throw new Error("ask");
       const reply = (await response.json()) as Reply;
+      if (generation !== this.sessionGeneration) return;
       const assistantMessage: ConversationMessage = {
         id: reply.id,
         role: "assistant",
@@ -1314,6 +1735,7 @@ export class DimtsAssistant extends LitElement {
         citations: reply.citations ?? [],
       };
       this.messages = [...this.messages, assistantMessage];
+      if (this.pendingQuestion === question) this.pendingQuestion = undefined;
       this.notice = "";
       this.noticeIsError = false;
       this.retryAvailable = false;
@@ -1334,6 +1756,7 @@ export class DimtsAssistant extends LitElement {
         )
         ?.focus();
     } catch {
+      if (generation !== this.sessionGeneration) return;
       this.notice = this.t("error.network");
       this.noticeIsError = true;
       this.retryAvailable = true;
@@ -1344,8 +1767,12 @@ export class DimtsAssistant extends LitElement {
       await this.updateComplete;
       this.renderRoot.querySelector<HTMLTextAreaElement>("textarea")?.focus();
     } finally {
-      clearTimeout(workingTimer);
-      this.busy = false;
+      if (generation === this.sessionGeneration) {
+        clearTimeout(this.workingTimer);
+        this.busy = false;
+        this.slowRequest = false;
+        if (this.askController === controller) this.askController = undefined;
+      }
     }
   }
 
@@ -1371,6 +1798,8 @@ export class DimtsAssistant extends LitElement {
       <section class="transliteration">
         <label class="setting-row">
           <input
+            lang=${this.uiLanguage}
+            dir=${this.uiDirection}
             type="checkbox"
             .checked=${this.transliterationEnabled}
             ?disabled=${this.busy}
@@ -1397,6 +1826,8 @@ export class DimtsAssistant extends LitElement {
                   >${this.t("transliteration.suggestion")}</label
                 >
                 <textarea
+                  lang=${this.uiLanguage}
+                  dir=${this.uiDirection}
                   id="transliteration-suggestion"
                   aria-describedby="transliteration-hint"
                   .value=${this.transliterationSuggestion}
@@ -1408,6 +1839,8 @@ export class DimtsAssistant extends LitElement {
                   }}
                 ></textarea>
                 <button
+                  lang=${this.uiLanguage}
+                  dir=${this.uiDirection}
                   type="button"
                   ?disabled=${this.busy || !this.transliterationSuggestion.trim()}
                   @click=${() => void this.useTransliteration()}
@@ -1445,45 +1878,37 @@ export class DimtsAssistant extends LitElement {
   }
 
   private async speak(text: string, lang: string, id: string): Promise<void> {
-    const adapter = this.textToSpeech;
-    if (!adapter || !this.canSpeak(lang)) return;
-    this.stopSpeech();
-    const run = ++this.speechRun;
-    this.speakingMessageId = id;
-    this.speechPaused = false;
+    const generation = this.sessionGeneration;
+    if (!this.canSpeak(lang)) return;
     try {
-      await adapter.speak(text, lang, this.settings.speechRate);
+      const runtime = await this.loadVoice();
+      if (this.isConnected && generation === this.sessionGeneration)
+        return runtime.speak.call(
+          this as unknown as VoiceContext,
+          text,
+          lang,
+          id,
+        );
     } catch {
-      if (run === this.speechRun) {
-        this.notice = this.t("voice.outputFailed");
-        this.noticeIsError = true;
-      }
-    } finally {
-      if (run === this.speechRun) {
-        this.speakingMessageId = null;
-        this.speechPaused = false;
-      }
+      if (generation !== this.sessionGeneration) return;
+      this.notice = this.t("voice.outputFailed");
+      this.noticeIsError = true;
     }
   }
 
   private startRecording(): void {
-    const adapter = this.speechToText;
-    const lang = this.selectedLang;
-    if (!adapter || !this.canRecord(lang) || this.isRecording) return;
-
-    this.stopSpeech();
-    this.notice = "";
-    this.noticeIsError = false;
-    this.speechReview = false;
-    this.isRecording = true;
-    this.recordingStopRequested = false;
-    this.startRecordingCue();
-    const run = ++this.recordingRun;
-    this.recordingTimer = window.setTimeout(
-      () => this.stopRecording(),
-      MAX_RECORDING_MS,
-    );
-    void this.finishRecording(adapter, lang, run);
+    if (!this.canRecord() || this.isRecording) return;
+    const generation = this.sessionGeneration;
+    void this.loadVoice()
+      .then((runtime) => {
+        if (this.isConnected && generation === this.sessionGeneration)
+          runtime.startRecording.call(this as unknown as VoiceContext);
+      })
+      .catch(() => {
+        if (generation !== this.sessionGeneration) return;
+        this.notice = this.t("voice.retry");
+        this.noticeIsError = true;
+      });
   }
 
   private async finishRecording(
@@ -1491,108 +1916,46 @@ export class DimtsAssistant extends LitElement {
     lang: string,
     run: number,
   ): Promise<void> {
-    try {
-      const transcript = (await adapter.start(lang)).trim();
-      if (run !== this.recordingRun) return;
-      this.speechReview = transcript.length > 0;
-      if (transcript.length === 0) {
-        this.notice = this.t("voice.retry");
-        this.noticeIsError = true;
-        if (this.canSpeak(lang)) {
-          void this.speak(this.notice, lang, "voice-retry");
-        }
-      } else {
-        this.draft = transcript;
-        if (this.canSpeak(lang)) void this.speak(transcript, lang, "review");
-      }
-    } catch (error) {
-      if (run !== this.recordingRun) return;
-      const code =
-        error instanceof VoiceError
-          ? error.code
-          : typeof error === "object" && error !== null && "code" in error
-            ? error.code
-            : undefined;
-      if (code === "permission-denied") {
-        this.notice = this.t("voice.permissionDenied");
-      } else if (code === "microphone-unavailable") {
-        this.notice = this.t("voice.microphoneUnavailable");
-      } else {
-        this.notice = this.t("voice.retry");
-        if (this.canSpeak(lang)) {
-          void this.speak(this.notice, lang, "voice-retry");
-        }
-      }
-      this.noticeIsError = true;
-    } finally {
-      if (run === this.recordingRun) {
-        this.stopRecordingCue();
-        if (this.recordingTimer !== undefined) {
-          window.clearTimeout(this.recordingTimer);
-          this.recordingTimer = undefined;
-        }
-        this.isRecording = false;
-        this.recordingStopRequested = false;
-      }
-    }
+    return (
+      (await this.voiceModule?.finishRecording.call(
+        this as unknown as VoiceContext,
+        adapter,
+        lang,
+        run,
+      )) ?? Promise.resolve()
+    );
   }
 
   private stopRecording(): void {
-    if (!this.isRecording || this.recordingStopRequested) return;
-    this.recordingStopRequested = true;
-    this.stopRecordingCue();
-    if (this.recordingTimer !== undefined) {
-      window.clearTimeout(this.recordingTimer);
-      this.recordingTimer = undefined;
-    }
-    try {
-      this.speechToText?.stop();
-    } catch {
-      this.recordingRun += 1;
-      this.notice = this.t("voice.retry");
-      this.noticeIsError = true;
-      this.isRecording = false;
-      this.recordingStopRequested = false;
-    }
+    return this.voiceModule?.stopRecording.call(
+      this as unknown as VoiceContext,
+    );
   }
 
   private startRecordingCue(): void {
-    this.recordingCueActive = true;
-    this.playTone(660);
-    this.vibrate(30);
+    return this.voiceModule?.startRecordingCue.call(
+      this as unknown as VoiceContext,
+    );
   }
 
   private stopRecordingCue(): void {
-    if (!this.recordingCueActive) return;
-    this.recordingCueActive = false;
-    this.playTone(440);
-    this.vibrate([30, 40, 30]);
+    return this.voiceModule?.stopRecordingCue.call(
+      this as unknown as VoiceContext,
+    );
   }
 
   private playTone(frequency: number): void {
-    const AudioContextConstructor = window.AudioContext;
-    if (typeof AudioContextConstructor !== "function") return;
-    if (!this.audioContext || this.audioContext.state === "closed") {
-      this.audioContext = new AudioContextConstructor();
-    }
-
-    const context = this.audioContext;
-    const oscillator = context.createOscillator();
-    const gain = context.createGain();
-    const now = context.currentTime;
-    oscillator.frequency.setValueAtTime(frequency, now);
-    gain.gain.setValueAtTime(0.04, now);
-    oscillator.connect(gain);
-    gain.connect(context.destination);
-    oscillator.start(now);
-    oscillator.stop(now + 0.08);
+    return this.voiceModule?.playTone.call(
+      this as unknown as VoiceContext,
+      frequency,
+    );
   }
 
   private vibrate(pattern: number | number[]): void {
-    if (this.settings.stopMotion || typeof navigator.vibrate !== "function") {
-      return;
-    }
-    navigator.vibrate(pattern);
+    return this.voiceModule?.vibrate.call(
+      this as unknown as VoiceContext,
+      pattern,
+    );
   }
 
   private canRecord(lang = this.selectedLang): boolean {
@@ -1610,38 +1973,15 @@ export class DimtsAssistant extends LitElement {
   }
 
   private pauseSpeech(): void {
-    if (!this.speakingMessageId || this.speechPaused) return;
-    try {
-      this.textToSpeech?.pause();
-      this.speechPaused = true;
-    } catch {
-      this.notice = this.t("voice.outputFailed");
-      this.noticeIsError = true;
-    }
+    return this.voiceModule?.pauseSpeech.call(this as unknown as VoiceContext);
   }
 
   private resumeSpeech(): void {
-    if (!this.speakingMessageId || !this.speechPaused) return;
-    try {
-      this.textToSpeech?.resume();
-      this.speechPaused = false;
-    } catch {
-      this.notice = this.t("voice.outputFailed");
-      this.noticeIsError = true;
-    }
+    return this.voiceModule?.resumeSpeech.call(this as unknown as VoiceContext);
   }
 
   private stopSpeech(): void {
-    if (!this.speakingMessageId) return;
-    this.speechRun += 1;
-    this.speakingMessageId = null;
-    this.speechPaused = false;
-    try {
-      this.textToSpeech?.stop();
-    } catch {
-      this.notice = this.t("voice.outputFailed");
-      this.noticeIsError = true;
-    }
+    return this.voiceModule?.stopSpeech.call(this as unknown as VoiceContext);
   }
 
   private renderSpeechControls(id: string): unknown {
@@ -1718,6 +2058,10 @@ export class DimtsAssistant extends LitElement {
 
   private updateSettings(patch: Partial<WidgetSettings>): void {
     this.settings = { ...this.settings, ...patch };
+    if (this.settings.simple) {
+      this.settings.textScale = this.settings.textScale === 200 ? 200 : 150;
+      this.settings.readAloud = "always";
+    }
     storage.set("dimts.settings", JSON.stringify(this.settings));
     this.style.setProperty(
       "--dimts-scale",
@@ -1772,7 +2116,7 @@ export class DimtsAssistant extends LitElement {
       <section
         class="panel"
         aria-labelledby="settings-heading"
-        lang=${this.selectedLang}
+        lang=${this.uiLanguage}
         dir=${this.currentLanguage?.dir ?? "ltr"}
       >
         <h2 id="settings-heading">${this.t("settings.title")}</h2>
@@ -1783,8 +2127,8 @@ export class DimtsAssistant extends LitElement {
               (scale) => html`
                 <button
                   type="button"
-                  lang=${this.selectedLang}
-                  dir=${this.currentDirection}
+                  lang=${this.uiLanguage}
+                  dir=${this.uiDirection}
                   aria-pressed=${this.settings.textScale === scale}
                   @click=${() => this.updateSettings({ textScale: scale })}
                 >
@@ -1810,56 +2154,60 @@ export class DimtsAssistant extends LitElement {
             this.settings.simple,
             (value) => this.updateSettings({ simple: value }),
           )}
-          ${this.renderToggle(
-            "settings.dataSaver",
-            this.settings.dataSaver,
-            (value) => this.updateSettings({ dataSaver: value }),
-          )}
+          ${!this.settings.simple ? this.renderToggle("settings.dataSaver", this.settings.dataSaver, (value) => this.updateSettings({ dataSaver: value })) : nothing}
         </div>
-        <label class="setting-row" for="read-aloud">
-          <span>${this.t("settings.readAloud")}</span>
-          <select
-            id="read-aloud"
-            lang=${this.selectedLang}
-            dir=${this.currentDirection}
-            aria-describedby=${
-              textToSpeechAvailable ? nothing : "read-aloud-unavailable"
-            }
-            ?disabled=${!textToSpeechAvailable}
-            .value=${this.settings.readAloud}
-            @change=${(event: Event) => this.setReadAloud(event)}
-          >
-            <option value="off">${this.t("settings.off")}</option>
-            <option value="ask">${this.t("settings.ask")}</option>
-            <option value="always">${this.t("settings.always")}</option>
-          </select>
-        </label>
-        <label class="setting-row" for="speech-rate">
-          <span>${this.t("voice.speed")}</span>
-          <select
-            id="speech-rate"
-            lang=${this.selectedLang}
-            dir=${this.currentDirection}
-            aria-describedby=${
-              textToSpeechAvailable ? nothing : "read-aloud-unavailable"
-            }
-            ?disabled=${!textToSpeechAvailable}
-            .value=${String(this.settings.speechRate)}
-            @change=${(event: Event) => this.updateSpeechRate(event)}
-          >
-            <option value="0.75">${this.t("voice.rate075")}</option>
-            <option value="1">${this.t("voice.rate100")}</option>
-            <option value="1.25">${this.t("voice.rate125")}</option>
-          </select>
-        </label>
+        ${
+          !this.settings.simple
+            ? html`
+                ${this.renderToggle("settings.shortcuts", this.settings.shortcuts, (value) => this.updateSettings({ shortcuts: value }))}
+                <p>${this.t("settings.shortcutsHelp")}</p>
+                <label class="setting-row" for="read-aloud">
+                  <span>${this.t("settings.readAloud")}</span>
+                  <select
+                    id="read-aloud"
+                    lang=${this.uiLanguage}
+                    dir=${this.uiDirection}
+                    aria-describedby=${
+                      textToSpeechAvailable ? nothing : "read-aloud-unavailable"
+                    }
+                    ?disabled=${!textToSpeechAvailable}
+                    .value=${this.settings.readAloud}
+                    @change=${(event: Event) => this.setReadAloud(event)}
+                  >
+                    <option value="off">${this.t("settings.off")}</option>
+                    <option value="ask">${this.t("settings.ask")}</option>
+                    <option value="always">${this.t("settings.always")}</option>
+                  </select>
+                </label>
+                <label class="setting-row" for="speech-rate">
+                  <span>${this.t("voice.speed")}</span>
+                  <select
+                    id="speech-rate"
+                    lang=${this.uiLanguage}
+                    dir=${this.uiDirection}
+                    aria-describedby=${
+                      textToSpeechAvailable ? nothing : "read-aloud-unavailable"
+                    }
+                    ?disabled=${!textToSpeechAvailable}
+                    .value=${String(this.settings.speechRate)}
+                    @change=${(event: Event) => this.updateSpeechRate(event)}
+                  >
+                    <option value="0.75">${this.t("voice.rate075")}</option>
+                    <option value="1">${this.t("voice.rate100")}</option>
+                    <option value="1.25">${this.t("voice.rate125")}</option>
+                  </select>
+                </label>
+              `
+            : nothing
+        }
         ${
           textToSpeechAvailable
             ? nothing
             : html`<p
                 class="muted"
                 id="read-aloud-unavailable"
-                lang=${this.selectedLang}
-                dir=${this.currentDirection}
+                lang=${this.uiLanguage}
+                dir=${this.uiDirection}
               >
                 ${this.t("voice.unavailable")}
               </p>`
@@ -1880,8 +2228,8 @@ export class DimtsAssistant extends LitElement {
         <input
           id=${id}
           type="checkbox"
-          lang=${this.selectedLang}
-          dir=${this.currentDirection}
+          lang=${this.uiLanguage}
+          dir=${this.uiDirection}
           .checked=${checked}
           @change=${(event: Event) =>
             change((event.currentTarget as HTMLInputElement).checked)}
@@ -1926,178 +2274,72 @@ export class DimtsAssistant extends LitElement {
     `;
   }
 
+  private renderUtilities(): unknown {
+    return html`<div class="header-actions">
+      <button
+        lang=${this.uiLanguage}
+        dir=${this.uiDirection}
+        type="button"
+        @click=${() => (this.panel = this.panel === "settings" ? null : "settings")}
+      >
+        ${this.t("settings.button")}
+      </button>
+      <button
+        lang=${this.uiLanguage}
+        dir=${this.uiDirection}
+        type="button"
+        @click=${() => void this.openFaq()}
+      >
+        ${this.t("faq.action")}
+      </button>
+    </div>`;
+  }
+
   private renderHelpPreview(): unknown {
-    if (!this.helpPreviewOpen) return nothing;
-    const questions = this.messages
-      .filter((message) => message.role === "learner")
-      .slice(-3);
-    return html`
-      <div class="help-backdrop">
-        <section
-          class="help-dialog"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="help-preview-title"
-          lang=${this.selectedLang}
-          dir=${this.currentDirection}
-          @keydown=${(event: KeyboardEvent) => this.trapHelpDialog(event)}
-        >
-          <h2 id="help-preview-title">${this.t("help.preview.title")}</h2>
-          <p>
-            ${this.t("help.preview.language", {
-              language: this.currentLanguage?.nameNative ?? this.selectedLang,
-            })}
-          </p>
-          <label class="setting-row" for="include-help-summary">
-            <span>${this.t("help.includeSummary")}</span>
-            <input
-              id="include-help-summary"
-              type="checkbox"
-              .checked=${this.helpIncludeSummary}
-              @change=${(event: Event) => {
-                this.helpIncludeSummary = (
-                  event.currentTarget as HTMLInputElement
-                ).checked;
-              }}
-            />
-          </label>
-          ${
-            this.helpIncludeSummary && questions.length > 0
-              ? html`
-                  <section
-                    class="help-summary"
-                    aria-label=${this.t("help.preview.summary")}
-                  >
-                    <h3>${this.t("help.preview.summary")}</h3>
-                    <ul>
-                      ${questions.map((question) => html`<li>${question.text}</li>`)}
-                    </ul>
-                  </section>
-                `
-              : nothing
-          }
-          ${
-            this.helpNotice
-              ? html`
-                  <p
-                    role=${this.helpNoticeIsError ? "alert" : "status"}
-                    aria-live=${this.helpNoticeIsError ? "assertive" : "polite"}
-                  >
-                    ${this.helpNotice}
-                  </p>
-                `
-              : nothing
-          }
-          <div class="help-actions">
-            <button type="button" @click=${() => void this.cancelHelpPreview()}>
-              ${this.t("help.cancel")}
-            </button>
-            <button
-              class="primary"
-              type="button"
-              ?disabled=${this.helpBusy}
-              @click=${() => void this.createHelpRequest()}
-            >
-              ${this.t("help.sendRequest")}
-            </button>
-          </div>
-        </section>
-      </div>
-    `;
+    return (
+      this.helpModule?.renderHelpPreview.call(this as unknown as HelpContext) ??
+      nothing
+    );
   }
 
   private renderHelpSession(): unknown {
-    if (!this.helpRequestId) return nothing;
-    return html`
-      <section
-        class="panel"
-        aria-labelledby="help-chat-heading"
-        lang=${this.selectedLang}
-        dir=${this.currentDirection}
-      >
-        <h2 id="help-chat-heading">${this.t("help.chat")}</h2>
-        <p>${this.t("help.waiting")}</p>
-        <p role="status" aria-live="polite">
-          ${this.t(`help.${this.helpStatus || "connecting"}`)}
-        </p>
-        ${
-          this.helpNotice
-            ? html`
-                <p
-                  role=${this.helpNoticeIsError ? "alert" : "status"}
-                  aria-live=${this.helpNoticeIsError ? "assertive" : "polite"}
-                >
-                  ${this.helpNotice}
-                </p>
-              `
-            : nothing
-        }
-        <div class="help-chat-messages" aria-live="off">
-          ${this.helpMessages.map(
-            (message) => html`
-              <article
-                data-help-sender=${message.from}
-                aria-label=${this.t(
-                  message.from === "helper" ? "help.helper" : "help.you",
-                )}
-              >
-                <strong>
-                  ${this.t(
-                    message.from === "helper" ? "help.helper" : "help.you",
-                  )}
-                </strong>
-                <p>${message.text}</p>
-              </article>
-            `,
-          )}
-        </div>
-        <p class="visually-hidden" role="status" aria-live="polite">
-          ${this.helpAnnouncement}
-        </p>
-        <form
-          class="help-chat"
-          @submit=${(event: SubmitEvent) => this.sendHelpMessage(event)}
-        >
-          <label for="help-message">${this.t("help.message")}</label>
-          <textarea
-            id="help-message"
-            maxlength="2000"
-            .value=${this.helpDraft}
-            @input=${(event: Event) =>
-              (this.helpDraft = (
-                event.currentTarget as HTMLTextAreaElement
-              ).value)}
-          ></textarea>
-          <div class="help-actions">
-            <button
-              type="submit"
-              class="primary"
-              ?disabled=${this.helpStatus !== "connected" || this.helpBusy}
-            >
-              ${this.t("help.send")}
-            </button>
-            <button
-              type="button"
-              ?disabled=${this.helpBusy}
-              @click=${() => void this.closeHelpRequest()}
-            >
-              ${this.t("help.end")}
-            </button>
-          </div>
-        </form>
-      </section>
-    `;
+    return (
+      this.helpModule?.renderHelpSession.call(this as unknown as HelpContext) ??
+      nothing
+    );
   }
 
   override render() {
     if (this.loading) {
-      return html`<main aria-busy="true">
-        <p class="status">${this.t("status.loading")}</p>
+      return html`<main
+        lang=${this.selectedLang || "en"}
+        dir=${this.currentDirection}
+      >
+        ${this.renderUtilities()}
+        ${this.panel === "settings" ? this.renderSettings() : nothing}
+        ${this.renderFaq()} ${this.renderHelpButton()}
+        ${this.renderHelpPreview()}
+        <p class="status" role="status" aria-live="polite">
+          ${this.notice || this.t("status.loading")}
+        </p>
+        ${this.notice ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.retryStartup()}>${this.t("error.retry")}</button>` : nothing}
       </main>`;
     }
     if (this.languages.length === 0 || !this.selectedLang) {
       return html`<main>
+        ${this.renderUtilities()}
+        ${this.panel === "settings" ? this.renderSettings() : nothing}
+        ${this.renderFaq()} ${this.renderHelpButton()}
+        ${this.renderHelpPreview()}
         <p class="status" role="alert">${this.notice}</p>
+        <button
+          lang=${this.uiLanguage}
+          dir=${this.uiDirection}
+          type="button"
+          @click=${() => void this.retryStartup()}
+        >
+          ${this.t("error.retry")}
+        </button>
       </main>`;
     }
     if (!this.sessionId) {
@@ -2107,12 +2349,17 @@ export class DimtsAssistant extends LitElement {
           dir=${this.currentLanguage?.dir ?? "ltr"}
         >
           ${this.renderOfflineBanner()} ${this.renderFallbackNotice()}
-          ${this.renderHelpButton()} ${this.renderHelpSession()}
-          ${this.renderHelpPreview()}
+          ${this.renderUtilities()}
+          ${this.panel === "settings" ? this.renderSettings() : nothing}
+          ${this.renderFaq()} ${this.renderHelpButton()}
+          ${this.renderHelpSession()} ${this.renderHelpPreview()}
           <section class="welcome" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">${this.t("welcome.title")}</h1>
             <div class="language-list">${this.renderLanguageChoices()}</div>
-            <p class="status" role="status">${this.notice}</p>
+            <p class="status" role="status" aria-live="polite">
+              ${this.notice}
+            </p>
+            ${this.notice ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.retryStartup()}>${this.t("error.retry")}</button>` : nothing}
           </section>
         </main>
       `;
@@ -2131,14 +2378,7 @@ export class DimtsAssistant extends LitElement {
             >
               ${this.t("language.button")}
             </button>
-            <button
-              type="button"
-              lang=${this.selectedLang}
-              dir=${this.currentDirection}
-              @click=${() => (this.panel = this.panel === "settings" ? null : "settings")}
-            >
-              ${this.t("settings.button")}
-            </button>
+            ${this.renderUtilities()}
           </div>
         </header>
         ${this.renderHelpButton()} ${this.renderHelpSession()}
@@ -2155,6 +2395,7 @@ export class DimtsAssistant extends LitElement {
             : nothing
         }
         ${this.panel === "settings" ? this.renderSettings() : nothing}
+        ${this.renderFaq()} ${this.renderConsent()}
         <div class="chat">
           <div
             class="messages"
@@ -2190,9 +2431,14 @@ export class DimtsAssistant extends LitElement {
                         message.citations.length
                           ? html`
                               <div class="citations">
-                                ${message.citations.map(
+                                ${(this.settings.simple
+                                  ? message.citations.slice(0, 1)
+                                  : message.citations
+                                ).map(
                                   (citation) => html`
                                     <a
+                                      lang=${this.uiLanguage}
+                                      dir=${this.uiDirection}
                                       href=${citation.url}
                                       target="_blank"
                                       rel="noopener"
@@ -2205,27 +2451,55 @@ export class DimtsAssistant extends LitElement {
                             `
                           : nothing
                       }
-                      ${
-                        this.canSpeak(message.lang)
-                          ? html`
-                              <button
-                                class="read-aloud"
-                                type="button"
-                                lang=${message.lang}
-                                dir=${message.dir}
-                                @click=${() =>
-                                  void this.speak(
-                                    message.text,
-                                    message.lang,
-                                    message.id,
-                                  )}
-                              >
-                                ${this.t("voice.readReply")}
-                              </button>
-                              ${this.renderSpeechControls(message.id)}
-                            `
-                          : nothing
-                      }
+                      <div class="reply-actions">
+                        <button
+                          lang=${this.uiLanguage}
+                          dir=${this.uiDirection}
+                          type="button"
+                          @click=${() => void this.copyReply(message)}
+                        >
+                          ${this.t("answer.copy")}
+                        </button>
+                        <button
+                          lang=${this.uiLanguage}
+                          dir=${this.uiDirection}
+                          type="button"
+                          aria-pressed=${this.feedback[message.id] === true}
+                          @click=${() => void this.rateReply(message.id, true)}
+                        >
+                          ${this.t("answer.helpful")}
+                        </button>
+                        <button
+                          lang=${this.uiLanguage}
+                          dir=${this.uiDirection}
+                          type="button"
+                          aria-pressed=${this.feedback[message.id] === false}
+                          @click=${() => void this.rateReply(message.id, false)}
+                        >
+                          ${this.t("answer.notHelpful")}
+                        </button>
+                        ${
+                          this.canSpeak(message.lang)
+                            ? html`
+                                <button
+                                  class="read-aloud"
+                                  type="button"
+                                  lang=${this.uiLanguage}
+                                  dir=${this.uiDirection}
+                                  @click=${() =>
+                                    void this.speak(
+                                      message.text,
+                                      message.lang,
+                                      message.id,
+                                    )}
+                                >
+                                  ${this.t("voice.readReply")}
+                                </button>
+                                ${this.renderSpeechControls(message.id)}
+                              `
+                            : nothing
+                        }
+                      </div>
                     </article>
                   `,
             )}
@@ -2240,6 +2514,7 @@ export class DimtsAssistant extends LitElement {
             }
           >
             ${this.notice}
+            ${this.slowRequest ? html`<button type="button" lang=${this.uiLanguage} dir=${this.uiDirection} @click=${() => void this.retryQuestion()}>${this.t("error.retry")}</button>` : nothing}
             ${
               this.retryAvailable
                 ? html`
@@ -2249,7 +2524,7 @@ export class DimtsAssistant extends LitElement {
                       dir=${this.currentDirection}
                       @click=${() =>
                         this.renderRoot
-                          .querySelector<HTMLFormElement>("form")
+                          .querySelector<HTMLFormElement>(".composer")
                           ?.requestSubmit()}
                     >
                       ${this.t("error.retry")}
@@ -2273,13 +2548,16 @@ export class DimtsAssistant extends LitElement {
               placeholder=${this.t("composer.placeholder")}
               ?disabled=${this.busy}
               @input=${(event: Event) => {
+                this.pendingQuestion = undefined;
                 this.draft = (event.currentTarget as HTMLTextAreaElement).value;
                 this.updateTransliteration();
               }}
               @keydown=${(event: KeyboardEvent) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
-                  this.renderRoot.querySelector("form")?.requestSubmit();
+                  this.renderRoot
+                    .querySelector<HTMLFormElement>(".composer")
+                    ?.requestSubmit();
                 }
               }}
             ></textarea>
@@ -2383,11 +2661,11 @@ export class DimtsAssistant extends LitElement {
                 ${this.t(this.isRecording ? "mic.stop" : "mic.start")}
               </button>
               <button
-                class="primary"
+                class=${this.helpPreviewOpen || this.helpRequestId ? "send-action" : "primary send-action"}
                 type="submit"
                 lang=${this.selectedLang}
                 dir=${this.currentDirection}
-                ?disabled=${this.busy}
+                ?disabled=${this.busy || this.consentBusy || this.consentFailed}
               >
                 ${this.t("review.send")}
               </button>
@@ -2409,52 +2687,4 @@ declare global {
   }
 }
 
-export interface DimtsApi {
-  open(): void;
-  close(): void;
-  setLanguage(language: string): void;
-  escalate(): void;
-}
-
-declare global {
-  interface Window {
-    Dimts?: DimtsApi;
-  }
-}
-
-const widgetApi: DimtsApi = {
-  open() {
-    document
-      .querySelectorAll<DimtsAssistant>("dimts-assistant")
-      .forEach((widget) => {
-        widget.hidden = false;
-      });
-    window.dispatchEvent(new CustomEvent("dimts:opened"));
-  },
-  close() {
-    document
-      .querySelectorAll<DimtsAssistant>("dimts-assistant")
-      .forEach((widget) => {
-        widget.hidden = true;
-      });
-    window.dispatchEvent(new CustomEvent("dimts:closed"));
-  },
-  setLanguage(language) {
-    document
-      .querySelectorAll<DimtsAssistant>("dimts-assistant")
-      .forEach((widget) => {
-        widget.setLanguage(language);
-      });
-  },
-  escalate() {
-    document
-      .querySelectorAll<DimtsAssistant>("dimts-assistant")
-      .forEach((widget) => {
-        widget.escalate();
-      });
-  },
-};
-
-if (typeof window !== "undefined") {
-  window.Dimts = widgetApi;
-}
+installDefaultApi();

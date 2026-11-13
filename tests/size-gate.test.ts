@@ -49,6 +49,70 @@ async function writeEnglishPack() {
 }
 
 describe("widget size gate", () => {
+  it("counts the largest authored FAQ budget with the initial prefetch", async () => {
+    await Promise.all([
+      writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};"),
+      writeFile(path.join(widgetDist, "dimts-helper-console.js"), "export {};"),
+      writeFile(
+        path.join(widgetDist, "dimts-faq-sizes.json"),
+        JSON.stringify({ en: 1024, am: 154 * 1024 }),
+      ),
+      writeEnglishPack(),
+    ]);
+    expect(runSizeGate().status).toBe(1);
+  });
+  it("counts bootstrap and shared static imports but excludes deferred voice/help chunks", async () => {
+    await mkdir(path.join(widgetDist, ".vite"), { recursive: true });
+    await Promise.all([
+      writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};"),
+      writeFile(path.join(widgetDist, "dimts-embed.js"), "void 0;"),
+      writeFile(path.join(widgetDist, "dimts-helper-console.js"), "export {};"),
+      writeFile(path.join(widgetDist, "shared.js"), randomBytes(40 * 1024)),
+      writeFile(path.join(widgetDist, "voice.js"), randomBytes(80 * 1024)),
+      writeFile(
+        path.join(widgetDist, ".vite", "manifest.json"),
+        JSON.stringify({
+          "src/loader.ts": {
+            file: "dimts-widget.js",
+            imports: ["shared"],
+            dynamicImports: ["voice"],
+          },
+          shared: { file: "shared.js" },
+          voice: { file: "voice.js" },
+        }),
+      ),
+      writeEnglishPack(),
+    ]);
+    const result = runSizeGate();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("Deferred JavaScript:");
+  });
+
+  it("fails when bootstrap plus shared imports exceeds the initial JavaScript limit", async () => {
+    await mkdir(path.join(widgetDist, ".vite"), { recursive: true });
+    await Promise.all([
+      writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};"),
+      writeFile(
+        path.join(widgetDist, "dimts-embed.js"),
+        randomBytes(30 * 1024),
+      ),
+      writeFile(path.join(widgetDist, "dimts-helper-console.js"), "export {};"),
+      writeFile(path.join(widgetDist, "shared.js"), randomBytes(40 * 1024)),
+      writeFile(
+        path.join(widgetDist, ".vite", "manifest.json"),
+        JSON.stringify({
+          "src/loader.ts": {
+            file: "dimts-widget.js",
+            imports: ["shared"],
+          },
+          shared: { file: "shared.js" },
+        }),
+      ),
+      writeEnglishPack(),
+    ]);
+    expect(runSizeGate().status).toBe(1);
+  });
+
   it("finds build assets relative to the script when run from another directory", async () => {
     await Promise.all([
       writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};\n"),
