@@ -65,6 +65,7 @@ import {
 import type { TelegramApiService } from "./telegram-runtime.js";
 import type { TelegramTransport, TelegramVoice } from "@dimts/telegram";
 import { createTelegramRouter } from "./routes/telegram.js";
+import { createLtiRouter } from "./routes/lti.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -467,9 +468,27 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   }
   app.use("/v1", createInsightsRouter(repository));
   app.use(
+    "/v1",
+    createLtiRouter({
+      repository,
+      logger,
+    }),
+  );
+  app.use(
     "/v1/internal",
     createInternalRouter(config, repository, jobsService),
   );
+
+  // OpenAPI documentation
+  app.get("/v1/openapi.yaml", (req, res) => {
+    res.setHeader("Content-Type", "application/yaml");
+    res.send(registry.toYaml());
+  });
+
+  app.get("/v1/openapi.json", (req, res) => {
+    res.json(registry.toObject());
+  });
+
   app.use((_request, response) => {
     sendProblem(response, 404, "not_found", "error.not_found");
   });

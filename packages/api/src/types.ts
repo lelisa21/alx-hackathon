@@ -8,12 +8,24 @@ export type ApiReply = z.infer<typeof ReplySchema>;
 
 export interface NewSession {
   id: string;
-  channel: "web" | "api" | "sms" | "telegram";
+  channel: "web" | "api" | "sms" | "telegram" | "lti";
   lang: string;
-  tokenHash: string;
-  resumeHash: string;
-  cloudOk: boolean;
-  consentVersion: string | null;
+  tokenHash?: string;
+  token?: string;
+  resumeHash?: string;
+  cloudOk?: boolean;
+  consentVersion?: string | null;
+  expiresAt?: Date;
+  ltiContext?: {
+    issuer: string;
+    platformId: string;
+    deploymentId: string;
+    ltiUserId: string;
+    roles: string[];
+    contextId?: string;
+    insightsAccess: boolean;
+    timestamp: number;
+  };
 }
 
 export interface ClaimedQuestion {
@@ -53,7 +65,34 @@ export interface ApiRepository {
     sessionId: string,
   ): Promise<{ cloudOk: boolean; consentVersion: string | null } | null>;
   getSessionTokenHash(sessionId: string): Promise<string | null>;
+  getSessionDetails?(
+    sessionId: string,
+  ): Promise<{
+    id: string;
+    channel: string;
+    ltiContext?: NewSession["ltiContext"];
+  } | null>;
   touchSession(sessionId: string): Promise<void>;
+  // LTI P10 nonce/state/replay prevention
+  storeLtiState?(
+    state: string,
+    platformId: string,
+    nonce: string,
+    expiresAt: Date,
+  ): Promise<void>;
+  getLtiStateAndNonce?(
+    state: string,
+  ): Promise<{ platformId: string; nonce: string } | null>;
+  deleteLtiState?(state: string): Promise<void>;
+  checkAndMarkNonceUsed?(
+    nonce: string,
+    sessionId: string,
+  ): Promise<boolean>;
+  checkAndMarkTokenReplayed?(
+    tokenHash: string,
+    platformId: string,
+    sessionId: string,
+  ): Promise<boolean>;
   findReply(sessionId: string, clientMsgId: string): Promise<ApiReply | null>;
   countRecentQuestions(sessionId: string): Promise<number>;
   claimQuestion(question: ClaimedQuestion): Promise<boolean>;

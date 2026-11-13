@@ -1,0 +1,132 @@
+### Dimts REST API Level 2: Complete flows with examples
+### Reference implementation at packages/api/src/
+
+### Setup headers and variables
+@baseUrl = http://localhost:5000/v1
+@hostKey = test-host-key-secret
+@sessionId = session-test-12345678
+@sessionToken = test-session-token-abcdef1234567890
+
+### 1. Create session (web/REST channel)
+POST {{baseUrl}}/session
+Content-Type: application/json
+
+{
+  "lang": "en",
+  "channel": "web",
+  "simple": false
+}
+
+### 2. Ask a question
+POST {{baseUrl}}/ask
+Content-Type: application/json
+Authorization: Bearer {{sessionToken}}
+
+{
+  "sessionId": "{{sessionId}}",
+  "clientMsgId": "msg-001",
+  "lang": "en",
+  "text": "What is the first law of thermodynamics?",
+  "via": "text",
+  "simple": false
+}
+
+### 3. Send feedback (helpful)
+POST {{baseUrl}}/ask/{{msg-001}}/feedback
+Content-Type: application/json
+Authorization: Bearer {{sessionToken}}
+
+{
+  "sessionId": "{{sessionId}}",
+  "helpful": true
+}
+
+### 4. Create help request
+POST {{baseUrl}}/help
+Content-Type: application/json
+Authorization: Bearer {{sessionToken}}
+
+{
+  "sessionId": "{{sessionId}}",
+  "includeSummary": true
+}
+
+### 5. Check help availability
+GET {{baseUrl}}/help/availability?sessionId={{sessionId}}
+Authorization: Bearer {{sessionToken}}
+
+### 6. Get available jobs with accommodation needs
+GET {{baseUrl}}/jobs?lang=en&limit=10
+Authorization: Bearer {{sessionToken}}
+
+### 7. Subscribe to job alerts (SMS)
+POST {{baseUrl}}/subscriptions
+Content-Type: application/json
+Authorization: Bearer {{sessionToken}}
+
+{
+  "sessionId": "{{sessionId}}",
+  "clientRequestId": "sub-001",
+  "lang": "en",
+  "channel": "sms",
+  "contact": "+251911111111",
+  "consent": {
+    "accepted": true,
+    "noticeVersion": "job-alerts-v1"
+  }
+}
+
+### 8. Get insights (teacher/admin with host key)
+GET {{baseUrl}}/insights?startDate=2026-11-01&endDate=2026-11-13&format=json&minCellSize=5
+Content-Type: application/json
+X-Dimts-Key: {{hostKey}}
+
+### 9. Export insights as CSV
+GET {{baseUrl}}/insights?startDate=2026-11-01&endDate=2026-11-13&format=csv&minCellSize=5
+X-Dimts-Key: {{hostKey}}
+
+### 10. Health check
+GET {{baseUrl}}/health
+
+### 11. Get supported languages
+GET {{baseUrl}}/languages
+
+### LTI 1.3 Integration flows
+
+### 12. LTI platform registration (POST /lti/login)
+POST {{baseUrl}}/lti/login
+Content-Type: application/json
+
+{
+  "iss": "https://lms.example.com",
+  "client_id": "dimts-client-123",
+  "login_hint": "learner-456",
+  "target_link_uri": "https://app.example.com/lti/launch",
+  "lti_message_hint": "context-789"
+}
+
+### 13. LTI learner launch (receive id_token, create session)
+POST {{baseUrl}}/lti/launch
+Content-Type: application/json
+
+{
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xtcy5leGFtcGxlLmNvbSIsImF1ZCI6ImRpbXRzLWNsaWVudC0xMjMiLCJzdWIiOiJsZWFybmVyLTQ1NiIsImV4cCI6MTczMDk1MDAwMCwiaWF0IjoxNzMwOTQ5Njk5LCJub25jZSI6InRlc3Qtbm9uY2UtMTIzIiwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vZGVwbG95bWVudF9pZCI6ImRlcGxveW1lbnQtMDAxIiwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vcm9sZXMiOlsiaHR0cDovL3B1cmwuaW1zZ2xvYmFsLm9yZy92b2NhYi9saXMvdjIvaW5zdGl0dXRpb24vcGVyc29uI0xlYXJuZXIiXSwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vY29udGV4dCI6eyJpZCI6ImNvdXJzZS0xMjMiLCJsYWJlbCI6IkNIRU0xMDEiLCJ0aXRsZSI6IkdlbmVyYWwgQ2hlbWlzdHJ5In19.signature_here",
+  "state": "c3RhdGUtYWJjZGVmMTIzNDU2"
+}
+
+### 14. LTI instructor launch (same as learner but with Instructor role)
+POST {{baseUrl}}/lti/launch
+Content-Type: application/json
+
+{
+  "id_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2xtcy5leGFtcGxlLmNvbSIsImF1ZCI6ImRpbXRzLWNsaWVudC0xMjMiLCJzdWIiOiJpbnN0cnVjdG9yLTc4OSIsImV4cCI6MTczMDk1MDAwMCwiaWF0IjoxNzMwOTQ5Njk5LCJub25jZSI6InRlc3Qtbm9uY2UtNDU2IiwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vZGVwbG95bWVudF9pZCI6ImRlcGxveW1lbnQtMDAxIiwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vcm9sZXMiOlsiaHR0cDovL3B1cmwuaW1zZ2xvYmFsLm9yZy92b2NhYi9saXMvdjIvaW5zdGl0dXRpb24vcGVyc29uI0luc3RydWN0b3IiXSwiaHR0cHM6Ly9wdXJsLmltc2dsb2JhbC5vcmcvc3BlYy9sdGkvY2xhaW0vY29udGV4dCI6eyJpZCI6ImNvdXJzZS0xMjMiLCJsYWJlbCI6IkNIRU0xMDEiLCJ0aXRsZSI6IkdlbmVyYWwgQ2hlbWlzdHJ5In19.signature_here",
+  "state": "c3RhdGUtYWJjZGVmMzQ1Njc4"
+}
+
+### 15. Get insights as LTI instructor (using session bearer token from step 14)
+@ltiInstructorToken = lti-instructor-token-from-launch
+GET {{baseUrl}}/insights?startDate=2026-11-01&endDate=2026-11-13&format=json
+Authorization: Bearer {{ltiInstructorToken}}
+
+### 16. Get JWKS public key
+GET {{baseUrl}}/lti/jwks
