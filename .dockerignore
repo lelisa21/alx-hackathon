@@ -1,0 +1,15 @@
+.git
+.env
+.env.*
+node_modules
+**/node_modules
+**/dist
+**/*.tsbuildinfo
+assets/*
+!assets/fonts/
+assets/fonts/*
+!assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2
+!assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2
+pages
+playwright-report
+test-results

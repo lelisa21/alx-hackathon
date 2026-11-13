@@ -10,3 +10,4 @@ coverage/
 pnpm-lock.yaml
 playwright-report/
 test-results/
+packages/api/openapi.yaml

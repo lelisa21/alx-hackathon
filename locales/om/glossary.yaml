@@ -1,1 +1,181 @@
-[]
+# Unreviewed seed: SRS 20.6 terms plus sample study-plan vocabulary. Not a 200-term reviewed glossary.
+- id: lesson
+  en: lesson
+  am: ትምህርት
+  om: barnoota
+  simple_definition: "Kutaa koorsii yeroo tokko keessatti qo'attan."
+  do_not_translate: false
+- id: course
+  en: course
+  am: ኮርስ
+  om: koorsii
+  simple_definition: "Barnoota walitti qabame kan mata duree tokko irratti xiyyeeffatu."
+  do_not_translate: false
+- id: password
+  en: password
+  am: ይለፍ ቃል
+  om: jecha darbii
+  simple_definition: "Jecha iccitii akka isin qofti herrega keessan bantan isin dandeessisu."
+  do_not_translate: false
+- id: username
+  en: username
+  am: የተጠቃሚ ስም
+  om: maqaa fayyadamaa
+  simple_definition: "Maqaa seenuuf itti fayyadamtan."
+  do_not_translate: false
+- id: screen
+  en: screen
+  am: ስክሪን
+  om: iskiriinii
+  simple_definition: "Kutaa bilbilaa yookaan kompiitaraa kan ilaaltan."
+  do_not_translate: false
+- id: keyboard
+  en: keyboard
+  am: ኪቦርድ
+  om: kiiboordii
+  simple_definition: "Qabduuwwan barreessuuf dhiibdan."
+  do_not_translate: false
+- id: save
+  en: save
+  am: አስቀምጥ
+  om: olkaa'i
+  simple_definition: "Hojiin keessan akka hin badne olkaa'uu."
+  do_not_translate: false
+- id: download
+  en: download
+  am: አውርድ
+  om: buufadhu
+  simple_definition: "Faayilii gara bilbila keessaniitti garagalchuu."
+  do_not_translate: false
+- id: upload
+  en: upload
+  am: ጫን
+  om: ol-fe'i
+  simple_definition: "Faayilii bilbila keessan irraa gara intarneetiitti erguu."
+  do_not_translate: false
+- id: link
+  en: link
+  am: ሊንክ
+  om: liinkii
+  simple_definition: "Barreeffama fuula biraa banuuf dhiibdan."
+  do_not_translate: false
+- id: certificate
+  en: certificate
+  am: ሰርተፊኬት
+  om: ragaa xumuraa
+  simple_definition: "Waraqaa yookaan faayilii koorsii xumuruun keessan irratti mul'atu."
+  do_not_translate: false
+- id: deadline
+  en: deadline
+  am: የመጨረሻ ቀን
+  om: guyyaa dhumaa
+  simple_definition: "Guyyaa dhumaa wanta tokko hojjechuu itti dandeessan."
+  do_not_translate: false
+- id: job
+  en: job
+  am: ስራ
+  om: hojii
+  simple_definition: "Hojii maallaqa argachuuf hojjettan."
+  do_not_translate: false
+- id: application
+  en: application
+  am: ማመልከቻ
+  om: iyyannoo
+  simple_definition: "Gaaffii hojii argachuuf dhihaatu."
+  do_not_translate: false
+- id: interview
+  en: interview
+  am: ቃለ መጠይቅ
+  om: af-gaaffii
+  simple_definition: "Walga'ii qacaraan gaaffii isin gaafatu."
+  do_not_translate: false
+- id: help
+  en: help
+  am: እርዳታ
+  om: gargaarsa
+  simple_definition: "Deeggarsa nama irraa argattan."
+  do_not_translate: false
+- id: privacy
+  en: privacy
+  am: ግላዊነት
+  om: iccitii dhuunfaa
+  simple_definition: "Odeeffannoo keessan dhuunfaatti eeggachuu."
+  do_not_translate: false
+- id: consent
+  en: consent
+  am: ፈቃድ
+  om: hayyama
+  simple_definition: "Hubattanii fi fedhii keessaniin eeyyee jechuu."
+  do_not_translate: false
+- id: share
+  en: share
+  am: አጋራ
+  om: qoodi
+  simple_definition: "Namni biraa wanta tokko akka argu hayyamuu."
+  do_not_translate: false
+- id: stop
+  en: stop
+  am: አቁም
+  om: dhaabi
+  simple_definition: "Waan adeemsifamaa jiru dhaabuu."
+  do_not_translate: false
+- id: goal
+  en: goal
+  am: ግብ
+  om: kaayyoo
+  simple_definition: "Waan galmaan ga'uu barbaaddan."
+  do_not_translate: false
+- id: study
+  en: study
+  am: ማጥናት
+  om: qo'achuu
+  simple_definition: "Waa'ee wanta tokkoo barachuuf yeroo kennuu."
+  do_not_translate: false
+- id: schedule
+  en: schedule
+  am: መርሐ ግብር
+  om: sagantaa
+  simple_definition: "Karoora wantoota yoom akka hojjettan agarsiisu."
+  do_not_translate: false
+- id: calendar
+  en: calendar
+  am: የቀን መቁጠሪያ
+  om: kalaandarii
+  simple_definition: "Tarree guyyaa hojii karoorfattan irratti galmeessitan."
+  do_not_translate: false
+- id: week
+  en: week
+  am: ሳምንት
+  om: torban
+  simple_definition: "Yeroo guyyoota torbaa."
+  do_not_translate: false
+- id: progress
+  en: progress
+  am: እድገት
+  om: guddina
+  simple_definition: "Hanga kaayyoo keessanitti dhihaattan."
+  do_not_translate: false
+- id: review
+  en: review
+  am: መከለስ
+  om: irra deebi'uu
+  simple_definition: "Waan barattan irra deebi'anii ilaalu."
+  do_not_translate: false
+- id: rest
+  en: rest
+  am: እረፍት
+  om: boqonnaa
+  simple_definition: "Yeroo hojii dhaabanii humna itti haaromfatan."
+  do_not_translate: false
+- id: topic
+  en: topic
+  am: ርዕስ
+  om: mata duree
+  simple_definition: "Dhimma waa'ee isaa barachaa jirtan."
+  do_not_translate: false
+- id: sentence
+  en: sentence
+  am: ዓረፍተ ነገር
+  om: hima
+  simple_definition: "Jechoota yaada guutuu ibsan."
+  do_not_translate: false

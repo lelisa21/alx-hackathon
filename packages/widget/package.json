@@ -7,13 +7,18 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/dimts-widget.js"
+    },
+    "./helper": {
+      "types": "./dist/helper-console.d.ts",
+      "import": "./dist/dimts-helper-console.js"
     }
   },
   "scripts": {
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && vite build --config vite.helper.config.ts",
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@dimts/voice": "workspace:*",
     "intl-messageformat": "^10.7.16",
     "lit": "^3.2.1"
   },

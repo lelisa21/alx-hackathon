@@ -1,0 +1,23 @@
+{
+  "name": "@dimts/eval",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/metrics.d.ts",
+      "import": "./dist/metrics.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "eval": "pnpm build && node dist/cli.js",
+    "typecheck": "tsc -b --pretty false"
+  },
+  "dependencies": {
+    "@dimts/ai": "workspace:*",
+    "@dimts/engine": "workspace:*",
+    "@dimts/grounding": "workspace:*",
+    "@dimts/locales-tools": "workspace:*"
+  }
+}

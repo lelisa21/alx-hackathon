@@ -1,0 +1,15 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Dimts</title>
+  </head>
+  <body>
+    <dimts-assistant
+      data-api="/v1"
+      data-host-key="${DIMTS_LOCAL_WIDGET_KEY}"
+    ></dimts-assistant>
+    <script type="module" src="/dimts-widget.js"></script>
+  </body>
+</html>

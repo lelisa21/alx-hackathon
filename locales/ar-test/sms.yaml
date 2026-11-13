@@ -1,2 +1,25 @@
-help: "Reply HELP for support."
-stop: "Reply STOP to stop messages."
+# Draft templates and shared keywords from SRS 20.5. Channel delivery and segment encoding belong to P07.
+help: Reply HELP for support.
+stop: Reply STOP to stop messages.
+menu: 1 English 2 አማርኛ 3 Afaan Oromoo
+more: Reply 1 for more.
+human: Reply 2 for a person.
+stopped: You will get no more messages.
+callback: Reply Y if a helper may call you back.
+keywords:
+  help:
+    - HELP
+    - እርዳታ
+    - GARGAARSA
+  stop:
+    - STOP
+    - አቁም
+    - DHAABI
+  language:
+    - LANG
+    - ቋንቋ
+    - AFAAN
+  jobs:
+    - JOBS
+    - ስራ
+    - HOJII

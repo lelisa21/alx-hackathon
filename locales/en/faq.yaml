@@ -1,1 +1,28 @@
-[]
+# Draft answers sourced only from content/sample-course/study-plan.md. Nine distinct facts; not the 30-entry live-pack gate.
+- q: How many topics should I choose this week?
+  a: Pick one topic to learn this week.
+  source: study-plan#choose-one-goal-0
+- q: How should I write my study goal?
+  a: Write the goal in a short sentence.
+  source: study-plan#choose-one-goal-0
+- q: Why should my study goal be clear?
+  a: A clear goal helps you decide what to study next.
+  source: study-plan#choose-one-goal-0
+- q: How do I choose study times?
+  a: Choose a few short study times that fit your week.
+  source: study-plan#make-a-small-schedule-1
+- q: Where should I record my study times?
+  a: Put each study time on a calendar.
+  source: study-plan#make-a-small-schedule-1
+- q: Why should I leave space between study sessions?
+  a: Leave space so you can rest and review.
+  source: study-plan#make-a-small-schedule-1
+- q: When should I review my progress?
+  a: At the end of the week, check what you learned.
+  source: study-plan#review-your-progress-2
+- q: What should I change after reviewing my progress?
+  a: Keep what worked. Change one thing that made studying difficult.
+  source: study-plan#review-your-progress-2
+- q: What comes after reviewing the week?
+  a: Choose the next small goal.
+  source: study-plan#review-your-progress-2

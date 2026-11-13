@@ -3,13 +3,127 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P02 — tutor and provider contracts (13 November 2026)
+
+- **Requirements before implementation:** FR-CONV-05–09/13/14;
+  FR-TUTOR-07–11/14; FR-AI-02–10; AR-01/06/08; NFR-MAINT-02,
+  NFR-PRIV-03 and NFR-PERF-03. Follow P02's original prompt in
+  `docs/REMAINING_WORK_PLAN.md` and Blueprint sections 6, 7 and 10.
+  P01 was committed and pushed by the user; P02 is the only current scope.
+- **Feedback boundary with P09:** implement the existing `POST /v1/feedback`
+  contract using only `{replyId, helpful}` and the current session bearer.
+  Resolve ownership server-side; unknown or other-session replies receive
+  the same authentication failure. Retain no per-tap event. The existing
+  `feedback_counter` stores only topic (first cited passage or `uncategorized`),
+  language, date and counters, never a session/reply identifier or text.
+  A session-local small integer, capped at two, records only its current
+  negative streak. Helpful feedback and a consumed gentle-help offer reset
+  it; session retention deletes it. P09 must reuse these counters and must
+  not introduce session identifiers into aggregate rows.
+- **Conversation signals:** select only the two most recent reply kinds,
+  never message text or transcript history. Rules come from the locale pack;
+  help/distress takes precedence over a greeting in a mixed message.
+- **Answer cache:** use the existing PostgreSQL `answer_cache`, normalized
+  question/language/Simple/content-version hash and 24-hour expiry. Only
+  grounded answers are eligible; store a neutral cache ID and issue a fresh
+  reply ID on retrieval. Citation and content-version checks remain in the
+  engine. Source synchronization retains its atomic cache invalidation.
+  Cache logs contain only a hit/miss enum, never keys, text or identifiers.
+- **Review boundary:** committed P01 data remains unreviewed. No native
+  language, model quality, physical-device or third-party latency evidence
+  is inferred from mock adapters or successful configuration parsing.
+- **Provider boundary:** native OpenAI/Gemini/xAI transports share the
+  conformance contract with compatible local and offline adapters. Preserve
+  explicit ladder order (including offline); only unspecified enabled
+  bindings use priority order. Registry capabilities intersect declarations
+  with the actual adapter. Remote payloads exclude glossary, job text,
+  history and identity; those have no authorized remote data class here.
+  Health, malformed retries and generation share one timeout budget.
+- **Retrieval and FAQ provenance:** only matching, reviewed glossary mappings
+  authorize other source languages, with same-language priority before SQL
+  candidate limits. Raw FAQ source IDs resolve through the existing exact
+  source/resource SHA-256 namespace, restricted to active retrieved passages;
+  unknown or ambiguous matches decline. No public format or source-sync
+  contract changes. Job date validation rejects impossible dates; metadata
+  fields form complete extractable units while original descriptions remain.
+- **Output validation:** known instruction-injection patterns are quarantined
+  alongside untrusted-data separation, citation and language checks. This is
+  not a claim to detect every attack. Wrong-language or overlong output gets
+  one supported extractive retry, then localized notfound. Never clip words,
+  remove qualifications or lower confidence floors to improve metrics.
+- **Evaluation evidence:** report refusals and missing observations as well
+  as successful answers. FAQ-adapter accuracy is separate from end-to-end
+  answer recall. Real HTTP/PostgreSQL latency is measured at server entry to
+  response completion with warm serial samples; client listener/network
+  setup is excluded. CI runs the database suites serially to avoid measuring
+  unrelated test load. All remaining blockers are in the progress record.
+
+## P01 — language capability decisions (13 November 2026)
+
+- **Requirements before implementation:** FR-LANG-01–05, 09–13, 15–17;
+  FR-CONV-05/07 phrase data; FR-TUTOR-08/10 prompt/evaluation data;
+  FR-AI-04/FR-UI-16 FAQ data; NFR-A11Y-07 voice-status data and the
+  NFR-MAINT-02 locale coverage floor. Scope follows P01 in
+  `docs/REMAINING_WORK_PLAN.md`, with Blueprint section 8 authoritative.
+- **Truthful pack status:** English stays beta, Amharic/Oromo stay draft,
+  and `ar-test` stays CI-only draft. Agent-authored translations and phrase
+  lists are drafts. A human must review them; filling a reviewer field is
+  not an automated review. Distress data also needs co-designer review.
+  Contacts remain absent until verified by the host, as Blueprint section
+  5 requires. No native-language, voice, or Android acceptance is claimed.
+- **Content boundary:** use only the checked-in study-plan and sample-job
+  sources for draft questions and FAQ provenance. Nine FAQ entries and 30
+  glossary seeds each for `en`, `am` and `om` are useful review material, not the 30 FAQ /
+  200 reviewed-term live target. Do not invent answers or pad lists.
+- **Per-key fallback contract:** keep the existing locale UI JSON record
+  and endpoint. Resolve missing keys through `meta.fallback`; the additive
+  `X-Dimts-Locale-Fallback: 0|1` response header is exposed through CORS,
+  documented in OpenAPI, retained on 304, and included in the ETag identity.
+  API and widget changes are paired in this branch for team review. The
+  widget announces a fallback once per active session. Transliteration
+  mappings are language capabilities, so they are not inherited from a
+  fallback language. Draft endpoint gating remains unchanged.
+- **Input helper:** optional `transliteration.map.<latin>` and
+  `transliteration.word.<latin>` keys carry suggestion data through the
+  existing string-only UI contract. Common control labels obey key parity;
+  these optional mapping prefixes are validated separately. Suggestions
+  remain editable and require confirmation; Send remains a separate action.
+- **Registry and preview:** both language pickers consume the existing
+  `/v1/languages` metadata. Helper names, direction, font script and beta
+  status come from that registry. Explicit `?lang_preview=1` is forwarded
+  for pack inspection; it does not grant draft languages permission to
+  create learner sessions or ask questions.
+- **Existing-flow regression (FR-HELP-07):** the full browser run exposed
+  a baseline WebSocket URL failure with `data-api="/v1"`. Resolve that URL
+  against the page origin in both existing clients, as already done for
+  static API requests. The test covers login/claim/chat/close with absolute
+  and relative API roots; this preserves help behavior without implementing
+  P05's remaining features or changing a help contract. Successful learner
+  closure also shows the existing `help.ended` notice even if no WebSocket
+  close frame arrives before the HTTP response.
+- **Formatting:** use the blueprint's locale month names and ICU date
+  templates, Western digits, UTC dates and deterministic Ethiopian
+  conversion. This avoids substituting a host ICU month spelling for the
+  required `ህዳር` fixture. Gregorian Oromo month names remain English pending
+  the language lead's decision, as allowed by the SRS language guide.
+- **Dependencies/tooling:** reuse existing YAML and ICU runtime dependencies.
+  Add only Vitest's matching MIT-licensed V8 coverage provider as a development
+  dependency to enforce the requested 70% locale coverage floor. Repair the
+  pre-existing lockfile omission of four `packages/eval` workspace links;
+  this does not implement P02. Keep CLI scaffolds atomic and prevent
+  overwriting an existing language folder.
+- **Acceptance evidence:** current checks and remaining blockers are recorded
+  in `docs/IMPLEMENTATION_PROGRESS.md`; no unverified requirement is complete.
+
 ## Setup baseline
 
 - **A-04, pre-kickoff code:** The user confirmed that organizer approval for
   pre-built code has been obtained before this scaffold was created.
-- **Architecture source:** Follow `Dimts-System-Blueprint-v2.0.md` where it
-  supersedes the SRS, including Express 5, PostgreSQL, pnpm workspaces, and the
-  final repository layout.
+- **Architecture source:** Follow the authoritative Dimts System Blueprint
+  (filename retained as v2.0; architecture revision 2.1) where it supersedes
+  the SRS. Express 5, PostgreSQL, Node.js, and pnpm are the current reference
+  implementation, not product-level dependencies; public protocols and
+  application ports define replacement boundaries.
 - **Package manager:** Pin pnpm 10.12.1 in the root manifest for reproducible
   workspace tooling.
 - **Local database:** Use the PostgreSQL 17 Alpine container in the `local`
@@ -37,3 +151,597 @@ decision register is authoritative for architectural choices.
 - **Locale fallback notice:** The translator returns `didFallback` and
   `usedLang`; the widget owns the once-per-session announcement so it can
   announce the notice in the active conversation context.
+- **WP02 ask behavior:** Until grounding and AI arrive in WP03/WP04, the ask
+  route handles locale-backed small talk and otherwise returns the configured
+  localized not-found reply with a help action. The service remains usable
+  offline and makes no provider call.
+- **API language content:** Locale UI keys for the draft Amharic, Afaan Oromoo,
+  and pseudo-RTL packs remain scaffold English until language-lead review. API
+  language listings and direct locale reads hide draft packs by default;
+  `?lang_preview=1` is required to preview them.
+- **WP03 citation URLs:** Content ingestion requires `DIMTS_CONTENT_BASE_URL`
+  and builds each lesson URL from that base, the lesson filename, and its
+  heading anchor. Transcript ingestion is deferred until the course format is
+  confirmed; no transcript file format is assumed.
+- **WP03 HTML parsing:** Use the small MIT-licensed `linkedom` parser for HTML
+  lessons rather than parsing HTML with regular expressions.
+- **WP03 Amharic search keys:** Preserve vowel order while applying Ethiopic
+  row aliases. Add the FR-TUTOR-15 `ሥ`/`ሰ` search-trigram equivalence without
+  changing normalized display text or source citations.
+
+## WP03 verification
+
+- **Verified locally:** Markdown/HTML passage construction and anchors,
+  300-word chunking, Amharic and Afaan Oromoo normalization, cross-language
+  glossary expansion, top-five scoring, confidence bounds, citation gating,
+  empty-index behavior, transactional replacement, and answer-cache
+  invalidation. The tests also assert the `passage.grams` GIN index.
+- **Verified against PostgreSQL:** The WP02 PostgreSQL integration run covers
+  dynamic content replacement and atomic source-generation publication and
+  rollback.
+- **Per-question language behavior:** the engine now accepts an optional
+  detector and confidence threshold. Tests confirm a high-confidence result
+  selects the reply/search language without mutating the session language,
+  while uncertain detection retains the selected language. The default API
+  runtime wires the local Franc detector using non-draft packs and the
+  validated `DIMTS_LANGUAGE_DETECTION_CONFIDENCE` setting.
+- **Pending later work:** the 70% multilingual retrieval evaluation and floor
+  calibration require reviewed glossary/evaluation data (WP14); citation-link
+  browser checks belong to the widget (WP05). Transcript ingestion remains
+  deferred per the user's choice and the unresolved course-format question.
+
+## Host source integration verification
+
+- **Verified acceptance criteria:** AR-03, AR-04, FR-INT-08, and FR-TUTOR-12
+  now support a no-code public-site path and a small host-owned private adapter.
+  Public discovery uses an approved sitemap and indexes only same-origin HTML;
+  the private adapter remains scoped to material shareable with all learners
+  using that source. Initial full sync, scheduled reconciliation, atomic
+  publication, and host-authenticated notification refresh use the same source
+  manager. Grounding tests cover pagination, URL scope, initial discovery,
+  periodic reconciliation, canonical updates/deletions, and source
+  authorization. API startup wiring is verified in the Person 2 section below.
+- **Verified locally:** `pnpm build`, `pnpm test`, `pnpm typecheck`, and
+  `pnpm lint` pass. The full suite passed all 97 tests with PostgreSQL
+  integration enabled.
+- **Verified against PostgreSQL:** the source-generation integration tests
+  passed against an isolated local database, including atomic publication and
+  preservation of the last good generation after a failed sync. Private
+  sources still require a few host-side callbacks; per-learner ACL filtering
+  is not implemented. Public source discovery is sitemap-based, limited to
+  250 pages per source, and does not index private or unlisted content.
+
+## WP04 verification
+
+- **Verified locally:** provider contracts, arbitrary configured IDs, the
+  OpenAI-compatible and offline adapters, ordered fallback, health and timeout
+  handling, 60-second cooldown and recovery, malformed-response retry,
+  configuration defaults, extractive mode for unproven provider/language
+  pairs, and default API runtime wiring. Remote calls require persisted
+  per-session consent; provider payloads are filtered by configured data
+  classes, credentials remain server-side, and provider identity is absent
+  from learner replies.
+- **Partially verified:** FR-AI-04 falls back to passage text with a citation,
+  but the 70% FAQ hit-rate cannot be measured because the configured FAQ packs
+  contain no entries. Add reviewed FAQ data before claiming that criterion.
+- **Consent boundary:** the API enforces the FR-AI-05 consent contract and
+  defaults new sessions to no remote processing. The learner-facing disclosure
+  and opt-out control remain a WP05 widget responsibility; until it is
+  integrated, the widget does not opt sessions into remote processing.
+- **Other pending criteria:** native vendor adapters and evaluated multilingual
+  retrieval/provider pairs are not claimed. FR-AI-08 answer caching remains
+  deferred per the cut line.
+
+## WP05 verification
+
+- **Verified acceptance criteria:** FR-UI-01 welcome and language choice,
+  FR-UI-04 reply focus, FR-UI-08 320px reflow, FR-UI-09 interactive target
+  sizes, FR-UI-14 bundle budget, FR-UI-15 retry/help error recovery,
+  FR-LANG-07 text-based suggestions without automatic switching, and the
+  offline banner plus service-worker registration and cached language recovery
+  are covered by widget tests. `pnpm test:widget` builds the widget before
+  running Playwright. The then-current browser run passed 10/10 tests,
+  including zero critical/serious axe violations and storage-disabled behavior.
+- **Implemented, acceptance criteria still outstanding:** text chat, citations,
+  beta labels, persisted language/settings, read-aloud using browser speech
+  synthesis, and data-saver caching. At that checkpoint, FR-UI-06 microphone
+  cues were not implemented. Offline recovery restores static language/UI data
+  only; FR-UI-16's offline FAQ is blocked by empty FAQ packs and the absence
+  of a documented FAQ API contract. Do not fabricate course answers.
+- **Other WP05 gaps at that checkpoint:** FR-UI-13 needed a self-hosted
+  Ethiopic font. The specified 200% browser-zoom check, 8px spacing
+  verification, focus-ring contrast audit, and FR-UI-18/19 acceptance criteria
+  were outstanding. The help action emits the host event; the actual human
+  handoff is WP07. Draft-language UI copy still needs language-lead review.
+- **Deployment constraint:** service-worker support requires the widget module
+  and `/service-worker.js` to be served from the embedding page's origin. The
+  service worker caches shell assets; static API responses use the widget's
+  separate CacheStorage logic. A cross-origin embed cannot install the worker
+  for its host page.
+
+## WP05 accessibility follow-up — requirements before implementation
+
+- **FR-UI-02:** Help me now must be reachable within the first five tab stops
+  on every screen.
+- **FR-UI-07/08:** accessibility settings apply immediately and persist; the
+  layout must reflow without horizontal scrolling at 320 CSS pixels and 200%
+  text size.
+- **FR-UI-10:** default and high-contrast text colors must meet 7:1 contrast;
+  the focus ring remains at least 3px wide with a 2px offset.
+- **Scope:** add browser coverage for chat keyboard order, 200% reflow, and the
+  contrast tokens/disabled controls before changing the widget.
+
+## WP05 accessibility follow-up — verified acceptance
+
+- **FR-UI-02:** Help me now is the first welcome tab stop and the third chat
+  tab stop (after language and settings), with fixed viewport placement.
+- **FR-UI-07/08:** choosing 200% text applies immediately and persists across a
+  page reload; at that setting the widget reflows at a 320 CSS-pixel viewport
+  without horizontal overflow. This does not claim a separate browser-zoom
+  simulation.
+- **FR-UI-10:** default and high-contrast text, muted-text, and primary-button
+  token pairs pass the 7:1 threshold. Disabled controls retain full opacity;
+  keyboard focus remains a 3px outline with a 2px offset.
+- **Verification:** `pnpm test:widget` passes 20/20, including axe checks with
+  no critical/serious violations. Widget typecheck, targeted ESLint, Prettier,
+  locale-copy validation, and `pnpm size` pass. The bundle is 29,604 compressed
+  JavaScript bytes; initial-load assets are 30,750 compressed bytes.
+- **Outstanding at that checkpoint:** FR-UI-06's moving ring/tone/haptic
+  feedback, FR-UI-09's full spacing audit, FR-UI-13's Ethiopic font,
+  FR-UI-14's on-demand voice/help loading, and FR-UI-16's offline FAQ required
+  separate work. Offline course answers remain blocked on approved FAQ
+  content and a documented contract.
+
+## WP05 in-depth continuation — requirements before implementation
+
+- **FR-UI-06:** the microphone state must be conveyed by its accessible name,
+  visible moving ring, tone, and short vibration where supported; reduced-motion
+  and silent operation must remain understandable.
+- **FR-UI-09/11:** interactive targets require 48px minimum size with 8px
+  spacing; animation must respect both `prefers-reduced-motion` and Stop motion.
+- **FR-LANG-06:** language names are spoken on focus when TTS is available, and
+  changing language must preserve the conversation and return focus to the
+  picker.
+- **FR-UI-13:** use a self-hosted Noto Sans Ethiopic subset only while Amharic
+  is active; the widget must not make third-party font requests.
+- **Scope:** add failing browser coverage for the voice cues/reduced-motion
+  states, language focus behavior, target spacing, and conditional font load
+  before implementation.
+
+## WP05 in-depth continuation — verified acceptance
+
+- **FR-UI-02:** Help me now remains fixed in the same viewport corner on the
+  welcome and chat screens and is reachable within the first five tab stops.
+- **FR-UI-06:** the 64px microphone is centered on a 320px viewport. Recording
+  visibly animates a ring, plays the specified 660Hz start and 440Hz stop
+  tones, and requests the specified vibration patterns when supported. The
+  accessible pressed state remains clear without audio or motion; reduced
+  motion disables the ring, and Stop motion disables both ring and vibration.
+- **FR-UI-09/11:** 48px controls and 8px spacing are checked on welcome, chat,
+  and settings at 320px. The motion tests cover both the media preference and
+  the in-app setting.
+- **FR-LANG-06:** the native language name is spoken on focus only when the
+  selected language and injected TTS adapter support it. Changing language
+  keeps existing messages and restores focus to the language picker.
+- **FR-UI-13:** regular and bold Noto Sans Ethiopic subsets are self-hosted
+  under the OFL license and registered only when Amharic is active. Browser
+  tests verify no font request in English and only same-origin font requests
+  when Amharic is active.
+- **Verification:** the latest full widget run passed 27/27 tests, including
+  axe checks with no critical/serious violations. Widget typecheck, targeted
+  ESLint, stylesheet lint, localized-copy check, locale-pack validation, and
+  the size gate pass. The gate measured 30,456 compressed widget JavaScript
+  bytes and 31,602 compressed initial-load bytes.
+- **Still outstanding:** FR-UI-14's on-demand voice/help code loading is not
+  established; the widget currently receives voice adapters from its host and
+  the build still inlines dynamic imports. FR-UI-16's offline FAQ remains
+  blocked by empty FAQ packs and the lack of a documented FAQ API contract.
+  Browser-zoom simulation and a manual focus-ring contrast audit are also
+  outstanding. These criteria are not claimed complete.
+
+## Dynamic content and backend bootstrap
+
+- **Architecture review (Blueprint architecture revision 2.1):** the prior design treated the current technology
+  stack and three provider labels too much like fixed architecture, and did
+  not define authorized source discovery, durable synchronization, or
+  per-question language detection. The Blueprint adds AR-01–AR-08, capability
+  ports, explicit source lifecycle, confidence-gated language behavior,
+  conformance acceptance, and the limitations of universal platform discovery.
+- **Provider registry:** provider IDs and API schemas are now open-ended,
+  configuration selects adapter bindings by ID, and the ladder filters by
+  declared language/mode/modality capabilities and data-sharing policy. The
+  API composition root registers the OpenAI-compatible adapter and the
+  deterministic offline adapter; native vendor-specific adapters remain
+  unimplemented.
+- **Question language:** use local `franc` detection against installed locale
+  packs for each question. Apply only results above the configured confidence
+  threshold; otherwise keep the request's selected language. Detection never
+  mutates the saved session language or sends question text to an external
+  service. The default API runtime detects only against non-draft packs and
+  reads the threshold from validated configuration. Cross-language retrieval
+  evaluation remains pending.
+- **Static shell versus dynamic learner data:** the local/hosted "static site"
+  is only the widget delivery layer. Course content is queried from the active
+  PostgreSQL passage set at ask time; re-ingestion updates the active version
+  and invalidates answer cache (FR-TUTOR-12). Do not bake course answers into
+  the widget or describe the app as static-content-only.
+- **Content integration levels:** public pages need no website code when the
+  owner approves an HTTPS XML sitemap in `DIMTS_PUBLIC_SOURCES`; the built-in
+  connector reads only same-origin sitemap pages. Private course content uses
+  a small host-owned `ContentSource`/`HostAuth` adapter passed through
+  `buildApp({ sourceSync })`. The host selects content shareable with the
+  source's learner population; per-user/role ACL filtering is not yet
+  supported. Dimts performs an initial full sync and scheduled reconciliation.
+  Native changes are authenticated by the host before calling the manager's
+  internal `notify` hook; no generic public webhook is exposed.
+- **Local host bootstrap:** `pnpm local:bootstrap` applies pending migrations
+  and upserts the local widget host by ID. It stores only the SHA-256 hash of
+  `DIMTS_LOCAL_WIDGET_KEY`, validates allowed origins, and can be rerun safely.
+  The key is a public development identifier, not a production credential.
+  Backend live-PostgreSQL verification is recorded under WP02; full
+  FR-INT-09/12 Compose orchestration was completed in the Person 1 pass below.
+- **Verified this increment:** local host hashing/origin/upsert unit tests and
+  API/grounding contracts pass. Five PostgreSQL integration tests also passed
+  locally against an isolated Compose database, covering health, session
+  creation, repeat migrations, changed-content answers, and source-generation
+  publication and rollback.
+
+## Backend contract freeze
+
+- **Requirements:** FR-CONV-13, NFR-SEC-11, and NFR-SEC-12.
+- **Resolution:** the blueprint now matches SRS Part III for reply replay
+  columns, first-message WebSocket authentication, and required API secrets.
+  The duplicate decision number for helper display names is corrected to D29;
+  the decision itself is unchanged.
+- **Verified acceptance:** `packages/api/test/contract-docs.test.ts` checks
+  migration/blueprint reply-schema parity, WebSocket auth requirements,
+  documented secrets, and unique blueprint decision IDs. The focused run
+  passed 4 contract tests and all 17 WP02 API tests.
+- **Validation note:** the earlier contract-freeze run found an
+  exact-optional-property error in `packages/api/src/routes/core.ts:325`. WP02
+  resolved it by defaulting the optional `simple` request flag to `false`; API
+  typecheck now passes.
+- **Scope note:** this freezes the WebSocket contract; it does not claim the
+  help WebSocket server is implemented.
+
+## WP07 help backend contract staging
+
+- **Requirements:** FR-HELP-01 says one activation creates a help request;
+  FR-HELP-02 requires a preview of the language and optional last three
+  questions, followed by one confirmation before sending. FR-HELP-05 requires
+  configurable helper availability hours. FR-HELP-06 requires a
+  language-filterable queue and atomic claiming. FR-HELP-13 limits handoff data
+  to language, channel, optional last three questions, and chat. FR-HELP-15
+  requires help data deletion at session end or retention expiry. FR-HELP-17
+  requires a limit of five requests per hour per session and helper blocking.
+- **Contract resolutions:** The Help me now action opens the preview; the
+  explicit confirmation sends the request. `DIMTS_HELPER_HOURS` is a JSON
+  weekly schedule using UTC and ISO weekdays (Monday=1 through Sunday=7),
+  with each interval represented by `day`, `start` and `end` (`HH:mm`);
+  overnight hours are represented by intervals on both days. An unset schedule
+  does not restrict availability. This schedule format and flow clarification
+  are recorded in the Blueprint.
+- **Implementation boundary:** Do not invent missing public request/response
+  fields or a block endpoint. The help-request, queue-response, and block
+  contracts remain pending; implement only contracts fully specified by the
+  Blueprint or compatible SRS detail. The schedule parser is internal until
+  the availability response for the learner is specified. The five-per-hour
+  limit remains for the request-creation increment.
+- **Verified acceptance (first backend slice):** Helper login returns only a
+  JWT for a valid helper token; invalid tokens and revoked helpers are rejected.
+  Claim authentication and the one-winner HTTP behavior pass focused tests.
+  `DIMTS_HELPER_HOURS` strictly parses UTC weekly intervals and the availability
+  function passes fixed-time boundary tests. OpenAPI includes helper login and
+  claim.
+- **Validation:** All 48 API tests pass; 7 PostgreSQL integration tests are
+  skipped because `DIMTS_TEST_DATABASE_URL` is unset. API build, lint,
+  formatting, and `git diff --check` pass. The new PostgreSQL two-helper
+  integration test is present but still needs a configured test database.
+- **Still pending:** Help request creation and privacy-limited summary,
+  language-filtered queue, end-help, learner availability response/UI,
+  five-per-hour request limit, helper blocking, learner/helper interfaces, and
+  widget reconnect/live-region behavior. The block behavior and public shapes
+  noted above require contract resolution before implementation.
+
+## WP07 WebSocket relay increment
+
+- **Requirements:** FR-HELP-07 requires WebSocket chat with reconnect and
+  message ordering. FR-HELP-13 limits helper handoff data to language, channel,
+  optional last three questions, and chat messages.
+- **Contract boundary:** Follow Blueprint section 7.3 for `/v1/help/ws`,
+  first-message authentication within five seconds, close code `4401`, learner
+  session-token or claimed-helper JWT authentication, `lastMessageId` replay,
+  and the `help.joined`, `chat.message`, and throttled `chat.typing` frames.
+  Chat text is capped at 2,000 characters, typing is limited to one frame per
+  second per connection, and message IDs are idempotent. Leave WP09 share/RTC
+  signaling out of this increment.
+- **Verified acceptance:** WebSocket tests cover the five-second auth timeout,
+  `4401` rejection, strict auth frames, learner and claimed-helper access,
+  ordered chat delivery, duplicate suppression, reconnect replay, and typing
+  throttling. PostgreSQL integration verifies token scoping, active/claimed
+  helper checks, persisted ordering, replay cursors, duplicate handling, and
+  rejection after closure. The API server attaches and closes the WebSocket
+  runtime through its lifecycle.
+- **Validation:** All 55 non-PostgreSQL API tests pass. All 8 PostgreSQL
+  integration tests pass against an isolated temporary database. API build,
+  lint, formatting, and `git diff --check` pass.
+- **Still pending:** Widget-side reconnect and live-region behavior, help
+  creation/queue/closure, availability response, the five-per-hour limit,
+  helper blocking, and WP09 share/RTC signaling. Rooms are process-local as
+  permitted for the single instance; multi-instance fan-out needs a broker.
+
+## WP07 MVP help-flow contract — approved
+
+- **Requirements:** FR-HELP-01/02 require explicit confirmation before request
+  creation; FR-HELP-03/05 cover waiting and availability states; FR-HELP-06
+  requires a language-filterable helper queue and atomic claim; FR-HELP-07
+  requires ordered, reconnectable chat; FR-HELP-13 limits helper-visible data;
+  FR-HELP-15 requires deletion at session end or retention expiry; FR-HELP-17
+  requires request limits and helper blocking.
+- **User-approved create contract:** `POST /v1/help` accepts the session
+  identity and `includeSummary` boolean, and returns `{id, status}` with
+  `status: "waiting"`. The server derives language and channel from the
+  authenticated session; when enabled, the only context shared is the last
+  three learner questions.
+- **User-approved queue contract:** `GET /v1/help/queue` accepts an optional
+  `lang` filter and returns `{requests:[{id, lang, channel, createdAt,
+summary}]}`. `summary` is null when excluded; otherwise it contains only
+  those last three questions. The documented close path remains
+  `POST /v1/help/{id}/close`.
+- **User-approved blocking effect:** a helper blocks only a specific request
+  from that helper's own queue; other helpers and the learner's request remain
+  unaffected.
+- **User-approved blocking operation:** `POST /v1/help/{id}/block` requires a
+  helper JWT and returns `{ok:true}`. It persists only a helper/request
+  exclusion and does not close the request or hide it from other helpers or
+  the learner.
+- **Implementation boundary:** do not add screen-sharing, image transfer, or
+  WebRTC behavior (WP09). Do not log learner messages, names, phone numbers,
+  or Telegram IDs.
+
+## WP07 learner/helper interface increment
+
+- **Requirements:** FR-HELP-01/02 cover the learner preview, optional last
+  three questions, opt-out switch, and explicit confirmation. FR-HELP-03
+  covers the waiting state while tutor chat remains usable. FR-HELP-06/07
+  cover the language-filtered helper queue, claim, ordered chat, reconnect,
+  live announcements, and closure. FR-HELP-13/15/17 cover minimal handoff data,
+  retention, request limits, and helper-specific blocking. FR-HELP-14 has
+  automated accessibility checks in this increment.
+- **Verified acceptance:** the learner can cancel before sending, send with or
+  without the optional summary, keep asking the tutor while waiting, chat over
+  the authenticated WebSocket, reconnect from the last received message
+  without duplicates, and return to tutor mode when either side closes help.
+  The helper console is a separate build entry; its JWT remains in memory. It
+  filters the queue, refreshes every 15 seconds, politely announces new
+  requests, blocks per helper, claims, chats, and closes. REST close broadcasts
+  `help.closed` to both connected peers. The size gate measures the learner and
+  helper JavaScript separately so the helper module is not charged to learner
+  initial load.
+- **Accessibility/locales:** browser tests report no critical or serious axe
+  violations for the learner preview or helper console; the helper console
+  reflows at 320px and its tested controls meet 48px targets. New strings use
+  `ui.yaml` keys in `en`, `am`, and `om`; the draft Amharic and Afaan Oromoo
+  values remain English pending language-lead translation review. This is not
+  a manual screen-reader, zoom, or contrast sign-off.
+- **Validation:** `pnpm test:widget` passes 32/32. The focused API and size-gate
+  Vitest run passes 20/20. Workspace typecheck, API build, locale check, and
+  lint pass. The size gate reports 32,892/61,440 compressed learner JavaScript
+  bytes, 26,464/61,440 helper-console bytes, and 34,598/153,600 initial-load
+  bytes.
+- **Still pending:** FR-HELP-04 timeout fallback/callback, FR-HELP-05 outside-
+  hours availability messaging and response shape, FR-HELP-14 manual keyboard,
+  screen-reader, zoom, and contrast checks, optional FR-HELP-16 helper first
+  name, and WP09 screen sharing. Helper rooms remain process-local, so
+  multi-instance live fan-out still needs a broker. Availability and fallback
+  contracts must be resolved before those behaviors are added.
+
+## WP02 API and persistence verification
+
+- **Requirements:** FR-CONV-01–04, FR-CONV-10, FR-CONV-13, NFR-SEC-03,
+  NFR-SEC-10, NFR-SEC-12, NFR-OPS-01, NFR-OPS-02, and NFR-PRIV-05.
+- **Verified acceptance:** 34 API tests pass, including four contract-parity
+  checks, health deadlines, the optional `simple` default, retention
+  authorization, and OpenAPI coverage. Five PostgreSQL integration tests pass:
+  migrations are repeatable; host/session credentials are stored as hashes;
+  reply replay and the persisted session limit work; retention removes expired
+  learner/help data, stale images, stopped subscriptions, and expired answer
+  cache entries while preserving active sessions; and updated course content
+  produces updated cited answers. The engine also now awaits asynchronous
+  content-version lookups, covered by a focused regression test.
+- **Validation:** workspace build, all 97 tests with PostgreSQL integration
+  enabled, workspace typecheck, and repository lint pass. The later Person 1
+  pass records the updated suite and completes the previously deferred Compose
+  acceptance.
+
+## WP00 Compose acceptance (originally deferred)
+
+- **Requirements:** FR-INT-09 and FR-INT-12, with NFR-OPS-01/02.
+- **Historical deferral:** the first Compose increment started only
+  PostgreSQL. The user later requested completion of API/widget startup; the
+  deferral is resolved by the acceptance below.
+- **Scope:** per the authoritative Blueprint, Compose runs PostgreSQL, API, and
+  the static widget shell. It does not invent seeded course/job data, a
+  simulator, or helper-console behavior.
+
+## Person 1 completion pass — requirements before implementation
+
+- **Requirements in scope:** WP00 (FR-INT-09, FR-INT-12, NFR-OPS-01/02);
+  WP04 (FR-AI-01–07, FR-AI-09, FR-AI-11, AR-01, AR-08). Previously completed
+  WP02/WP03 acceptance remains covered by the sections above.
+- **Consent-contract resolution (user approved):** Add optional `cloudOk` and
+  `consentVersion` to the existing session create/resume request. Omitted
+  consent is false; enabling remote processing requires a non-empty version;
+  resume can revoke it. The response returns persisted consent state.
+- **Compose boundary:** Follow the authoritative Blueprint: start PostgreSQL,
+  API, and the static widget shell; do not fabricate seeded course answers,
+  job data, simulator, or helper-console behavior absent from that boundary.
+- **Verified acceptance — WP04:** provider binding configuration validates,
+  providers resolve through configured adapters, remote requests are blocked
+  without consent and filtered to allowed data classes, credentials stay
+  server-side, and offline fallback remains available. API tests exercise both
+  non-consenting and consenting sessions. PostgreSQL integration tests verify
+  migration 004, default opt-out, consent persistence, and revocation.
+- **Verified acceptance — WP00:** `pnpm test:compose` builds and starts the
+  database, API, and widget; checks direct and proxied API health, language
+  listing, loopback-only API/widget ports, the internal database backend
+  network, an offline-image restart with `--pull never --no-build`, and
+  cleanup of its uniquely named containers, volume, and images. Startup must
+  become healthy within the script's five-minute bound. The database is not
+  published to the host.
+- **Validation:** `pnpm test` passes 104 tests (the six PostgreSQL tests are
+  skipped without a database URL); all six pass separately against an isolated
+  PostgreSQL container. `pnpm typecheck`, `pnpm build`, `pnpm lint`,
+  `pnpm lang:check`, `pnpm test:widget` (10/10, including axe checks), and
+  `pnpm test:compose` pass. Modified files were formatted. Repository-wide
+  `pnpm format:check` still reports two untouched pre-existing files:
+  `packages/api/src/server.ts` and `packages/grounding/src/grams.ts`.
+- **Acceptance boundary:** the Compose restart proves the prebuilt stack starts
+  without pulling or rebuilding images; it does not claim a first-time build on
+  a physically disconnected machine. FR-AI-04's FAQ hit-rate and the WP05
+  learner-facing remote-AI notice/opt-out remain pending their required data
+  and UI integration.
+
+## Person 2 source runtime integration
+
+### Requirements before implementation
+
+- **Requirements:** WP03 — FR-INT-08, FR-TUTOR-01–06, FR-TUTOR-12–13,
+  FR-TUTOR-15–18, and AR-03–AR-05. Preserve the authorized-sitemap boundary,
+  stable source identities, host authorization, provenance, atomic
+  publication, and dynamic retrieval behavior.
+- **Telegram scope (user-approved):** wire the generic host-owned source
+  adapter boundary only. A native Telegram connector remains WP08
+  (FR-TG-01–12); learner direct messages and private-chat history are not
+  shared index inputs.
+- **Discrepancy found:** the source primitives existed, but current API code
+  did not parse `DIMTS_PUBLIC_SOURCES`, create/start a `SourceSyncManager`, or
+  expose the documented `sourceSyncReady`/`sourceSyncManager` locals. This
+  contradicted the earlier startup-wiring claim.
+
+### Verified acceptance
+
+- **FR-INT-08:** validated public sitemap registrations feed the existing
+  bounded, same-origin connector. `DIMTS_SOURCE_SYNC_INTERVAL_MS` defaults to
+  300,000 ms and is bounded to 1,000–86,400,000 ms.
+- **FR-TUTOR-12, AR-03–AR-05:** API startup combines public registrations with
+  host-injected `ContentSource` adapters, uses PostgreSQL storage by default,
+  and requires an injected `SourceSyncStore` with a custom repository. The
+  initial sync is awaited before the server listens; reconciliation is
+  scheduled; host-authenticated `notify` calls fetch authoritative content
+  through the adapter before atomic publication.
+- **Privacy boundary:** shared sources must contain only material authorized
+  for every learner using that source. Per-learner ACL filtering is still not
+  implemented. Native Telegram ingestion remains WP08; the adapter boundary
+  does not index learner DMs or private-chat history, and no public webhook
+  was added. Default sync-error logs omit source identifiers, upstream error
+  messages, and document text.
+- **Verification:** API and grounding source tests pass (69 passed, 6
+  PostgreSQL tests skipped without the test database URL); API and grounding
+  typechecks and targeted ESLint pass. Prettier passes for the changed
+  implementation, test, and documentation files; the pre-existing formatting
+  difference in `packages/api/src/server.ts` was not broadened. Compose
+  configuration validates and passes the default interval `300000` to the API.
+
+## Widget size-gate follow-up — requirements before implementation
+
+- **Requirement:** FR-UI-14 — “Bundle budget: initial widget JavaScript at
+  most 60 KB compressed; voice and help code load on demand. CI size check
+  fails if exceeded.”
+- **Scope:** preserve the existing budgets and compression measurement; make
+  the script locate repository assets independently of the caller's working
+  directory and add isolated pass/fail tests for its budget behavior.
+
+### Verified acceptance
+
+- The gate resolves the repository root from its own module path and passes
+  when invoked from outside the repository root.
+- Fixture tests verify failure when compressed JavaScript exceeds 60 KiB, when
+  initial-load assets exceed 150 KiB, and when the build has no JavaScript
+  bundle. The actual widget build passes at 28,247 compressed JavaScript bytes
+  and 29,175 compressed initial-load bytes.
+- `pnpm exec vitest run tests/size-gate.test.ts`, `pnpm size`, targeted ESLint,
+  Prettier, and `git diff --check` pass.
+- **Not claimed:** FR-UI-14's on-demand voice/help loading remains pending.
+  `packages/widget/vite.config.ts` currently inlines dynamic imports, so this
+  size-gate change does not establish code-splitting or lazy-load behavior.
+
+## WP06 voice scaffold — requirements before implementation
+
+- **FR-VOICE-02:** “STT and TTS are behind interfaces (SpeechToText,
+  TextToSpeech). Engines are adapters chosen by voice.yaml and
+  DIMTS_STT_ENGINE / DIMTS_TTS_ENGINE.”
+- **FR-VOICE-03:** “if STT or TTS is not supported for the chosen language, the
+  mic or read-aloud control is hidden or disabled with a clear text reason,
+  and text input works fully.”
+- **FR-VOICE-04:** “Recording starts and stops by tap (toggle). ... Maximum 60
+  seconds per recording.”
+- **FR-VOICE-05:** “the recognised text is shown ... with Send and Say it
+  again. The text is editable.”
+- **FR-VOICE-06:** “a plain message explains how to continue by text and how to
+  enable the mic, no dead ends.”
+- **FR-VOICE-07:** “Low confidence or silence: the learner hears and sees
+  Please say it again, never a silent failure.”
+- **FR-VOICE-08:** “each reply has a Read aloud button; setting can read all
+  replies automatically. Speech can be paused, stopped and sped up (0.75, 1,
+  1.25).”
+- **FR-VOICE-09:** “Audio is not stored by default.”
+- **FR-VOICE-12:** “Sound never carries information alone: any tone, voice
+  prompt or audio reply has a visible and screen reader equivalent.”
+
+**Selected scope:** build the `SpeechToText` and `TextToSpeech` ports and a
+mock-driven widget interaction flow. No real browser/server voice adapter is
+selected or enabled: `voice.yaml` engines remain null, the language packs
+report STT/TTS unavailable, and no `/v1/stt` contract exists. The widget must
+not request microphone access or invoke speech output without an injected,
+language-supported adapter. FR-VOICE-01's physical Android test and engine
+selection remain prerequisites for production voice.
+
+### Verified acceptance
+
+- `@dimts/voice` now defines provider-neutral STT/TTS ports, voice error codes,
+  and the 60-second recording limit. Widget controls require both the language
+  capability flag and an injected adapter that reports support.
+- Mock-adapter Playwright tests verify unavailable controls and typed chat,
+  recording toggle and 60-second stop, editable transcript/retry/explicit send,
+  permission and missing-microphone recovery, silence feedback, optional
+  spoken retry/transcript, per-reply and automatic read-aloud, speech rate,
+  pause/resume/stop, and no transcript persistence in local storage.
+- Speech output and transcription prompts have visible text equivalents;
+  status and error announcements are exposed to assistive technology. The
+  widget accessibility test reports no critical or serious axe violations.
+- `pnpm test:widget` passes 17/17; widget/voice typecheck, targeted ESLint,
+  style and string lint, `lang:check`, Prettier, and `git diff --check` pass.
+  `pnpm size` passes at 29,600 compressed JavaScript bytes and 30,746 compressed
+  initial-load bytes.
+
+### Still pending — not a WP06 completion claim
+
+- FR-VOICE-01: no Android device/engine comparison has been recorded in
+  `docs/VOICE_TEST.md`; `voice.yaml` and `DIMTS_STT_ENGINE` /
+  `DIMTS_TTS_ENGINE` selection are not wired. No production voice adapter is
+  active, and the real microphone/audio path is unverified.
+- FR-VOICE-02's configuration-driven engine selection, actual voice behavior
+  on supported hardware, server STT deletion behavior under FR-VOICE-09, and
+  FR-VOICE-10/11 remain unverified or unimplemented.
+- Amharic and Afaan Oromoo voice copy is present in their draft locale packs
+  but still requires language-lead review.
+
+## Interactive MVP entry point
+
+- **Requirements:** FR-INT-09, FR-UI-01/02, and FR-HELP-01/02.
+- **Decision:** Keep the root `index.html` as the offline Savanna reference
+  catalog. Add a direct link to the separate Compose-served Dimts learner app;
+  do not load the API-backed widget from a `file://` page.
+
+### Verified acceptance
+
+- The root page identifies the interactive app and links to
+  `http://localhost:5173/`; README points to the local setup instructions.
+- The widget's existing Compose HTML template mounts `<dimts-assistant>` and
+  loads `dimts-widget.js`. `scripts/test-local-compose.mjs` checks those
+  contents when the stack starts.
+- **Runtime not verified in this environment:** Compose acceptance could not
+  run because the Docker CLI cannot connect to the Docker Desktop Linux
+  engine. Use the documented setup and `pnpm test:compose` when Docker is
+  available.

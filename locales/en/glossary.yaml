@@ -1,1 +1,181 @@
-[]
+# Unreviewed seed: SRS 20.6 terms plus sample study-plan vocabulary. Not a 200-term reviewed glossary.
+- id: lesson
+  en: lesson
+  am: ትምህርት
+  om: barnoota
+  simple_definition: One part of a course you study at a time.
+  do_not_translate: false
+- id: course
+  en: course
+  am: ኮርስ
+  om: koorsii
+  simple_definition: A set of lessons about one subject.
+  do_not_translate: false
+- id: password
+  en: password
+  am: ይለፍ ቃል
+  om: jecha darbii
+  simple_definition: A secret word that lets only you open your account.
+  do_not_translate: false
+- id: username
+  en: username
+  am: የተጠቃሚ ስም
+  om: maqaa fayyadamaa
+  simple_definition: The name you use to sign in.
+  do_not_translate: false
+- id: screen
+  en: screen
+  am: ስክሪን
+  om: iskiriinii
+  simple_definition: The part of the phone or computer you look at.
+  do_not_translate: false
+- id: keyboard
+  en: keyboard
+  am: ኪቦርድ
+  om: kiiboordii
+  simple_definition: The buttons you press to write.
+  do_not_translate: false
+- id: save
+  en: save
+  am: አስቀምጥ
+  om: olkaa'i
+  simple_definition: Keep your work so it is not lost.
+  do_not_translate: false
+- id: download
+  en: download
+  am: አውርድ
+  om: buufadhu
+  simple_definition: Copy a file to your phone.
+  do_not_translate: false
+- id: upload
+  en: upload
+  am: ጫን
+  om: ol-fe'i
+  simple_definition: Send a file from your phone to the internet.
+  do_not_translate: false
+- id: link
+  en: link
+  am: ሊንክ
+  om: liinkii
+  simple_definition: Text you press to open another page.
+  do_not_translate: false
+- id: certificate
+  en: certificate
+  am: ሰርተፊኬት
+  om: ragaa xumuraa
+  simple_definition: A paper or file that shows you finished a course.
+  do_not_translate: false
+- id: deadline
+  en: deadline
+  am: የመጨረሻ ቀን
+  om: guyyaa dhumaa
+  simple_definition: The last day you can do something.
+  do_not_translate: false
+- id: job
+  en: job
+  am: ስራ
+  om: hojii
+  simple_definition: Work you do to earn money.
+  do_not_translate: false
+- id: application
+  en: application
+  am: ማመልከቻ
+  om: iyyannoo
+  simple_definition: A request for a job.
+  do_not_translate: false
+- id: interview
+  en: interview
+  am: ቃለ መጠይቅ
+  om: af-gaaffii
+  simple_definition: A meeting where an employer asks you questions.
+  do_not_translate: false
+- id: help
+  en: help
+  am: እርዳታ
+  om: gargaarsa
+  simple_definition: Support from a person.
+  do_not_translate: false
+- id: privacy
+  en: privacy
+  am: ግላዊነት
+  om: iccitii dhuunfaa
+  simple_definition: Keeping your information to yourself.
+  do_not_translate: false
+- id: consent
+  en: consent
+  am: ፈቃድ
+  om: hayyama
+  simple_definition: Saying yes on purpose.
+  do_not_translate: false
+- id: share
+  en: share
+  am: አጋራ
+  om: qoodi
+  simple_definition: Let someone else see something.
+  do_not_translate: false
+- id: stop
+  en: stop
+  am: አቁም
+  om: dhaabi
+  simple_definition: End what is happening.
+  do_not_translate: false
+- id: goal
+  en: goal
+  am: ግብ
+  om: kaayyoo
+  simple_definition: Something you want to achieve.
+  do_not_translate: false
+- id: study
+  en: study
+  am: ማጥናት
+  om: qo'achuu
+  simple_definition: Spend time learning about something.
+  do_not_translate: false
+- id: schedule
+  en: schedule
+  am: መርሐ ግብር
+  om: sagantaa
+  simple_definition: A plan showing when to do things.
+  do_not_translate: false
+- id: calendar
+  en: calendar
+  am: የቀን መቁጠሪያ
+  om: kalaandarii
+  simple_definition: A list of dates where you can record planned activities.
+  do_not_translate: false
+- id: week
+  en: week
+  am: ሳምንት
+  om: torban
+  simple_definition: A period of seven days.
+  do_not_translate: false
+- id: progress
+  en: progress
+  am: እድገት
+  om: guddina
+  simple_definition: How far you have moved toward your goal.
+  do_not_translate: false
+- id: review
+  en: review
+  am: መከለስ
+  om: irra deebi'uu
+  simple_definition: Look again at what you learned.
+  do_not_translate: false
+- id: rest
+  en: rest
+  am: እረፍት
+  om: boqonnaa
+  simple_definition: Time to stop working and recover energy.
+  do_not_translate: false
+- id: topic
+  en: topic
+  am: ርዕስ
+  om: mata duree
+  simple_definition: The subject you are learning about.
+  do_not_translate: false
+- id: sentence
+  en: sentence
+  am: ዓረፍተ ነገር
+  om: hima
+  simple_definition: Words that express a complete thought.
+  do_not_translate: false
