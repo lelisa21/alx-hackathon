@@ -236,7 +236,7 @@ test("P03 shortcuts are documented, work with modifiers, and can be disabled", a
 }) => {
   await openWidget(page);
   await page.getByRole("button", { name: "English" }).click();
-  await expect(page.getByRole("button", { name: "Settings" })).toBeFocused();
+  await expect(page.locator("#message")).toBeFocused();
   await expect(page.locator("#message")).toBeEnabled();
   await page.keyboard.press("Alt+Shift+L");
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
@@ -1052,7 +1052,19 @@ test("loads the language picker with a same-origin relative API root", async ({
       }
     });
   });
+  await page.addInitScript(() => {
+    document.addEventListener(
+      "dimts:ready",
+      () => {
+        document.documentElement.dataset.dimtsWidgetReady = "true";
+      },
+      { capture: true, once: true },
+    );
+  });
   await page.goto("http://127.0.0.1:4173/");
+  await page.waitForFunction(
+    () => document.documentElement.dataset.dimtsWidgetReady === "true",
+  );
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   await page.getByRole("button", { name: "English" }).click();
   await expect(

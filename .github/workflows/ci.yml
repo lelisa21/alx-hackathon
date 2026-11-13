@@ -12,15 +12,16 @@ jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v5
         with:
           version: 10.12.1
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v6
         with:
           node-version: 22
+          cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm typecheck
       - run: pnpm lint
@@ -47,15 +48,22 @@ jobs:
         env:
           DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
       - name: Verify API against PostgreSQL
-        run: pnpm exec vitest run packages/api/test/postgres.integration.test.ts packages/api/test/p02-postgres.integration.test.ts --maxWorkers=1
+        run: pnpm exec vitest run packages/api/test/*.integration.test.ts --maxWorkers=1
         env:
           DIMTS_TEST_DATABASE_URL: postgresql://dimts:dimts-ci-only@localhost:5432/dimts
       - name: Stop local database
         if: always()
         run: docker compose --profile local down --volumes
+      - name: Install Playwright browser
+        run: pnpm exec playwright install --with-deps chromium
+      - name: Run widget and axe matrix
+        run: pnpm a11y
+      - name: Verify clean-machine Compose startup and restart
+        run: pnpm test:compose
       - run: pnpm audit --audit-level high
       - name: Scan for secrets
         if: always()
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_ENABLE_COMMENTS: false

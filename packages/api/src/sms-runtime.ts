@@ -180,9 +180,7 @@ export function createSmsRuntime(options: {
         );
       },
       async delete(id) {
-        await pool.query("DELETE FROM session WHERE id=$1 AND channel='sms'", [
-          id,
-        ]);
+        await repository.deleteSessionData(id);
       },
     },
     async ask(input) {

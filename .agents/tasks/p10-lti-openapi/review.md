@@ -64,7 +64,7 @@ Log statements avoid logging message text, learner names, or sensitive token val
 
 Five methods are called via optional chaining in routes/lti.ts: `storeLtiState`, `getLtiStateAndNonce`, `checkAndMarkTokenReplayed`, `checkAndMarkNonceUsed`, `deleteLtiState`. If repository is a test mock that doesn't implement these, all calls silently return undefined and security checks are skipped. The code should either (a) make these mandatory in the ApiRepository interface (already are, but optional chaining masks that), or (b) fall back to an in-memory Set store if methods don't exist. Currently no fallback; test harnesses must implement or security is disabled.
 
-Example: if test provides a minimal repository without `checkAndMarkNonceUsed`, line 171 sets `nonceUsed = undefined`, then `if (!undefined)` is true, and nonce replay *always* rejects. But in production with full repo, logic is inverted (rejects valid use).
+Example: if test provides a minimal repository without `checkAndMarkNonceUsed`, line 171 sets `nonceUsed = undefined`, then `if (!undefined)` is true, and nonce replay _always_ rejects. But in production with full repo, logic is inverted (rejects valid use).
 
 ### OpenAPI Documentation
 
@@ -109,4 +109,3 @@ Tests show that deep-link context with content items is supported via the lti-dl
 - **examples/lti-level3/README.md** — Clear setup checklist, flow diagrams, security guarantees, API contracts, curl examples. Well-written.
 
 </details>
-

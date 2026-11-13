@@ -1,6 +1,7 @@
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import pg from "pg";
 import type { ApiConfig } from "../config.js";
+import { createInsightsRepository } from "./insights-repository.js";
 import type {
   ApiRepository,
   ApiReply,
@@ -25,13 +26,22 @@ export function createPool(config: ApiConfig): pg.Pool {
   return pool;
 }
 
-export function createPostgresRepository(pool: pg.Pool): ApiRepository {
+export function createPostgresRepository(
+  pool: pg.Pool,
+  now: () => Date = () => new Date(),
+): ApiRepository {
   return {
     async ping() {
       await pool.query("SELECT 1");
       return true;
     },
     async runRetention(retentionHours) {
+      const currentTime = now();
+      const inactiveBefore = new Date(
+        currentTime.getTime() - retentionHours * 60 * 60 * 1000,
+      );
+      const dayAgo = new Date(currentTime.getTime() - 24 * 60 * 60 * 1000);
+      const imageExpiry = new Date(currentTime.getTime() - 2 * 60 * 60 * 1000);
       const client = await pool.connect();
       try {
         await client.query("BEGIN");
@@ -39,35 +49,69 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
           `DELETE FROM message
            WHERE session_id IN (
              SELECT id FROM session
-             WHERE last_seen_at < now() - make_interval(hours => $1)
+             WHERE last_seen_at < $1
            )`,
-          [retentionHours],
+          [inactiveBefore],
         );
+        await client.query("DELETE FROM session WHERE last_seen_at < $1", [
+          inactiveBefore,
+        ]);
+        await client.query("DELETE FROM help_image WHERE created_at < $1", [
+          imageExpiry,
+        ]);
         await client.query(
-          "DELETE FROM session WHERE last_seen_at < now() - make_interval(hours => $1)",
-          [retentionHours],
-        );
-        await client.query(
-          "DELETE FROM help_image WHERE created_at < now() - interval '2 hours'",
+          `UPDATE subscription
+           SET stopped_at = COALESCE(stopped_at, $1),
+               contact_enc = NULL,
+               contact_hash = NULL
+           WHERE stopped_at IS NOT NULL OR consent_expires_at <= $1`,
+          [currentTime],
         );
         await client.query(
           "DELETE FROM subscription WHERE stopped_at IS NOT NULL",
         );
+        await client.query("DELETE FROM answer_cache WHERE created_at < $1", [
+          dayAgo,
+        ]);
         await client.query(
-          "DELETE FROM answer_cache WHERE created_at < now() - interval '24 hours'",
+          "UPDATE sms_conversation SET private_enc=NULL WHERE expires_at<$1",
+          [currentTime],
+        );
+        await client.query("DELETE FROM sms_delivery WHERE created_at < $1", [
+          dayAgo,
+        ]);
+        await client.query(
+          "UPDATE telegram_conversation SET private_enc=NULL WHERE expires_at<$1",
+          [currentTime],
         );
         await client.query(
-          "UPDATE sms_conversation SET private_enc=NULL WHERE expires_at<now()",
+          "DELETE FROM telegram_delivery WHERE created_at < $1",
+          [dayAgo],
         );
         await client.query(
-          "DELETE FROM sms_delivery WHERE created_at < now() - interval '24 hours'",
+          "DELETE FROM lti_nonce_state WHERE expires_at < $1",
+          [currentTime],
         );
+        await client.query("DELETE FROM lti_nonce_used WHERE used_at < $1", [
+          dayAgo,
+        ]);
         await client.query(
-          "UPDATE telegram_conversation SET private_enc=NULL WHERE expires_at<now()",
+          "DELETE FROM lti_token_replay WHERE detected_at < $1",
+          [dayAgo],
         );
-        await client.query(
-          "DELETE FROM telegram_delivery WHERE created_at < now() - interval '24 hours'",
-        );
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
+    },
+    async deleteSessionData(sessionId) {
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        await client.query("DELETE FROM session WHERE id = $1", [sessionId]);
         await client.query("COMMIT");
       } catch (error) {
         await client.query("ROLLBACK");
@@ -229,21 +273,16 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
       );
     },
     async verifyHostKey(key: string) {
-      // Verify against plaintext key (not hashed)
-      // In production, this should hash the key and compare to key_hash in DB
+      const keyHash = createHash("sha256").update(key).digest("hex");
       const result = await pool.query<{ id: string; name: string }>(
         `SELECT id, name FROM host_key
-         WHERE (
-           SELECT COUNT(*) FROM host_key WHERE id = $1
-         ) > 0
+         WHERE key_hash = $1 AND key_type = 'secret'
          LIMIT 1`,
-        [key],
+        [keyHash],
       );
-      // TODO: implement real host key verification with hashing
       return result.rows[0] ?? null;
     },
     getInsightsRepository() {
-      const { createInsightsRepository } = require("./insights-repository.js");
       return createInsightsRepository(pool);
     },
     async getSessionDetails(sessionId) {
@@ -251,20 +290,24 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
         id: string;
         channel: string;
         lti_context: NewSession["ltiContext"] | null;
-      }>(
-        "SELECT id, channel, lti_context FROM session WHERE id = $1",
-        [sessionId],
-      );
+      }>("SELECT id, channel, lti_context FROM session WHERE id = $1", [
+        sessionId,
+      ]);
       const row = result.rows[0];
       return row
         ? {
             id: row.id,
             channel: row.channel,
-            ltiContext: row.lti_context,
+            ltiContext: row.lti_context ?? undefined,
           }
         : null;
     },
-    async storeLtiState(state: string, platformId: string, nonce: string, expiresAt: Date) {
+    async storeLtiState(
+      state: string,
+      platformId: string,
+      nonce: string,
+      expiresAt: Date,
+    ) {
       await pool.query(
         `INSERT INTO lti_nonce_state (state, platform_id, nonce, expires_at)
          VALUES ($1, $2, $3, $4)
@@ -273,14 +316,22 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
       );
     },
     async getLtiStateAndNonce(state: string) {
-      const result = await pool.query<{ platform_id: string; nonce: string }>(
-        `SELECT platform_id, nonce FROM lti_nonce_state
+      const result = await pool.query<{
+        platform_id: string;
+        nonce: string;
+        expires_at: Date;
+      }>(
+        `SELECT platform_id, nonce, expires_at FROM lti_nonce_state
          WHERE state = $1 AND expires_at > now()`,
         [state],
       );
       const row = result.rows[0];
       return row
-        ? { platformId: row.platform_id, nonce: row.nonce }
+        ? {
+            platformId: row.platform_id,
+            nonce: row.nonce,
+            expiresAt: row.expires_at,
+          }
         : null;
     },
     async deleteLtiState(state: string) {
@@ -301,7 +352,11 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
       );
       return true;
     },
-    async checkAndMarkTokenReplayed(tokenHash: string, platformId: string, sessionId: string) {
+    async checkAndMarkTokenReplayed(
+      tokenHash: string,
+      platformId: string,
+      sessionId: string,
+    ) {
       const result = await pool.query<{ token_hash: string }>(
         `SELECT token_hash FROM lti_token_replay WHERE token_hash = $1`,
         [tokenHash],

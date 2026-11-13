@@ -44,9 +44,8 @@ export function createInsightsRouter(repository: ApiRepository): Router {
 
           if (sessionId) {
             // Get session details to check LTI context and insights access
-            const sessionDetails = await repository.getSessionDetails?.(
-              sessionId,
-            );
+            const sessionDetails =
+              await repository.getSessionDetails?.(sessionId);
             if (
               sessionDetails &&
               sessionDetails.channel === "lti" &&
@@ -77,18 +76,25 @@ export function createInsightsRouter(repository: ApiRepository): Router {
       }
 
       const insightsService = createInsightsService(insightsRepo);
-      const rows = await insightsService.getRows(query);
+      const rows = await insightsService.getRows({
+        ...(query.startDate === undefined
+          ? {}
+          : { startDate: query.startDate }),
+        ...(query.endDate === undefined ? {} : { endDate: query.endDate }),
+        ...(query.lang === undefined ? {} : { lang: query.lang }),
+        minCellSize: query.minCellSize,
+      });
 
       // Determine period range
       const dates = rows.map((r: { period: string }) => r.period);
       const startDate =
         dates.length > 0
           ? dates[dates.length - 1]
-          : query.startDate ?? new Date().toISOString().split("T")[0];
+          : (query.startDate ?? new Date().toISOString().split("T")[0]);
       const endDate =
         dates.length > 0
           ? dates[0]
-          : query.endDate ?? new Date().toISOString().split("T")[0];
+          : (query.endDate ?? new Date().toISOString().split("T")[0]);
 
       // Return response based on format
       if (query.format === "csv") {
@@ -97,7 +103,7 @@ export function createInsightsRouter(repository: ApiRepository): Router {
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader(
           "Content-Disposition",
-          `attachment; filename="${filename}"`
+          `attachment; filename="${filename}"`,
         );
         return res.send(csv);
       }
@@ -118,8 +124,8 @@ export function createInsightsRouter(repository: ApiRepository): Router {
       }
 
       res.json(validated.data);
-    } catch (error) {
-      console.error("[insights] error:", error);
+    } catch {
+      console.error("[insights] request failed");
       sendProblem(res, 500, "internal", "error.server");
     }
   });

@@ -7,7 +7,10 @@ export function sha256(value: string): string {
   return createHash("sha256").update(value).digest("hex");
 }
 
-function equalHash(expected: string | null, actual: string): boolean {
+export function matchesSessionToken(
+  expected: string | null,
+  actual: string,
+): boolean {
   if (!expected) return false;
   const expectedBytes = Buffer.from(expected, "hex");
   const actualBytes = Buffer.from(actual, "hex");
@@ -41,7 +44,7 @@ export function createSessionAuth(
     }
 
     const storedHash = await repository.getSessionTokenHash(sessionId);
-    if (!equalHash(storedHash, sha256(token))) {
+    if (!matchesSessionToken(storedHash, sha256(token))) {
       sendProblem(response, 401, "unauthorized", "error.generic");
       return;
     }

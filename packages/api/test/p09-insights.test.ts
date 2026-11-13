@@ -6,20 +6,21 @@
 
 import { describe, it, expect, beforeEach } from "vitest";
 import request from "supertest";
-import { createApp } from "../src/app.js";
-import type { ApiConfig } from "../src/config.js";
+import { buildApp } from "../src/app.js";
+import { parseConfig } from "../src/config.js";
 import type { ApiRepository } from "../src/types.js";
 import type { InsightsRepository } from "@dimts/insights";
 
 describe("GET /v1/insights", () => {
   let mockRepository: ApiRepository;
-  let app: any;
+  let app: ReturnType<typeof buildApp>;
 
   beforeEach(() => {
     // Mock repository
     mockRepository = {
       ping: async () => true,
       runRetention: async () => {},
+      deleteSessionData: async () => {},
       getHostByHash: async () => null,
       verifyHostKey: async (key: string) => {
         if (key === "valid-key") {
@@ -29,7 +30,7 @@ describe("GET /v1/insights", () => {
       },
       getInsightsRepository: () => {
         const mockInsightsRepo: InsightsRepository = {
-          async queryInsights(query) {
+          async queryInsights() {
             return [
               {
                 topic_id: "unit-1",
@@ -60,12 +61,16 @@ describe("GET /v1/insights", () => {
       releaseQuestion: async () => {},
     };
 
-    const config: Partial<ApiConfig> = {
-      DIMTS_DEFAULT_LANG: "en",
-      PORT: "3000",
-    };
+    const config = parseConfig({
+      NODE_ENV: "test",
+      DATABASE_URL: "postgres://localhost/dimts",
+      DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+      DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+      DIMTS_JWT_SECRET: "j".repeat(32),
+      DIMTS_CRON_SECRET: "c".repeat(32),
+    });
 
-    app = createApp(config as ApiConfig, mockRepository, new Map());
+    app = buildApp({ config, repository: mockRepository });
   });
 
   it("requires X-Dimts-Key header", async () => {
@@ -77,7 +82,7 @@ describe("GET /v1/insights", () => {
     const res = await request(app)
       .get("/v1/insights")
       .set("X-Dimts-Key", "invalid-key");
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(401);
   });
 
   it("returns JSON with valid key", async () => {

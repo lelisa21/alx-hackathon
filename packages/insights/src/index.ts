@@ -12,5 +12,11 @@
  * - Groups <5 combined into "Other"
  */
 
-export type { InsightQuery, InsightRow, InsightsRepository, InsightsService, RawInsightRow } from './types.js';
-export { createInsightsService } from './service.js';
+export type {
+  InsightQuery,
+  InsightRow,
+  InsightsRepository,
+  InsightsService,
+  RawInsightRow,
+} from "./types.js";
+export { createInsightsService } from "./service.js";

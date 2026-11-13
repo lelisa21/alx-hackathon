@@ -1,0 +1,43 @@
+services:
+  - type: web
+    name: dimts-api
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
+    startCommand: pnpm --filter @dimts/api start
+    healthCheckPath: /v1/health
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_URL_DIRECT
+        sync: false
+      - key: DIMTS_ENC_KEY
+        sync: false
+      - key: DIMTS_HASH_KEY
+        sync: false
+      - key: DIMTS_JWT_SECRET
+        sync: false
+      - key: DIMTS_CRON_SECRET
+        sync: false
+      - key: DIMTS_HOST_ORIGINS
+        sync: false
+      - key: DIMTS_DEFAULT_LANG
+        value: en
+      - key: DIMTS_RETENTION_HOURS
+        value: "24"
+      - key: DIMTS_AI_PROVIDER
+        value: offline
+      - key: DIMTS_AI_LADDER
+        value: offline
+      - key: DIMTS_AI_PROVIDERS
+        value: "[]"
+
+  - type: web
+    name: dimts-widget-assets
+    runtime: static
+    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
+    staticPublishPath: ./packages/widget/dist

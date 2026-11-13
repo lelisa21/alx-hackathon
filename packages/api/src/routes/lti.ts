@@ -74,12 +74,7 @@ export function createLtiRouter(options: {
       }
 
       if (!platformConfig || !platformId) {
-        return sendProblem(
-          res,
-          404,
-          "not_found",
-          "lti.login.unregistered"
-        );
+        return sendProblem(res, 404, "not_found", "lti.login.unregistered");
       }
 
       // Generate state (expires in 5 min) and nonce
@@ -89,7 +84,12 @@ export function createLtiRouter(options: {
 
       // Store nonce for later validation using database (persistent across restarts)
       if (options.repository.storeLtiState) {
-        await options.repository.storeLtiState(state, platformId, nonce, expiresAt);
+        await options.repository.storeLtiState(
+          state,
+          platformId,
+          nonce,
+          expiresAt,
+        );
       }
 
       // In production: redirect to platform's auth_login_url with state/client_id/redirect_uri
@@ -102,7 +102,7 @@ export function createLtiRouter(options: {
 
       logger.info(
         { platformId, state: state.slice(0, 8) },
-        "LTI login initiated"
+        "LTI login initiated",
       );
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -122,7 +122,9 @@ export function createLtiRouter(options: {
       const payload = LtiLaunchRequestSchema.parse(req.body);
 
       // Validate state using database
-      const stateData = await options.repository.getLtiStateAndNonce?.(payload.state);
+      const stateData = await options.repository.getLtiStateAndNonce?.(
+        payload.state,
+      );
       if (!stateData) {
         return sendProblem(res, 403, "forbidden", "lti.launch.state_invalid");
       }
@@ -147,27 +149,37 @@ export function createLtiRouter(options: {
       } catch (error) {
         logger.warn(
           { error: String(error), platformId: stateData.platformId },
-          "Token validation failed"
+          "Token validation failed",
         );
-        return sendProblem(res, 401, "unauthorized", "lti.launch.invalid_token");
+        return sendProblem(
+          res,
+          401,
+          "unauthorized",
+          "lti.launch.invalid_token",
+        );
       }
 
       // Check for token replay (using database for persistence)
       const tokenHash = Buffer.from(payload.id_token.split(".")[2] || "")
         .toString("hex")
         .slice(0, 64);
-      
+
       const isReplayed = await options.repository.checkAndMarkTokenReplayed?.(
         tokenHash,
         stateData.platformId,
-        ""
+        "",
       );
       if (isReplayed === true) {
-        logger.warn({ platformId: stateData.platformId }, "Token replay detected");
+        logger.warn(
+          { platformId: stateData.platformId },
+          "Token replay detected",
+        );
         return sendProblem(res, 403, "forbidden", "lti.launch.replay");
       }
       if (isReplayed === undefined) {
-        logger.error("Token replay check unavailable (repository method not implemented)");
+        logger.error(
+          "Token replay check unavailable (repository method not implemented)",
+        );
         return sendProblem(res, 500, "internal", "error.token_check");
       }
 
@@ -175,14 +187,16 @@ export function createLtiRouter(options: {
       // Check nonce one-time use (checkAndMarkNonceUsed returns true if ALREADY used = replay)
       const nonceAlreadyUsed = await options.repository.checkAndMarkNonceUsed?.(
         stateData.nonce,
-        ""
+        "",
       );
       if (nonceAlreadyUsed === true) {
         logger.warn("Nonce replay detected");
         return sendProblem(res, 403, "forbidden", "lti.launch.nonce_replay");
       }
       if (nonceAlreadyUsed === undefined) {
-        logger.error("Nonce validation unavailable (repository method not implemented)");
+        logger.error(
+          "Nonce validation unavailable (repository method not implemented)",
+        );
         return sendProblem(res, 500, "internal", "error.nonce_check");
       }
 
@@ -197,7 +211,7 @@ export function createLtiRouter(options: {
 
       // Generate session token (short-lived, httpOnly cookie)
       const sessionToken = Buffer.from(
-        crypto.getRandomValues(new Uint8Array(32))
+        crypto.getRandomValues(new Uint8Array(32)),
       ).toString("hex");
 
       // Store session with LTI context
@@ -217,9 +231,14 @@ export function createLtiRouter(options: {
               ] || "unknown",
             ltiUserId: claims.sub,
             roles,
-            contextId: claims[
-              "https://purl.imsglobal.org/spec/lti/claim/context"
-            ]?.id,
+            ...(claims["https://purl.imsglobal.org/spec/lti/claim/context"]
+              ?.id === undefined
+              ? {}
+              : {
+                  contextId:
+                    claims["https://purl.imsglobal.org/spec/lti/claim/context"]
+                      .id,
+                }),
             insightsAccess,
             timestamp: Date.now(),
           },
@@ -238,15 +257,14 @@ export function createLtiRouter(options: {
           sessionToken,
           roles,
           insightsAccess,
-          contextId: claims[
-            "https://purl.imsglobal.org/spec/lti/claim/context"
-          ]?.id,
-        })
+          contextId:
+            claims["https://purl.imsglobal.org/spec/lti/claim/context"]?.id,
+        }),
       );
 
       logger.info(
         { sessionId: sessionId.slice(0, 12), platformId: stateData.platformId },
-        "LTI launch successful"
+        "LTI launch successful",
       );
     } catch (error) {
       if (error instanceof z.ZodError) {

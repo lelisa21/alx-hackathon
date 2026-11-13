@@ -220,10 +220,7 @@ export function createTelegramRuntime(options: {
       );
     },
     async delete(id) {
-      await pool.query(
-        "DELETE FROM session WHERE id=$1 AND channel='telegram'",
-        [id],
-      );
+      await repository.deleteSessionData(id);
     },
   };
   const service: TelegramService = new TelegramService({

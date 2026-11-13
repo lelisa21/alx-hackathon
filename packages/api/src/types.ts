@@ -44,6 +44,7 @@ export interface SavedReply {
 export interface ApiRepository {
   ping(): Promise<boolean>;
   runRetention(retentionHours: number): Promise<void>;
+  deleteSessionData(sessionId: string): Promise<void>;
   getHostByHash(keyHash: string): Promise<{ origins: string[] } | null>;
   verifyHostKey(key: string): Promise<{ id: string; name: string } | null>;
   getInsightsRepository?(): InsightsRepository | undefined;
@@ -65,9 +66,7 @@ export interface ApiRepository {
     sessionId: string,
   ): Promise<{ cloudOk: boolean; consentVersion: string | null } | null>;
   getSessionTokenHash(sessionId: string): Promise<string | null>;
-  getSessionDetails?(
-    sessionId: string,
-  ): Promise<{
+  getSessionDetails?(sessionId: string): Promise<{
     id: string;
     channel: string;
     ltiContext?: NewSession["ltiContext"];
@@ -82,12 +81,9 @@ export interface ApiRepository {
   ): Promise<void>;
   getLtiStateAndNonce?(
     state: string,
-  ): Promise<{ platformId: string; nonce: string } | null>;
+  ): Promise<{ platformId: string; nonce: string; expiresAt: Date } | null>;
   deleteLtiState?(state: string): Promise<void>;
-  checkAndMarkNonceUsed?(
-    nonce: string,
-    sessionId: string,
-  ): Promise<boolean>;
+  checkAndMarkNonceUsed?(nonce: string, sessionId: string): Promise<boolean>;
   checkAndMarkTokenReplayed?(
     tokenHash: string,
     platformId: string,

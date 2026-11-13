@@ -51,10 +51,7 @@ export interface LtiLaunchContext {
 export async function validateLtiToken(
   token: string,
   platform: LtiPlatformConfig,
-  {
-    nonce,
-    maxAgeSeconds = 5 * 60,
-  }: { nonce: string; maxAgeSeconds?: number }
+  { nonce, maxAgeSeconds = 5 * 60 }: { nonce: string; maxAgeSeconds?: number },
 ): Promise<LtiIdTokenClaims> {
   const JWKS = createRemoteJWKSet(new URL(platform.jwksUri));
 
@@ -86,7 +83,6 @@ export async function validateLtiToken(
 
     // Enforce 5-minute expiry maximum
     const now = Math.floor(Date.now() / 1000);
-    const tokenAge = now - (claims.iat ?? 0);
     const maxExp = now + maxAgeSeconds;
 
     if ((claims.exp ?? 0) > maxExp) {
@@ -96,7 +92,8 @@ export async function validateLtiToken(
     return claims;
   } catch (error) {
     throw new Error(
-      `Token validation failed: ${error instanceof Error ? error.message : String(error)}`
+      `Token validation failed: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 }
@@ -106,12 +103,12 @@ export async function validateLtiToken(
  * Learner → regular session
  * Instructor → insightsAccess flag
  */
-export function mapLtiRoles(
-  claims: LtiIdTokenClaims
-): { roles: string[]; insightsAccess: boolean } {
-  const roleUrls = claims[
-    "https://purl.imsglobal.org/spec/lti/claim/roles"
-  ] as string[] | undefined;
+export function mapLtiRoles(claims: LtiIdTokenClaims): {
+  roles: string[];
+  insightsAccess: boolean;
+} {
+  const roleUrls = claims["https://purl.imsglobal.org/spec/lti/claim/roles"] as
+    string[] | undefined;
 
   const roles = (roleUrls || []).map((url) => {
     const match = url.match(/#([A-Za-z]+)$/u);
@@ -119,7 +116,7 @@ export function mapLtiRoles(
   });
 
   const hasInstructor = (roleUrls || []).includes(
-    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+    "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor",
   );
 
   return {
@@ -154,11 +151,11 @@ export function generateLtiState(platformId: string): {
  */
 export function validateLtiState(
   state: string,
-  expectedPlatformId: string
+  expectedPlatformId: string,
 ): boolean {
   try {
     const payload = JSON.parse(
-      Buffer.from(state, "base64url").toString("utf-8")
+      Buffer.from(state, "base64url").toString("utf-8"),
     );
 
     if (payload.platformId !== expectedPlatformId) {
@@ -192,7 +189,7 @@ export function generateLtiNonce(): string {
 export function deriveLtiSessionKey(
   issuer: string,
   platformId: string,
-  ltiUserId: string
+  ltiUserId: string,
 ): string {
   // Return a key for session lookup; actual session is created/resumed by API
   return `lti:${platformId}:${Buffer.from(ltiUserId).toString("hex")}`;

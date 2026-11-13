@@ -1,7 +1,7 @@
+import "./zod-openapi.js";
 import {
   OpenAPIRegistry,
   OpenApiGeneratorV31,
-  extendZodWithOpenApi,
 } from "@asteasolutions/zod-to-openapi";
 import { z } from "zod";
 import { stringify } from "yaml";
@@ -34,6 +34,7 @@ import {
 } from "./jobs-schemas.js";
 import {
   AskRequestSchema,
+  DataDeleteRequestSchema,
   FeedbackRequestSchema,
   FeedbackResponseSchema,
   HealthResponseSchema,
@@ -63,15 +64,13 @@ import {
   SessionResponseSchema,
 } from "./schemas.js";
 
-extendZodWithOpenApi(z);
-
 const registry = new OpenAPIRegistry();
 registry.register("AskRequest", AskRequestSchema);
+registry.register("DataDeleteRequest", DataDeleteRequestSchema);
 registry.register("FeedbackRequest", FeedbackRequestSchema);
 registry.register("FeedbackResponse", FeedbackResponseSchema);
 registry.register("Reply", ReplySchema);
 registry.register("Problem", ProblemSchema);
-registry.register("TelegramUpdate", TelegramUpdateSchema);
 registry.register("TelegramAck", TelegramAckSchema);
 registry.register("TelegramProblem", TelegramProblemSchema);
 registry.register("SmsInboundRequest", SmsInboundRequestSchema);
@@ -478,6 +477,26 @@ registry.registerPath({
 });
 registry.registerPath({
   method: "post",
+  path: "/v1/data/delete",
+  summary: "Delete all data linked to the authenticated session",
+  description:
+    "Requires the current session bearer and a confirmation in the client. Deletion removes the session and its messages, help data, consent-bound subscriptions, accommodation requests, and channel mappings in one database transaction. Anonymous aggregate counters and the shared, session-free answer cache are retained. Repeated deletion after the session is gone returns 204.",
+  security: [{ sessionBearer: [] }],
+  request: {
+    body: {
+      required: true,
+      content: { "application/json": { schema: DataDeleteRequestSchema } },
+    },
+  },
+  responses: {
+    "204": { description: "Data deleted or already absent" },
+    "400": problemResponse,
+    "401": problemResponse,
+    "500": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
   path: "/v1/ask",
   summary: "Ask a question",
   security: [{ sessionBearer: [] }],
@@ -835,7 +854,7 @@ registry.registerPath({
             authLoginUrl: z.string().url(),
             redirectUri: z.string().url(),
           })
-          .strict()
+          .strict(),
       ),
     },
     "400": problemResponse,
@@ -876,7 +895,7 @@ registry.registerPath({
             insightsAccess: z.boolean(),
             contextId: z.string().optional(),
           })
-          .strict()
+          .strict(),
       ),
     },
     "400": problemResponse,
@@ -890,16 +909,17 @@ registry.registerPath({
   method: "get",
   path: "/v1/lti/jwks",
   summary: "Publish platform public key for JWT verification",
-  description: "Returns empty JWKS for single-instance test; production uses key store.",
+  description:
+    "Returns empty JWKS for single-instance test; production uses key store.",
   responses: {
     "200": {
       description: "JWKS public keys",
       ...json(
         z
           .object({
-            keys: z.array(z.record(z.unknown())),
+            keys: z.array(z.record(z.string(), z.unknown())),
           })
-          .strict()
+          .strict(),
       ),
     },
   },
@@ -915,6 +935,10 @@ const document = new OpenApiGeneratorV31(registry.definitions).generateDocument(
   },
 );
 
+export function generateOpenApiDocument(): object {
+  return document;
+}
+
 export function generateOpenApiYaml(): string {
-  return stringify(document);
+  return stringify(generateOpenApiDocument());
 }

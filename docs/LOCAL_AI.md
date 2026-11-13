@@ -144,3 +144,27 @@ sample count, warm/cold state and cache state. Provider-only timing or a mock
 response does not verify those targets. Repeat-answer cache checks have their
 separate <50 ms target. Record only aggregate timing and hit/miss metadata;
 never log question, passage, answer or contact text.
+
+## Optional Compose Ollama service
+
+Compose includes an opt-in `local-ai` profile. It is not started by the default
+local stack and does not change the API's default `offline` provider.
+
+```powershell
+docker compose --profile local-ai up -d ollama
+docker compose --profile local-ai exec ollama ollama pull qwen2.5:0.5b
+```
+
+For API access, add the existing `openai-compatible` local binding to `.env`,
+using `http://ollama:11434/v1` as its endpoint, then start both profiles:
+
+```powershell
+docker compose --profile local --profile local-ai up --build -d --wait
+```
+
+The Ollama model is downloaded into the persistent `ollama-models` volume.
+That download requires network access; after the model is present, Ollama can
+serve requests locally. The API still falls back to `offline` on provider
+failure. The model image and weights are large and are excluded from the
+five-minute base Compose smoke test. No Ollama model, language quality, or
+local inference performance has been verified for release.

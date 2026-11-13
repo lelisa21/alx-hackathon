@@ -231,13 +231,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
               ($3, $2, 'question-2', 'learner', 'Question two', 'am', 'question', now() - interval '3 minutes'),
               ($4, $2, 'question-3', 'learner', 'Question three', 'am', 'question', now() - interval '2 minutes'),
               ($5, $2, 'question-4', 'learner', 'Question four', 'am', 'question', now() - interval '1 minute')`,
-      [
-        randomUUID(),
-        sessionId,
-        randomUUID(),
-        randomUUID(),
-        randomUUID(),
-      ],
+      [randomUUID(), sessionId, randomUUID(), randomUUID(), randomUUID()],
     );
     await client.query(
       `INSERT INTO helper (id, display_name, token_hash, langs)
@@ -336,10 +330,9 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
     const excludedSummary = await client.query<{
       include_summary: boolean;
       summary: string[] | null;
-    }>(
-      "SELECT include_summary, summary FROM help_request WHERE id = $1",
-      [excluded.body.id],
-    );
+    }>("SELECT include_summary, summary FROM help_request WHERE id = $1", [
+      excluded.body.id,
+    ]);
     expect(excludedSummary.rows[0]).toEqual({
       include_summary: false,
       summary: null,

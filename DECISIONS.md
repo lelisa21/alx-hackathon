@@ -1104,7 +1104,6 @@ selection remain prerequisites for production voice.
   engine. Use the documented setup and `pnpm test:compose` when Docker is
   available.
 
-
 ## P09 — Anonymous feedback and teacher insights (13 November 2026)
 
 - **Scope:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20, NFR-PRIV-03. P09 only on
@@ -1137,3 +1136,28 @@ selection remain prerequisites for production voice.
   hashing scheme). Insights repository uses FULL OUTER JOIN to combine feedback
   and question/notfound counts. Service applies suppression in memory. Route
   returns JSON or CSV based on format param.
+
+## P11 — privacy, operations, and release evidence (13 November 2026)
+
+- **Requirements in scope:** NFR-SEC-01–12, NFR-REL-01–03, NFR-COST-03–06,
+  NFR-PRIV-01–09, NFR-PERF-04, NFR-MAINT-01, NFR-ADOPT-01/02,
+  NFR-OPS-01/02, FR-INT-08/09/10/12, FR-CONV-10/13, and G1–G13.
+- **Secret contract authority:** The Blueprint supersedes the earlier plan
+  where they differ. `DIMTS_ENC_KEY` and `DIMTS_HASH_KEY` are distinct
+  32-byte base64 values; `DIMTS_JWT_SECRET` is a distinct string of at least
+  32 characters; `DIMTS_CRON_SECRET` is at least 24 characters. Do not impose
+  the plan's stricter base64 requirement on the JWT secret.
+- **Deletion semantics:** `POST /v1/data/delete` requires the session bearer
+  token, deletes transactionally through the shared repository, returns 204
+  for deleted or already-missing sessions, and does not report success when
+  the database operation fails. Web and Telegram/SMS runtime deletion share
+  this path. Unlinked answer-cache entries and permitted anonymous aggregates
+  remain; they have separate retention/privacy protections.
+- **Operational safety:** Event purge defaults to a read-only dry run; `--apply`
+  is explicit. Seed helper tokens must be random 32-byte base64url values and
+  only their SHA-256 hash is stored. Hosted migrations remain an explicit
+  operator action using the direct database URL.
+- **Release status:** The required human language/accessibility reviews,
+  actual hosted configuration, and physical-device gates are not evidenced.
+  `GATE_CHECKLIST.md` is the release authority; no G1–G13 pass is inferred
+  from code or automated tests alone.

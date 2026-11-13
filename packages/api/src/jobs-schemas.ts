@@ -1,3 +1,4 @@
+import "./zod-openapi.js";
 import { z } from "zod";
 
 const id = z.string().min(8).max(128);
@@ -88,19 +89,15 @@ export const SubscriptionsResponseSchema = z
   })
   .strict();
 export const CareerOkSchema = z.object({ ok: z.literal(true) }).strict();
-const needs = z
-  .array(
-    z.enum([
-      "sign_language_interpreter",
-      "step_free_access",
-      "written_questions",
-      "extra_time",
-      "screen_reader_friendly_test",
-      "other",
-    ]),
-  )
-  .min(1)
-  .max(6);
+const need = z.enum([
+  "sign_language_interpreter",
+  "step_free_access",
+  "written_questions",
+  "extra_time",
+  "screen_reader_friendly_test",
+  "other",
+]);
+const needs = z.array(need).min(1).max(6);
 const draft = z
   .object({
     action: z.literal("draft"),
@@ -145,7 +142,7 @@ export const AccommodationResponseSchema = z
     message: z.string(),
     jobId: z.string(),
     lang,
-    needs: needs.min(0),
+    needs: z.array(need).max(6),
     otherText: z.string().optional(),
     name: z.string().optional(),
     interviewAt: z.string().optional(),

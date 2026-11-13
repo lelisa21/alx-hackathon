@@ -1,3 +1,4 @@
+import "./zod-openapi.js";
 import { z } from "zod";
 import { ProblemSchema } from "./schemas.js";
 

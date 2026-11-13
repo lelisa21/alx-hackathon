@@ -2,6 +2,53 @@
 
 Updated: 13 November 2026. Current branch: `phase-10-prompt`.
 
+## P11 — implemented increment; acceptance blocked
+
+Requirements quoted before implementation: NFR-SEC-01–12, NFR-REL-01–03,
+NFR-COST-03–06, NFR-PRIV-01–09, NFR-PERF-04, NFR-MAINT-01,
+NFR-ADOPT-01/02, NFR-OPS-01/02, FR-INT-08/09/10/12,
+FR-CONV-10/13, and G1–G13.
+
+**Verified acceptance evidence:**
+
+- `pnpm test`: 822 passed; 57 skipped across 82 passing test files and 11
+  skipped files. `pnpm test:lang -- --maxWorkers=1`: 67 passed.
+- `pnpm test:widget`: 137 passed, 2 skipped, including the P11 deletion
+  confirmation/success/failure flow and automated axe matrix.
+- `pnpm typecheck`, `pnpm lint`, `pnpm lang:check`, `pnpm eval`,
+  `pnpm size`, and `pnpm audit --audit-level high` pass. The offline eval
+  reports zero measured gate failures and eight acceptance blockers; it is
+  not multilingual or hosted-model acceptance.
+- Initial-load compressed assets: 139,940 / 153,600 bytes. Widget,
+  helper-console, and SMS simulator JavaScript are each below their
+  individual 61,440-byte limits.
+- Deletion authorization/idempotency/failure behavior, OpenAPI JSON/YAML,
+  retention/operations, LTI, insights, and widget deletion regressions have
+  focused automated coverage.
+- `pnpm audit --audit-level high` passes with one moderate advisory still
+  reported. The GitHub Actions workflow configures the secret scan; no
+  hosted CI result is claimed.
+
+**Acceptance remains blocked by:**
+
+- Docker is unavailable, so `pnpm test:compose` and local PostgreSQL/restart
+  integration were not run. PostgreSQL suites requiring
+  `DIMTS_TEST_DATABASE_URL` remain skipped.
+- `pnpm test:core` ran 230 tests but exits on grounding branch coverage of
+  62.33%, below its 70% threshold. The threshold was not weakened.
+- The offline `pnpm eval` has eight acceptance blockers; Amharic and Afaan
+  Oromoo answer recall remains 0%, English answer recall is 16.7%, and
+  provider-backed targets are unmeasured.
+- Render/Neon setup, TLS/origin and secret configuration, scheduled workflow
+  delivery, database sizing, free-tier use, and warm 50-session p95 have not
+  been verified in a hosted environment.
+- Native-speaker/co-designer and privacy/legal reviews, physical-device
+  NVDA/TalkBack runs, and the remaining manual G1–G13 evidence are absent.
+
+P11 is not release-complete. See [GATE_CHECKLIST.md](GATE_CHECKLIST.md),
+[EVAL.md](EVAL.md), [WCAG_REPORT.md](WCAG_REPORT.md), and
+[FREE_TIER.md](FREE_TIER.md) for the outstanding evidence.
+
 ## P10 — LTI 1.3 integration and OpenAPI (Review fixes - 13 November 2026)
 
 **Review findings addressed:**
@@ -166,7 +213,7 @@ and authoritative Dimts-System-Blueprint-v2.0.md.
 
 - Workflow connection errors prevented automated test/build run. Direct
   implementation allows manual verification: `pnpm exec vitest run
-  packages/insights` and `pnpm exec vitest run packages/api/test/p09-*.test.ts`
+packages/insights` and `pnpm exec vitest run packages/api/test/p09-*.test.ts`
   can verify when pnpm engine is available.
 - Host key verification is a stub (`verifyHostKey` method returns true for
   'valid-key' only; real hashing deferred to P11 secret-management implementation).
@@ -178,7 +225,6 @@ and authoritative Dimts-System-Blueprint-v2.0.md.
 - No real PostgreSQL instance available for integration testing; schema matches
   existing migration 001_init.sql.
 - pnpm version mismatch (9.12.0 vs required >=10.12.1) blocked build verification.
-
 
 The user authorized P09 only on `phase-09-prompt` branch after P08 was
 committed/pushed. Initial workflow hit connection errors; implementation
@@ -211,7 +257,7 @@ and authoritative Dimts-System-Blueprint-v2.0.md.
 
 - Workflow connection errors prevented automated test/build run. Direct
   implementation allows manual verification: `pnpm exec vitest run
-  packages/insights` and `pnpm exec vitest run packages/api/test/p09-*.test.ts`
+packages/insights` and `pnpm exec vitest run packages/api/test/p09-*.test.ts`
   can verify when pnpm engine is available.
 - Host key verification is a stub (`verifyHostKey` method returns true for
   'valid-key' only; real hashing deferred to P11 secret-management implementation).
@@ -887,10 +933,10 @@ The branch must not be labeled P01 complete until its required evidence and
 content gaps are resolved. The user's later P02 instruction permits the next
 prompt's implementation, but does not supply P01's missing acceptance evidence.
 
-
 ### Review fixes applied (13 November 2026)
 
 All four blocking issues from semantic review resolved:
+
 1. Nonce replay logic inverted → Fixed condition logic
 2. Optional repo methods failing silently → Added explicit undefined checks
 3. State expiry not checked → Added expiry validation on retrieval

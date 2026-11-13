@@ -4,7 +4,11 @@
  */
 
 import type { Pool, QueryResult } from "pg";
-import type { InsightQuery, RawInsightRow, InsightsRepository } from "@dimts/insights";
+import type {
+  InsightQuery,
+  RawInsightRow,
+  InsightsRepository,
+} from "@dimts/insights";
 
 export function createInsightsRepository(pool: Pool): InsightsRepository {
   return {
@@ -57,7 +61,7 @@ export function createInsightsRepository(pool: Pool): InsightsRepository {
       return result.rows;
     },
 
-    async topicLabel(topicId: string): Promise<string | null> {
+    async topicLabel(): Promise<string | null> {
       // TODO: resolve topic label from passage table when available
       // For now, return null (topic_label will be null in response)
       return null;

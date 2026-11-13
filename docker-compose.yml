@@ -115,8 +115,64 @@ services:
     networks:
       - edge
 
+  seed:
+    build:
+      context: .
+      target: api
+    profiles:
+      - seed
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
+      DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
+      DIMTS_SEED_HELPER_TOKEN: ${DIMTS_SEED_HELPER_TOKEN:?Set DIMTS_SEED_HELPER_TOKEN in .env}
+      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-https://learn.example/course/}
+    command:
+      - sh
+      - -c
+      - node packages/grounding/dist/cli.js content/sample-course && node scripts/seed.mjs
+    networks:
+      - backend
+
+  scheduler:
+    build:
+      context: .
+      target: api
+    profiles:
+      - scheduler
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DIMTS_SCHEDULER_API_URL: http://api:3000
+      DIMTS_CRON_SECRET: ${DIMTS_CRON_SECRET:?Set DIMTS_CRON_SECRET in .env}
+    command: ["node", "scripts/local-scheduler.mjs"]
+    networks:
+      - backend
+
+  ollama:
+    image: ollama/ollama:0.40.16
+    profiles:
+      - local-ai
+    restart: unless-stopped
+    volumes:
+      - ollama-models:/root/.ollama
+    ports:
+      - "127.0.0.1:${DIMTS_OLLAMA_PORT:-11434}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    networks:
+      - backend
+      - edge
+
 volumes:
   dimts-postgres:
+  ollama-models:
 
 networks:
   backend:

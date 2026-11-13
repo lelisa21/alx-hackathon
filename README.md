@@ -42,6 +42,35 @@ See [Local API setup](./docs/API.md#start-locally) for port conflicts and
 configuration. Opening `index.html` directly still shows only the offline
 reference pages.
 
+## Operations and release readiness
+
+The [integration contract](./docs/INTEGRATION.md), [privacy policy](./docs/PRIVACY.md),
+[free-tier notes](./docs/FREE_TIER.md), [cost controls](./docs/COST.md),
+[accessibility evidence](./docs/WCAG_REPORT.md), [release gates](./docs/GATE_CHECKLIST.md),
+and [co-creation log](./docs/COCREATION_LOG.md) document verified behavior and
+remaining acceptance work. The release checklist is currently blocked on
+human/device and hosted-deployment evidence; automated tests do not substitute
+for those gates.
+
+For sample local data, set `DIMTS_SEED_HELPER_TOKEN` in `.env` to a newly
+generated 32-byte base64url value, then run:
+
+```powershell
+docker compose --profile local --profile seed run --rm seed
+```
+
+`pnpm seed` performs the same course/job/helper seeding when
+`DATABASE_URL_DIRECT` points to a database reachable from the host.
+`pnpm usage` reports database size and the largest tables.
+`pnpm purge:dry-run` only reports personal-data counts;
+`pnpm purge:event` is destructive and must only be run after reviewing the
+dry-run output.
+
+For an optional local scheduler that calls the documented retention and alert
+routes at 06:00 and 07:30 UTC, start Compose with the `scheduler` profile. The
+optional `local-ai` profile runs Ollama; it does not change the default offline
+provider or automatically enable a model. See [local AI setup](./docs/LOCAL_AI.md).
+
 ## Grounded tutor evaluation
 
 Run `pnpm eval` to regenerate [the full evaluation](./docs/EVAL.md).

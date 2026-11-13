@@ -50,22 +50,22 @@ preserved as clearly marked follow-on prompts below.
 
 ## Execution order and dependencies
 
-| Order | Prompt | Genuine prerequisite |
-|---|---|---|
-| 1 | P01 — Language packs and locale tooling | None |
-| 2 | P02 — Grounded tutor, providers, and evaluation | P01 data can be developed concurrently with fixtures, but reviewed packs are required for final language acceptance |
-| 3 | P03 — Learner widget, offline UX, and embed contract | P01; existing API/session/ask foundations |
-| 4 | P04 — Production voice workflows | P01 and P03's widget integration points |
-| 5 | P05 — Human help, availability, and screen sharing | P03; existing help request/chat foundations |
-| 6 | P06 — Jobs and accommodation gateway | P02 job-passage contract; API/session foundations |
-| 7 | P07 — SMS channel and simulator | P01 and P06 career service/notification contract |
-| 8 | P08 — Telegram channel | P01, P02, P05 help relay, and P06 career service |
-| 9 | P09 — Anonymous feedback and teacher insights | P02 reply/citation semantics and P03 message actions; P10 later adds LTI instructor access |
-| 10 | P10 — LTI and REST integration levels | P03 embed contract and P09 insights page; P06 job import contract |
-| 11 | P11 — Operations, privacy, security, and release gates | P04–P10 feature contracts; operational scaffolding may start earlier |
-| Follow-on | P12 — Accessibility personalization suite | P01 and P03; explicit privacy and co-design decisions below |
-| Follow-on | P13 — Learning coach and outcome analytics | P02, P06, P09, and an approved longitudinal-data/consent model |
-| Follow-on | P14 — Connector Hub and self-serve onboarding | Existing AR-03–AR-05 source contracts and synchronization pipeline; P10 integration conventions |
+| Order     | Prompt                                                 | Genuine prerequisite                                                                                                |
+| --------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------- |
+| 1         | P01 — Language packs and locale tooling                | None                                                                                                                |
+| 2         | P02 — Grounded tutor, providers, and evaluation        | P01 data can be developed concurrently with fixtures, but reviewed packs are required for final language acceptance |
+| 3         | P03 — Learner widget, offline UX, and embed contract   | P01; existing API/session/ask foundations                                                                           |
+| 4         | P04 — Production voice workflows                       | P01 and P03's widget integration points                                                                             |
+| 5         | P05 — Human help, availability, and screen sharing     | P03; existing help request/chat foundations                                                                         |
+| 6         | P06 — Jobs and accommodation gateway                   | P02 job-passage contract; API/session foundations                                                                   |
+| 7         | P07 — SMS channel and simulator                        | P01 and P06 career service/notification contract                                                                    |
+| 8         | P08 — Telegram channel                                 | P01, P02, P05 help relay, and P06 career service                                                                    |
+| 9         | P09 — Anonymous feedback and teacher insights          | P02 reply/citation semantics and P03 message actions; P10 later adds LTI instructor access                          |
+| 10        | P10 — LTI and REST integration levels                  | P03 embed contract and P09 insights page; P06 job import contract                                                   |
+| 11        | P11 — Operations, privacy, security, and release gates | P04–P10 feature contracts; operational scaffolding may start earlier                                                |
+| Follow-on | P12 — Accessibility personalization suite              | P01 and P03; explicit privacy and co-design decisions below                                                         |
+| Follow-on | P13 — Learning coach and outcome analytics             | P02, P06, P09, and an approved longitudinal-data/consent model                                                      |
+| Follow-on | P14 — Connector Hub and self-serve onboarding          | Existing AR-03–AR-05 source contracts and synchronization pipeline; P10 integration conventions                     |
 
 The order is a recommendation, not a reinstatement of the old parallel
 ownership lanes. Each prompt below contains enough context and acceptance
@@ -131,7 +131,7 @@ permit placeholders or leave work in that prompt's scope unfinished.
 > packs; maintain pack-level RTL data and use CSS logical properties in any
 > touched UI. Do not log learner text or contact identifiers. Avoid new
 > dependencies unless justified in `DECISIONS.md`. Acceptance: `pnpm
-> lang:check`, language tests, and typecheck pass; reviewed/live status is
+lang:check`, language tests, and typecheck pass; reviewed/live status is
 > truthful; counts and date behavior are verified; all pack data is consumed
 > by the existing loader without language-specific branches in the core flow.
 
@@ -455,7 +455,7 @@ permit placeholders or leave work in that prompt's scope unfinished.
 > session-authenticated `POST /v1/subscriptions` and
 > `DELETE /v1/subscriptions/{id}`; idempotent daily runner and dry-run mode;
 > at most one daily digest per subscriber; unique `(subscription,
-> job)` delivery; send title, organization, deadline, and link in the
+job)` delivery; send title, organization, deadline, and link in the
 > learner's language; stopped/expired consent is checked before every send;
 > per-channel rate/digest policies use the P07/P08 delivery contract. Persist
 > only encrypted contact for consented active subscription and keyed hashes
@@ -961,22 +961,22 @@ prompts. Requirement IDs are intentionally repeated where delivery crosses
 package boundaries; repeated IDs mean integration coverage, not duplicate
 implementations.
 
-| Original requirement/task family | Consolidated coverage |
-|---|---|
-| Conversation escalation, distress, prompt injection, negative-feedback/notfound escalation, language guard, cross-language note, prompt/glossary use, job grounding, evaluation and quality floors; provider adapters, consent, offline FAQ, cache, health/debug, local-AI guide; engine/grounding/AI coverage and privacy-safe logging | P02 |
-| Locale ICU/plurals/fallback/status gating/review, 200-term glossary, prompts and phrase lists, 30 FAQs, 10 checks per language, date/number formatting, add-language scaffolder/docs, optional transliteration, voice review metadata | P01; exercised by P02–P08 and P11 |
-| Widget offline/slow states and FAQ cache, remote-AI notice/opt-out, reply actions/feedback client, shortcuts, host theming/contrast, lazy loading/size, Simple mode, reflow/zoom/targets/spacing, a11y matrix, Level 1 embed methods/events/CSP/cleanup | P03 |
-| Microphone/read-aloud capability selection, no-audio-storage, review-before-send, Afaan Oromoo beta and real-device voice protocol; authoritative removal of audio caching | P04 |
-| Help preview/summary consent, availability, outside-hours and 5-minute fallback, waiting while tutoring, helper queue/claim/chat/reconnect, share consent/stop/RTC/ICE/TURN, image fallback/retention, helper name/metrics and rate limits | P05 |
-| JobPosting import/list/search/citations, subscriptions/consent/stop, matching and idempotent alert runner, accommodation draft/review/approve/send, no diagnosis/name, session-only Support I need filter, Ethiopian dates, web/SMS/Telegram flows | P02 (passage converter), P06 (career service and web flow), P07/P08 (real SMS/Telegram integration) |
-| SMS gateway/simulator, inbound route, keyword and numeric language flows, GSM-7/UCS-2 segmentation/shortening, callback Y consent, STOP, digest/rate limit, encryption/hash, delivery retry/status and documentation | P07; P06 supplies job service; P07 verifies actual SMS job alerts |
-| Telegram webhook/private-only commands, voice-note confirmation, text/citations/audio, 4096 splitting, rate-controlled send queue/retry, help/endhelp, privacy consent, hash/encryption, friendly failure handling | P08; P06 supplies job service; P08 verifies actual Telegram job commands/alerts |
-| Feedback endpoint, anonymous topic/language/period counters, notfound counts, host/LTI authorization, small-group “Other”, accessible table/summary/CSV, no question text/session ID | P03 (client), P09 (end-to-end service/page), P10 (LTI role) |
-| LTI login/launch/JWKS, OIDC validation/deep links/role mapping; REST OpenAPI and examples; integration onboarding | P10; P03 owns Level 1; P11 owns install/release evidence and regression-tests existing FR-INT-08 public/private source adapters |
-| Data delete across channels, retention, privacy docs, secure config/rates/uploads/origin controls, Compose/Render/TURN/local AI/seed/restart, cron/keepwarm, usage warning, CI/eval/a11y/contrast/coverage/audit/secret scan, performance, cost/free-tier and gate evidence | P05 (help-specific data), P06–P09 (feature-specific deletion), P11 (system-wide policy and release gate) |
-| Accessibility profiles, human-approved easy-read content, real sign-language library, AAC/switch/eye-gaze, captions/transcripts, dyslexia settings, VPAT/ACR, paid standing co-design council | P12 (follow-on; non-code organizational dependencies called out) |
-| Grounded study tools, three reading levels, content-gap detection, cohort heatmaps, completion/retention/support/job/cost outcomes, privacy-preserving institutional impact reports | P13 (follow-on; longitudinal-data approval called out) |
-| Moodle/Canvas/Drive/Notion/Confluence/SharePoint/PDF/transcript/job-feed/ATS connectors, sitemap preview/approval, diff/rollback/history, SDK, React/Flutter/WordPress/Moodle plugins, PWA/QR onboarding | P14 (follow-on; auth, format, scope, and ownership questions called out) |
+| Original requirement/task family                                                                                                                                                                                                                                                                                                        | Consolidated coverage                                                                                                           |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| Conversation escalation, distress, prompt injection, negative-feedback/notfound escalation, language guard, cross-language note, prompt/glossary use, job grounding, evaluation and quality floors; provider adapters, consent, offline FAQ, cache, health/debug, local-AI guide; engine/grounding/AI coverage and privacy-safe logging | P02                                                                                                                             |
+| Locale ICU/plurals/fallback/status gating/review, 200-term glossary, prompts and phrase lists, 30 FAQs, 10 checks per language, date/number formatting, add-language scaffolder/docs, optional transliteration, voice review metadata                                                                                                   | P01; exercised by P02–P08 and P11                                                                                               |
+| Widget offline/slow states and FAQ cache, remote-AI notice/opt-out, reply actions/feedback client, shortcuts, host theming/contrast, lazy loading/size, Simple mode, reflow/zoom/targets/spacing, a11y matrix, Level 1 embed methods/events/CSP/cleanup                                                                                 | P03                                                                                                                             |
+| Microphone/read-aloud capability selection, no-audio-storage, review-before-send, Afaan Oromoo beta and real-device voice protocol; authoritative removal of audio caching                                                                                                                                                              | P04                                                                                                                             |
+| Help preview/summary consent, availability, outside-hours and 5-minute fallback, waiting while tutoring, helper queue/claim/chat/reconnect, share consent/stop/RTC/ICE/TURN, image fallback/retention, helper name/metrics and rate limits                                                                                              | P05                                                                                                                             |
+| JobPosting import/list/search/citations, subscriptions/consent/stop, matching and idempotent alert runner, accommodation draft/review/approve/send, no diagnosis/name, session-only Support I need filter, Ethiopian dates, web/SMS/Telegram flows                                                                                      | P02 (passage converter), P06 (career service and web flow), P07/P08 (real SMS/Telegram integration)                             |
+| SMS gateway/simulator, inbound route, keyword and numeric language flows, GSM-7/UCS-2 segmentation/shortening, callback Y consent, STOP, digest/rate limit, encryption/hash, delivery retry/status and documentation                                                                                                                    | P07; P06 supplies job service; P07 verifies actual SMS job alerts                                                               |
+| Telegram webhook/private-only commands, voice-note confirmation, text/citations/audio, 4096 splitting, rate-controlled send queue/retry, help/endhelp, privacy consent, hash/encryption, friendly failure handling                                                                                                                      | P08; P06 supplies job service; P08 verifies actual Telegram job commands/alerts                                                 |
+| Feedback endpoint, anonymous topic/language/period counters, notfound counts, host/LTI authorization, small-group “Other”, accessible table/summary/CSV, no question text/session ID                                                                                                                                                    | P03 (client), P09 (end-to-end service/page), P10 (LTI role)                                                                     |
+| LTI login/launch/JWKS, OIDC validation/deep links/role mapping; REST OpenAPI and examples; integration onboarding                                                                                                                                                                                                                       | P10; P03 owns Level 1; P11 owns install/release evidence and regression-tests existing FR-INT-08 public/private source adapters |
+| Data delete across channels, retention, privacy docs, secure config/rates/uploads/origin controls, Compose/Render/TURN/local AI/seed/restart, cron/keepwarm, usage warning, CI/eval/a11y/contrast/coverage/audit/secret scan, performance, cost/free-tier and gate evidence                                                             | P05 (help-specific data), P06–P09 (feature-specific deletion), P11 (system-wide policy and release gate)                        |
+| Accessibility profiles, human-approved easy-read content, real sign-language library, AAC/switch/eye-gaze, captions/transcripts, dyslexia settings, VPAT/ACR, paid standing co-design council                                                                                                                                           | P12 (follow-on; non-code organizational dependencies called out)                                                                |
+| Grounded study tools, three reading levels, content-gap detection, cohort heatmaps, completion/retention/support/job/cost outcomes, privacy-preserving institutional impact reports                                                                                                                                                     | P13 (follow-on; longitudinal-data approval called out)                                                                          |
+| Moodle/Canvas/Drive/Notion/Confluence/SharePoint/PDF/transcript/job-feed/ATS connectors, sitemap preview/approval, diff/rollback/history, SDK, React/Flutter/WordPress/Moodle plugins, PWA/QR onboarding                                                                                                                                | P14 (follow-on; auth, format, scope, and ownership questions called out)                                                        |
 
 ### Reconciled ambiguities and stale statements
 

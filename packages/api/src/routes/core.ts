@@ -10,6 +10,7 @@ import type { ApiConfig } from "../config.js";
 import { generateOpenApiYaml } from "../openapi.js";
 import {
   AskRequestSchema,
+  DataDeleteRequestSchema,
   FeedbackRequestSchema,
   FeedbackResponseSchema,
   HealthResponseSchema,
@@ -25,7 +26,11 @@ import {
   createConversationService,
 } from "../conversation.js";
 import type { ApiProviderRuntime } from "../provider-runtime.js";
-import { createSessionAuth, sha256 } from "../middleware/auth.js";
+import {
+  createSessionAuth,
+  matchesSessionToken,
+  sha256,
+} from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
 import type { ConversationStateStore } from "../db/conversation-state.js";
 import { buildReviewedFaq } from "../faq.js";
@@ -97,6 +102,37 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       response.json(FeedbackResponseSchema.parse({ ok: true }));
     });
   }
+
+  router.post("/data/delete", async (request, response) => {
+    const body = DataDeleteRequestSchema.safeParse(request.body);
+    if (!body.success) {
+      sendProblem(response, 400, "invalid_request", "error.invalid");
+      return;
+    }
+
+    const token = /^Bearer ([A-Za-z0-9_-]{20,100})$/u.exec(
+      request.header("authorization") ?? "",
+    )?.[1];
+    if (!token) {
+      sendProblem(response, 401, "unauthorized", "error.generic");
+      return;
+    }
+
+    const storedHash = await repository.getSessionTokenHash(
+      body.data.sessionId,
+    );
+    if (storedHash === null) {
+      response.status(204).end();
+      return;
+    }
+    if (!matchesSessionToken(storedHash, sha256(token))) {
+      sendProblem(response, 401, "unauthorized", "error.generic");
+      return;
+    }
+
+    await repository.deleteSessionData(body.data.sessionId);
+    response.status(204).end();
+  });
 
   router.get("/health", async (_request, response) => {
     let timer: NodeJS.Timeout | undefined;

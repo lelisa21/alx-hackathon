@@ -83,7 +83,9 @@ describe("schema.org JobPosting passages", () => {
 
     expect(result.passages).toHaveLength(1);
     expect(result.passages[0]?.lang).toBe("om");
-    expect(result.errors).toEqual([{ index: 1, reason: "invalid_job_posting" }]);
+    expect(result.errors).toEqual([
+      { index: 1, reason: "invalid_job_posting" },
+    ]);
   });
 
   it("does not create passages for non-JobPosting objects or unsafe citation URLs", () => {

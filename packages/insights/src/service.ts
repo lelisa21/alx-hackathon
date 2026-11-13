@@ -3,16 +3,24 @@
  * Aggregates feedback and question data with privacy protections
  */
 
-import type { InsightQuery, InsightRow, InsightsRepository, InsightsService, RawInsightRow } from './types.js';
+import type {
+  InsightQuery,
+  InsightRow,
+  InsightsRepository,
+  InsightsService,
+  RawInsightRow,
+} from "./types.js";
 
-export function createInsightsService(repository: InsightsRepository): InsightsService {
+export function createInsightsService(
+  repository: InsightsRepository,
+): InsightsService {
   return {
     async getRows(query: InsightQuery): Promise<InsightRow[]> {
       const raw = await repository.queryInsights(query);
-      
+
       // Group rows by (topic, lang, period) for small-cell suppression
       const grouped = new Map<string, RawInsightRow[]>();
-      
+
       for (const row of raw) {
         const key = `${row.topic_id}|${row.lang}|${row.period}`;
         if (!grouped.has(key)) {
@@ -26,10 +34,11 @@ export function createInsightsService(repository: InsightsRepository): InsightsS
       const result: InsightRow[] = [];
       const otherRows: RawInsightRow[] = [];
 
-      for (const [_key, rows] of grouped) {
+      for (const rows of grouped.values()) {
         const totalCount = rows.reduce(
-          (sum, r) => sum + r.question_count + r.notfound_count + r.helpful + r.unhelpful,
-          0
+          (sum, r) =>
+            sum + r.question_count + r.notfound_count + r.helpful + r.unhelpful,
+          0,
         );
 
         if (totalCount < minCellSize) {
@@ -56,9 +65,9 @@ export function createInsightsService(repository: InsightsRepository): InsightsS
       // Add "Other" aggregate if there are suppressed rows
       if (otherRows.length > 0) {
         const otherAgg: RawInsightRow = {
-          topic_id: 'Other',
-          lang: otherRows[0]?.lang ?? 'unknown',
-          period: otherRows[0]?.period ?? new Date().toISOString().split('T')[0],
+          topic_id: "Other",
+          lang: otherRows[0]?.lang ?? "unknown",
+          period: otherRows[0]?.period ?? new Date().toISOString().slice(0, 10),
           question_count: otherRows.reduce((s, r) => s + r.question_count, 0),
           notfound_count: otherRows.reduce((s, r) => s + r.notfound_count, 0),
           helpful: otherRows.reduce((s, r) => s + r.helpful, 0),
@@ -67,7 +76,7 @@ export function createInsightsService(repository: InsightsRepository): InsightsS
 
         result.push({
           topicId: otherAgg.topic_id,
-          topicLabel: 'Other',
+          topicLabel: "Other",
           lang: otherAgg.lang,
           period: otherAgg.period,
           questionCount: otherAgg.question_count,
@@ -91,31 +100,40 @@ export function createInsightsService(repository: InsightsRepository): InsightsS
 
     toCsv(rows: InsightRow[]): string {
       // RFC 4180 CSV with formula-injection defense
-      const headers = ['topic_id', 'topic_label', 'lang', 'period', 'question_count', 'notfound_count', 'helpful', 'unhelpful'];
-      
+      const headers = [
+        "topic_id",
+        "topic_label",
+        "lang",
+        "period",
+        "question_count",
+        "notfound_count",
+        "helpful",
+        "unhelpful",
+      ];
+
       const escapeCsv = (value: string | number | null): string => {
-        if (value === null || value === undefined) return '';
+        if (value === null || value === undefined) return "";
         const str = String(value);
-        
+
         // Escape formula-injection characters
         if (str.match(/^[=+\-@]/)) {
           return `"=${str.replace(/"/g, '""')}"`;
         }
-        
+
         // Quote if contains comma, quote, or newline
-        if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+        if (str.includes(",") || str.includes('"') || str.includes("\n")) {
           return `"${str.replace(/"/g, '""')}"`;
         }
-        
+
         return str;
       };
 
-      const lines: string[] = [headers.join(',')];
-      
+      const lines: string[] = [headers.join(",")];
+
       for (const row of rows) {
         const values = [
           row.topicId,
-          row.topicLabel ?? '',
+          row.topicLabel ?? "",
           row.lang,
           row.period,
           row.questionCount,
@@ -123,10 +141,10 @@ export function createInsightsService(repository: InsightsRepository): InsightsS
           row.helpfulCount,
           row.unhelpfulCount,
         ];
-        lines.push(values.map(escapeCsv).join(','));
+        lines.push(values.map(escapeCsv).join(","));
       }
 
-      return lines.join('\r\n');
+      return lines.join("\r\n");
     },
   };
 }

@@ -15,8 +15,10 @@ function wordGramVariants(word: string): string[] {
   const variants = new Set([word]);
   for (const [first, second] of AMHARIC_SEARCH_PAIRS) {
     for (const variant of [...variants]) {
-      if (variant.includes(first)) variants.add(variant.replaceAll(first, second));
-      if (variant.includes(second)) variants.add(variant.replaceAll(second, first));
+      if (variant.includes(first))
+        variants.add(variant.replaceAll(first, second));
+      if (variant.includes(second))
+        variants.add(variant.replaceAll(second, first));
     }
   }
   return [...variants].flatMap(wordGrams);

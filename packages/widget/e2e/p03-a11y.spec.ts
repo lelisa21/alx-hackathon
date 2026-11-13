@@ -12,6 +12,7 @@ const sampleFor = (code: string) =>
       a: string;
     }[]
   )[0]!;
+let deleteAttempts = 0;
 
 // Draft packs are enabled in this UI fixture only. This is not review evidence.
 async function installFixture(page: Page, code: string) {
@@ -92,10 +93,61 @@ async function installFixture(page: Page, code: string) {
           contentVersion: "fixture-v1",
         },
       });
+    if (path.endsWith("/data/delete")) {
+      const status = deleteAttempts++ === 0 ? 500 : 204;
+      return status === 204
+        ? route.fulfill({ status })
+        : route.fulfill({ status, json: {} });
+    }
     return route.fulfill({ status: 404, json: {} });
   });
   await page.goto("http://127.0.0.1:4173/p03-a11y");
 }
+
+test("P11 privacy deletion requires confirmation, reports errors, and can retry", async ({
+  page,
+}) => {
+  deleteAttempts = 0;
+  await installFixture(page, "en");
+  const ui = packs.get("en")!.ui;
+  await page
+    .getByRole("button", { name: packs.get("en")!.meta.name_native })
+    .click();
+  await page
+    .getByRole("button", { name: ui["settings.button"]!, exact: true })
+    .click();
+  const deletion = page.locator('[aria-labelledby="delete-data-heading"]');
+  await deletion
+    .getByRole("button", { name: ui["privacy.deleteButton"]!, exact: true })
+    .click();
+  await expect(deletion.getByText(ui["privacy.deleteConfirm"]!)).toBeVisible();
+  await deletion
+    .getByRole("button", { name: ui["privacy.deleteCancel"]!, exact: true })
+    .click();
+  await expect(deletion.getByText(ui["privacy.deleteConfirm"]!)).toHaveCount(0);
+
+  await deletion
+    .getByRole("button", { name: ui["privacy.deleteButton"]!, exact: true })
+    .click();
+  await deletion
+    .getByRole("button", {
+      name: ui["privacy.deleteConfirmButton"]!,
+      exact: true,
+    })
+    .click();
+  await expect(deletion.getByRole("status")).toHaveText(
+    ui["privacy.deleteFailed"]!,
+  );
+  await deletion
+    .getByRole("button", {
+      name: ui["privacy.deleteConfirmButton"]!,
+      exact: true,
+    })
+    .click();
+  await expect(
+    page.getByText(ui["privacy.deleted"]!, { exact: true }),
+  ).toBeVisible();
+});
 
 async function audit(page: Page, testInfo: TestInfo, screen: string) {
   if (screen === "help-preview" && testInfo.title.includes("om light 320")) {

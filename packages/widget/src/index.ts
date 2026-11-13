@@ -174,6 +174,9 @@ export class DimtsAssistant extends LitElement {
     consentBusy: { state: true },
     consentFailed: { state: true },
     consentNotice: { state: true },
+    deleteConfirmOpen: { state: true },
+    deletingData: { state: true },
+    deleteDataNotice: { state: true },
     faqState: { state: true },
     faqItems: { state: true },
     faqCached: { state: true },
@@ -241,6 +244,9 @@ export class DimtsAssistant extends LitElement {
   declare private consentBusy: boolean;
   declare private consentFailed: boolean;
   declare private consentNotice: string;
+  declare private deleteConfirmOpen: boolean;
+  declare private deletingData: boolean;
+  declare private deleteDataNotice: string;
   declare private faqState: "idle" | "loading" | "ready" | "failed";
   declare private faqItems: FaqItem[];
   declare private faqCached: boolean;
@@ -2515,8 +2521,110 @@ export class DimtsAssistant extends LitElement {
                 ${this.t("voice.unavailable")}
               </p>`
         }
+        ${
+          this.sessionId
+            ? html`
+                <section
+                  class="setting-group"
+                  aria-labelledby="delete-data-heading"
+                >
+                  <h3 id="delete-data-heading">
+                    ${this.t("privacy.deleteTitle")}
+                  </h3>
+                  <p>${this.t("privacy.deleteDescription")}</p>
+                  <p>
+                    <a
+                      href="https://github.com/lelisa21/alx-hackathon/blob/main/docs/PRIVACY.md"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      lang=${this.uiLanguage}
+                      dir=${this.uiDirection}
+                      >${this.t("privacy.policyLink")}</a
+                    >
+                  </p>
+                  ${
+                    this.deleteConfirmOpen
+                      ? html`
+                          <p>${this.t("privacy.deleteConfirm")}</p>
+                          <div class="settings-list">
+                            <button
+                              lang=${this.uiLanguage}
+                              dir=${this.uiDirection}
+                              type="button"
+                              ?disabled=${this.deletingData}
+                              @click=${() => void this.deleteMyData()}
+                            >
+                              ${
+                                this.deletingData
+                                  ? this.t("privacy.deleting")
+                                  : this.t("privacy.deleteConfirmButton")
+                              }
+                            </button>
+                            <button
+                              lang=${this.uiLanguage}
+                              dir=${this.uiDirection}
+                              type="button"
+                              ?disabled=${this.deletingData}
+                              @click=${() => {
+                                this.deleteConfirmOpen = false;
+                                this.deleteDataNotice = "";
+                              }}
+                            >
+                              ${this.t("privacy.deleteCancel")}
+                            </button>
+                          </div>
+                        `
+                      : html`
+                          <button
+                            lang=${this.uiLanguage}
+                            dir=${this.uiDirection}
+                            type="button"
+                            @click=${() => {
+                              this.deleteConfirmOpen = true;
+                              this.deleteDataNotice = "";
+                            }}
+                          >
+                            ${this.t("privacy.deleteButton")}
+                          </button>
+                        `
+                  }
+                  <p role="status" aria-live="polite">
+                    ${this.deleteDataNotice}
+                  </p>
+                </section>
+              `
+            : nothing
+        }
       </section>
     `;
+  }
+
+  private async deleteMyData(): Promise<void> {
+    if (!this.sessionId || !this.sessionToken || this.deletingData) return;
+    this.deletingData = true;
+    this.deleteDataNotice = this.t("privacy.deleting");
+    try {
+      const response = await this.request(`${this.apiRoot}/data/delete`, {
+        method: "POST",
+        headers: {
+          authorization: `Bearer ${this.sessionToken}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ sessionId: this.sessionId }),
+      });
+      if (!response.ok) throw new Error("data deletion failed");
+      this.clearOwnedStorage();
+      this.resetExpiredSession();
+      this.panel = "settings";
+      this.deleteConfirmOpen = false;
+      this.deleteDataNotice = this.t("privacy.deleted");
+      this.notice = this.deleteDataNotice;
+      this.noticeIsError = false;
+    } catch {
+      this.deleteDataNotice = this.t("privacy.deleteFailed");
+    } finally {
+      this.deletingData = false;
+    }
   }
 
   private renderToggle(

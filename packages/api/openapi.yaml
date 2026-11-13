@@ -27,6 +27,11 @@ components:
       in: header
       name: X-Telegram-Bot-Api-Secret-Token
       description: Separately configured DIMTS_TELEGRAM_SECRET; hosted webhook mode only
+    ltiBearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Signed LTI id_token from authorized platform
   schemas:
     AskRequest:
       type: object
@@ -50,7 +55,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a10
+          enum:
             - text
             - voice
             - sms
@@ -64,6 +69,16 @@ components:
         - lang
         - text
         - via
+      additionalProperties: false
+    DataDeleteRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 8
+          maxLength: 64
+      required:
+        - sessionId
       additionalProperties: false
     FeedbackRequest:
       type: object
@@ -95,7 +110,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a11
+          enum:
             - answer
             - notfound
             - escalation
@@ -107,7 +122,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a12
+          enum:
             - ltr
             - rtl
         citations:
@@ -126,7 +141,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a13
+                enum:
                   - course
                   - job
               timestamp:
@@ -145,7 +160,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a14
+                enum:
                   - help
                   - more
                   - open_source
@@ -184,7 +199,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a2
+          enum:
             - invalid_request
             - unauthorized
             - forbidden
@@ -201,776 +216,6 @@ components:
         - status
         - code
         - messageKey
-      additionalProperties: false
-    TelegramUpdate:
-      type: object
-      properties:
-        update_id:
-          type: integer
-          minimum: 0
-          maximum: 9007199254740991
-        message:
-          type: object
-          properties:
-            message_id:
-              type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-              exclusiveMinimum: 0
-            date:
-              type: integer
-              minimum: 0
-              maximum: 9007199254740991
-            chat:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                type:
-                  type: string
-                  enum: &a1
-                    - private
-                    - group
-                    - supergroup
-                    - channel
-                first_name:
-                  type: string
-                  maxLength: 256
-                last_name:
-                  type: string
-                  maxLength: 256
-                username:
-                  type: string
-                  maxLength: 64
-                title:
-                  type: string
-                  maxLength: 256
-                is_forum:
-                  type: boolean
-                is_direct_messages:
-                  type: boolean
-              required:
-                - id
-                - type
-              additionalProperties: false
-            from:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                  exclusiveMinimum: 0
-                is_bot:
-                  type: boolean
-                first_name:
-                  type: string
-                  maxLength: 256
-                last_name:
-                  type: string
-                  maxLength: 256
-                username:
-                  type: string
-                  maxLength: 64
-                language_code:
-                  type: string
-                  maxLength: 35
-                is_premium:
-                  type: boolean
-                added_to_attachment_menu:
-                  type: boolean
-              required:
-                - id
-                - is_bot
-              additionalProperties: false
-            text:
-              type: string
-              minLength: 1
-              maxLength: 4096
-            entities:
-              type: array
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    minLength: 1
-                    maxLength: 64
-                  offset:
-                    type: integer
-                    minimum: 0
-                    maximum: 9007199254740991
-                  length:
-                    type: integer
-                    minimum: 0
-                    maximum: 9007199254740991
-                  url:
-                    type: string
-                    maxLength: 4096
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                        exclusiveMinimum: 0
-                      is_bot:
-                        type: boolean
-                      first_name:
-                        type: string
-                        maxLength: 256
-                      last_name:
-                        type: string
-                        maxLength: 256
-                      username:
-                        type: string
-                        maxLength: 64
-                      language_code:
-                        type: string
-                        maxLength: 35
-                      is_premium:
-                        type: boolean
-                      added_to_attachment_menu:
-                        type: boolean
-                    required:
-                      - id
-                      - is_bot
-                    additionalProperties: false
-                  language:
-                    type: string
-                    maxLength: 64
-                  custom_emoji_id:
-                    type: string
-                    maxLength: 128
-                  unix_time:
-                    type: integer
-                    minimum: -9007199254740991
-                    maximum: 9007199254740991
-                  date_time_format:
-                    type: string
-                    maxLength: 64
-                required:
-                  - type
-                  - offset
-                  - length
-                additionalProperties: false
-              maxItems: 100
-            voice:
-              type: object
-              properties:
-                file_id:
-                  type: string
-                  minLength: 1
-                  maxLength: 256
-                file_unique_id:
-                  type: string
-                  maxLength: 256
-                file_size:
-                  type: integer
-                  minimum: 0
-                  maximum: 9007199254740991
-                duration:
-                  type: integer
-                  minimum: 0
-                  maximum: 86400
-                mime_type:
-                  type: string
-                  maxLength: 128
-              required:
-                - file_id
-                - duration
-              additionalProperties: false
-            photo:
-              type: array
-              items:
-                type: object
-                properties:
-                  file_id:
-                    type: string
-                    minLength: 1
-                    maxLength: 256
-                  file_unique_id:
-                    type: string
-                    maxLength: 256
-                  file_size:
-                    type: integer
-                    minimum: 0
-                    maximum: 9007199254740991
-                  width:
-                    type: integer
-                    minimum: -9007199254740991
-                    maximum: 9007199254740991
-                    exclusiveMinimum: 0
-                  height:
-                    type: integer
-                    minimum: -9007199254740991
-                    maximum: 9007199254740991
-                    exclusiveMinimum: 0
-                required:
-                  - file_id
-                  - width
-                  - height
-                additionalProperties: false
-              maxItems: 10
-            caption:
-              type: string
-              maxLength: 2048
-            caption_entities:
-              type: array
-              items:
-                type: object
-                properties:
-                  type:
-                    type: string
-                    minLength: 1
-                    maxLength: 64
-                  offset:
-                    type: integer
-                    minimum: 0
-                    maximum: 9007199254740991
-                  length:
-                    type: integer
-                    minimum: 0
-                    maximum: 9007199254740991
-                  url:
-                    type: string
-                    maxLength: 4096
-                  user:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                        exclusiveMinimum: 0
-                      is_bot:
-                        type: boolean
-                      first_name:
-                        type: string
-                        maxLength: 256
-                      last_name:
-                        type: string
-                        maxLength: 256
-                      username:
-                        type: string
-                        maxLength: 64
-                      language_code:
-                        type: string
-                        maxLength: 35
-                      is_premium:
-                        type: boolean
-                      added_to_attachment_menu:
-                        type: boolean
-                    required:
-                      - id
-                      - is_bot
-                    additionalProperties: false
-                  language:
-                    type: string
-                    maxLength: 64
-                  custom_emoji_id:
-                    type: string
-                    maxLength: 128
-                  unix_time:
-                    type: integer
-                    minimum: -9007199254740991
-                    maximum: 9007199254740991
-                  date_time_format:
-                    type: string
-                    maxLength: 64
-                required:
-                  - type
-                  - offset
-                  - length
-                additionalProperties: false
-              maxItems: 100
-            document: {}
-            audio: {}
-            video: {}
-            video_note: {}
-            sticker: {}
-            animation: {}
-            contact: {}
-            location: {}
-            venue: {}
-            poll: {}
-            dice: {}
-            reply_to_message: {}
-            reply_markup: {}
-            forward_origin: {}
-            external_reply: {}
-            quote: {}
-            media_group_id:
-              type: string
-              maxLength: 256
-            edit_date:
-              type: integer
-              minimum: 0
-              maximum: 9007199254740991
-            via_bot:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                  exclusiveMinimum: 0
-                is_bot:
-                  type: boolean
-                first_name:
-                  type: string
-                  maxLength: 256
-                last_name:
-                  type: string
-                  maxLength: 256
-                username:
-                  type: string
-                  maxLength: 64
-                language_code:
-                  type: string
-                  maxLength: 35
-                is_premium:
-                  type: boolean
-                added_to_attachment_menu:
-                  type: boolean
-              required:
-                - id
-                - is_bot
-              additionalProperties: false
-            has_protected_content:
-              type: boolean
-            is_automatic_forward:
-              type: boolean
-            message_thread_id:
-              type: integer
-              minimum: -9007199254740991
-              maximum: 9007199254740991
-            business_connection_id:
-              type: string
-              maxLength: 256
-          required:
-            - message_id
-            - chat
-          additionalProperties: false
-        callback_query:
-          type: object
-          properties:
-            id:
-              type: string
-              minLength: 1
-              maxLength: 256
-            from:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                  exclusiveMinimum: 0
-                is_bot:
-                  type: boolean
-                first_name:
-                  type: string
-                  maxLength: 256
-                last_name:
-                  type: string
-                  maxLength: 256
-                username:
-                  type: string
-                  maxLength: 64
-                language_code:
-                  type: string
-                  maxLength: 35
-                is_premium:
-                  type: boolean
-                added_to_attachment_menu:
-                  type: boolean
-              required:
-                - id
-                - is_bot
-              additionalProperties: false
-            message:
-              type: object
-              properties:
-                message_id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                  exclusiveMinimum: 0
-                date:
-                  type: integer
-                  minimum: 0
-                  maximum: 9007199254740991
-                chat:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      minimum: -9007199254740991
-                      maximum: 9007199254740991
-                    type:
-                      type: string
-                      enum: *a1
-                    first_name:
-                      type: string
-                      maxLength: 256
-                    last_name:
-                      type: string
-                      maxLength: 256
-                    username:
-                      type: string
-                      maxLength: 64
-                    title:
-                      type: string
-                      maxLength: 256
-                    is_forum:
-                      type: boolean
-                    is_direct_messages:
-                      type: boolean
-                  required:
-                    - id
-                    - type
-                  additionalProperties: false
-                from:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      minimum: -9007199254740991
-                      maximum: 9007199254740991
-                      exclusiveMinimum: 0
-                    is_bot:
-                      type: boolean
-                    first_name:
-                      type: string
-                      maxLength: 256
-                    last_name:
-                      type: string
-                      maxLength: 256
-                    username:
-                      type: string
-                      maxLength: 64
-                    language_code:
-                      type: string
-                      maxLength: 35
-                    is_premium:
-                      type: boolean
-                    added_to_attachment_menu:
-                      type: boolean
-                  required:
-                    - id
-                    - is_bot
-                  additionalProperties: false
-                text:
-                  type: string
-                  minLength: 1
-                  maxLength: 4096
-                entities:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                        minLength: 1
-                        maxLength: 64
-                      offset:
-                        type: integer
-                        minimum: 0
-                        maximum: 9007199254740991
-                      length:
-                        type: integer
-                        minimum: 0
-                        maximum: 9007199254740991
-                      url:
-                        type: string
-                        maxLength: 4096
-                      user:
-                        type: object
-                        properties:
-                          id:
-                            type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
-                            exclusiveMinimum: 0
-                          is_bot:
-                            type: boolean
-                          first_name:
-                            type: string
-                            maxLength: 256
-                          last_name:
-                            type: string
-                            maxLength: 256
-                          username:
-                            type: string
-                            maxLength: 64
-                          language_code:
-                            type: string
-                            maxLength: 35
-                          is_premium:
-                            type: boolean
-                          added_to_attachment_menu:
-                            type: boolean
-                        required:
-                          - id
-                          - is_bot
-                        additionalProperties: false
-                      language:
-                        type: string
-                        maxLength: 64
-                      custom_emoji_id:
-                        type: string
-                        maxLength: 128
-                      unix_time:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                      date_time_format:
-                        type: string
-                        maxLength: 64
-                    required:
-                      - type
-                      - offset
-                      - length
-                    additionalProperties: false
-                  maxItems: 100
-                voice:
-                  type: object
-                  properties:
-                    file_id:
-                      type: string
-                      minLength: 1
-                      maxLength: 256
-                    file_unique_id:
-                      type: string
-                      maxLength: 256
-                    file_size:
-                      type: integer
-                      minimum: 0
-                      maximum: 9007199254740991
-                    duration:
-                      type: integer
-                      minimum: 0
-                      maximum: 86400
-                    mime_type:
-                      type: string
-                      maxLength: 128
-                  required:
-                    - file_id
-                    - duration
-                  additionalProperties: false
-                photo:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      file_id:
-                        type: string
-                        minLength: 1
-                        maxLength: 256
-                      file_unique_id:
-                        type: string
-                        maxLength: 256
-                      file_size:
-                        type: integer
-                        minimum: 0
-                        maximum: 9007199254740991
-                      width:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                        exclusiveMinimum: 0
-                      height:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                        exclusiveMinimum: 0
-                    required:
-                      - file_id
-                      - width
-                      - height
-                    additionalProperties: false
-                  maxItems: 10
-                caption:
-                  type: string
-                  maxLength: 2048
-                caption_entities:
-                  type: array
-                  items:
-                    type: object
-                    properties:
-                      type:
-                        type: string
-                        minLength: 1
-                        maxLength: 64
-                      offset:
-                        type: integer
-                        minimum: 0
-                        maximum: 9007199254740991
-                      length:
-                        type: integer
-                        minimum: 0
-                        maximum: 9007199254740991
-                      url:
-                        type: string
-                        maxLength: 4096
-                      user:
-                        type: object
-                        properties:
-                          id:
-                            type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
-                            exclusiveMinimum: 0
-                          is_bot:
-                            type: boolean
-                          first_name:
-                            type: string
-                            maxLength: 256
-                          last_name:
-                            type: string
-                            maxLength: 256
-                          username:
-                            type: string
-                            maxLength: 64
-                          language_code:
-                            type: string
-                            maxLength: 35
-                          is_premium:
-                            type: boolean
-                          added_to_attachment_menu:
-                            type: boolean
-                        required:
-                          - id
-                          - is_bot
-                        additionalProperties: false
-                      language:
-                        type: string
-                        maxLength: 64
-                      custom_emoji_id:
-                        type: string
-                        maxLength: 128
-                      unix_time:
-                        type: integer
-                        minimum: -9007199254740991
-                        maximum: 9007199254740991
-                      date_time_format:
-                        type: string
-                        maxLength: 64
-                    required:
-                      - type
-                      - offset
-                      - length
-                    additionalProperties: false
-                  maxItems: 100
-                document: {}
-                audio: {}
-                video: {}
-                video_note: {}
-                sticker: {}
-                animation: {}
-                contact: {}
-                location: {}
-                venue: {}
-                poll: {}
-                dice: {}
-                reply_to_message: {}
-                reply_markup: {}
-                forward_origin: {}
-                external_reply: {}
-                quote: {}
-                media_group_id:
-                  type: string
-                  maxLength: 256
-                edit_date:
-                  type: integer
-                  minimum: 0
-                  maximum: 9007199254740991
-                via_bot:
-                  type: object
-                  properties:
-                    id:
-                      type: integer
-                      minimum: -9007199254740991
-                      maximum: 9007199254740991
-                      exclusiveMinimum: 0
-                    is_bot:
-                      type: boolean
-                    first_name:
-                      type: string
-                      maxLength: 256
-                    last_name:
-                      type: string
-                      maxLength: 256
-                    username:
-                      type: string
-                      maxLength: 64
-                    language_code:
-                      type: string
-                      maxLength: 35
-                    is_premium:
-                      type: boolean
-                    added_to_attachment_menu:
-                      type: boolean
-                  required:
-                    - id
-                    - is_bot
-                  additionalProperties: false
-                has_protected_content:
-                  type: boolean
-                is_automatic_forward:
-                  type: boolean
-                message_thread_id:
-                  type: integer
-                  minimum: -9007199254740991
-                  maximum: 9007199254740991
-                business_connection_id:
-                  type: string
-                  maxLength: 256
-              required:
-                - message_id
-                - chat
-              additionalProperties: false
-            inline_message_id:
-              type: string
-              maxLength: 256
-            chat_instance:
-              type: string
-              maxLength: 256
-            data:
-              type: string
-              minLength: 1
-            game_short_name:
-              type: string
-              maxLength: 256
-          required:
-            - id
-            - from
-          additionalProperties: false
-        edited_message: {}
-        channel_post: {}
-        edited_channel_post: {}
-        my_chat_member: {}
-        chat_member: {}
-        chat_join_request: {}
-        inline_query: {}
-        chosen_inline_result: {}
-        poll: {}
-        poll_answer: {}
-        message_reaction: {}
-        message_reaction_count: {}
-        business_connection: {}
-        business_message: {}
-        edited_business_message: {}
-        deleted_business_messages: {}
-        shipping_query: {}
-        pre_checkout_query: {}
-        purchased_paid_media: {}
-      required:
-        - update_id
       additionalProperties: false
     TelegramAck:
       type: object
@@ -993,7 +238,15 @@ components:
           type: number
         code:
           type: string
-          enum: *a2
+          enum:
+            - invalid_request
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - rate_limited
+            - payload_too_large
+            - internal
         messageKey:
           type: string
         lang:
@@ -1014,10 +267,10 @@ components:
       properties:
         id:
           type: string
-          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
         from:
           type: string
-          pattern: ^\+[1-9]\d{6,14}$
+          pattern: ^\+[1-9]\d{6,14}$/u
         text:
           type: string
           minLength: 1
@@ -1041,7 +294,7 @@ components:
           maxLength: 2000
         encoding:
           type: string
-          enum: &a3
+          enum:
             - gsm7
             - ucs2
         units:
@@ -1053,7 +306,7 @@ components:
           maximum: 3
         status:
           type: string
-          enum: &a4
+          enum:
             - queued
             - sent
             - delivered
@@ -1084,7 +337,9 @@ components:
                 maxLength: 2000
               encoding:
                 type: string
-                enum: *a3
+                enum:
+                  - gsm7
+                  - ucs2
               units:
                 type: integer
                 minimum: 0
@@ -1094,7 +349,11 @@ components:
                 maximum: 3
               status:
                 type: string
-                enum: *a4
+                enum:
+                  - queued
+                  - sent
+                  - delivered
+                  - failed
             required:
               - id
               - text
@@ -1126,7 +385,15 @@ components:
           type: number
         code:
           type: string
-          enum: *a2
+          enum:
+            - invalid_request
+            - unauthorized
+            - forbidden
+            - not_found
+            - conflict
+            - rate_limited
+            - payload_too_large
+            - internal
         messageKey:
           type: string
         lang:
@@ -1153,7 +420,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a9
+          enum:
             - web
             - api
           default: web
@@ -1286,7 +553,7 @@ components:
                 maxLength: 35
               channel:
                 type: string
-                enum: &a15
+                enum:
                   - web
                   - api
                   - telegram
@@ -1394,11 +661,11 @@ components:
               urls:
                 anyOf:
                   - type: string
-                    pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                    pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u
                   - type: array
                     items:
                       type: string
-                      pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                      pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u
                     minItems: 1
                     maxItems: 16
               username:
@@ -1472,12 +739,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a6
+                enum:
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a7
+                enum:
                   - live
                   - beta
                   - draft
@@ -1532,7 +799,7 @@ components:
           maxLength: 35
         dir:
           type: string
-          enum: &a8
+          enum:
             - ltr
             - rtl
         contentVersion:
@@ -1543,7 +810,7 @@ components:
           type:
             - string
             - "null"
-          pattern: ^\d{4}-\d{2}-\d{2}$
+          pattern: ^\d{4}-\d{2}-\d{2}$/u
         items:
           type: array
           items:
@@ -1577,8 +844,7 @@ components:
                     url:
                       type: string
                       maxLength: 4000
-                      format: uri
-                      pattern: ^https?:\/\/
+                      pattern: ^https?:\/\//iu
                     sourceLang:
                       type: string
                       minLength: 1
@@ -1714,7 +980,7 @@ components:
           type: array
           items:
             type: string
-            enum: &a16
+            enum:
               - sms
               - telegram
         relayAvailable:
@@ -1763,7 +1029,7 @@ components:
           maxLength: 35
         channel:
           type: string
-          enum: &a18
+          enum:
             - sms
             - telegram
         contact:
@@ -1800,7 +1066,7 @@ components:
           type: string
         status:
           type: string
-          enum: &a17
+          enum:
             - active
             - stopped
       required:
@@ -1835,7 +1101,7 @@ components:
               type: array
               items:
                 type: string
-                enum: &a5
+                enum:
                   - sign_language_interpreter
                   - step_free_access
                   - written_questions
@@ -1957,7 +1223,7 @@ components:
           exclusiveMinimum: 0
         status:
           type: string
-          enum: &a19
+          enum:
             - draft
             - approved
             - sent
@@ -1976,8 +1242,13 @@ components:
           type: array
           items:
             type: string
-            enum: *a5
-          minItems: 0
+            enum:
+              - sign_language_interpreter
+              - step_free_access
+              - written_questions
+              - extra_time
+              - screen_reader_friendly_test
+              - other
           maxItems: 6
         otherText:
           type: string
@@ -2021,29 +1292,27 @@ paths:
                 update_id:
                   type: integer
                   minimum: 0
-                  maximum: 9007199254740991
                 message:
                   type: object
                   properties:
                     message_id:
                       type: integer
-                      minimum: -9007199254740991
-                      maximum: 9007199254740991
                       exclusiveMinimum: 0
                     date:
                       type: integer
                       minimum: 0
-                      maximum: 9007199254740991
                     chat:
                       type: object
                       properties:
                         id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                         type:
                           type: string
-                          enum: *a1
+                          enum:
+                            - private
+                            - group
+                            - supergroup
+                            - channel
                         first_name:
                           type: string
                           maxLength: 256
@@ -2069,8 +1338,6 @@ paths:
                       properties:
                         id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                           exclusiveMinimum: 0
                         is_bot:
                           type: boolean
@@ -2110,11 +1377,9 @@ paths:
                           offset:
                             type: integer
                             minimum: 0
-                            maximum: 9007199254740991
                           length:
                             type: integer
                             minimum: 0
-                            maximum: 9007199254740991
                           url:
                             type: string
                             maxLength: 4096
@@ -2123,8 +1388,6 @@ paths:
                             properties:
                               id:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                                 exclusiveMinimum: 0
                               is_bot:
                                 type: boolean
@@ -2156,8 +1419,6 @@ paths:
                             maxLength: 128
                           unix_time:
                             type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
                           date_time_format:
                             type: string
                             maxLength: 64
@@ -2180,7 +1441,6 @@ paths:
                         file_size:
                           type: integer
                           minimum: 0
-                          maximum: 9007199254740991
                         duration:
                           type: integer
                           minimum: 0
@@ -2207,16 +1467,11 @@ paths:
                           file_size:
                             type: integer
                             minimum: 0
-                            maximum: 9007199254740991
                           width:
                             type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
                             exclusiveMinimum: 0
                           height:
                             type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
                             exclusiveMinimum: 0
                         required:
                           - file_id
@@ -2239,11 +1494,9 @@ paths:
                           offset:
                             type: integer
                             minimum: 0
-                            maximum: 9007199254740991
                           length:
                             type: integer
                             minimum: 0
-                            maximum: 9007199254740991
                           url:
                             type: string
                             maxLength: 4096
@@ -2252,8 +1505,6 @@ paths:
                             properties:
                               id:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                                 exclusiveMinimum: 0
                               is_bot:
                                 type: boolean
@@ -2285,8 +1536,6 @@ paths:
                             maxLength: 128
                           unix_time:
                             type: integer
-                            minimum: -9007199254740991
-                            maximum: 9007199254740991
                           date_time_format:
                             type: string
                             maxLength: 64
@@ -2318,14 +1567,11 @@ paths:
                     edit_date:
                       type: integer
                       minimum: 0
-                      maximum: 9007199254740991
                     via_bot:
                       type: object
                       properties:
                         id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                           exclusiveMinimum: 0
                         is_bot:
                           type: boolean
@@ -2355,8 +1601,6 @@ paths:
                       type: boolean
                     message_thread_id:
                       type: integer
-                      minimum: -9007199254740991
-                      maximum: 9007199254740991
                     business_connection_id:
                       type: string
                       maxLength: 256
@@ -2376,8 +1620,6 @@ paths:
                       properties:
                         id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                           exclusiveMinimum: 0
                         is_bot:
                           type: boolean
@@ -2406,23 +1648,22 @@ paths:
                       properties:
                         message_id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                           exclusiveMinimum: 0
                         date:
                           type: integer
                           minimum: 0
-                          maximum: 9007199254740991
                         chat:
                           type: object
                           properties:
                             id:
                               type: integer
-                              minimum: -9007199254740991
-                              maximum: 9007199254740991
                             type:
                               type: string
-                              enum: *a1
+                              enum:
+                                - private
+                                - group
+                                - supergroup
+                                - channel
                             first_name:
                               type: string
                               maxLength: 256
@@ -2448,8 +1689,6 @@ paths:
                           properties:
                             id:
                               type: integer
-                              minimum: -9007199254740991
-                              maximum: 9007199254740991
                               exclusiveMinimum: 0
                             is_bot:
                               type: boolean
@@ -2489,11 +1728,9 @@ paths:
                               offset:
                                 type: integer
                                 minimum: 0
-                                maximum: 9007199254740991
                               length:
                                 type: integer
                                 minimum: 0
-                                maximum: 9007199254740991
                               url:
                                 type: string
                                 maxLength: 4096
@@ -2502,8 +1739,6 @@ paths:
                                 properties:
                                   id:
                                     type: integer
-                                    minimum: -9007199254740991
-                                    maximum: 9007199254740991
                                     exclusiveMinimum: 0
                                   is_bot:
                                     type: boolean
@@ -2535,8 +1770,6 @@ paths:
                                 maxLength: 128
                               unix_time:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                               date_time_format:
                                 type: string
                                 maxLength: 64
@@ -2559,7 +1792,6 @@ paths:
                             file_size:
                               type: integer
                               minimum: 0
-                              maximum: 9007199254740991
                             duration:
                               type: integer
                               minimum: 0
@@ -2586,16 +1818,11 @@ paths:
                               file_size:
                                 type: integer
                                 minimum: 0
-                                maximum: 9007199254740991
                               width:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                                 exclusiveMinimum: 0
                               height:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                                 exclusiveMinimum: 0
                             required:
                               - file_id
@@ -2618,11 +1845,9 @@ paths:
                               offset:
                                 type: integer
                                 minimum: 0
-                                maximum: 9007199254740991
                               length:
                                 type: integer
                                 minimum: 0
-                                maximum: 9007199254740991
                               url:
                                 type: string
                                 maxLength: 4096
@@ -2631,8 +1856,6 @@ paths:
                                 properties:
                                   id:
                                     type: integer
-                                    minimum: -9007199254740991
-                                    maximum: 9007199254740991
                                     exclusiveMinimum: 0
                                   is_bot:
                                     type: boolean
@@ -2664,8 +1887,6 @@ paths:
                                 maxLength: 128
                               unix_time:
                                 type: integer
-                                minimum: -9007199254740991
-                                maximum: 9007199254740991
                               date_time_format:
                                 type: string
                                 maxLength: 64
@@ -2697,14 +1918,11 @@ paths:
                         edit_date:
                           type: integer
                           minimum: 0
-                          maximum: 9007199254740991
                         via_bot:
                           type: object
                           properties:
                             id:
                               type: integer
-                              minimum: -9007199254740991
-                              maximum: 9007199254740991
                               exclusiveMinimum: 0
                             is_bot:
                               type: boolean
@@ -2734,8 +1952,6 @@ paths:
                           type: boolean
                         message_thread_id:
                           type: integer
-                          minimum: -9007199254740991
-                          maximum: 9007199254740991
                         business_connection_id:
                           type: string
                           maxLength: 256
@@ -2811,7 +2027,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -2842,7 +2066,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -2873,7 +2105,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -2904,7 +2144,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -2935,7 +2183,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -2974,10 +2230,10 @@ paths:
               properties:
                 id:
                   type: string
-                  pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+                  pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u
                 from:
                   type: string
-                  pattern: ^\+[1-9]\d{6,14}$
+                  pattern: ^\+[1-9]\d{6,14}$/u
                 text:
                   type: string
                   minLength: 1
@@ -3012,7 +2268,9 @@ paths:
                           maxLength: 2000
                         encoding:
                           type: string
-                          enum: *a3
+                          enum:
+                            - gsm7
+                            - ucs2
                         units:
                           type: integer
                           minimum: 0
@@ -3022,7 +2280,11 @@ paths:
                           maximum: 3
                         status:
                           type: string
-                          enum: *a4
+                          enum:
+                            - queued
+                            - sent
+                            - delivered
+                            - failed
                       required:
                         - id
                         - text
@@ -3058,7 +2320,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3091,7 +2361,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3124,7 +2402,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3157,7 +2443,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3190,7 +2484,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3223,7 +2525,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3256,7 +2566,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                   lang:
@@ -3322,7 +2640,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3347,7 +2673,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3394,7 +2728,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3419,7 +2761,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3480,7 +2830,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3505,7 +2863,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3569,7 +2935,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3622,11 +2996,11 @@ paths:
                         urls:
                           anyOf:
                             - type: string
-                              pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                              pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u
                             - type: array
                               items:
                                 type: string
-                                pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                                pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$/u
                               minItems: 1
                               maxItems: 16
                         username:
@@ -3661,7 +3035,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3686,7 +3068,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3711,7 +3101,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3793,7 +3191,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3818,7 +3224,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3843,7 +3257,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3868,7 +3290,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3938,7 +3368,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -3963,7 +3401,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4029,7 +3475,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4054,7 +3508,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4146,10 +3608,15 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a6
+                          enum:
+                            - ltr
+                            - rtl
                         status:
                           type: string
-                          enum: *a7
+                          enum:
+                            - live
+                            - beta
+                            - draft
                         stt:
                           type: boolean
                         tts:
@@ -4203,7 +3670,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4275,7 +3750,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4334,7 +3817,9 @@ paths:
                     maxLength: 35
                   dir:
                     type: string
-                    enum: *a8
+                    enum:
+                      - ltr
+                      - rtl
                   contentVersion:
                     type: string
                     minLength: 1
@@ -4343,7 +3828,7 @@ paths:
                     type:
                       - string
                       - "null"
-                    pattern: ^\d{4}-\d{2}-\d{2}$
+                    pattern: ^\d{4}-\d{2}-\d{2}$/u
                   items:
                     type: array
                     items:
@@ -4377,8 +3862,7 @@ paths:
                               url:
                                 type: string
                                 maxLength: 4000
-                                format: uri
-                                pattern: ^https?:\/\/
+                                pattern: ^https?:\/\//iu
                               sourceLang:
                                 type: string
                                 minLength: 1
@@ -4434,7 +3918,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4464,7 +3956,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4491,7 +3991,9 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a9
+                  enum:
+                    - web
+                    - api
                   default: web
                 sessionId:
                   type: string
@@ -4582,7 +4084,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4607,7 +4117,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4632,7 +4150,142 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/data/delete:
+    post:
+      summary: Delete all data linked to the authenticated session
+      description: Requires the current session bearer and a confirmation in the
+        client. Deletion removes the session and its messages, help data,
+        consent-bound subscriptions, accommodation requests, and channel
+        mappings in one database transaction. Anonymous aggregate counters and
+        the shared, session-free answer cache are retained. Repeated deletion
+        after the session is gone returns 204.
+      security:
+        - sessionBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+              required:
+                - sessionId
+              additionalProperties: false
+      responses:
+        "204":
+          description: Data deleted or already absent
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "500":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4672,7 +4325,11 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a10
+                  enum:
+                    - text
+                    - voice
+                    - sms
+                    - telegram
                 simple:
                   type: boolean
                   default: false
@@ -4695,14 +4352,21 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a11
+                    enum:
+                      - answer
+                      - notfound
+                      - escalation
+                      - distress
+                      - system
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a12
+                    enum:
+                      - ltr
+                      - rtl
                   citations:
                     type: array
                     items:
@@ -4719,7 +4383,9 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a13
+                          enum:
+                            - course
+                            - job
                         timestamp:
                           type: number
                       required:
@@ -4736,7 +4402,13 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a14
+                          enum:
+                            - help
+                            - more
+                            - open_source
+                            - subscribe_jobs
+                            - language
+                            - retry
                         label:
                           type: string
                       required:
@@ -4773,7 +4445,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4798,7 +4478,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4823,7 +4511,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4848,7 +4544,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4873,7 +4577,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4937,7 +4649,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -4962,7 +4682,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5016,7 +4744,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5041,7 +4777,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5066,7 +4810,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5132,7 +4884,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5157,7 +4917,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5182,7 +4950,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5200,7 +4976,7 @@ paths:
       parameters:
         - schema:
             type: string
-            pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$
+            pattern: ^[A-Za-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u
           required: false
           name: lang
           in: query
@@ -5227,7 +5003,10 @@ paths:
                           maxLength: 35
                         channel:
                           type: string
-                          enum: *a15
+                          enum:
+                            - web
+                            - api
+                            - telegram
                         createdAt:
                           type: string
                           format: date-time
@@ -5264,7 +5043,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5289,7 +5076,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5340,7 +5135,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5365,7 +5168,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5416,7 +5227,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5441,7 +5260,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5501,7 +5328,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5526,7 +5361,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5551,7 +5394,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5602,7 +5453,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5682,7 +5541,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5707,7 +5574,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5732,7 +5607,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5851,7 +5734,9 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a16
+                      enum:
+                        - sms
+                        - telegram
                   relayAvailable:
                     type: boolean
                   glossary:
@@ -5888,7 +5773,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5913,7 +5806,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -5953,7 +5854,9 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a17
+                          enum:
+                            - active
+                            - stopped
                         jobType:
                           type:
                             - string
@@ -5995,7 +5898,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6020,7 +5931,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6066,7 +5985,9 @@ paths:
                   maxLength: 35
                 channel:
                   type: string
-                  enum: *a18
+                  enum:
+                    - sms
+                    - telegram
                 contact:
                   type: string
                   minLength: 1
@@ -6106,7 +6027,9 @@ paths:
                     type: string
                   status:
                     type: string
-                    enum: *a17
+                    enum:
+                      - active
+                      - stopped
                 required:
                   - id
                   - status
@@ -6126,7 +6049,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6151,7 +6082,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6176,7 +6115,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6201,7 +6148,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6226,7 +6181,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6284,7 +6247,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6309,7 +6280,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6334,7 +6313,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6376,7 +6363,11 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a19
+                          enum:
+                            - draft
+                            - approved
+                            - sent
+                            - cancelled
                       required:
                         - id
                         - jobId
@@ -6400,7 +6391,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6425,7 +6424,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6480,7 +6487,13 @@ paths:
                       type: array
                       items:
                         type: string
-                        enum: *a5
+                        enum:
+                          - sign_language_interpreter
+                          - step_free_access
+                          - written_questions
+                          - extra_time
+                          - screen_reader_friendly_test
+                          - other
                       minItems: 1
                       maxItems: 6
                     otherText:
@@ -6601,7 +6614,11 @@ paths:
                     exclusiveMinimum: 0
                   status:
                     type: string
-                    enum: *a19
+                    enum:
+                      - draft
+                      - approved
+                      - sent
+                      - cancelled
                   sendAttempted:
                     type: boolean
                   message:
@@ -6616,8 +6633,13 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a5
-                    minItems: 0
+                      enum:
+                        - sign_language_interpreter
+                        - step_free_access
+                        - written_questions
+                        - extra_time
+                        - screen_reader_friendly_test
+                        - other
                     maxItems: 6
                   otherText:
                     type: string
@@ -6652,7 +6674,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6677,7 +6707,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6702,7 +6740,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6727,7 +6773,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6752,7 +6806,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6777,7 +6839,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6842,7 +6912,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6867,7 +6945,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6892,7 +6978,15 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
                   messageKey:
                     type: string
                 required:
@@ -6901,5 +6995,332 @@ paths:
                   - status
                   - code
                   - messageKey
+                additionalProperties: false
+  /v1/lti/login:
+    post:
+      summary: Initiate LTI OIDC login flow
+      description: Platform calls with login_hint. Returns state and nonce for token
+        request.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                iss:
+                  type: string
+                  format: uri
+                client_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                login_hint:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                target_link_uri:
+                  type: string
+                  format: uri
+                lti_message_hint:
+                  type: string
+              required:
+                - iss
+                - client_id
+                - login_hint
+                - target_link_uri
+              additionalProperties: false
+      responses:
+        "200":
+          description: Login parameters for token request
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    type: string
+                  nonce:
+                    type: string
+                  authLoginUrl:
+                    type: string
+                    format: uri
+                  redirectUri:
+                    type: string
+                    format: uri
+                required:
+                  - state
+                  - nonce
+                  - authLoginUrl
+                  - redirectUri
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/lti/launch:
+    post:
+      summary: Receive and validate signed LTI id_token, create session
+      description: Validates signature, state, nonce, issuer, audience, deployment,
+        expiry. Creates pseudonymous session. Instructor role sets
+        insightsAccess flag.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id_token:
+                  type: string
+                  minLength: 100
+                  maxLength: 10000
+                state:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+              required:
+                - id_token
+                - state
+              additionalProperties: false
+      responses:
+        "200":
+          description: Session created with LTI context
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sessionId:
+                    type: string
+                  sessionToken:
+                    type: string
+                  roles:
+                    type: array
+                    items:
+                      type: string
+                  insightsAccess:
+                    type: boolean
+                  contextId:
+                    type: string
+                required:
+                  - sessionId
+                  - sessionToken
+                  - roles
+                  - insightsAccess
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "403":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "500":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/lti/jwks:
+    get:
+      summary: Publish platform public key for JWT verification
+      description: Returns empty JWKS for single-instance test; production uses key store.
+      responses:
+        "200":
+          description: JWKS public keys
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  keys:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: {}
+                required:
+                  - keys
                 additionalProperties: false
 webhooks: {}

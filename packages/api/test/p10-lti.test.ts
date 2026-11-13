@@ -72,7 +72,7 @@ describe("P10 FR-INT-05/06 LTI 1.3 platform registration and validation", () => 
       JSON.stringify({
         platformId: mockPlatformId,
         timestamp: Date.now(),
-      })
+      }),
     ).toString("base64");
 
     const nonce = Buffer.from(crypto.getRandomValues(new Uint8Array(16)))
@@ -132,10 +132,10 @@ describe("P10 FR-INT-05/06 LTI 1.3 JWT validation and security", () => {
 
     // Create malformed token with invalid signature segment (contains invalid chars)
     const validHeader = Buffer.from(
-      JSON.stringify({ alg: "RS256", typ: "JWT" })
+      JSON.stringify({ alg: "RS256", typ: "JWT" }),
     ).toString("base64url");
     const validPayload = Buffer.from(JSON.stringify(tokenPayload)).toString(
-      "base64url"
+      "base64url",
     );
     // Signature with invalid base64url characters (!, @, # are not base64url)
     const invalidSignature = "invalid!@#$%";
@@ -296,16 +296,19 @@ describe("P10 FR-INT-06/07 LTI launch: learner and instructor flows", () => {
       },
     };
 
-    const hasInstructorRole = (launchContext[
-      "https://purl.imsglobal.org/spec/lti/claim/roles"
-    ] as string[])?.includes(
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+    const hasInstructorRole = (
+      launchContext[
+        "https://purl.imsglobal.org/spec/lti/claim/roles"
+      ] as string[]
+    )?.includes(
+      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor",
     );
 
     expect(hasInstructorRole).toBe(false);
 
     // Session created pseudonymously
-    const sessionId = "session-" + Buffer.from(launchContext.sub).toString("hex").slice(0, 16);
+    const sessionId =
+      "session-" + Buffer.from(launchContext.sub).toString("hex").slice(0, 16);
     expect(sessionId).toMatch(/^session-[a-f0-9]{16}$/);
   });
 
@@ -324,7 +327,7 @@ describe("P10 FR-INT-06/07 LTI launch: learner and instructor flows", () => {
       "https://purl.imsglobal.org/spec/lti/claim/roles"
     ] as string[];
     const hasInstructorRole = roles?.includes(
-      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+      "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor",
     );
 
     expect(hasInstructorRole).toBe(true);
@@ -495,7 +498,7 @@ describe("P10 OpenAPI validation: routes and schemas", () => {
         expect.stringMatching(/lti.login/),
         expect.stringMatching(/lti.launch/),
         expect.stringMatching(/lti.jwks/),
-      ])
+      ]),
     );
   });
 

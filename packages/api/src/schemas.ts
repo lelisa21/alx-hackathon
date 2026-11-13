@@ -1,3 +1,4 @@
+import "./zod-openapi.js";
 import { z } from "zod";
 import { isMatchingVoiceLanguage } from "./voice-capabilities.js";
 
@@ -164,6 +165,10 @@ export const FeedbackResponseSchema = z
   .object({ ok: z.literal(true) })
   .strict();
 
+export const DataDeleteRequestSchema = z
+  .object({ sessionId: z.string().min(8).max(64) })
+  .strict();
+
 // P09: Insights schemas
 export const InsightRowSchema = z
   .object({
@@ -180,10 +185,16 @@ export const InsightRowSchema = z
 
 export const InsightsQuerySchema = z
   .object({
-    startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
-    endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/u).optional(),
+    startDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/u)
+      .optional(),
+    endDate: z
+      .string()
+      .regex(/^\d{4}-\d{2}-\d{2}$/u)
+      .optional(),
     lang: z.string().min(2).max(35).optional(),
-    minCellSize: z.number().int().min(1).max(100).default(5),
+    minCellSize: z.coerce.number().int().min(1).max(100).default(5),
     format: z.enum(["json", "csv"]).default("json").optional(),
   })
   .strict();
@@ -382,9 +393,8 @@ export const LanguageListSchema = z
   .object({ languages: z.array(LanguageSchema) })
   .strict();
 
-export const LocaleUiSchema = z.record(z.string());
+export const LocaleUiSchema = z.record(z.string(), z.string());
 
 export const PreviewQuerySchema = z
   .object({ lang_preview: z.enum(["0", "1"]).optional() })
   .strict();
-

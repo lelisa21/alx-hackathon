@@ -49,6 +49,7 @@ import { createJobsRouter } from "./routes/jobs.js";
 import type { JobsApiService } from "./routes/jobs.js";
 import { createHostJobsDelivery } from "./jobs-delivery.js";
 import { createCareerRenderers } from "./jobs-format.js";
+import { generateOpenApiDocument, generateOpenApiYaml } from "./openapi.js";
 import type { SmsGateway } from "@dimts/sms";
 import { createSmsRouter } from "./routes/sms.js";
 import {
@@ -482,11 +483,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   // OpenAPI documentation
   app.get("/v1/openapi.yaml", (req, res) => {
     res.setHeader("Content-Type", "application/yaml");
-    res.send(registry.toYaml());
+    res.send(generateOpenApiYaml());
   });
 
   app.get("/v1/openapi.json", (req, res) => {
-    res.json(registry.toObject());
+    res.json(generateOpenApiDocument());
   });
 
   app.use((_request, response) => {

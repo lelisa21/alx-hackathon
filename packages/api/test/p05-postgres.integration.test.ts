@@ -5,6 +5,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applyMigrations } from "../src/db/migrate.js";
 import { createPostgresHelpAuthStore } from "../src/db/help-auth-store.js";
 import { createPostgresRepository } from "../src/db/repository.js";
+import { createPostgresRepository } from "../src/db/repository.js";
 
 const url = process.env.DIMTS_TEST_DATABASE_URL;
 describe.skipIf(!url)("P05 durable help media/privacy", () => {
@@ -153,5 +154,187 @@ describe.skipIf(!url)("P05 durable help media/privacy", () => {
       "total_resolution_ms",
     ]);
     await createPostgresRepository(pool).runRetention(24);
+  });
+
+  it("deletes linked session data across help, jobs, SMS, and Telegram atomically", async () => {
+    const sessionId = `p11-${randomUUID()}`;
+    const requestId = `p11-help-${randomUUID()}`;
+    const imageId = `p11-image-${randomUUID()}`;
+    const subscriptionId = `p11-sub-${randomUUID()}`;
+    const accommodationId = `p11-accommodation-${randomUUID()}`;
+    const phoneHash = randomUUID().replaceAll("-", "").padEnd(64, "0");
+    const contactHash = randomUUID().replaceAll("-", "").padEnd(64, "0");
+    await pool.query(
+      "INSERT INTO session(id,lang,channel,token_hash) VALUES($1,'en','web','p11-token-hash')",
+      [sessionId],
+    );
+    await pool.query(
+      "INSERT INTO message(id,session_id,role,text,lang,kind) VALUES($1,$2,'learner','private message','en','question')",
+      [`p11-message-${randomUUID()}`, sessionId],
+    );
+    await pool.query(
+      "INSERT INTO help_request(id,session_id,lang,channel,status) VALUES($1,$2,'en','web','waiting')",
+      [requestId, sessionId],
+    );
+    await pool.query(
+      "INSERT INTO help_message(id,help_request_id,sender,text) VALUES($1,$2,'learner','private help message')",
+      [`p11-help-message-${randomUUID()}`, requestId],
+    );
+    await pool.query(
+      "INSERT INTO help_image(id,help_request_id,mime,data) VALUES($1,$2,'image/png',$3)",
+      [imageId, requestId, Buffer.from([1, 2, 3])],
+    );
+    await pool.query(
+      "INSERT INTO subscription(id,session_id,channel,lang,contact_enc) VALUES($1,$2,'sms','en',$3)",
+      [subscriptionId, sessionId, Buffer.from([4, 5, 6])],
+    );
+    await pool.query(
+      "INSERT INTO accommodation_request(id,session_id,needs) VALUES($1,$2,'[]'::jsonb)",
+      [accommodationId, sessionId],
+    );
+    await pool.query(
+      `INSERT INTO sms_conversation(phone_hash,session_id,lang,day,private_enc,expires_at)
+       VALUES($1,$2,'en',CURRENT_DATE,$3,now()+interval '1 day')`,
+      [phoneHash, sessionId, Buffer.from([7, 8, 9])],
+    );
+    await pool.query(
+      `INSERT INTO sms_delivery(id,phone_hash,status,attempts,created_at)
+       VALUES($1,$2,'queued',0,now())`,
+      [`p11-sms-delivery-${randomUUID()}`, phoneHash],
+    );
+    await pool.query(
+      `INSERT INTO telegram_conversation(contact_hash,session_id,lang,last_update,replay_cutoff,window_at,window_count,private_enc,expires_at)
+       VALUES($1,$2,'en',1,-1,0,0,$3,now()+interval '1 day')`,
+      [contactHash, sessionId, Buffer.from([10, 11, 12])],
+    );
+    await pool.query(
+      `INSERT INTO telegram_delivery(contact_hash,key_hash)
+       VALUES($1,$2)`,
+      [contactHash, randomUUID().replaceAll("-", "").padEnd(64, "0")],
+    );
+
+    await createPostgresRepository(pool).deleteSessionData(sessionId);
+
+    for (const [table, column, value] of [
+      ["session", "id", sessionId],
+      ["message", "session_id", sessionId],
+      ["help_request", "id", requestId],
+      ["help_message", "help_request_id", requestId],
+      ["help_image", "id", imageId],
+      ["subscription", "id", subscriptionId],
+      ["accommodation_request", "id", accommodationId],
+    ]) {
+      const remaining = await pool.query(
+        `SELECT 1 FROM ${table} WHERE ${column}=$1`,
+        [value],
+      );
+      expect(remaining.rows).toHaveLength(0);
+    }
+
+    const sms = await pool.query<{
+      session_id: string | null;
+      private_enc: Buffer | null;
+    }>(
+      "SELECT session_id,private_enc FROM sms_conversation WHERE phone_hash=$1",
+      [phoneHash],
+    );
+    expect(sms.rows[0]).toEqual({ session_id: null, private_enc: null });
+    expect(
+      await pool.query("SELECT 1 FROM sms_delivery WHERE phone_hash=$1", [
+        phoneHash,
+      ]),
+    ).toMatchObject({ rows: [] });
+
+    const telegram = await pool.query<{
+      session_id: string | null;
+      private_enc: Buffer | null;
+    }>(
+      "SELECT session_id,private_enc FROM telegram_conversation WHERE contact_hash=$1",
+      [contactHash],
+    );
+    expect(telegram.rows[0]).toEqual({ session_id: null, private_enc: null });
+    expect(
+      await pool.query(
+        "SELECT 1 FROM telegram_delivery WHERE contact_hash=$1",
+        [contactHash],
+      ),
+    ).toMatchObject({ rows: [] });
+  });
+
+  it("runs retention against an injected clock for sessions, images, subscriptions, and cache", async () => {
+    const clock = new Date(Date.now() - 1000);
+    const sessionId = `p11-retention-${randomUUID()}`;
+    const requestId = `p11-retention-help-${randomUUID()}`;
+    const imageId = `p11-retention-image-${randomUUID()}`;
+    const subscriptionId = `p11-retention-sub-${randomUUID()}`;
+    const smsHash = randomUUID().replaceAll("-", "").padEnd(64, "0");
+    const telegramHash = randomUUID().replaceAll("-", "").padEnd(64, "0");
+    await pool.query(
+      "INSERT INTO session(id,lang,channel,last_seen_at) VALUES($1,'en','web',$2)",
+      [sessionId, new Date(clock.getTime() - 25 * 60 * 60 * 1000)],
+    );
+    await pool.query(
+      "INSERT INTO help_request(id,session_id,lang,channel,status) VALUES($1,'s2','en','web','closed')",
+      [requestId],
+    );
+    await pool.query(
+      "INSERT INTO help_image(id,help_request_id,mime,data,created_at) VALUES($1,$2,'image/png',$3,$4)",
+      [
+        imageId,
+        requestId,
+        Buffer.from([1]),
+        new Date(clock.getTime() - 3 * 60 * 60 * 1000),
+      ],
+    );
+    await pool.query(
+      "INSERT INTO subscription(id,session_id,channel,lang,contact_enc,consent_expires_at) VALUES($1,'s2','sms','en',$2,$3)",
+      [subscriptionId, Buffer.from([1]), new Date(clock.getTime() - 1)],
+    );
+    await pool.query(
+      "INSERT INTO answer_cache(cache_key,reply,created_at) VALUES($1,'{}'::jsonb,$2)",
+      [
+        `p11-cache-${randomUUID()}`,
+        new Date(clock.getTime() - 25 * 60 * 60 * 1000),
+      ],
+    );
+    await pool.query(
+      `INSERT INTO sms_conversation(phone_hash,session_id,lang,day,private_enc,expires_at)
+       VALUES($1,'s2','en',CURRENT_DATE,$2,$3)`,
+      [smsHash, Buffer.from([1]), new Date(clock.getTime() - 1)],
+    );
+    await pool.query(
+      `INSERT INTO telegram_conversation(contact_hash,session_id,lang,last_update,replay_cutoff,window_at,window_count,private_enc,expires_at)
+       VALUES($1,'s2','en',1,-1,0,0,$2,$3)`,
+      [telegramHash, Buffer.from([1]), new Date(clock.getTime() - 1)],
+    );
+
+    await createPostgresRepository(pool, () => clock).runRetention(24);
+
+    expect(
+      await pool.query("SELECT 1 FROM session WHERE id=$1", [sessionId]),
+    ).toMatchObject({ rows: [] });
+    expect(
+      await pool.query("SELECT 1 FROM help_image WHERE id=$1", [imageId]),
+    ).toMatchObject({ rows: [] });
+    expect(
+      await pool.query("SELECT 1 FROM subscription WHERE id=$1", [
+        subscriptionId,
+      ]),
+    ).toMatchObject({ rows: [] });
+    expect(
+      await pool.query(
+        "SELECT 1 FROM answer_cache WHERE cache_key LIKE 'p11-cache-%'",
+      ),
+    ).toMatchObject({ rows: [] });
+    const sms = await pool.query(
+      "SELECT private_enc FROM sms_conversation WHERE phone_hash=$1",
+      [smsHash],
+    );
+    expect(sms.rows[0]?.private_enc).toBeNull();
+    const telegram = await pool.query(
+      "SELECT private_enc FROM telegram_conversation WHERE contact_hash=$1",
+      [telegramHash],
+    );
+    expect(telegram.rows[0]?.private_enc).toBeNull();
   });
 });
