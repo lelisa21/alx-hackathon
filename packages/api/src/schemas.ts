@@ -113,6 +113,17 @@ export const HelperLoginRequestSchema = z
 
 export const HelperLoginResponseSchema = z.object({ jwt: z.string() }).strict();
 
+export const FeedbackRequestSchema = z
+  .object({
+    replyId: z.string().min(1).max(128),
+    helpful: z.boolean(),
+  })
+  .strict();
+
+export const FeedbackResponseSchema = z
+  .object({ ok: z.literal(true) })
+  .strict();
+
 export const HelpCreateRequestSchema = z
   .object({
     sessionId: z.string().min(8).max(64),

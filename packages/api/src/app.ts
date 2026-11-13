@@ -15,7 +15,7 @@ import {
   SourceSyncManager,
   processTextDocument,
 } from "@dimts/grounding";
-import type { AskDependencies } from "@dimts/engine";
+import type { AnswerCache, AskDependencies } from "@dimts/engine";
 import type {
   ContentSource,
   SourceDocumentProcessor,
@@ -38,6 +38,9 @@ import { createEngineDependencies } from "./engine.js";
 import { createApiProviderRuntime } from "./provider-runtime.js";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository, HelpStore } from "./types.js";
+import { createPostgresAnswerCache } from "./db/answer-cache.js";
+import { createPostgresConversationStore } from "./db/conversation-state.js";
+import type { ConversationStateStore } from "./db/conversation-state.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -55,8 +58,12 @@ export interface BuildAppOptions {
   localesRoot?: string;
   askDependencies?: AskDependencies;
   providerSecrets?: Record<string, string | undefined>;
-  grounding?: Pick<PostgresGrounding, "search" | "currentVersion">;
+  grounding?: Pick<PostgresGrounding, "search" | "currentVersion"> &
+    Partial<Pick<PostgresGrounding, "resolveFaqSource">>;
   sourceSync?: ApiSourceSyncOptions;
+  conversationStore?: ConversationStateStore;
+  answerCache?: AnswerCache;
+  logDestination?: pino.DestinationStream;
 }
 
 const defaultLocalesRoot = path.resolve(
@@ -66,6 +73,10 @@ const defaultLocalesRoot = path.resolve(
 
 export function buildApp(options: BuildAppOptions = {}): express.Express {
   const config = options.config ?? parseConfig(process.env);
+  const logger = pino(
+    { level: config.NODE_ENV === "test" ? "silent" : "info" },
+    options.logDestination,
+  );
   const sources = [
     ...config.DIMTS_PUBLIC_SOURCES.map(
       ({ pageSize, ...source }) =>
@@ -79,6 +90,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const pool = options.repository ? undefined : createPool(config);
   const repository =
     options.repository ?? createPostgresRepository(pool ?? createPool(config));
+  const conversationStore =
+    options.conversationStore ??
+    (pool ? createPostgresConversationStore(pool) : undefined);
+  const answerCache =
+    options.answerCache ?? (pool ? createPostgresAnswerCache(pool) : undefined);
   const helpStore =
     options.helpStore ?? (pool ? createPostgresHelpAuthStore(pool) : undefined);
   const helpSocketStore =
@@ -91,6 +107,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     config,
     packs,
     options.providerSecrets ?? process.env,
+    grounding?.resolveFaqSource?.bind(grounding),
   );
   const languageDetector = new FrancLanguageDetector(
     [...packs.values()]
@@ -106,12 +123,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
           grounding,
           providerRuntime,
           languageDetector,
+          ...(conversationStore
+            ? { conversationSignals: conversationStore }
+            : {}),
+          ...(answerCache ? { answerCache } : {}),
+          cacheEvent: ({ result }) =>
+            logger.info({ event: "answer_cache", result }),
         })
       : undefined);
   const app = express();
-  const logger = pino({
-    level: config.NODE_ENV === "test" ? "silent" : "info",
-  });
   let sourceSyncManager: SourceSyncManager | undefined;
   let helpSocketRuntime: HelpSocketRuntime | undefined;
   if (sources.length > 0) {
@@ -227,6 +247,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       repository,
       packs,
       providerRuntime,
+      ...(conversationStore ? { conversationStore } : {}),
       ...(grounding ? { grounding } : {}),
       ...(askDependencies ? { askDependencies } : {}),
     }),

@@ -2,6 +2,8 @@ export { FrancLanguageDetector } from "./language-detector.js";
 export { Ladder } from "./ladder.js";
 export { OfflineProvider } from "./offline.js";
 export { OpenAiCompatible } from "./openai-compatible.js";
+export { OpenAiProvider, GeminiProvider, XaiProvider } from "./native.js";
+export type { NativeProviderOptions } from "./native.js";
 export { ProviderRegistry } from "./registry.js";
 export type {
   AiProvider,

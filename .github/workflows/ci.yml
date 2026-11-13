@@ -28,6 +28,8 @@ jobs:
       - run: pnpm test
       - run: pnpm lang:check
       - run: pnpm test:lang
+      - run: pnpm test:core
+      - run: pnpm eval
       - run: pnpm build
       - run: pnpm size
       - name: Start local database
@@ -45,7 +47,7 @@ jobs:
         env:
           DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
       - name: Verify API against PostgreSQL
-        run: pnpm exec vitest run packages/api/test/postgres.integration.test.ts
+        run: pnpm exec vitest run packages/api/test/postgres.integration.test.ts packages/api/test/p02-postgres.integration.test.ts --maxWorkers=1
         env:
           DIMTS_TEST_DATABASE_URL: postgresql://dimts:dimts-ci-only@localhost:5432/dimts
       - name: Stop local database

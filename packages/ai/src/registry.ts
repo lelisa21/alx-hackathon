@@ -29,6 +29,12 @@ export type ProviderAdapterFactory = (
   binding: ResolvedProviderBinding,
 ) => AiProvider;
 
+function intersection<T extends string>(declared: T[], actual: T[]): T[] {
+  if (declared.includes("*" as T)) return [...actual];
+  if (actual.includes("*" as T)) return [...declared];
+  return declared.filter((value) => actual.includes(value));
+}
+
 export class ProviderRegistry {
   private readonly factories = new Map<string, ProviderAdapterFactory>();
 
@@ -74,7 +80,45 @@ export class ProviderRegistry {
             `Provider adapter "${binding.adapter}" returned a mismatched ID.`,
           );
         }
-        return provider;
+        if (provider.privacyClass !== binding.privacyClass) {
+          throw new Error(
+            "Provider adapter returned a mismatched privacy classification.",
+          );
+        }
+        const actual = provider.capabilities();
+        const capabilities: ProviderCapabilities = {
+          languages: intersection(
+            binding.capabilities.languages,
+            actual.languages,
+          ),
+          modes: intersection(binding.capabilities.modes, actual.modes),
+          modalities: intersection(
+            binding.capabilities.modalities,
+            actual.modalities,
+          ),
+          structuredOutput:
+            binding.capabilities.structuredOutput && actual.structuredOutput,
+        };
+        return {
+          name: provider.name,
+          privacyClass: binding.privacyClass,
+          allowedDataClasses: intersection(
+            binding.allowedDataClasses,
+            provider.allowedDataClasses,
+          ),
+          evaluatedLanguages: intersection(
+            binding.evaluatedLanguages ?? [],
+            provider.evaluatedLanguages,
+          ),
+          capabilities: () => ({
+            ...capabilities,
+            languages: [...capabilities.languages],
+            modes: [...capabilities.modes],
+            modalities: [...capabilities.modalities],
+          }),
+          health: (signal?: AbortSignal) => provider.health(signal),
+          answer: provider.answer.bind(provider),
+        };
       });
   }
 }

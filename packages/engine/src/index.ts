@@ -1,4 +1,10 @@
-export { ask } from "./ask.js";
+export { ask, detectConversationRule } from "./ask.js";
+export {
+  averageSentenceLength,
+  sentenceWordCounts,
+  isAnswerLengthAllowed,
+  hasInstructionInjection,
+} from "./answer-validation.js";
 export { createAnswerCacheKey, InMemoryAnswerCache } from "./cache.js";
 export { isAnswerInLanguage } from "./langcheck.js";
 export type {

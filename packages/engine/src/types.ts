@@ -87,6 +87,7 @@ export interface AnswerPolicy {
 export interface ConversationSignals {
   recentReplyKinds(sessionId: string): Promise<ReplyKind[]>;
   consecutiveNegativeFeedback(sessionId: string): Promise<number>;
+  resetNegativeFeedback?(sessionId: string): Promise<void>;
 }
 
 export interface RuleSet {
@@ -114,6 +115,7 @@ export interface AskDependencies {
   supportTextFor?(lang: Lang): string;
   conversationSignals?: ConversationSignals;
   answerCache?: import("./cache.js").AnswerCache;
+  cacheEvent?(event: { result: "hit" | "miss" }): void;
   languageDetector?: LanguageDetector;
   languageDetectionConfidence?: number;
   contentVersion(): string | Promise<string>;

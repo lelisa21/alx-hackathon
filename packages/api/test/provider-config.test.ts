@@ -1,5 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../src/config.js";
+import { createApiProviderRuntime } from "../src/provider-runtime.js";
+import { loadPacks } from "@dimts/locales-tools";
+import { resolve } from "node:path";
 
 const secrets = [
   Buffer.alloc(32, 4).toString("base64"),
@@ -36,6 +39,164 @@ const remoteProvider = {
 };
 
 describe("provider runtime configuration", () => {
+  it.each(["openai", "gemini", "xai"])(
+    "registers the native %s adapter without transmitting before consent",
+    async (adapter) => {
+      const binding = { ...remoteProvider, endpoint: undefined };
+      const config = parseConfig({
+        ...baseEnvironment,
+        DIMTS_AI_PROVIDER: adapter,
+        DIMTS_AI_LADDER: `${adapter},offline`,
+        DIMTS_AI_PROVIDERS: JSON.stringify([
+          { ...binding, id: adapter, adapter },
+        ]),
+        TEST_LLM_CREDENTIAL: "test-only-native-key",
+      });
+      const runtime = createApiProviderRuntime(
+        config,
+        loadPacks(resolve("locales")),
+        { TEST_LLM_CREDENTIAL: "test-only-native-key" },
+      );
+      const response = {
+        text: "Choose one learning goal.",
+        usedPassageIds: ["goals"],
+      };
+      const network = vi.fn<typeof fetch>(
+        async (_url, init) =>
+          new Response(
+            JSON.stringify(
+              init?.method !== "POST"
+                ? {}
+                : adapter === "gemini"
+                  ? {
+                      candidates: [
+                        {
+                          finishReason: "STOP",
+                          content: {
+                            role: "model",
+                            parts: [{ text: JSON.stringify(response) }],
+                          },
+                        },
+                      ],
+                    }
+                  : {
+                      status: "completed",
+                      output: [
+                        {
+                          type: "message",
+                          role: "assistant",
+                          content: [
+                            {
+                              type: "output_text",
+                              text: JSON.stringify(response),
+                            },
+                          ],
+                        },
+                      ],
+                    },
+            ),
+            { status: 200 },
+          ),
+      );
+      vi.stubGlobal("fetch", network);
+      const answerRequest = {
+        question: "How do I choose a learning goal?",
+        lang: "en",
+        simple: false,
+        mode: "extractive" as const,
+        systemPrompt: "Use the supplied passages.",
+        glossary: [],
+        passages: [
+          {
+            id: "goals",
+            text: "Choose one learning goal.",
+            label: "Goals",
+            url: "https://course.example/goals",
+            lang: "en",
+            sourceType: "course" as const,
+          },
+        ],
+      };
+      try {
+        expect(
+          (await runtime.answer(answerRequest, { cloudOk: false })).provider,
+        ).toBe("offline");
+        expect(network).not.toHaveBeenCalled();
+        expect(
+          (await runtime.answer(answerRequest, { cloudOk: true })).provider,
+        ).toBe(adapter);
+        expect(network).toHaveBeenCalledTimes(2);
+        expect(JSON.stringify(runtime)).not.toContain("test-only-native-key");
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    },
+  );
+
+  it("uses configured priorities for remaining enabled fallback bindings", () => {
+    const config = parseConfig({
+      ...baseEnvironment,
+      DIMTS_AI_PROVIDER: "selected",
+      DIMTS_AI_LADDER: "selected",
+      DIMTS_AI_PROVIDERS: JSON.stringify([
+        { ...remoteProvider, id: "later", priority: 30 },
+        { ...remoteProvider, id: "selected", priority: 10 },
+        { ...remoteProvider, id: "earlier", priority: 20 },
+      ]),
+      TEST_LLM_CREDENTIAL: "test-only-key",
+    });
+    const runtime = createApiProviderRuntime(
+      config,
+      loadPacks(resolve("locales")),
+      { TEST_LLM_CREDENTIAL: "test-only-key" },
+    );
+    expect(runtime.providerOrder).toEqual([
+      "selected",
+      "earlier",
+      "later",
+      "offline",
+    ]);
+  });
+
+  it("preserves an explicitly configured offline step before any later remote provider", () => {
+    const config = parseConfig({
+      ...baseEnvironment,
+      DIMTS_AI_PROVIDER: "selected",
+      DIMTS_AI_LADDER: "selected,offline,remote",
+      DIMTS_AI_PROVIDERS: JSON.stringify([
+        { ...remoteProvider, id: "selected" },
+        { ...remoteProvider, id: "remote" },
+      ]),
+      TEST_LLM_CREDENTIAL: "test-only-key",
+    });
+    expect(
+      createApiProviderRuntime(config, loadPacks(resolve("locales")), {
+        TEST_LLM_CREDENTIAL: "test-only-key",
+      }).providerOrder,
+    ).toEqual(["selected", "offline", "remote"]);
+  });
+
+  it.each(["openai", "gemini", "xai"])(
+    "requires native %s bindings to declare remote privacy and credentials",
+    (adapter) => {
+      expect(() =>
+        parseConfig({
+          ...baseEnvironment,
+          DIMTS_AI_PROVIDERS: JSON.stringify([
+            { ...remoteProvider, adapter, privacyClass: "local" },
+          ]),
+          TEST_LLM_CREDENTIAL: "test-only-key",
+        }),
+      ).toThrow(/privacyClass/u);
+      const binding = { ...remoteProvider, credentialRef: undefined };
+      expect(() =>
+        parseConfig({
+          ...baseEnvironment,
+          DIMTS_AI_PROVIDERS: JSON.stringify([{ ...binding, adapter }]),
+        }),
+      ).toThrow(/credentialRef/u);
+    },
+  );
   it("parses arbitrary provider bindings without retaining credential values", () => {
     const config = parseConfig({
       ...baseEnvironment,

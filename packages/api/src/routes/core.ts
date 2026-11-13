@@ -1,7 +1,7 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response, Router } from "express";
 import express from "express";
-import { ask } from "@dimts/engine";
+import { ask, detectConversationRule } from "@dimts/engine";
 import type { AskDependencies } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { z } from "zod";
@@ -11,6 +11,8 @@ import type { ApiConfig } from "../config.js";
 import { generateOpenApiYaml } from "../openapi.js";
 import {
   AskRequestSchema,
+  FeedbackRequestSchema,
+  FeedbackResponseSchema,
   HealthResponseSchema,
   LanguageListSchema,
   LocaleUiSchema,
@@ -23,6 +25,7 @@ import type { ApiReply, ApiRepository } from "../types.js";
 import type { ApiProviderRuntime } from "../provider-runtime.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
+import type { ConversationStateStore } from "../db/conversation-state.js";
 
 interface CoreRouteOptions {
   config: ApiConfig;
@@ -31,6 +34,7 @@ interface CoreRouteOptions {
   askDependencies?: AskDependencies;
   providerRuntime?: ApiProviderRuntime;
   grounding?: Pick<PostgresGrounding, "currentVersion">;
+  conversationStore?: ConversationStateStore;
 }
 
 function isSmallTalk(pack: LangPack | undefined, text: string): boolean {
@@ -120,6 +124,28 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
   const { config, packs, repository } = options;
   const askDependencies = options.askDependencies;
   const requireSession = createSessionAuth(repository);
+
+  if (options.conversationStore) {
+    router.post("/feedback", async (request, response) => {
+      const token = /^Bearer ([A-Za-z0-9_-]{20,100})$/u.exec(
+        request.header("authorization") ?? "",
+      )?.[1];
+      if (!token) {
+        sendProblem(response, 401, "unauthorized", "error.generic");
+        return;
+      }
+      const body = FeedbackRequestSchema.parse(request.body);
+      const accepted = await options.conversationStore!.recordFeedback({
+        ...body,
+        tokenHash: sha256(token),
+      });
+      if (!accepted) {
+        sendProblem(response, 401, "unauthorized", "error.generic");
+        return;
+      }
+      response.json(FeedbackResponseSchema.parse({ ok: true }));
+    });
+  }
 
   router.get("/health", async (_request, response) => {
     let timer: NodeJS.Timeout | undefined;
@@ -346,40 +372,44 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
 
-    const pack = packs.get(body.lang);
-    const isGreeting = isSmallTalk(pack, body.text);
-    const thanks = /\b(?:thanks?|thank you)\b/iu.test(body.text);
-    const consent =
-      !isGreeting && askDependencies
-        ? await repository.getCloudConsent(body.sessionId)
-        : null;
-    const reply = isGreeting
-      ? createReply(
-          packs,
-          body.lang,
-          body.text,
-          "system",
-          thanks ? "smallTalk.thanks" : "smallTalk.hello",
-        )
-      : askDependencies
-        ? ReplySchema.parse(
-            await ask(body, askDependencies, {
-              cloudOk: Boolean(
-                consent?.cloudOk &&
-                consent.consentVersion === config.DIMTS_AI_CONSENT_VERSION,
-              ),
-            }),
-          )
-        : createReply(
+    let reply: ApiReply;
+    try {
+      const pack = packs.get(body.lang);
+      const rules = askDependencies?.rulesFor?.(body.lang);
+      const isGreeting =
+        (!rules || !detectConversationRule(body.text, body.lang, rules)) &&
+        isSmallTalk(pack, body.text);
+      const thanks = /\b(?:thanks?|thank you)\b/iu.test(body.text);
+      const consent =
+        !isGreeting && askDependencies
+          ? await repository.getCloudConsent(body.sessionId)
+          : null;
+      reply = isGreeting
+        ? createReply(
             packs,
             body.lang,
             body.text,
-            "notfound",
-            "answer.notfound",
-            "help.button",
-          );
+            "system",
+            thanks ? "smallTalk.thanks" : "smallTalk.hello",
+          )
+        : askDependencies
+          ? ReplySchema.parse(
+              await ask(body, askDependencies, {
+                cloudOk: Boolean(
+                  consent?.cloudOk &&
+                  consent.consentVersion === config.DIMTS_AI_CONSENT_VERSION,
+                ),
+              }),
+            )
+          : createReply(
+              packs,
+              body.lang,
+              body.text,
+              "notfound",
+              "answer.notfound",
+              "help.button",
+            );
 
-    try {
       await repository.saveReply({
         sessionId: body.sessionId,
         clientMsgId: body.clientMsgId,

@@ -7,6 +7,8 @@ import { z } from "zod";
 import { stringify } from "yaml";
 import {
   AskRequestSchema,
+  FeedbackRequestSchema,
+  FeedbackResponseSchema,
   HealthResponseSchema,
   HelpBlockResponseSchema,
   HelpCreateRequestSchema,
@@ -28,6 +30,8 @@ extendZodWithOpenApi(z);
 
 const registry = new OpenAPIRegistry();
 registry.register("AskRequest", AskRequestSchema);
+registry.register("FeedbackRequest", FeedbackRequestSchema);
+registry.register("FeedbackResponse", FeedbackResponseSchema);
 registry.register("Reply", ReplySchema);
 registry.register("Problem", ProblemSchema);
 registry.register("SessionRequest", SessionRequestSchema);
@@ -167,6 +171,24 @@ registry.registerPath({
     "409": problemResponse,
     "413": problemResponse,
     "429": problemResponse,
+  },
+});
+registry.registerPath({
+  method: "post",
+  path: "/v1/feedback",
+  summary: "Record anonymous helpfulness and bounded session streak",
+  description:
+    "Only replyId/helpful are accepted. The bearer must belong to the reply's current session. No per-tap event or session identifier is retained in aggregates.",
+  security: [{ sessionBearer: [] }],
+  request: {
+    body: {
+      content: { "application/json": { schema: FeedbackRequestSchema } },
+    },
+  },
+  responses: {
+    "200": { description: "Counter recorded", ...json(FeedbackResponseSchema) },
+    "400": problemResponse,
+    "401": problemResponse,
   },
 });
 registry.registerPath({

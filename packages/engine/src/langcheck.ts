@@ -37,7 +37,6 @@ const OROMO_STOPWORDS = new Set([
   "ishee",
   "isa",
   "ni",
-  "of",
   "yoo",
 ]);
 function tokens(text: string): string[] {
@@ -63,6 +62,9 @@ export function isAnswerInLanguage(text: string, lang: string): boolean {
     return ethiopic / letters.length >= 0.3;
   }
   if (ethiopic / letters.length >= 0.3) return false;
+  const latin = text.match(/\p{Script=Latin}/gu)?.length ?? 0;
+  if ((base === "en" || base === "om") && latin / letters.length < 0.7)
+    return false;
   const answerTokens = tokens(text);
   if (base === "en")
     return (

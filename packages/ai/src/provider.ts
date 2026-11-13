@@ -24,7 +24,7 @@ export interface AiProvider {
   allowedDataClasses: ProviderDataClass[];
   evaluatedLanguages: string[];
   capabilities(): ProviderCapabilities;
-  health(): Promise<{ ok: boolean; reasonCode?: string }>;
+  health(signal?: AbortSignal): Promise<{ ok: boolean; reasonCode?: string }>;
   answer(request: AnswerRequest, signal: AbortSignal): Promise<AnswerResult>;
 }
 

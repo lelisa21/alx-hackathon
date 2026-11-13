@@ -3,6 +3,61 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P02 — tutor and provider contracts (13 November 2026)
+
+- **Requirements before implementation:** FR-CONV-05–09/13/14;
+  FR-TUTOR-07–11/14; FR-AI-02–10; AR-01/06/08; NFR-MAINT-02,
+  NFR-PRIV-03 and NFR-PERF-03. Follow P02's original prompt in
+  `docs/REMAINING_WORK_PLAN.md` and Blueprint sections 6, 7 and 10.
+  P01 was committed and pushed by the user; P02 is the only current scope.
+- **Feedback boundary with P09:** implement the existing `POST /v1/feedback`
+  contract using only `{replyId, helpful}` and the current session bearer.
+  Resolve ownership server-side; unknown or other-session replies receive
+  the same authentication failure. Retain no per-tap event. The existing
+  `feedback_counter` stores only topic (first cited passage or `uncategorized`),
+  language, date and counters, never a session/reply identifier or text.
+  A session-local small integer, capped at two, records only its current
+  negative streak. Helpful feedback and a consumed gentle-help offer reset
+  it; session retention deletes it. P09 must reuse these counters and must
+  not introduce session identifiers into aggregate rows.
+- **Conversation signals:** select only the two most recent reply kinds,
+  never message text or transcript history. Rules come from the locale pack;
+  help/distress takes precedence over a greeting in a mixed message.
+- **Answer cache:** use the existing PostgreSQL `answer_cache`, normalized
+  question/language/Simple/content-version hash and 24-hour expiry. Only
+  grounded answers are eligible; store a neutral cache ID and issue a fresh
+  reply ID on retrieval. Citation and content-version checks remain in the
+  engine. Source synchronization retains its atomic cache invalidation.
+  Cache logs contain only a hit/miss enum, never keys, text or identifiers.
+- **Review boundary:** committed P01 data remains unreviewed. No native
+  language, model quality, physical-device or third-party latency evidence
+  is inferred from mock adapters or successful configuration parsing.
+- **Provider boundary:** native OpenAI/Gemini/xAI transports share the
+  conformance contract with compatible local and offline adapters. Preserve
+  explicit ladder order (including offline); only unspecified enabled
+  bindings use priority order. Registry capabilities intersect declarations
+  with the actual adapter. Remote payloads exclude glossary, job text,
+  history and identity; those have no authorized remote data class here.
+  Health, malformed retries and generation share one timeout budget.
+- **Retrieval and FAQ provenance:** only matching, reviewed glossary mappings
+  authorize other source languages, with same-language priority before SQL
+  candidate limits. Raw FAQ source IDs resolve through the existing exact
+  source/resource SHA-256 namespace, restricted to active retrieved passages;
+  unknown or ambiguous matches decline. No public format or source-sync
+  contract changes. Job date validation rejects impossible dates; metadata
+  fields form complete extractable units while original descriptions remain.
+- **Output validation:** known instruction-injection patterns are quarantined
+  alongside untrusted-data separation, citation and language checks. This is
+  not a claim to detect every attack. Wrong-language or overlong output gets
+  one supported extractive retry, then localized notfound. Never clip words,
+  remove qualifications or lower confidence floors to improve metrics.
+- **Evaluation evidence:** report refusals and missing observations as well
+  as successful answers. FAQ-adapter accuracy is separate from end-to-end
+  answer recall. Real HTTP/PostgreSQL latency is measured at server entry to
+  response completion with warm serial samples; client listener/network
+  setup is excluded. CI runs the database suites serially to avoid measuring
+  unrelated test load. All remaining blockers are in the progress record.
+
 ## P01 — language capability decisions (13 November 2026)
 
 - **Requirements before implementation:** FR-LANG-01–05, 09–13, 15–17;

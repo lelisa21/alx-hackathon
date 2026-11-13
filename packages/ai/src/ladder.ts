@@ -53,28 +53,39 @@ export class Ladder {
       const timeoutMs =
         this.timeouts[provider.name] ??
         (provider.privacyClass === "local" ? 20_000 : 8_000);
+      const deadline = Date.now() + timeoutMs;
+      const controller = new AbortController();
+      const remaining = () => Math.max(0, deadline - Date.now());
       try {
-        const health = await this.withTimeout(provider.health(), timeoutMs);
+        const health = await this.withTimeout(
+          provider.health(controller.signal),
+          remaining(),
+          () => controller.abort(),
+        );
         if (!health.ok) throw new Error("Provider health check failed.");
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
-          const controller = new AbortController();
           try {
+            if (remaining() === 0)
+              throw new Error("Provider request timed out.");
             const result = await this.withTimeout(
               provider.answer(providerRequest, controller.signal),
-              timeoutMs,
+              remaining(),
               () => controller.abort(),
             );
             const passageIds = new Set(
               providerRequest.passages.map(({ id }) => id),
             );
             if (
+              typeof result?.text === "string" &&
               result.text.trim() &&
+              Array.isArray(result.usedPassageIds) &&
               result.usedPassageIds.length > 0 &&
+              result.usedPassageIds.length <= 5 &&
               result.usedPassageIds.every((id) => passageIds.has(id))
             ) {
               this.activeProviderId = provider.name;
-              return result;
+              return { ...result, providerId: provider.name };
             }
             throw new InvalidProviderResponseError();
           } catch (error) {
@@ -85,6 +96,8 @@ export class Ladder {
         }
       } catch {
         this.coolUntil.set(provider.name, this.now() + COOLDOWN_MS);
+      } finally {
+        controller.abort();
       }
     }
 
@@ -130,10 +143,16 @@ export class Ladder {
   ): AnswerRequest {
     const allowed = new Set(provider.allowedDataClasses);
     return {
-      ...request,
+      lang: request.lang,
+      simple: request.simple,
+      mode: request.mode,
+      systemPrompt: request.systemPrompt,
       question: allowed.has("question") ? request.question : "",
       passages: allowed.has("course-passage")
-        ? request.passages.filter(({ sourceType }) => sourceType === "course")
+        ? request.passages.filter(
+            ({ sourceType }) =>
+              provider.privacyClass === "local" || sourceType === "course",
+          )
         : [],
       glossary:
         provider.privacyClass === "local" && allowed.has("glossary")

@@ -42,6 +42,27 @@ See [Local API setup](./docs/API.md#start-locally) for port conflicts and
 configuration. Opening `index.html` directly still shows only the offline
 reference pages.
 
+## Grounded tutor evaluation
+
+Run `pnpm eval` to regenerate [the full evaluation](./docs/EVAL.md).
+The 13 November 2026 draft-data run covers 44 questions in normal and Simple
+modes (88 runs). The snapshot below is not final language acceptance.
+
+| Language | Questions | Retrieval hit rate | Actual / expected answers, both modes | Citation validity | Not-found correctness |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| English | 13 | 100% | 2 / 12 | 100% | 100% |
+| Amharic | 15 | 0% | 0 / 16 | n/a | 100% |
+| Afaan Oromoo | 16 | 0% | 0 / 18 | n/a | 100% |
+
+English answer recall is 16.7%; its returned sentences average eight words
+in both modes. Amharic/Oromo answer quality is unverified because the corpus
+has no reviewed cross-language mappings or translated source passages.
+The separate offline FAQ adapter matches 9/9 draft entries per language;
+this does not bypass the engine's retrieval/confidence gate. Human review,
+broader sourced content, and real local/cloud model evaluation remain open.
+See [local provider setup](./docs/LOCAL_AI.md) and
+[implementation progress](./docs/IMPLEMENTATION_PROGRESS.md).
+
 ## Savanna static pages
 
 Three Savanna learner pages, frozen from the **local dev app** into plain HTML + CSS so they can be

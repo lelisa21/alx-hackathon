@@ -16,6 +16,8 @@
     "typecheck": "pnpm --recursive --if-present typecheck",
     "test": "vitest run --passWithNoTests",
     "test:lang": "vitest run --config vitest.locales.config.ts --coverage",
+    "test:core": "vitest run --config vitest.core.config.ts --coverage",
+    "eval": "pnpm --filter @dimts/eval... build && node packages/eval/dist/cli.js",
     "test:compose": "node scripts/test-local-compose.mjs",
     "test:widget": "pnpm --filter @dimts/widget build && playwright test --config playwright.widget.config.ts",
     "lint": "eslint . && pnpm lint:styles && pnpm lint:strings",

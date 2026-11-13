@@ -3,7 +3,7 @@ import type { Pool } from "pg";
 import { queryTokens, textGrams } from "./grams.js";
 import type { PassageRecord } from "./ingest.js";
 import type { GlossaryEntry, SearchCandidate } from "./search.js";
-import { expandTokens, rankPassages } from "./search.js";
+import { expandTokens, rankPassages, retrievalLanguages } from "./search.js";
 import { normalise } from "./normalise.js";
 
 const CANDIDATE_SQL = `
@@ -17,8 +17,9 @@ const CANDIDATE_SQL = `
   FROM passage p
   WHERE p.grams && $1::text[]
     AND p.source_type = ANY ($2::text[])
+    AND p.lang = ANY ($3::text[])
     AND p.content_version_id IN (SELECT generation_id FROM active_content)
-  ORDER BY hits DESC, p.id
+  ORDER BY (p.lang = $4) DESC, hits DESC, p.id
   LIMIT 8
 `;
 
@@ -142,6 +143,40 @@ export class PostgresGrounding {
     this.pool = pool;
   }
 
+  /** Resolve pack authoring IDs without weakening stored citation identity. */
+  async resolveFaqSource(
+    source: string,
+    passageIds: string[],
+  ): Promise<string | null> {
+    const scope = [...new Set(passageIds)].slice(0, 5);
+    if (!source.trim() || scope.length === 0) return null;
+    const result = await this.pool.query<{
+      id: string;
+      source_id: string;
+      source_resource_id: string;
+    }>(
+      `SELECT p.id, p.source_id, p.source_resource_id
+       FROM passage p
+       JOIN active_source_generation active
+         ON active.generation_id = p.content_version_id AND active.source_id = p.source_id
+       WHERE p.id = ANY ($1::text[])`,
+      [scope],
+    );
+    const matches = result.rows.filter(
+      (row) =>
+        scope.includes(row.id) &&
+        (row.id === source ||
+          createHash("sha256")
+            .update(
+              JSON.stringify([row.source_id, row.source_resource_id, source]),
+            )
+            .digest("hex") === row.id),
+    );
+    // The same unqualified authoring ID may exist in multiple source namespaces.
+    // Ambiguity is a miss, not permission to attach an unrelated citation.
+    return matches.length === 1 ? matches[0]!.id : null;
+  }
+
   async currentVersion(): Promise<string> {
     const result = await this.pool.query<{
       source_id: string;
@@ -173,6 +208,8 @@ export class PostgresGrounding {
     const result = await this.pool.query<PassageRow>(CANDIDATE_SQL, [
       grams,
       sourceTypes,
+      retrievalLanguages(question, lang, glossary),
+      lang,
     ]);
     const candidates: SearchCandidate[] = result.rows.map((row) => {
       const candidate = {

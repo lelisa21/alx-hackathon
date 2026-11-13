@@ -55,6 +55,29 @@ components:
         - text
         - via
       additionalProperties: false
+    FeedbackRequest:
+      type: object
+      properties:
+        replyId:
+          type: string
+          minLength: 1
+          maxLength: 128
+        helpful:
+          type: boolean
+      required:
+        - replyId
+        - helpful
+      additionalProperties: false
+    FeedbackResponse:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+      required:
+        - ok
+      additionalProperties: false
     Reply:
       type: object
       properties:
@@ -952,6 +975,95 @@ paths:
                   - messageKey
                 additionalProperties: false
         "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/feedback:
+    post:
+      summary: Record anonymous helpfulness and bounded session streak
+      description: Only replyId/helpful are accepted. The bearer must belong to the
+        reply's current session. No per-tap event or session identifier is
+        retained in aggregates.
+      security:
+        - sessionBearer: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                replyId:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                helpful:
+                  type: boolean
+              required:
+                - replyId
+                - helpful
+              additionalProperties: false
+      responses:
+        "200":
+          description: Counter recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - ok
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
           description: Problem response
           content:
             application/problem+json:

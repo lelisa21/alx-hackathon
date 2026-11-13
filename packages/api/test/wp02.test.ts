@@ -159,6 +159,173 @@ async function createSession(app: ReturnType<typeof buildApp>) {
 }
 
 describe("WP02 configuration and API contracts", () => {
+  it("P02 releases a failed in-flight claim so a retry can produce a durable reply", async () => {
+    const repository = createRepository();
+    repository.getCloudConsent = vi
+      .fn(repository.getCloudConsent)
+      .mockRejectedValueOnce(new Error("temporary storage failure"));
+    const { app } = createApp(repository, {
+      grounding: {
+        search: async () => [],
+        currentVersion: async () => "claim-test",
+      },
+    });
+    const session = await createSession(app);
+    const send = () =>
+      request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${session.body.sessionToken}`)
+        .send({
+          sessionId: session.body.sessionId,
+          clientMsgId: "p02-failure-retry",
+          lang: "en",
+          text: "What is this course about?",
+          via: "text",
+        });
+    expect((await send()).status).toBe(500);
+    const retry = await send();
+    expect(retry.status).toBe(200);
+    expect((await send()).body).toEqual(retry.body);
+  });
+  it("P02 wires pack help/distress rules before retrieval, including mixed greetings", async () => {
+    const search = vi.fn(async () => []);
+    const { app } = createApp(createRepository(), {
+      grounding: { search, currentVersion: async () => "rules-v1" },
+    });
+    const session = await createSession(app);
+    for (const [index, text] of [
+      "I need a person",
+      "hello, I need a person",
+      "I am in danger",
+    ].entries()) {
+      const result = await request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${session.body.sessionToken}`)
+        .send({
+          sessionId: session.body.sessionId,
+          clientMsgId: `p02-rule-${index}`,
+          lang: "en",
+          text,
+          via: "text",
+        });
+      expect(result.status).toBe(200);
+      expect(result.body.kind).toBe(index === 2 ? "distress" : "escalation");
+      expect(result.body.actions).toContainEqual({
+        type: "help",
+        label: "Help me now",
+      });
+    }
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("P02 keeps small talk outside the engine and responds within 50ms", async () => {
+    const search = vi.fn(async () => []);
+    const currentVersion = vi.fn(async () => "small-talk-v1");
+    const { app } = createApp(createRepository(), {
+      grounding: { search, currentVersion },
+    });
+    const session = await createSession(app);
+    const started = performance.now();
+    const result = await request(app)
+      .post("/v1/ask")
+      .set("authorization", `Bearer ${session.body.sessionToken}`)
+      .send({
+        sessionId: session.body.sessionId,
+        clientMsgId: "p02-greeting",
+        lang: "en",
+        text: "Hello",
+        via: "text",
+      });
+    const elapsed = performance.now() - started;
+    expect(result.status).toBe(200);
+    expect(result.body.kind).toBe("system");
+    expect(search).not.toHaveBeenCalled();
+    expect(currentVersion).not.toHaveBeenCalled();
+    expect(elapsed).toBeLessThan(50);
+  });
+
+  it("P02 connects durable conversation signals and resets consumed negative streaks", async () => {
+    const search = vi.fn(async () => []);
+    const conversationStore = {
+      recentReplyKinds: vi.fn(async () => ["notfound", "notfound"] as const),
+      consecutiveNegativeFeedback: vi.fn(async () => 0),
+      resetNegativeFeedback: vi.fn(async () => undefined),
+      recordFeedback: vi.fn(async () => true),
+    };
+    const { app } = createApp(createRepository(), {
+      grounding: { search, currentVersion: async () => "signals-v1" },
+      conversationStore,
+    });
+    const session = await createSession(app);
+    const askQuestion = (clientMsgId: string) =>
+      request(app)
+        .post("/v1/ask")
+        .set("authorization", `Bearer ${session.body.sessionToken}`)
+        .send({
+          sessionId: session.body.sessionId,
+          clientMsgId,
+          lang: "en",
+          text: "How can I choose a learning goal?",
+          via: "text",
+        });
+    expect((await askQuestion("p02-signal-1")).body.kind).toBe("escalation");
+    conversationStore.recentReplyKinds.mockResolvedValue([]);
+    conversationStore.consecutiveNegativeFeedback.mockResolvedValue(2);
+    expect((await askQuestion("p02-signal-2")).body.kind).toBe("escalation");
+    expect(conversationStore.resetNegativeFeedback).toHaveBeenCalledWith(
+      session.body.sessionId,
+    );
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it("P02 feedback accepts only replyId/helpful and authenticates with the current bearer", async () => {
+    const conversationStore = {
+      recentReplyKinds: async () => [],
+      consecutiveNegativeFeedback: async () => 0,
+      resetNegativeFeedback: async () => undefined,
+      recordFeedback: vi.fn(async () => true),
+    };
+    const { app } = createApp(createRepository(), { conversationStore });
+    const session = await createSession(app);
+    const body = { replyId: "p02-reply-id", helpful: false };
+    const result = await request(app)
+      .post("/v1/feedback")
+      .set("authorization", `Bearer ${session.body.sessionToken}`)
+      .send(body);
+    expect(result.status).toBe(200);
+    expect(result.body).toEqual({ ok: true });
+    expect(conversationStore.recordFeedback).toHaveBeenCalledWith({
+      ...body,
+      tokenHash: createHash("sha256")
+        .update(session.body.sessionToken)
+        .digest("hex"),
+    });
+    expect((await request(app).post("/v1/feedback").send(body)).status).toBe(
+      401,
+    );
+    expect(
+      (
+        await request(app)
+          .post("/v1/feedback")
+          .set("authorization", `Bearer ${session.body.sessionToken}`)
+          .send({
+            ...body,
+            sessionId: session.body.sessionId,
+            text: "must not be accepted",
+          })
+      ).status,
+    ).toBe(400);
+    conversationStore.recordFeedback.mockResolvedValue(false);
+    expect(
+      (
+        await request(app)
+          .post("/v1/feedback")
+          .set("authorization", `Bearer ${session.body.sessionToken}`)
+          .send(body)
+      ).status,
+    ).toBe(401);
+  });
+
   it("discovers a new draft folder on restart and serves it only in language preview", async () => {
     const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-language-"));
     try {

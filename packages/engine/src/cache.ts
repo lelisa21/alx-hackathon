@@ -16,7 +16,11 @@ export function createAnswerCacheKey(
   return createHash("sha256")
     .update(
       JSON.stringify([
-        request.text,
+        request.text
+          .normalize("NFC")
+          .toLowerCase()
+          .trim()
+          .replace(/\s+/gu, " "),
         request.lang,
         request.simple ?? false,
         contentVersion,

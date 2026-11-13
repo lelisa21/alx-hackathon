@@ -39,7 +39,8 @@ function locationText(value: unknown): string {
 
   const placeName = stringValue(value.name);
   const address = value.address;
-  if (typeof address === "string") return [placeName, address.trim()].filter(Boolean).join(", ");
+  if (typeof address === "string")
+    return [placeName, address.trim()].filter(Boolean).join(", ");
   if (!isRecord(address)) return placeName;
   return [
     placeName,
@@ -61,7 +62,8 @@ function textValue(value: unknown): string {
   if (typeof value === "string") return plainText(value);
   if (Array.isArray(value))
     return value.map(textValue).filter(Boolean).join(", ");
-  if (isRecord(value)) return stringValue(value.name) || stringValue(value.value);
+  if (isRecord(value))
+    return stringValue(value.name) || stringValue(value.value);
   return "";
 }
 
@@ -87,13 +89,22 @@ function validPostingUrl(value: unknown): string | undefined {
 
 function validDate(value: unknown): string | undefined {
   const date = stringValue(value);
-  if (!date || !Number.isFinite(Date.parse(date))) return undefined;
+  // schema.org Date/DateTime: reject ambiguous dates and Date.parse rollover.
+  const match =
+    /^(\d{4})-(\d{2})-(\d{2})(?:T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2}))?$/u.exec(
+      date,
+    );
+  if (!match || !Number.isFinite(Date.parse(date))) return undefined;
+  const day = new Date(`${match[1]}-${match[2]}-${match[3]}T00:00:00Z`);
+  if (day.toISOString().slice(0, 10) !== date.slice(0, 10)) return undefined;
   return date;
 }
 
 function isJobPosting(value: unknown): value is Record<string, unknown> {
   if (!isRecord(value)) return false;
-  const types = Array.isArray(value["@type"]) ? value["@type"] : [value["@type"]];
+  const types = Array.isArray(value["@type"])
+    ? value["@type"]
+    : [value["@type"]];
   return types.some(
     (type) =>
       type === "JobPosting" ||
@@ -113,9 +124,18 @@ function parsePosting(
   const organization = organizationName(value.hiringOrganization);
   const location = locationText(value.jobLocation);
   const deadline =
-    value.validThrough === undefined ? "" : validDate(value.validThrough) ?? "";
+    value.validThrough === undefined
+      ? ""
+      : (validDate(value.validThrough) ?? "");
 
-  if (!title || !description || !datePosted || !url || !organization || !location) {
+  if (
+    !title ||
+    !description ||
+    !datePosted ||
+    !url ||
+    !organization ||
+    !location
+  ) {
     return undefined;
   }
   if (value.validThrough !== undefined && !deadline) return undefined;
@@ -128,9 +148,13 @@ function parsePosting(
     datePosted,
     deadline,
     textValue(value.accommodationsOffered),
-    description,
   ]
     .filter(Boolean)
+    // Preserve complete structured fields as distinct source units. Without
+    // punctuation, an extractive adapter merges title, place and dates into
+    // one oversized sentence when normalizing whitespace.
+    .map((unit) => (/[.!?።]$/u.test(unit) ? unit : `${unit}.`))
+    .concat(description)
     .join("\n");
   const textNorm = normalise(`${title} ${location} ${text}`, lang);
   return {

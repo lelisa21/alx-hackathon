@@ -2,6 +2,9 @@ import {
   Ladder,
   OfflineProvider,
   OpenAiCompatible,
+  OpenAiProvider,
+  GeminiProvider,
+  XaiProvider,
   ProviderRegistry,
 } from "@dimts/ai";
 import type { AnswerRequest, AnswerResult } from "@dimts/engine";
@@ -70,6 +73,10 @@ export function createApiProviderRuntime(
   config: ApiConfig,
   packs: Map<string, LangPack>,
   environment: Record<string, string | undefined> = process.env,
+  resolveSource?: (
+    source: string,
+    passageIds: string[],
+  ) => Promise<string | null>,
 ): ApiProviderRuntime {
   const registry = new ProviderRegistry()
     .register("openai-compatible", (binding) => {
@@ -100,8 +107,34 @@ export function createApiProviderRuntime(
           name: binding.id,
           languages: binding.capabilities.languages,
           faqs: offlineFaqs(packs),
+          ...(resolveSource ? { resolveSource } : {}),
         }),
     );
+
+  for (const [adapter, Provider] of [
+    ["openai", OpenAiProvider],
+    ["gemini", GeminiProvider],
+    ["xai", XaiProvider],
+  ] as const) {
+    registry.register(
+      adapter,
+      (binding) =>
+        new Provider({
+          name: binding.id,
+          model: binding.model,
+          capabilities: binding.capabilities,
+          privacyClass: binding.privacyClass,
+          allowedDataClasses: binding.allowedDataClasses,
+          maxTokens: config.DIMTS_AI_MAX_TOKENS,
+          temperature: config.DIMTS_AI_TEMPERATURE,
+          ...(binding.endpoint ? { baseUrl: binding.endpoint } : {}),
+          ...(binding.apiKey ? { apiKey: binding.apiKey } : {}),
+          ...(binding.evaluatedLanguages
+            ? { evaluatedLanguages: binding.evaluatedLanguages }
+            : {}),
+        }),
+    );
+  }
 
   const offlineBinding: ProviderBinding = {
     id: "offline",
@@ -132,6 +165,7 @@ export function createApiProviderRuntime(
   const orderedIds = [
     config.DIMTS_AI_PROVIDER,
     ...config.DIMTS_AI_LADDER.split(",").map((id) => id.trim()),
+    ...providerMap.keys(),
   ].filter(
     (id, index, values) => id.length > 0 && values.indexOf(id) === index,
   );

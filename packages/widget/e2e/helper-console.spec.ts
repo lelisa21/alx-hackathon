@@ -19,6 +19,108 @@ const languageRegistry = [...packs.values()]
   }));
 const englishLanguage = languageRegistry.find(({ code }) => code === "en")!;
 
+test("FR-AI-09 helper provider status is authenticated, refreshable and failure-isolated", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  let healthRequests = 0;
+  let healthMode: "held" | "ready" | "failed" = "held";
+  let provider = "test-local-model";
+  let releaseHealth: (() => void) | undefined;
+  const healthReady = new Promise<void>((resolve) => {
+    releaseHealth = resolve;
+  });
+  await page.route("http://127.0.0.1:4173/helper", (route) =>
+    route.fulfill({
+      contentType: "text/html",
+      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${apiRoot}"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+    }),
+  );
+  await page.route(`${apiRoot}/**`, async (route) => {
+    const pathname = new URL(route.request().url()).pathname;
+    if (pathname.endsWith("/languages"))
+      return route.fulfill({ json: { languages: [englishLanguage] } });
+    if (pathname.endsWith("/ui"))
+      return route.fulfill({ json: packs.get("en")!.ui });
+    if (pathname.endsWith("/helpers/login"))
+      return route.fulfill({ json: { jwt: "helper-jwt" } });
+    if (pathname.endsWith("/help/queue"))
+      return route.fulfill({ json: { requests: [] } });
+    if (pathname.endsWith("/health")) {
+      healthRequests += 1;
+      if (healthMode === "held") await healthReady;
+      if (healthMode === "failed")
+        return route.fulfill({ status: 503, json: {} });
+      return route.fulfill({
+        json: {
+          ok: true,
+          db: true,
+          version: "test",
+          contentVersion: "v1",
+          provider,
+          ladder: [provider, "offline"],
+        },
+      });
+    }
+    return route.fulfill({ status: 404, json: {} });
+  });
+  await page.goto("http://127.0.0.1:4173/helper");
+  await expect(
+    page.getByRole("heading", { name: "Answer service" }),
+  ).toHaveCount(0);
+  expect(healthRequests).toBe(0);
+  await page.getByLabel("Helper token").fill("valid-helper-token-123");
+  await page.getByRole("button", { name: "Sign in" }).click();
+  await expect(
+    page.getByText("Checking answer service…", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("No requests are waiting.")).toBeVisible();
+  healthMode = "ready";
+  releaseHealth?.();
+  await expect(
+    page.getByText("Active provider: test-local-model", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Provider order: test-local-model → offline", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const { AxeBuilder } = await import("@axe-core/playwright");
+  const result = await new AxeBuilder({ page }).analyze();
+  expect(
+    result.violations.filter(({ impact }) =>
+      ["critical", "serious"].includes(impact ?? ""),
+    ),
+  ).toEqual([]);
+  healthMode = "failed";
+  await page.getByRole("button", { name: "Refresh queue" }).click();
+  await expect(
+    page.getByText("Answer service status is unavailable.", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText("No requests are waiting.")).toBeVisible();
+  await expect(
+    page.getByText("Active provider: test-local-model", { exact: true }),
+  ).toHaveCount(0);
+  healthMode = "ready";
+  provider = "configured-model-".repeat(12);
+  await page.getByRole("button", { name: "Refresh queue" }).click();
+  await expect(
+    page.getByText(`Active provider: ${provider}`, { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+  await page.getByRole("button", { name: "Sign out" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Answer service" }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(`Active provider: ${provider}`, { exact: true }),
+  ).toHaveCount(0);
+});
+
 // FR-LANG-01/10/14: registry metadata, status gating and direction must work
 // for a language unknown to the component source.
 test("helper language and queue pickers discover a new registry language", async ({

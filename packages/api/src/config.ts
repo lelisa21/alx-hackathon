@@ -93,6 +93,20 @@ const providerBindingSchema = z
   })
   .strict()
   .superRefine((binding, context) => {
+    if (["openai", "gemini", "xai"].includes(binding.adapter)) {
+      if (binding.privacyClass !== "remote")
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "native vendor adapters require remote privacy",
+          path: ["privacyClass"],
+        });
+      if (binding.enabled && !binding.credentialRef)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "native vendor adapters require a credential reference",
+          path: ["credentialRef"],
+        });
+    }
     if (binding.privacyClass === "remote" && binding.endpoint) {
       if (new URL(binding.endpoint).protocol !== "https:") {
         context.addIssue({

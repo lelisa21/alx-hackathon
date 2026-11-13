@@ -197,18 +197,50 @@ threshold with `DIMTS_LANGUAGE_DETECTION_CONFIDENCE`; the detector never sends
 question text to a third party. Cross-language retrieval remains capability
 and evaluation dependent.
 
-The API now accepts arbitrary provider IDs and has a capability-aware adapter
-registry, but only the OpenAI-compatible adapter is registered. OpenAI and xAI
-endpoints that conform to that protocol can use it; native Gemini/OpenAI/xAI
-adapters remain unimplemented. Custom providers are described by
+The API accepts arbitrary provider IDs and has a capability-aware adapter
+registry. Registered adapters are `offline`, `openai-compatible` (including
+local open-model servers), and the native `openai`, `gemini` and `xai`
+adapters. Native wire contracts are tested with fixtures; credentials,
+evaluated models and real-service latency still require host verification.
+See [local AI setup](./LOCAL_AI.md) for profiles and protocol references.
+Custom providers are described by
 `DIMTS_AI_PROVIDERS` JSON entries (`id`, `adapter`, `endpoint`, `model`,
-`credentialRef`, `enabled`, `priority`, `timeoutMs`, and declared
-`capabilities`). A `credentialRef`
+`credentialRef`, `privacyClass`, `allowedDataClasses`, `evaluatedLanguages`,
+`enabled`, `priority`, `timeoutMs`, and declared `capabilities`). A `credentialRef`
 names an environment variable; the secret value is never returned by the API.
 Unknown adapter IDs and unresolved enabled credentials fail at startup.
 Likewise, Node/Express/PostgreSQL are the current reference adapters;
 replacing a stack requires a conforming implementation, not zero-effort
 substitution.
+
+The selected provider and explicit `DIMTS_AI_LADDER` order take precedence;
+remaining enabled bindings follow in priority order. An explicitly placed
+offline step keeps its position. Remote calls require host enablement and
+current session consent. They receive only policy-allowed question and course
+passage data, without identity, history, glossary or job text. Job passages
+remain available to local/offline providers. Provider identity appears in
+`GET /v1/health` and the authenticated helper console, never learner replies.
+
+## Feedback and conversation signals
+
+`POST /v1/feedback` accepts only `{ "replyId": "...", "helpful": false }`
+with the owning session's current bearer token. Success is `{ "ok": true }`.
+The server resolves the session from the reply; the client sends no session
+ID or text. An unknown reply, wrong token or other-session reply returns the
+same 401 response. Extra body fields are rejected.
+
+Migration `005_conversation_signals.sql` adds a session-only negative-feedback
+streak bounded to 0–2. Helpful feedback or a consumed gentle-help offer resets
+it. Anonymous `feedback_counter` rows retain only topic (first cited passage,
+or `uncategorized`), language, UTC date and counts. No per-tap event is stored.
+This is the storage boundary for P09's later insights work.
+
+Two recent not-found replies or two negative taps trigger a localized gentle
+help offer before another provider call. Explicit help/person and distress
+phrases also bypass generation. Only the two recent reply kinds are queried.
+The answer cache uses the existing `answer_cache` table, excludes personalized
+state, expires after 24 hours and is invalidated by content publication. The
+engine revalidates cached citations and content version before reuse.
 
 ## Ingest course content
 

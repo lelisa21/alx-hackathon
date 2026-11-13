@@ -112,6 +112,8 @@ export class DimtsHelperConsole extends LitElement {
     noticeIsError: { state: true },
     connectionStatus: { state: true },
     announcement: { state: true },
+    providerStatus: { state: true },
+    providerState: { state: true },
   };
 
   declare api: string;
@@ -131,6 +133,9 @@ export class DimtsHelperConsole extends LitElement {
   declare private connectionStatus:
     "connecting" | "connected" | "reconnecting" | "";
   declare private announcement: string;
+  declare private providerStatus: { provider: string; ladder: string[] } | null;
+  declare private providerState: "loading" | "ready" | "unavailable";
+  private providerRequest = 0;
   private socket: WebSocket | undefined;
   private reconnectTimer: number | undefined;
   private queueRefreshTimer: number | undefined;
@@ -157,6 +162,8 @@ export class DimtsHelperConsole extends LitElement {
     this.noticeIsError = false;
     this.connectionStatus = "";
     this.announcement = "";
+    this.providerStatus = null;
+    this.providerState = "loading";
   }
 
   static override styles = css`
@@ -200,6 +207,10 @@ export class DimtsHelperConsole extends LitElement {
       margin-inline: auto;
       max-inline-size: 64rem;
       padding: 1rem;
+    }
+
+    .provider-status {
+      overflow-wrap: anywhere;
     }
 
     header,
@@ -550,6 +561,7 @@ export class DimtsHelperConsole extends LitElement {
     const jwt = this.jwt;
     const filter = this.filter;
     if (!jwt) return;
+    void this.loadProviderStatus(jwt);
     this.notice = "";
     this.noticeIsError = false;
     try {
@@ -596,6 +608,37 @@ export class DimtsHelperConsole extends LitElement {
       }
     } finally {
       if (this.jwt === jwt) this.scheduleQueueRefresh();
+    }
+  }
+
+  private async loadProviderStatus(jwt: string): Promise<void> {
+    const request = ++this.providerRequest;
+    if (!this.providerStatus) this.providerState = "loading";
+    try {
+      const response = await fetch(`${this.apiRoot}/health`, {
+        signal: AbortSignal.timeout(5_000),
+        cache: "no-store",
+      });
+      if (!response.ok) throw new Error("provider status");
+      const body: unknown = await response.json();
+      if (
+        typeof body !== "object" ||
+        body === null ||
+        !("provider" in body) ||
+        typeof body.provider !== "string" ||
+        !body.provider.trim() ||
+        !("ladder" in body) ||
+        !Array.isArray(body.ladder) ||
+        !body.ladder.every((item) => typeof item === "string" && item.trim())
+      )
+        throw new Error("provider status");
+      if (this.jwt !== jwt || this.providerRequest !== request) return;
+      this.providerStatus = { provider: body.provider, ladder: body.ladder };
+      this.providerState = "ready";
+    } catch {
+      if (this.jwt !== jwt || this.providerRequest !== request) return;
+      this.providerStatus = null;
+      this.providerState = "unavailable";
     }
   }
 
@@ -688,6 +731,9 @@ export class DimtsHelperConsole extends LitElement {
 
   private signOut(): void {
     this.jwt = "";
+    this.providerRequest += 1;
+    this.providerStatus = null;
+    this.providerState = "loading";
     this.requests = [];
     this.knownRequestIds.clear();
     this.queueLoaded = false;
@@ -1071,8 +1117,37 @@ export class DimtsHelperConsole extends LitElement {
         <p class="visually-hidden" role="status" aria-live="polite">
           ${this.announcement}
         </p>
-        ${this.jwt ? nothing : this.renderLogin()} ${this.renderQueue()}
-        ${this.renderActiveRequest()}
+        ${
+          this.jwt
+            ? html`
+                <section
+                  class="provider-status"
+                  aria-labelledby="helper-provider-heading"
+                >
+                  <h2 id="helper-provider-heading">
+                    ${this.t("helper.providerStatus")}
+                  </h2>
+                  <div role="status" aria-live="polite">
+                    ${
+                      this.providerState === "ready" && this.providerStatus
+                        ? html`
+                            <p>
+                              ${this.t("helper.providerActive", { provider: this.providerStatus.provider })}
+                            </p>
+                            <p>
+                              ${this.t("helper.providerLadder", { ladder: this.providerStatus.ladder.join(" → ") })}
+                            </p>
+                          `
+                        : html`<p>
+                            ${this.t(this.providerState === "loading" ? "helper.providerLoading" : "helper.providerUnavailable")}
+                          </p>`
+                    }
+                  </div>
+                </section>
+              `
+            : this.renderLogin()
+        }
+        ${this.renderQueue()} ${this.renderActiveRequest()}
       </main>
     `;
   }
