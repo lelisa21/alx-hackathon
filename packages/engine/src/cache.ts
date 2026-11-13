@@ -6,6 +6,8 @@ const DEFAULT_MAX_ENTRIES = 500;
 
 export interface AnswerCache {
   get(key: string): Promise<Reply | null>;
+  /** Returns a hit only when its content version and every citation are current. */
+  getCurrent?(key: string, contentVersion: string): Promise<Reply | null>;
   set(key: string, reply: Reply): Promise<void>;
 }
 

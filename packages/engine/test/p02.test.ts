@@ -257,6 +257,34 @@ describe("P02 engine safety and bounded answers", () => {
 });
 
 describe("P02 normalized, validated, private answer cache", () => {
+  it("uses a cache hit validated for the current content before retrieval", async () => {
+    let stored: Reply | null = null;
+    const getCurrent = vi.fn(
+      async (_key: string, version: string): Promise<Reply | null> =>
+        stored?.contentVersion === version ? stored : null,
+    );
+    const answerCache = {
+      get: async () => stored,
+      getCurrent,
+      set: async (_key: string, reply: Reply) => {
+        stored = reply;
+      },
+    };
+    const search = vi.fn(async () => [source]);
+    const d = deps({ answerCache, search });
+
+    expect((await ask(request, d)).kind).toBe("answer");
+    const reply = await ask(request, d);
+
+    expect(reply.kind).toBe("answer");
+    expect(search).toHaveBeenCalledOnce();
+    expect(d.answer).toHaveBeenCalledOnce();
+    expect(getCurrent).toHaveBeenCalledTimes(2);
+    expect(reply.citations).toEqual([
+      expect.objectContaining({ passageId: source.id }),
+    ]);
+  });
+
   it("normalizes equivalent questions only for the key", async () => {
     const changed = { ...request, text: "  HOW do I choose   a goal?  " };
     expect(createAnswerCacheKey(changed, "v1")).toBe(

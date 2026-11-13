@@ -298,6 +298,7 @@ describe.skipIf(!databaseUrl)(
       expect((await createPostgresAnswerCache(pool).get(key))?.id).toBe(
         "cached",
       );
+      await expect(cache.getCurrent(key, "v1")).resolves.toBeNull();
       await pool.query(
         "UPDATE answer_cache SET created_at = now() - interval '25 hours' WHERE cache_key = $1",
         [key],
@@ -306,6 +307,63 @@ describe.skipIf(!databaseUrl)(
       await cache.set(key, reply);
       await publishGoals();
       expect(await cache.get(key)).toBeNull();
+    });
+
+    it("validates cached citations against active passages and content version", async () => {
+      const grounding = new PostgresGrounding(pool);
+      await publishGoals();
+      const contentVersion = await grounding.currentVersion();
+      const passage = (
+        await grounding.search("Choose one learning goal", "en")
+      )[0]!;
+      const key = createAnswerCacheKey(
+        { text: "Choose one learning goal", lang: "en", simple: false },
+        contentVersion,
+      );
+      const cache = createPostgresAnswerCache(pool);
+      const reply = {
+        id: "original",
+        kind: "answer" as const,
+        text: "Choose one learning goal.",
+        lang: "en",
+        dir: "ltr" as const,
+        citations: [
+          {
+            passageId: "retired-passage",
+            label: "Goal",
+            url: "https://course.example/goal",
+            sourceLang: "en",
+            sourceType: "course" as const,
+          },
+        ],
+        actions: [],
+        contentVersion,
+      };
+
+      await cache.set(key, reply);
+      await expect(cache.getCurrent(key, contentVersion)).resolves.toBeNull();
+
+      await cache.set(key, {
+        ...reply,
+        citations: [
+          {
+            passageId: passage!.id,
+            label: passage!.label,
+            url: passage!.url,
+            sourceLang: passage!.lang,
+            sourceType: passage!.sourceType,
+          },
+        ],
+      });
+      await expect(
+        cache.getCurrent(key, contentVersion),
+      ).resolves.toMatchObject({
+        kind: "answer",
+        citations: [expect.objectContaining({ passageId: passage!.id })],
+      });
+      await expect(
+        cache.getCurrent(key, "old-content-version"),
+      ).resolves.toBeNull();
     });
 
     it("resolves a raw FAQ source to its current namespaced PostgreSQL citation", async () => {

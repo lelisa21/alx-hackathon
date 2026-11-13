@@ -37,4 +37,12 @@ describe("local language detection", () => {
     expect(result?.confidence).toBeGreaterThan(0.25);
     expect(result?.alternatives).toEqual(expect.any(Array));
   });
+
+  it("does not misclassify Afaan Oromoo text unsupported by the detector", async () => {
+    const detector = new FrancLanguageDetector(["en", "am", "om"]);
+
+    await expect(
+      detector.detect("Torban kana mata duree meeqa filachuu qaba?"),
+    ).resolves.toBeNull();
+  });
 });
