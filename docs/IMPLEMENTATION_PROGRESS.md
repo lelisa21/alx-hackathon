@@ -2,6 +2,33 @@
 
 Updated: 13 November 2026. Current branch: `phase-10-prompt`.
 
+## P10 — LTI 1.3 integration and OpenAPI (Review fixes - 13 November 2026)
+
+**Review findings addressed:**
+
+1. ✓ **OpenAPI schema complete** - LTI routes and security scheme already registered
+2. ✓ **Insights bearer token path implemented** - GET /v1/insights now supports LTI instructor role via bearer token
+3. ✓ **Persistent replay prevention** - Migrated nonce/state/token tracking from in-memory to PostgreSQL:
+   - Created migration 010_lti_platform_nonce_replay.sql with tables for nonce_state, nonce_used, token_replay
+   - Survives API restart and horizontal scaling
+   - Automatic cleanup via retention scheduler
+4. ✓ **Test assertion fixed** - JWT signature validation test now properly checks for invalid base64url characters
+5. ✓ **Repository interface extended** - Added getSessionDetails, storeLtiState, getLtiStateAndNonce, checkAndMarkNonceUsed, checkAndMarkTokenReplayed
+
+**Verification results:**
+
+- ✓ All 28 P10 LTI tests pass (platform registration, JWT validation, learner/instructor flows, replay prevention, OpenAPI validation, insights access)
+- ✓ LTI context stored as JSONB in session for audit trail (FR-INT-07)
+- ✓ Nonce/state/token-hash persisted in database (no longer in-memory)
+- ✓ Learner sessions cannot access insights, instructor sessions can (with or without X-Dimts-Key)
+- ✓ OpenAPI validates all LTI routes and schemas match Zod validators
+- ✓ No sensitive data logged (nonce/token values redacted)
+
+**Known open items:**
+
+- Platform registry loading from database (currently uses injected platformConfigs Map)
+- JWKS endpoint returns empty keys (stub for testing)
+
 ## P10 — LTI 1.3 integration and OpenAPI (13 November 2026)
 
 Requirements quoted before implementation: FR-INT-05/06/07/10, FR-INSIGHT instructor access, NFR-ADOPT-01/02.
