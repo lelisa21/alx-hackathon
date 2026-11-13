@@ -421,3 +421,146 @@ is confirmed.
 WP03 provides the grounding index/search and citation-gated engine library.
 WP04 provides the provider ladder. The API can use the offline, local, and
 configured cloud adapters; cloud remains opt-in through API configuration.
+
+## P06 career gateway
+
+Requirements: FR-JOB-01–11, FR-INT-07, FR-TUTOR-09, FR-SIMPLE-04;
+FR-SMS-06/09 and FR-TG-01/11 delivery integration; NFR-PRIV-02/04/06.
+OpenAPI and `jobs-schemas.ts` define the exact strict request/response shapes.
+All learner endpoints require the session bearer and `sessionId` in the body
+or query. Career responses use `Cache-Control: no-store`. Public/beta locale
+packs are accepted; draft and unknown locales are rejected.
+
+- `POST /v1/jobs/import`: `{lang,postings}` where `postings` is a JSON-LD
+  item, array or `@graph`. `X-Dimts-Key` must hash to a `host_key` row whose
+  `key_type` is `secret`. Migration 007 defaults existing rows to `public`.
+  Provision a separate server-only random secret through trusted deployment
+  administration; store its SHA-256 hash, never promote the widget key.
+  Required posting fields are `title`, `description`, `datePosted`,
+  `hiringOrganization`, `jobLocation`, and the canonical `url` required by
+  the existing P02 citation parser. Unknown posting fields are ignored.
+  The response is `{imported,errors:[{index,reason}]}`. Valid items and their
+  passages publish in one transaction; invalid items are reported by index.
+- `GET /v1/jobs?sessionId=…&lang=en&region=…&type=…` returns
+  `{jobs,channels,relayAvailable,glossary}`. Filters are optional bounded
+  strings. Jobs expose `id,title,description,organization,location,region,
+jobType,datePosted,deadline,deadlineDisplay,url,lang,accommodationsOffered`.
+  Region, job type and deadline may be null. `deadlineDisplay` uses the
+  learner calendar and the other calendar in brackets. Employer email is
+  never public. Glossary entries are `{term,meaning}` from the selected
+  locale pack. The private support filter is not an API field; sending it
+  is rejected. Channels list only configured real delivery adapters.
+- `POST /v1/subscriptions`: `{sessionId,clientRequestId,jobType?,region?,lang,
+channel,contact,consent:{accepted:true,noticeVersion:"job-alerts-v1"}}`.
+  Channel is `sms` or `telegram`. Show localized consent before collecting
+  contact. Success 201 returns `{id,status}` without contact. Reusing the
+  request ID is idempotent. Contact is encrypted with `DIMTS_ENC_KEY`, and
+  continuity uses keyed hashing with the distinct `DIMTS_HASH_KEY`.
+  Consent expires after 30 days; metadata contains timestamp, channel and
+  notice version only.
+- `GET /v1/subscriptions?sessionId=…` returns `{subscriptions:[{id,status,
+jobType?,region?,lang,channel}]}`. `DELETE /v1/subscriptions/{id}?sessionId=…`
+  stops only an owned subscription, erases contact and returns `{ok:true}`.
+  The domain's shared stop ports are the integration boundary for P07/P08
+  STOP commands. A bounded in-flight send and row locking keep Stop below
+  one minute. Stopped and expired subscriptions cannot start a send.
+- `POST /v1/accommodation-requests` accepts a discriminated action. `draft`
+  takes `{sessionId,clientRequestId,jobId,lang,needs,otherText?,name?,interviewAt?}`.
+  Needs are `sign_language_interpreter`, `step_free_access`,
+  `written_questions`, `extra_time`, `screen_reader_friendly_test`, `other`.
+  `interviewAt` is an optional ISO date/time including a timezone. No name,
+  diagnosis or proof is required; diagnosis/proof fields are rejected.
+  `resume` and `cancel` take `{sessionId,id}`. `approve` and `send` require
+  `{sessionId,id,revision}`. Each body also includes its `action`.
+  Responses are `{id,jobId,lang,revision,status,sendAttempted,message,needs,otherText?,name?,
+interviewAt?,interviewDisplay?}`. Draft edits create a new revision;
+  approval freezes the exact message. Review
+  the exact server-rendered message, approve its current revision, then send
+  separately. Target email is resolved only from the imported posting's
+  `hiringOrganization.contactPoint.email`; callers cannot choose a recipient.
+  Anonymous requests are supported. Private draft data is encrypted.
+  `sendAttempted` exposes only the durable boolean delivery marker, persisted
+  before the external call. Once true, clients must offer retry of the same
+  approved revision and must not offer draft editing or cancellation,
+  including after reload. A lost receipt is not permission to create another
+  delivery key for the same request.
+- `GET /v1/accommodation-requests?sessionId=…` returns
+  `{requests:[{id,jobId,status}]}` for owned resumable metadata. Use the
+  `resume` action to retrieve the exact private payload. Only safe IDs need
+  browser persistence. Cancellation before a delivery attempt clears private
+  draft contents.
+- `POST /v1/internal/alerts?dry=1` uses `Bearer DIMTS_CRON_SECRET`. Returns
+  aggregate `{matched,sent,skipped,failed}` only. Dry run has no writes or
+  sends. The daily digest is unique per subscriber/date and each job is
+  unique per subscriber. Uncertain retries keep the original durable key.
+  `DIMTS_JOBS_ALERT_INTERVAL_MS=0` (default) delegates scheduling to an
+  external caller. Values 60000–86400000 enable a bounded in-process
+  interval; daily limits still apply. `/internal/retention` also clears
+  expired consent contacts and old private requests. Independent startup and
+  60-second cleanup runs also erase expired contacts and requests while the
+  API is online, even when automatic alert delivery is disabled. Private
+  requests expire 30 days after the interview, or 30 days after a draft
+  without an interview date.
+
+Invalid input is 400; invalid session/host authentication is 401; an unknown
+owned resource is 404; stale revisions are 409; abuse limits are 429;
+unavailable delivery or failed confirmation is 503 with a locale message
+key. Responses and logs do not echo sensitive failure details.
+
+### Host HTTP delivery contract
+
+Set `DIMTS_JOBS_RELAY_URL` and `DIMTS_JOBS_RELAY_SECRET` together. The URL
+must be HTTPS without user information, query or fragment. Requests reject
+redirects and expire after ten seconds. `DIMTS_JOBS_RELAY_CHANNELS` is an
+optional comma-separated `sms,telegram` list declaring adapters the host
+actually implements; its default is empty. A configured relay supports
+accommodation delivery even when alert channels are empty. Missing relay
+configuration never produces a successful no-op. Native SMS and Telegram
+adapters remain the P07/P08 work packages.
+
+The API POSTs JSON with `Authorization: Bearer <relay secret>` and
+`Idempotency-Key: <stable key>`:
+
+```json
+{
+  "version": "dimts.jobs.delivery.v1",
+  "kind": "accommodation",
+  "to": "employer@example.org",
+  "message": "Synthetic approved request",
+  "lang": "en",
+  "idempotencyKey": "accommodation:<request-id>:<revision>"
+}
+```
+
+For `kind:"digest"`, fields are `channel,contact,lang,text,jobs,idempotencyKey`
+instead of `to,message`; `jobs` contains the same public job data without
+the derived `deadlineDisplay`. The host must durably deduplicate the stable
+key before accepting delivery and return 2xx JSON exactly confirming:
+
+```json
+{
+  "version": "dimts.jobs.delivery.v1",
+  "accepted": true,
+  "idempotencyKey": "the-original-key"
+}
+```
+
+The host must return this same receipt for repeats without sending again,
+including after a lost response or API restart. An empty, malformed,
+wrong-key or unsuccessful response counts as failure. The API performs
+one attempt per runner/user action; retries keep the same key. The host's
+SMS adapter must enforce the GSM-7/UCS-2 segmentation/shortening policy and
+per-number daily budget (default 20), and its Telegram adapter must enforce
+channel rate limits. Accept only after durable queueing with those policies;
+do not acknowledge a no-op. The API already batches at most one daily digest.
+No message body, contact, name or Telegram identifier may be logged.
+
+P06 provides feature-specific `JobsService.deleteData({sessionId})` and
+database cascades. The complete shared `/v1/data/delete` endpoint remains
+P11; P06 does not expose a partial endpoint claiming to erase all user data.
+
+Automated API evidence: `p06-contract.test.ts`, `p06-routes.test.ts` and
+`p06-flow.integration.test.ts` (real isolated PostgreSQL plus synthetic local
+HTTP relay, gated by `DIMTS_TEST_DATABASE_URL`);
+domain/database and browser evidence are recorded with P06's acceptance
+checks in `IMPLEMENTATION_PROGRESS.md`.

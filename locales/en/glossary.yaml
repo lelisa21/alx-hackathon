@@ -1,4 +1,22 @@
-# Unreviewed seed: SRS 20.6 terms plus sample study-plan vocabulary. Not a 200-term reviewed glossary.
+# Unreviewed seed: SRS 20.6 terms plus study-plan and career vocabulary. Not a 200-term reviewed glossary.
+- id: probation
+  en: "probation"
+  am: "የሙከራ ጊዜ"
+  om: "yeroo yaalii"
+  simple_definition: "A first period at a new job when you and the employer check how the work is going."
+  do_not_translate: false
+- id: reference
+  en: "reference"
+  am: "ስለ ሥራዎ የሚመሰክር ሰው"
+  om: "nama waa'ee hojii keessanii ragaa kennu"
+  simple_definition: "A person who can tell an employer about your work or skills, with your permission."
+  do_not_translate: false
+- id: interview_panel
+  en: "interview panel"
+  am: "የቃለ መጠይቅ ቡድን"
+  om: "garee afgaaffii"
+  simple_definition: "A group of people who ask you questions together during a job interview."
+  do_not_translate: false
 - id: lesson
   en: lesson
   am: ትምህርት

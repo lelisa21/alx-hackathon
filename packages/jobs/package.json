@@ -14,6 +14,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
+    "@dimts/grounding": "workspace:*",
     "pg": "^8.13.3"
   },
   "devDependencies": {

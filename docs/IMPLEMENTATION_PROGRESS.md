@@ -1,6 +1,76 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-05-prompt`.
+Updated: 13 November 2026. Current branch: `phase-06-prompt`.
+
+## P06 — implemented increment; acceptance blocked
+
+The user reported P05 committed/pushed and authorized P06 only on their new,
+clean branch. No agent commit or push. Read the complete remaining plan and
+P06's original prompt, Blueprint contracts/privacy rules and corresponding SRS
+requirements. Quoted before implementation: FR-JOB-01–11, FR-INT-07,
+FR-TUTOR-09, FR-SIMPLE-04 and related SMS/Telegram integration/privacy rules.
+
+Tests preceded implementation. Added migration 007 and a durable jobs service,
+secret-host import using P02's parser/index contract, authenticated REST/OpenAPI,
+encrypted contacts and private drafts, daily alert delivery, a configurable
+host HTTP relay and lazy accessible career flows. Contract decisions and
+recovery/retention boundaries are recorded in `DECISIONS.md`; exact routes,
+configuration and the P07/P08 delivery port are documented in `docs/API.md`.
+New locale copy/glossary definitions remain drafts; review status is unchanged.
+
+### Verified P06 evidence
+
+- Full Vitest run: **611/612 passed across 66 files**, no skips; the remaining
+  failure is the existing P02 HTTP latency gate below. **30/31 PostgreSQL
+  cases** pass, including **9 new domain cases**
+  and **3 real HTTP/host-relay cases**. P06's four domain unit tests, REST/Zod
+  tests, three widget unit tests and twelve locale tests pass. Tests caught and
+  fixed UTC date handling, immutable retries, and the crash window between host
+  acceptance and SQL receipt commit. A separate forced SQL-failure test proves
+  delivery identity survives restart; concurrent Stop erases contact and blocks
+  subsequent sends. Import rollback preserves existing course generations.
+- Browser regression: **123/127** passed initially. The new Careers button
+  displaced Help in the keyboard sequence; moved it after Help without changing
+  the existing assertion. A serial rerun passed all **13 P06 flow cases** plus
+  the Help, offline FAQ and shortcut cases (**16/17**). Replacing intercepted
+  HTML with a real HTTP host fixed the live fixture's language-fetch failure;
+  scoping its duplicate success text to the status region fixed its locator.
+  The real browser/API/PostgreSQL/HTTP-relay case then passed (**1/1**), proving
+  alert consent, encrypted contact, delivery/Stop and anonymous approved relay.
+  All **127 functional cases** have passing evidence across the full run and
+  focused reruns. Four-locale/pseudo-RTL, 320px, 200% text, keyboard, axe, voice
+  review, private filtering, safe reload, exact approval and uncertain-send
+  recovery pass. Artifacts: `test-results/p06-final`, `p06-regressions` and
+  `p06-live-verified`. Browser mocks and synthetic delivery do not prove real
+  provider delivery or assistive-technology usability.
+- Build, typecheck, lint, locale validation, changed-file Prettier, normal
+  `git diff --check` and default/configured Compose resolution pass. Compose
+  used synthetic environment values; no deployment was performed. Initial JS
+  is **47,700 / 61,440 bytes**, helper **33,159 / 61,440**, deferred **17,067**,
+  initial assets **133,856 / 153,600** after the final button-order rebuild.
+  No external dependency was added.
+
+### P06 acceptance still open
+
+- P02 cached HTTP p95 measured **56 ms** in the full suite and **94 ms** in an
+  isolated rerun, above the unchanged **50 ms** gate. A temporary diagnostic
+  using the committed API implementation also failed at **54 ms**; it was
+  removed. This supports a local timing concern but does not prove P06 meets
+  the performance requirement. No threshold or assertion was relaxed.
+- Serial startup benchmark failed: launcher **9,964 / 3,000 ms**, chat ready
+  **12,064 / 6,000 ms**. The artifact shows multi-second gaps between static
+  requests despite correctly paced response bodies. Performance remains
+  unverified; reproduce on an idle representative runner and investigate
+  before release. Artifacts: `test-results/p06-performance` and ignored
+  `node_modules/.cache/p06-vitest-final.log`.
+
+Acceptance still requires a configured production host relay and real
+delivery credentials, native-language/co-designer review and physical assistive
+technology/device checks. The local HTTP relay uses synthetic data and proves
+the protocol, not real SMS/Telegram delivery. Native adapters are P07/P08;
+system-wide data deletion and release gates remain P11. The temporary diagnostic
+files were removed; the isolated PostgreSQL cluster is stopped and removed after
+verification. Stop after P06; do not start P07 without the user's instruction.
 
 ## P05 — implemented increment; acceptance blocked
 

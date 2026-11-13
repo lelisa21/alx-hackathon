@@ -3,6 +3,66 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P06 — jobs, alerts and private accommodation (13 November 2026)
+
+- **Scope before implementation:** FR-JOB-01–11, FR-INT-07, FR-TUTOR-09,
+  FR-SIMPLE-04, related FR-SMS-06/09 and FR-TG-01/11 delivery integration,
+  and privacy rules. P06 only on the user-created `phase-06-prompt`.
+- **Agreed API/domain/client contracts:** `POST /v1/jobs/import` accepts
+  `{lang,postings}` containing schema.org JSON-LD, arrays or `@graph`; errors
+  identify input indexes. Reuse the P02 parser, including its canonical URL
+  provenance requirement; never invent a citation URL. Imports require a
+  separate secret key in the existing host-key registry. Add `key_type` with
+  a safe public default; existing widget keys do not gain import authority.
+  `GET /v1/jobs?sessionId=...&lang=...&region=...&type=...` returns public jobs,
+  configured channels, relay availability and glossary explanations. The API
+  formats deadline/interview displays through P01's calendar formatter.
+- **Subscriptions:** POST uses `{sessionId,clientRequestId,jobType?,region?,lang,
+channel,contact,consent:{accepted:true,noticeVersion:"job-alerts-v1"}}`.
+  Consent precedes contact entry. GET lists owned subscriptions without contact;
+  DELETE by ID stops and erases contact. Encrypt contact with AES-256-GCM and
+  retain only a keyed continuity hash. Bound consent to 30 days unless renewed
+  explicitly. A daily digest uses durable delivery identities, an immutable
+  retry snapshot and unique subscription/job receipts. Stop and delivery share
+  a lock; outbound operations are bounded below one minute. Dry run sends nothing.
+- **Accommodation:** the existing POST path uses explicit `action` values
+  `draft`, `resume`, `approve`, `send`, `cancel`; owned IDs and revision checks
+  prevent stale approvals. Draft fields are `sessionId,clientRequestId,jobId,
+lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`,
+  `step_free_access`, `written_questions`, `extra_time`,
+  `screen_reader_friendly_test`, `other`. Name and interview
+  time are optional. Persist private draft/review text encrypted; approval
+  authorizes that exact revision/message. GET lists owned resumable records.
+  Employer email comes from the posting's standard
+  `hiringOrganization.contactPoint.email`; it is not a caller-controlled target
+  and is omitted from public listings. Missing contact/relay is unavailable.
+- **Delivery:** P06 defines versioned digest/accommodation ports and a real,
+  optional host HTTP relay configured with an HTTPS URL and server-only secret.
+  The relay must honor stable idempotency keys; network ambiguity never means
+  successful delivery. Only configured channels are offered. Native SMS and
+  Telegram adapters remain P07/P08 work; no successful no-op adapter is allowed.
+- **Privacy boundaries:** Support I need is an in-memory client filter only;
+  never send it in URLs, API payloads, logs or browser storage. Local resumable
+  flow state excludes contact, names and accommodation choices/text. Domain
+  deletion covers all career data and session deletion cascades private records;
+  P11 owns the complete cross-channel `/v1/data/delete` endpoint. Existing
+  anonymous consent metadata contains no content or learner identifiers.
+  Opening careers opts into per-tab sessionStorage of only the session ID and
+  rotating resume credential, scoped to API/public host key. This enables
+  authorized Stop and encrypted draft recovery after reload. Store no bearer,
+  contact, name or private draft there; clear on invalid/expired session or
+  uninstall. Existing users who never open careers retain memory-only sessions.
+- **Recovery and retention:** Commit a digest's immutable payload/identity and
+  an accommodation's delivery-attempt marker before the network call. Approved
+  requests cannot be edited; uncertain delivery must retry the same request,
+  rather than cancel or replace it. The owned response exposes `sendAttempted`
+  so reload preserves this restriction. Full data deletion remains available
+  through the domain port. Daily budgets use UTC; private requests expire thirty
+  days after the optional interview, or after creation if no date was provided.
+  Startup and a sixty-second sweep remove expired career data independently of
+  the optional alert timer. The three added career glossary terms and new
+  Amharic/Oromo copy remain drafts pending native-language review.
+
 ## P05 — human help and sharing (13 November 2026)
 
 - **Scope before implementation:** FR-HELP-04–19, regression coverage for

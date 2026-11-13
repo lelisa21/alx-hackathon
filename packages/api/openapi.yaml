@@ -40,7 +40,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a6
+          enum: &a7
             - text
             - voice
             - sms
@@ -85,7 +85,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a7
+          enum: &a8
             - answer
             - notfound
             - escalation
@@ -97,7 +97,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a8
+          enum: &a9
             - ltr
             - rtl
         citations:
@@ -116,7 +116,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a9
+                enum: &a10
                   - course
                   - job
               timestamp:
@@ -135,7 +135,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a10
+                enum: &a11
                   - help
                   - more
                   - open_source
@@ -174,7 +174,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a1
+          enum: &a2
             - invalid_request
             - unauthorized
             - forbidden
@@ -201,7 +201,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a5
+          enum: &a6
             - web
             - api
           default: web
@@ -334,7 +334,7 @@ components:
                 maxLength: 35
               channel:
                 type: string
-                enum: &a11
+                enum: &a12
                   - web
                   - api
               createdAt:
@@ -519,12 +519,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a2
+                enum: &a3
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a3
+                enum: &a4
                   - live
                   - beta
                   - draft
@@ -579,7 +579,7 @@ components:
           maxLength: 35
         dir:
           type: string
-          enum: &a4
+          enum: &a5
             - ltr
             - rtl
         contentVersion:
@@ -659,6 +659,391 @@ components:
         - reviewedOn
         - items
       additionalProperties: false
+    JobImportRequest:
+      type: object
+      properties:
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+        postings: {}
+      required:
+        - lang
+        - postings
+      additionalProperties: false
+    JobImportResponse:
+      type: object
+      properties:
+        imported:
+          type: integer
+          minimum: 0
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+                minimum: 0
+              reason:
+                type: string
+            required:
+              - index
+              - reason
+            additionalProperties: false
+      required:
+        - imported
+        - errors
+      additionalProperties: false
+    Jobs:
+      type: object
+      properties:
+        jobs:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              title:
+                type: string
+              description:
+                type: string
+              organization:
+                type: string
+              location:
+                type: string
+              region:
+                type:
+                  - string
+                  - "null"
+              jobType:
+                type:
+                  - string
+                  - "null"
+              datePosted:
+                type: string
+              deadline:
+                type:
+                  - string
+                  - "null"
+              deadlineDisplay:
+                type:
+                  - string
+                  - "null"
+              url:
+                type: string
+                format: uri
+              lang:
+                type: string
+                minLength: 2
+                maxLength: 35
+              accommodationsOffered:
+                type: array
+                items:
+                  type: string
+            required:
+              - id
+              - title
+              - description
+              - organization
+              - location
+              - region
+              - jobType
+              - datePosted
+              - deadline
+              - deadlineDisplay
+              - url
+              - lang
+              - accommodationsOffered
+            additionalProperties: false
+        channels:
+          type: array
+          items:
+            type: string
+            enum: &a13
+              - sms
+              - telegram
+        relayAvailable:
+          type: boolean
+        glossary:
+          type: array
+          items:
+            type: object
+            properties:
+              term:
+                type: string
+              meaning:
+                type: string
+            required:
+              - term
+              - meaning
+            additionalProperties: false
+      required:
+        - jobs
+        - channels
+        - relayAvailable
+        - glossary
+      additionalProperties: false
+    SubscriptionRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+          minLength: 8
+          maxLength: 128
+        clientRequestId:
+          type: string
+          minLength: 8
+          maxLength: 128
+        jobType:
+          type: string
+          minLength: 1
+          maxLength: 120
+        region:
+          type: string
+          minLength: 1
+          maxLength: 120
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+        channel:
+          type: string
+          enum: &a15
+            - sms
+            - telegram
+        contact:
+          type: string
+          minLength: 1
+          maxLength: 128
+        consent:
+          type: object
+          properties:
+            accepted:
+              type: boolean
+              enum:
+                - true
+            noticeVersion:
+              type: string
+              enum:
+                - job-alerts-v1
+          required:
+            - accepted
+            - noticeVersion
+          additionalProperties: false
+      required:
+        - sessionId
+        - clientRequestId
+        - lang
+        - channel
+        - contact
+        - consent
+      additionalProperties: false
+    Subscription:
+      type: object
+      properties:
+        id:
+          type: string
+        status:
+          type: string
+          enum: &a14
+            - active
+            - stopped
+      required:
+        - id
+        - status
+      additionalProperties: false
+    AccommodationRequest:
+      oneOf:
+        - type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - draft
+            sessionId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            clientRequestId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            jobId:
+              type: string
+              minLength: 1
+              maxLength: 128
+            lang:
+              type: string
+              minLength: 2
+              maxLength: 35
+            needs:
+              type: array
+              items:
+                type: string
+                enum: &a1
+                  - sign_language_interpreter
+                  - step_free_access
+                  - written_questions
+                  - extra_time
+                  - screen_reader_friendly_test
+                  - other
+              minItems: 1
+              maxItems: 6
+            otherText:
+              type: string
+              minLength: 1
+              maxLength: 1000
+            name:
+              type: string
+              minLength: 1
+              maxLength: 80
+            interviewAt:
+              type: string
+              format: date-time
+          required:
+            - action
+            - sessionId
+            - clientRequestId
+            - jobId
+            - lang
+            - needs
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - resume
+            sessionId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            id:
+              type: string
+              minLength: 8
+              maxLength: 128
+          required:
+            - action
+            - sessionId
+            - id
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - cancel
+            sessionId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            id:
+              type: string
+              minLength: 8
+              maxLength: 128
+          required:
+            - action
+            - sessionId
+            - id
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - approve
+            sessionId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            id:
+              type: string
+              minLength: 8
+              maxLength: 128
+            revision:
+              type: integer
+              exclusiveMinimum: 0
+          required:
+            - action
+            - sessionId
+            - id
+            - revision
+          additionalProperties: false
+        - type: object
+          properties:
+            action:
+              type: string
+              enum:
+                - send
+            sessionId:
+              type: string
+              minLength: 8
+              maxLength: 128
+            id:
+              type: string
+              minLength: 8
+              maxLength: 128
+            revision:
+              type: integer
+              exclusiveMinimum: 0
+          required:
+            - action
+            - sessionId
+            - id
+            - revision
+          additionalProperties: false
+    Accommodation:
+      type: object
+      properties:
+        id:
+          type: string
+        revision:
+          type: integer
+          exclusiveMinimum: 0
+        status:
+          type: string
+          enum: &a16
+            - draft
+            - approved
+            - sent
+            - cancelled
+        sendAttempted:
+          type: boolean
+        message:
+          type: string
+        jobId:
+          type: string
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+        needs:
+          type: array
+          items:
+            type: string
+            enum: *a1
+          minItems: 0
+          maxItems: 6
+        otherText:
+          type: string
+        name:
+          type: string
+        interviewAt:
+          type: string
+        interviewDisplay:
+          type: string
+      required:
+        - id
+        - revision
+        - status
+        - sendAttempted
+        - message
+        - jobId
+        - lang
+        - needs
+      additionalProperties: false
   parameters: {}
 paths:
   /v1/help/availability:
@@ -709,7 +1094,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -734,7 +1119,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -781,7 +1166,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -806,7 +1191,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -867,7 +1252,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -892,7 +1277,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -956,7 +1341,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1048,7 +1433,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1073,7 +1458,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1098,7 +1483,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1180,7 +1565,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1205,7 +1590,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1230,7 +1615,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1255,7 +1640,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1325,7 +1710,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1350,7 +1735,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1416,7 +1801,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1441,7 +1826,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1533,10 +1918,10 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a2
+                          enum: *a3
                         status:
                           type: string
-                          enum: *a3
+                          enum: *a4
                         stt:
                           type: boolean
                         tts:
@@ -1590,7 +1975,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1662,7 +2047,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1721,7 +2106,7 @@ paths:
                     maxLength: 35
                   dir:
                     type: string
-                    enum: *a4
+                    enum: *a5
                   contentVersion:
                     type: string
                     minLength: 1
@@ -1821,7 +2206,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1851,7 +2236,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1878,7 +2263,7 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a5
+                  enum: *a6
                   default: web
                 sessionId:
                   type: string
@@ -1969,7 +2354,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1994,7 +2379,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2019,7 +2404,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2059,7 +2444,7 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a6
+                  enum: *a7
                 simple:
                   type: boolean
                   default: false
@@ -2082,14 +2467,14 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a7
+                    enum: *a8
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a8
+                    enum: *a9
                   citations:
                     type: array
                     items:
@@ -2106,7 +2491,7 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a9
+                          enum: *a10
                         timestamp:
                           type: number
                       required:
@@ -2123,7 +2508,7 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a10
+                          enum: *a11
                         label:
                           type: string
                       required:
@@ -2160,7 +2545,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2185,7 +2570,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2210,7 +2595,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2235,7 +2620,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2260,7 +2645,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2324,7 +2709,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2349,7 +2734,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2403,7 +2788,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2428,7 +2813,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2453,7 +2838,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2519,7 +2904,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2544,7 +2929,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2569,7 +2954,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2614,7 +2999,7 @@ paths:
                           maxLength: 35
                         channel:
                           type: string
-                          enum: *a11
+                          enum: *a12
                         createdAt:
                           type: string
                           format: date-time
@@ -2651,7 +3036,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2676,7 +3061,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2727,7 +3112,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2752,7 +3137,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2803,7 +3188,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2828,7 +3213,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2888,7 +3273,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2913,7 +3298,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2938,7 +3323,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2989,7 +3374,1297 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a1
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/jobs/import:
+    post:
+      summary: Import JSON-LD JobPosting items and atomically publish cited passages
+      description: X-Dimts-Key must resolve to a host registry row with key_type
+        secret. The public widget key is never sufficient. postings accepts an
+        item, array or @graph. Required posting fields include url for citation
+        provenance; unknown posting fields are ignored. Invalid indexes are
+        returned without raw data.
+      security:
+        - hostKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                lang:
+                  type: string
+                  minLength: 2
+                  maxLength: 35
+                postings: {}
+              required:
+                - lang
+                - postings
+              additionalProperties: false
+      responses:
+        "200":
+          description: Partial import results
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imported:
+                    type: integer
+                    minimum: 0
+                  errors:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        index:
+                          type: integer
+                          minimum: 0
+                        reason:
+                          type: string
+                      required:
+                        - index
+                        - reason
+                      additionalProperties: false
+                required:
+                  - imported
+                  - errors
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/jobs:
+    get:
+      summary: Search public job details, configured delivery availability and locale
+        glossary
+      description: No employer contact is returned. Support filters remain
+        client-session-only; unknown query parameters are rejected.
+        deadlineDisplay uses both learner and alternate calendars.
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+          required: true
+          name: sessionId
+          in: query
+        - schema:
+            type: string
+            minLength: 2
+            maxLength: 35
+          required: false
+          name: lang
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          required: false
+          name: region
+          in: query
+        - schema:
+            type: string
+            minLength: 1
+            maxLength: 120
+          required: false
+          name: type
+          in: query
+      responses:
+        "200":
+          description: Public job listing
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        title:
+                          type: string
+                        description:
+                          type: string
+                        organization:
+                          type: string
+                        location:
+                          type: string
+                        region:
+                          type:
+                            - string
+                            - "null"
+                        jobType:
+                          type:
+                            - string
+                            - "null"
+                        datePosted:
+                          type: string
+                        deadline:
+                          type:
+                            - string
+                            - "null"
+                        deadlineDisplay:
+                          type:
+                            - string
+                            - "null"
+                        url:
+                          type: string
+                          format: uri
+                        lang:
+                          type: string
+                          minLength: 2
+                          maxLength: 35
+                        accommodationsOffered:
+                          type: array
+                          items:
+                            type: string
+                      required:
+                        - id
+                        - title
+                        - description
+                        - organization
+                        - location
+                        - region
+                        - jobType
+                        - datePosted
+                        - deadline
+                        - deadlineDisplay
+                        - url
+                        - lang
+                        - accommodationsOffered
+                      additionalProperties: false
+                  channels:
+                    type: array
+                    items:
+                      type: string
+                      enum: *a13
+                  relayAvailable:
+                    type: boolean
+                  glossary:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        term:
+                          type: string
+                        meaning:
+                          type: string
+                      required:
+                        - term
+                        - meaning
+                      additionalProperties: false
+                required:
+                  - jobs
+                  - channels
+                  - relayAvailable
+                  - glossary
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/subscriptions:
+    get:
+      summary: Restore the owning session's subscriptions without contact data
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+          required: true
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: Subscriptions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscriptions:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        status:
+                          type: string
+                          enum: *a14
+                        jobType:
+                          type:
+                            - string
+                            - "null"
+                        region:
+                          type:
+                            - string
+                            - "null"
+                        lang:
+                          type: string
+                          minLength: 2
+                          maxLength: 35
+                        channel:
+                          type: string
+                          enum:
+                            - sms
+                            - telegram
+                      required:
+                        - id
+                        - status
+                        - lang
+                        - channel
+                      additionalProperties: false
+                required:
+                  - subscriptions
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+    post:
+      summary: Create an idempotent consented alert subscription
+      description: UI must show localized consent before collecting contact. Contact
+        is encrypted at rest; the response never echoes it. Unconfigured
+        delivery channels are unavailable.
+      security:
+        - sessionBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                clientRequestId:
+                  type: string
+                  minLength: 8
+                  maxLength: 128
+                jobType:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                region:
+                  type: string
+                  minLength: 1
+                  maxLength: 120
+                lang:
+                  type: string
+                  minLength: 2
+                  maxLength: 35
+                channel:
+                  type: string
+                  enum: *a15
+                contact:
+                  type: string
+                  minLength: 1
+                  maxLength: 128
+                consent:
+                  type: object
+                  properties:
+                    accepted:
+                      type: boolean
+                      enum:
+                        - true
+                    noticeVersion:
+                      type: string
+                      enum:
+                        - job-alerts-v1
+                  required:
+                    - accepted
+                    - noticeVersion
+                  additionalProperties: false
+              required:
+                - sessionId
+                - clientRequestId
+                - lang
+                - channel
+                - contact
+                - consent
+              additionalProperties: false
+      responses:
+        "201":
+          description: Subscription identity
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  status:
+                    type: string
+                    enum: *a14
+                required:
+                  - id
+                  - status
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "409":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "503":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/subscriptions/{id}:
+    delete:
+      summary: Stop an owned subscription and erase its contact
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+          required: true
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: Stopped
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - ok
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/accommodation-requests:
+    get:
+      summary: Find owning session's resumable request metadata
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 128
+          required: true
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: Private no-store metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  requests:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        jobId:
+                          type: string
+                        status:
+                          type: string
+                          enum: *a16
+                      required:
+                        - id
+                        - jobId
+                        - status
+                      additionalProperties: false
+                required:
+                  - requests
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+    post:
+      summary: Draft, resume, approve, send or cancel a private interview support
+        request
+      description: Only draft accepts needs, optional name and interview time. Draft
+        edits create a new revision; approval freezes the exact message. Approve
+        and send require the exact current revision; send requires explicit
+        prior approval. sendAttempted is durable before external delivery, and
+        blocks editing or cancellation of an uncertain send. Target comes only
+        from the posting's hiringOrganization.contactPoint.email. Retry uses the
+        same durable idempotency key. Responses are no-store; no diagnosis or
+        proof fields are accepted.
+      security:
+        - sessionBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - draft
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    clientRequestId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    jobId:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    lang:
+                      type: string
+                      minLength: 2
+                      maxLength: 35
+                    needs:
+                      type: array
+                      items:
+                        type: string
+                        enum: *a1
+                      minItems: 1
+                      maxItems: 6
+                    otherText:
+                      type: string
+                      minLength: 1
+                      maxLength: 1000
+                    name:
+                      type: string
+                      minLength: 1
+                      maxLength: 80
+                    interviewAt:
+                      type: string
+                      format: date-time
+                  required:
+                    - action
+                    - sessionId
+                    - clientRequestId
+                    - jobId
+                    - lang
+                    - needs
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - resume
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    id:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                  required:
+                    - action
+                    - sessionId
+                    - id
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - cancel
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    id:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                  required:
+                    - action
+                    - sessionId
+                    - id
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - approve
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    id:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    revision:
+                      type: integer
+                      exclusiveMinimum: 0
+                  required:
+                    - action
+                    - sessionId
+                    - id
+                    - revision
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    action:
+                      type: string
+                      enum:
+                        - send
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    id:
+                      type: string
+                      minLength: 8
+                      maxLength: 128
+                    revision:
+                      type: integer
+                      exclusiveMinimum: 0
+                  required:
+                    - action
+                    - sessionId
+                    - id
+                    - revision
+                  additionalProperties: false
+      responses:
+        "200":
+          description: Exact private request for review
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  revision:
+                    type: integer
+                    exclusiveMinimum: 0
+                  status:
+                    type: string
+                    enum: *a16
+                  sendAttempted:
+                    type: boolean
+                  message:
+                    type: string
+                  jobId:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  needs:
+                    type: array
+                    items:
+                      type: string
+                      enum: *a1
+                    minItems: 0
+                    maxItems: 6
+                  otherText:
+                    type: string
+                  name:
+                    type: string
+                  interviewAt:
+                    type: string
+                  interviewDisplay:
+                    type: string
+                required:
+                  - id
+                  - revision
+                  - status
+                  - sendAttempted
+                  - message
+                  - jobId
+                  - lang
+                  - needs
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "409":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "429":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "503":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/internal/alerts:
+    post:
+      summary: Run at most one daily digest per subscriber or preview without sending
+      security:
+        - cronBearer: []
+      parameters:
+        - schema:
+            type: string
+            enum:
+              - "0"
+              - "1"
+          required: false
+          name: dry
+          in: query
+      responses:
+        "200":
+          description: Aggregate counts only
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matched:
+                    type: integer
+                    minimum: 0
+                  sent:
+                    type: integer
+                    minimum: 0
+                  skipped:
+                    type: integer
+                    minimum: 0
+                  failed:
+                    type: integer
+                    minimum: 0
+                required:
+                  - matched
+                  - sent
+                  - skipped
+                  - failed
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "503":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
                   messageKey:
                     type: string
                 required:

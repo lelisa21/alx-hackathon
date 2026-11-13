@@ -244,6 +244,59 @@ const environmentSchema = z
     DIMTS_HASH_KEY: base64Key(32),
     DIMTS_JWT_SECRET: z.string().min(32),
     DIMTS_CRON_SECRET: z.string().min(24),
+    DIMTS_JOBS_RELAY_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .url()
+        .refine((value) => {
+          const url = new URL(value);
+          return (
+            url.protocol === "https:" &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+          );
+        }, "must use HTTPS without credentials, query or fragment")
+        .optional(),
+    ),
+    DIMTS_JOBS_RELAY_SECRET: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(24).optional(),
+    ),
+    DIMTS_JOBS_ALERT_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(86400000)
+      .default(0)
+      .refine(
+        (value) => value === 0 || value >= 60000,
+        "must be zero or at least 60000",
+      ),
+    DIMTS_JOBS_RELAY_CHANNELS: z
+      .string()
+      .default("")
+      .transform((value, context) => {
+        const channels = value
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean);
+        if (
+          channels.some(
+            (channel) => channel !== "sms" && channel !== "telegram",
+          ) ||
+          new Set(channels).size !== channels.length
+        ) {
+          context.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "must contain unique sms and/or telegram channels",
+          });
+          return z.NEVER;
+        }
+        return channels as Array<"sms" | "telegram">;
+      }),
     DIMTS_HOST_ORIGINS: z.string().default(""),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
     DIMTS_STT_ENGINE: z.enum(["none", "browser"]).default("none"),
@@ -282,6 +335,18 @@ const environmentSchema = z
     DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {
+    if (
+      Boolean(config.DIMTS_JOBS_RELAY_URL) !==
+        Boolean(config.DIMTS_JOBS_RELAY_SECRET) ||
+      (config.DIMTS_JOBS_RELAY_CHANNELS.length > 0 &&
+        !config.DIMTS_JOBS_RELAY_URL)
+    ) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message:
+          "Job relay URL and secret must be configured together; relay channels require both",
+      });
+    }
     if (Boolean(config.DIMTS_TURN_API_KEY) !== Boolean(config.DIMTS_TURN_APP)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
