@@ -23,3 +23,23 @@ keywords:
     - JOBS
     - ስራ
     - HOJII
+  person: [PERSON, HELP, "2", ሰው, NAMA]
+  confirm: [Y, YES, አዎ, EE]
+  cancel: [CANCEL, ሰርዝ, HAQI]
+  all: [ALL, ሁሉም, HUNDA]
+welcome: "Gaaffii barnootaa gaafadhaa. HELP namaaf. JOBS hojii. STOP dhaabuuf."
+invalid: "Filannoo tarreeffame keessaa tokko ergaa."
+unavailable: "Tajaajilli kun hin qophoofne. Gaaffiin hin ergamne. Barachuu itti fufaa."
+callback_sent: "Gaaffiin akka isiniif bilbilamu fudhatameera. Yeroon bilbilaa hin mirkanoofne."
+jobs_type: "Hojii akkamii? Hundaaf ALL, haquuf CANCEL ergaa."
+jobs_region: "Naannoo kam? Hundaaf ALL, haquuf CANCEL ergaa."
+jobs_language: "Afaan ergaa hojii: 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_consent: "Ergaa hojii guyyaa guyyaan lakkoofsa kanaan guyyaa 30f? Hayyamuuf Y. STOP SMS hunda dhaaba."
+jobs_active: "Ergaan hojii guyyaa 30f banameera. Bulchuuf JOBS; SMS hunda dhaabuuf STOP."
+jobs_stopped: "Ergaan hojii dhaabbateera; lakkoofsi haqameera. Barachuu itti fufaa."
+jobs_manage: "1 Ergaa hojii haaraa. 2 Ergaa hojii dhaabi. STOP SMS hunda dhaaba."
+limit: "Daangaa ergaa guyyaa geessaniittu. Bor yaalaa. STOP ni hojjeta."
+no_more: "Barreeffamni kuufame biraa hin jiru. Gaaffii biraa gaafadhaa."
+error: "Gaaffiin hin milkoofne. Ergaa sana irra deebi'aa yaalaa."
+cancelled: "Haqameera. Barachuu itti fufaa."
+conflict: "Mallattoon ergaa kun duraan fayyadameera. Ergaa haaraa ergaa."

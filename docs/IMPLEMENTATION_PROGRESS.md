@@ -1,6 +1,61 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-06-prompt`.
+Updated: 13 November 2026. Current branch: `phase-07-prompt`.
+
+## P07 — implemented increment; acceptance blocked
+
+The user reported P06 committed/pushed and authorized P07 only on their clean
+branch. No commit/push. Read P07's original prompt and authoritative SMS/privacy
+contracts; requirements quoted before implementation: FR-SMS-01–12,
+FR-LANG-12/17 and related privacy. Decisions are recorded before implementation
+in `DECISIONS.md`. Tests preceded encoding, gateway, persistence, API and UI code.
+
+Implemented canonical SMS counting/normalization, simulator/optional HTTP
+gateway ports, encrypted conversation/replay state, permanent priority STOP,
+callback-Y consent, bounded continuation, shared daily limits and P06 alert
+subscription integration. `/sim/sms` is a separate localized, accessible entry;
+credentials, phone and thread stay in page memory. No real operator is claimed.
+
+Verified automated evidence:
+
+- **FR-SMS-01/03/04/06/11/12:** 16 encoding/pagination, 8 gateway and 23 domain
+  cases pass, including all locale keywords, three-segment bounds, two retries,
+  replay and transient tutor/callback/subscription recovery. The documented
+  oversized-sentence fallback is a policy interpretation requiring review;
+  strict sentence-boundary acceptance is not claimed for that edge case.
+- **FR-SMS-05/07/08/09/10:** 6 SMS PostgreSQL and 5 real API/HTTP cases pass:
+  encrypted/hash-only persistence, priority/permanent STOP, consent, shared
+  budgets, P06 delivery, restart recovery and expiry. All 10 P06 database cases
+  pass. The SMS inbound boundary has 18 cases; runtime wiring has 4.
+- Full Vitest run: **708/710 passed**. Both existing P02 timing failures pass
+  in an isolated rerun without threshold changes (cached p95 **27 ms**, offline
+  **62 ms**). The subsequently added container dependency-closure test and
+  8 preview-route tests pass separately: **719 unique cases verified across
+  these runs**, not a claim of a clean single full-suite run.
+- **FR-SMS-02:** All **135 functional browser cases** pass across the full run
+  and targeted recovery runs. The 8 P07 cases include the real browser/API/
+  PostgreSQL/P06 exchange, keyboard use, 320 px, 200% text, four locale/direction
+  cases and axe. Fixed a missing Vite preview route and two test assumptions:
+  STOP cascades subscription deletion, and shortcut input must wait for the
+  existing asynchronous focus handoff. No production P03 behavior or test
+  threshold changed. Artifacts: `p07-final`, `p07-verified`, `p07-final-gates`.
+- The separate serial **NFR-PERF-02** gate passes: launcher **2,985.5/3,000 ms**,
+  chat ready **5,117.4/6,000 ms**, using the unchanged 400 kbps/400 ms fixture.
+  Launcher margin is narrow; this does not replace representative device checks.
+- Build, lint, typecheck, locale validation, bundle budgets, changed-file
+  formatting and diff checks pass. Initial JS **48,194/61,440 bytes**, simulator
+  JS **27,729/61,440**, initial assets **134,907/153,600**. Default and configured
+  Compose resolution pass with synthetic values. Docker execution is blocked
+  because the Docker Desktop Linux daemon is unavailable.
+
+Native-language/keyword review and physical Android/assistive-technology checks
+remain unverified; no locale review flag was promoted. Real operator/callback
+delivery requires external credentials and testing; operator contracts are
+explicitly outside P07. Current artifacts/logs are under `test-results/p07-*`
+and ignored `node_modules/.cache/p07-*`. The isolated PostgreSQL cluster on
+port 55432 was stopped and removed after verification.
+
+Stop after P07. P08 requires the user's next instruction and branch.
 
 ## P06 — implemented increment; acceptance blocked
 

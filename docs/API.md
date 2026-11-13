@@ -512,11 +512,14 @@ key. Responses and logs do not echo sensitive failure details.
 Set `DIMTS_JOBS_RELAY_URL` and `DIMTS_JOBS_RELAY_SECRET` together. The URL
 must be HTTPS without user information, query or fragment. Requests reject
 redirects and expire after ten seconds. `DIMTS_JOBS_RELAY_CHANNELS` is an
-optional comma-separated `sms,telegram` list declaring adapters the host
-actually implements; its default is empty. A configured relay supports
+optional comma-separated list declaring host adapters; its default is empty.
+After P07, the default API composition takes SMS exclusively through the native
+SMS service: a legacy `sms` host advertisement is ignored, and absent native
+SMS configuration leaves SMS unavailable. `telegram` host delivery remains
+available when declared. A configured relay supports
 accommodation delivery even when alert channels are empty. Missing relay
-configuration never produces a successful no-op. Native SMS and Telegram
-adapters remain the P07/P08 work packages.
+configuration never produces a successful no-op. SMS delivery is now
+implemented by P07; native Telegram delivery remains P08.
 
 The API POSTs JSON with `Authorization: Bearer <relay secret>` and
 `Idempotency-Key: <stable key>`:
@@ -549,9 +552,9 @@ The host must return this same receipt for repeats without sending again,
 including after a lost response or API restart. An empty, malformed,
 wrong-key or unsuccessful response counts as failure. The API performs
 one attempt per runner/user action; retries keep the same key. The host's
-SMS adapter must enforce the GSM-7/UCS-2 segmentation/shortening policy and
-per-number daily budget (default 20), and its Telegram adapter must enforce
-channel rate limits. Accept only after durable queueing with those policies;
+Telegram adapter must enforce channel rate limits. Native SMS enforces the
+GSM-7/UCS-2 segmentation/shortening policy and per-number daily budget
+(default 20). Accept only after durable queueing with the applicable policies;
 do not acknowledge a no-op. The API already batches at most one daily digest.
 No message body, contact, name or Telegram identifier may be logged.
 
@@ -564,3 +567,61 @@ Automated API evidence: `p06-contract.test.ts`, `p06-routes.test.ts` and
 HTTP relay, gated by `DIMTS_TEST_DATABASE_URL`);
 domain/database and browser evidence are recorded with P06's acceptance
 checks in `IMPLEMENTATION_PROGRESS.md`.
+
+## SMS inbound and simulator (P07)
+
+`POST /v1/sms/inbound` is shared by the gateway and `/sim/sms` browser page.
+It requires `Authorization: Bearer DIMTS_SMS_GATEWAY_SECRET`, a separate
+credential of at least 24 non-whitespace characters. An absent secret or
+unavailable service returns 503. Authentication runs before the SMS JSON
+parser and body validation. Every SMS response is `Cache-Control: no-store`.
+
+The strict body is `{id,from,text}`. `id` is 1–128 characters: it starts with
+an ASCII letter or digit and then accepts letters, digits, `.`, `_`, `:`, or
+`-`. `from` is an E.164 number with `+` and 7–15 digits. `text` is nonempty
+and contains at most 1000 Unicode code points. JSON bodies are limited to
+16 KiB, including escaped Unicode. No caller-supplied session, language or
+extra fields are accepted; the phone's pseudonymous session determines the
+language after numeric menu selection.
+
+Successful responses are
+`{messages:[{id,text,encoding,units,segments,status}],stopped,lang}`.
+`encoding` is `gsm7` or `ucs2`, and `status` is `queued`, `sent`, `delivered`
+or `failed`. Counts describe the actual normalized transmitted text. Each
+message fits within three segments. No response includes a phone number.
+The same inbound ID and exact body can be retried without repeating side
+effects; a changed payload under an existing ID returns 409. A stopped
+conversation returns `stopped:true` and no further messages after its one
+confirmation.
+
+SMS problems retain `{type,title,status,code,messageKey}` and add
+`{lang,message}` for locale-resolved copy. `Content-Language` identifies the
+response language. Before session lookup, errors use English; domain errors
+use the established conversation language. Invalid input is 400, invalid
+gateway authentication 401, replay conflict 409, oversized JSON 413, abuse
+limits 429, unexpected internal failure 500, and unavailable/uncertain
+delivery 503. Errors do not echo input or raw transport details. A 429
+includes `Retry-After: 60`; the daily outbound cap may require waiting until
+the next UTC day.
+
+`DIMTS_SMS_MODE=simulator` uses in-process simulated delivery and makes no
+mobile-network call. `gateway` mode requires paired HTTPS
+`DIMTS_SMS_GATEWAY_URL`/`DIMTS_SMS_GATEWAY_TOKEN`. An optional paired HTTPS
+`DIMTS_SMS_CALLBACK_URL`/`DIMTS_SMS_CALLBACK_SECRET` enables the separate-Y
+callback host port. Missing callback configuration reports unavailability.
+The inbound secret must differ from encryption/hash/JWT/cron/relay/channel
+credentials. `DIMTS_SMS_DAILY_LIMIT` is 1–1000, default 20. The domain applies
+30 new inbound IDs per minute per phone; STOP bypasses the burst and daily
+cap. P06 alert runs use the same native SMS delivery adapter and budget.
+
+The standalone simulator holds its secret, number, draft and thread only
+in page memory. Enter test settings manually; do not embed a gateway secret
+in HTML, a query string, or a frontend environment variable. Its New thread
+action clears the page and does not reverse permanent STOP. See
+[`SMS_GATEWAY.md`](SMS_GATEWAY.md) for adapter protocols, consent, privacy,
+retry semantics and local setup.
+
+The existing authenticated `/v1/internal/retention` operation clears expired
+SMS private ciphertext and SMS delivery metadata older than 24 hours.
+Session erasure clears linked SMS ciphertext. Permanent STOP tombstones are
+retained; retention does not resume messaging for a stopped number.

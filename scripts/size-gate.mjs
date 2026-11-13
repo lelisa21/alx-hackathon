@@ -13,6 +13,7 @@ const javascriptLimit = 60 * 1024;
 const initialLoadLimit = 150 * 1024;
 const widgetBundleName = "dimts-widget.js";
 const helperBundleName = "dimts-helper-console.js";
+const simulatorBundleName = "dimts-sms-simulator.js";
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -47,7 +48,11 @@ const assets = files.filter(
 );
 const javascriptAssets = assets.filter((file) => file.endsWith(".js"));
 let widgetJavaScriptAssets = javascriptAssets.filter(
-  (file) => path.basename(file) !== helperBundleName,
+  (file) =>
+    ![helperBundleName, simulatorBundleName].includes(path.basename(file)),
+);
+const simulatorJavaScriptAssets = javascriptAssets.filter(
+  (file) => path.basename(file) === simulatorBundleName,
 );
 const helperJavaScriptAssets = javascriptAssets.filter(
   (file) => path.basename(file) === helperBundleName,
@@ -66,7 +71,9 @@ if (helperJavaScriptAssets.length === 0) {
 // Vite's static import graph is the initial load. Dynamic voice/help imports
 // are reported separately, never silently folded into or omitted from the graph.
 let initialAssets = assets.filter(
-  (file) => !helperJavaScriptAssets.includes(file),
+  (file) =>
+    !helperJavaScriptAssets.includes(file) &&
+    !simulatorJavaScriptAssets.includes(file),
 );
 let deferredJavaScriptAssets = [];
 const manifestPath = path.join(widgetDist, ".vite", "manifest.json");
@@ -110,6 +117,7 @@ if (files.includes(manifestPath)) {
     (file) =>
       !initial.has(file) &&
       !helperJavaScriptAssets.includes(file) &&
+      !simulatorJavaScriptAssets.includes(file) &&
       path.basename(file) !== "service-worker.js",
   );
 }
@@ -133,6 +141,9 @@ const widgetJavaScriptBytes = sizes
   .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
 const helperJavaScriptBytes = sizes
   .filter(({ file }) => helperJavaScriptAssets.includes(file))
+  .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
+const simulatorJavaScriptBytes = sizes
+  .filter(({ file }) => simulatorJavaScriptAssets.includes(file))
   .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
 let initialLoadBytes = sizes
   .filter(
@@ -174,6 +185,9 @@ console.log(
   `Helper console JavaScript: ${helperJavaScriptBytes} / ${javascriptLimit} compressed bytes`,
 );
 console.log(
+  `SMS simulator JavaScript: ${simulatorJavaScriptBytes} / ${javascriptLimit} compressed bytes`,
+);
+console.log(
   `Deferred JavaScript: ${sizes.filter(({ file }) => deferredJavaScriptAssets.includes(file)).reduce((total, { compressedBytes }) => total + compressedBytes, 0)} compressed bytes`,
 );
 console.log(
@@ -188,6 +202,7 @@ if (!sizes.some(({ file }) => file === englishUiPack)) {
 if (
   widgetJavaScriptBytes > javascriptLimit ||
   helperJavaScriptBytes > javascriptLimit ||
+  simulatorJavaScriptBytes > javascriptLimit ||
   initialLoadBytes > initialLoadLimit
 ) {
   process.exitCode = 1;

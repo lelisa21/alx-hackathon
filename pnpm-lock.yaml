@@ -86,6 +86,9 @@ importers:
       '@dimts/locales-tools':
         specifier: workspace:*
         version: link:../locales-tools
+      '@dimts/sms':
+        specifier: workspace:*
+        version: link:../sms
       compression:
         specifier: ^1.7.4
         version: 1.8.2
@@ -245,7 +248,18 @@ importers:
         specifier: ^6.0.10
         version: 6.2.17
 
-  packages/sms: {}
+  packages/sms:
+    dependencies:
+      '@dimts/jobs':
+        specifier: workspace:*
+        version: link:../jobs
+      pg:
+        specifier: ^8.13.3
+        version: 8.23.1
+    devDependencies:
+      '@types/pg':
+        specifier: ^8.11.11
+        version: 8.23.1
 
   packages/telegram:
     dependencies:
@@ -263,6 +277,9 @@ importers:
       '@dimts/help':
         specifier: workspace:*
         version: link:../help
+      '@dimts/sms':
+        specifier: workspace:*
+        version: link:../sms
       '@dimts/voice':
         specifier: workspace:*
         version: link:../voice

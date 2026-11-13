@@ -13,6 +13,48 @@ const root = path.resolve(
 );
 const packs = loadPacks(path.join(root, "locales"));
 
+it("P07 supplies localized simulator, explicit SMS consent and management copy", () => {
+  for (const pack of packs.values()) {
+    for (const key of [
+      "title",
+      "secret",
+      "phone",
+      "message",
+      "segments",
+      "retry",
+      "stopped",
+      "privacy",
+    ])
+      expect(
+        pack.ui[`smsSim.${key}`],
+        `${pack.meta.code}: ${key}`,
+      ).toBeTruthy();
+    const sms = pack.sms as Record<string, unknown>;
+    for (const key of [
+      "welcome",
+      "invalid",
+      "unavailable",
+      "callback_sent",
+      "jobs_type",
+      "jobs_region",
+      "jobs_language",
+      "jobs_consent",
+      "jobs_active",
+      "jobs_stopped",
+      "jobs_manage",
+      "limit",
+      "no_more",
+      "error",
+      "cancelled",
+    ])
+      expect(typeof sms[key], `${pack.meta.code}: ${key}`).toBe("string");
+    for (const key of ["person", "confirm", "cancel", "all"])
+      expect(
+        (sms.keywords as Record<string, string[]>)[key]?.length,
+      ).toBeGreaterThan(0);
+  }
+});
+
 it("FR-JOB-11 explains each career term in the learner's locale", () => {
   for (const lang of ["en", "am", "om"]) {
     const glossary = packs.get(lang)!.glossary as {

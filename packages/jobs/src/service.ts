@@ -293,6 +293,18 @@ export class JobsService {
     );
     return result.rows.length === 1;
   }
+  /** Channel STOP applies to every subscription for this contact, including
+   * subscriptions created in a web session. The contact never leaves memory. */
+  async stopContact(input: {
+    channel: JobChannel;
+    contact: string;
+  }): Promise<void> {
+    const hash = this.cipher.hash(input.channel, input.contact.trim());
+    await this.options.pool.query(
+      "UPDATE subscription SET stopped_at=COALESCE(stopped_at,$3),contact_enc=NULL,contact_hash=NULL WHERE channel=$1 AND contact_hash=$2",
+      [input.channel, hash, this.now()],
+    );
+  }
   private decodeRequest(row: RequestRow): {
     view: AccommodationView;
     privateDraft: PrivateDraft | null;

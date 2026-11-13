@@ -49,6 +49,28 @@ async function writeEnglishPack() {
 }
 
 describe("widget size gate", () => {
+  it("budgets the standalone SMS simulator separately from the embedded widget", async () => {
+    await Promise.all([
+      writeFile(
+        path.join(widgetDist, "dimts-widget.js"),
+        randomBytes(40 * 1024),
+      ),
+      writeFile(path.join(widgetDist, "dimts-helper-console.js"), "export {};"),
+      writeFile(
+        path.join(widgetDist, "dimts-sms-simulator.js"),
+        randomBytes(40 * 1024),
+      ),
+      writeEnglishPack(),
+    ]);
+    const result = runSizeGate();
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("SMS simulator JavaScript:");
+    await writeFile(
+      path.join(widgetDist, "dimts-sms-simulator.js"),
+      randomBytes(65 * 1024),
+    );
+    expect(runSizeGate().status).toBe(1);
+  });
   it("counts the largest authored FAQ budget with the initial prefetch", async () => {
     await Promise.all([
       writeFile(path.join(widgetDist, "dimts-widget.js"), "export {};"),

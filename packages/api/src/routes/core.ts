@@ -1,11 +1,10 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response, Router } from "express";
 import express from "express";
-import { ask, detectConversationRule } from "@dimts/engine";
 import type { AskDependencies } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { z } from "zod";
-import { getVisiblePacks, resolveUi, translate } from "@dimts/locales-tools";
+import { getVisiblePacks, resolveUi } from "@dimts/locales-tools";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ApiConfig } from "../config.js";
 import { generateOpenApiYaml } from "../openapi.js";
@@ -17,11 +16,14 @@ import {
   LanguageListSchema,
   LocaleUiSchema,
   PreviewQuerySchema,
-  ReplySchema,
   SessionRequestSchema,
   SessionResponseSchema,
 } from "../schemas.js";
-import type { ApiReply, ApiRepository } from "../types.js";
+import type { ApiRepository } from "../types.js";
+import {
+  ConversationError,
+  createConversationService,
+} from "../conversation.js";
 import type { ApiProviderRuntime } from "../provider-runtime.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
@@ -38,60 +40,6 @@ interface CoreRouteOptions {
   grounding?: Pick<PostgresGrounding, "currentVersion"> &
     Partial<Pick<PostgresGrounding, "resolveFaqCitations">>;
   conversationStore?: ConversationStateStore;
-}
-
-function isSmallTalk(pack: LangPack | undefined, text: string): boolean {
-  const values = pack?.prompts.small_talk;
-  if (!Array.isArray(values)) return false;
-  const normalized = text
-    .trim()
-    .toLocaleLowerCase()
-    .replace(/[\p{P}\p{S}]+/gu, " ")
-    .trim();
-  return values.some(
-    (value) =>
-      typeof value === "string" &&
-      (normalized ===
-        value
-          .toLocaleLowerCase()
-          .replace(/[\p{P}\p{S}]+/gu, " ")
-          .trim() ||
-        normalized.startsWith(
-          `${value
-            .toLocaleLowerCase()
-            .replace(/[\p{P}\p{S}]+/gu, " ")
-            .trim()} `,
-        )),
-  );
-}
-
-function createReply(
-  packMap: Map<string, LangPack>,
-  lang: string,
-  text: string,
-  kind: ApiReply["kind"],
-  key: string,
-  actionKey?: string,
-): ApiReply {
-  const translated = translate(packMap, lang, key);
-  const actionText = actionKey
-    ? translate(packMap, lang, actionKey).text
-    : undefined;
-  const direction =
-    packMap.get(lang)?.meta.dir ??
-    packMap.get(translated.usedLang)?.meta.dir ??
-    "ltr";
-  const reply: ApiReply = {
-    id: randomBytes(16).toString("base64url"),
-    kind,
-    text: translated.text,
-    lang,
-    dir: direction,
-    citations: [],
-    actions: actionText ? [{ type: "help", label: actionText }] : [],
-    contentVersion: "unavailable",
-  };
-  return validateResponse(ReplySchema, reply);
 }
 
 function parsePreviewQuery(
@@ -125,7 +73,7 @@ function validateResponse<T extends z.ZodTypeAny>(
 export function createCoreRouter(options: CoreRouteOptions): Router {
   const router = express.Router();
   const { config, packs, repository } = options;
-  const askDependencies = options.askDependencies;
+  const conversation = createConversationService(options);
   const requireSession = createSessionAuth(repository);
 
   if (options.conversationStore) {
@@ -377,82 +325,17 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
 
-    const existing = await repository.findReply(
-      body.sessionId,
-      body.clientMsgId,
-    );
-    if (existing) {
-      response.json(validateResponse(ReplySchema, existing));
-      return;
-    }
-
-    if ((await repository.countRecentQuestions(body.sessionId)) >= 20) {
-      sendProblem(response, 429, "rate_limited", "limit.reached");
-      return;
-    }
-
-    const claimed = await repository.claimQuestion(body);
-    if (!claimed) {
-      const concurrentReply = await repository.findReply(
-        body.sessionId,
-        body.clientMsgId,
-      );
-      if (concurrentReply) {
-        response.json(validateResponse(ReplySchema, concurrentReply));
-        return;
-      }
-      sendProblem(response, 409, "conflict", "error.generic");
-      return;
-    }
-
-    let reply: ApiReply;
     try {
-      const pack = packs.get(body.lang);
-      const rules = askDependencies?.rulesFor?.(body.lang);
-      const isGreeting =
-        (!rules || !detectConversationRule(body.text, body.lang, rules)) &&
-        isSmallTalk(pack, body.text);
-      const thanks = /\b(?:thanks?|thank you)\b/iu.test(body.text);
-      const consent =
-        !isGreeting && askDependencies
-          ? await repository.getCloudConsent(body.sessionId)
-          : null;
-      reply = isGreeting
-        ? createReply(
-            packs,
-            body.lang,
-            body.text,
-            "system",
-            thanks ? "smallTalk.thanks" : "smallTalk.hello",
-          )
-        : askDependencies
-          ? ReplySchema.parse(
-              await ask(body, askDependencies, {
-                cloudOk: Boolean(
-                  consent?.cloudOk &&
-                  consent.consentVersion === config.DIMTS_AI_CONSENT_VERSION,
-                ),
-              }),
-            )
-          : createReply(
-              packs,
-              body.lang,
-              body.text,
-              "notfound",
-              "answer.notfound",
-              "help.button",
-            );
-
-      await repository.saveReply({
-        sessionId: body.sessionId,
-        clientMsgId: body.clientMsgId,
-        reply,
-      });
+      response.json(await conversation(body));
     } catch (error) {
-      await repository.releaseQuestion(body.sessionId, body.clientMsgId);
-      throw error;
+      if (!(error instanceof ConversationError)) throw error;
+      sendProblem(
+        response,
+        error.code === "rate_limited" ? 429 : 409,
+        error.code,
+        error.code === "rate_limited" ? "limit.reached" : "error.generic",
+      );
     }
-    response.json(reply);
   });
 
   return router;

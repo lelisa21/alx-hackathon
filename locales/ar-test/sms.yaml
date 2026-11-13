@@ -23,3 +23,23 @@ keywords:
     - JOBS
     - ስራ
     - HOJII
+  person: [PERSON, HELP, "2", ሰው, NAMA]
+  confirm: [Y, YES, አዎ, EE]
+  cancel: [CANCEL, ሰርዝ, HAQI]
+  all: [ALL, ሁሉም, HUNDA]
+welcome: "Ask a learning question. HELP for a person. JOBS for alerts. STOP to stop."
+invalid: "Reply with one of the listed choices."
+unavailable: "This service is not configured. No request was sent. You can keep learning."
+callback_sent: "Your callback request was accepted. A callback time is not guaranteed."
+jobs_type: "What kind of job? Reply ALL for any type, or CANCEL."
+jobs_region: "Which region? Reply ALL for anywhere, or CANCEL."
+jobs_language: "Alert language: 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_consent: "Daily job alerts to this number for 30 days? Reply Y to agree. STOP stops all SMS."
+jobs_active: "Job alerts are active for 30 days. JOBS to manage; STOP to stop all SMS."
+jobs_stopped: "Job alerts stopped and contact deleted. You can keep learning."
+jobs_manage: "1 New job alerts. 2 Stop job alerts. STOP stops all SMS."
+limit: "Daily message limit reached. Try tomorrow. STOP still works."
+no_more: "No more saved text. Ask another question."
+error: "The request failed. Retry the same message."
+cancelled: "Cancelled. You can keep learning."
+conflict: "This message ID was already used. Send a new message."

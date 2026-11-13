@@ -17,6 +17,11 @@ components:
     cronBearer:
       type: http
       scheme: bearer
+    smsGatewayBearer:
+      type: http
+      scheme: bearer
+      description: Separately configured DIMTS_SMS_GATEWAY_SECRET; never a session,
+        host or cron credential
   schemas:
     AskRequest:
       type: object
@@ -40,7 +45,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a7
+          enum: &a9
             - text
             - voice
             - sms
@@ -85,7 +90,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a8
+          enum: &a10
             - answer
             - notfound
             - escalation
@@ -97,7 +102,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a9
+          enum: &a11
             - ltr
             - rtl
         citations:
@@ -116,7 +121,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a10
+                enum: &a12
                   - course
                   - job
               timestamp:
@@ -135,7 +140,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a11
+                enum: &a13
                   - help
                   - more
                   - open_source
@@ -174,7 +179,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a2
+          enum: &a3
             - invalid_request
             - unauthorized
             - forbidden
@@ -192,6 +197,141 @@ components:
         - code
         - messageKey
       additionalProperties: false
+    SmsInboundRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+        from:
+          type: string
+          pattern: ^\+[1-9]\d{6,14}$
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+          description: Nonempty SMS text, at most 1000 Unicode code points
+      required:
+        - id
+        - from
+        - text
+      additionalProperties: false
+    SmsMessage:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 256
+        text:
+          type: string
+          minLength: 1
+          maxLength: 2000
+        encoding:
+          type: string
+          enum: &a1
+            - gsm7
+            - ucs2
+        units:
+          type: integer
+          minimum: 0
+        segments:
+          type: integer
+          minimum: 1
+          maximum: 3
+        status:
+          type: string
+          enum: &a2
+            - queued
+            - sent
+            - delivered
+            - failed
+      required:
+        - id
+        - text
+        - encoding
+        - units
+        - segments
+        - status
+      additionalProperties: false
+    SmsInboundResponse:
+      type: object
+      properties:
+        messages:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 256
+              text:
+                type: string
+                minLength: 1
+                maxLength: 2000
+              encoding:
+                type: string
+                enum: *a1
+              units:
+                type: integer
+                minimum: 0
+              segments:
+                type: integer
+                minimum: 1
+                maximum: 3
+              status:
+                type: string
+                enum: *a2
+            required:
+              - id
+              - text
+              - encoding
+              - units
+              - segments
+              - status
+            additionalProperties: false
+          maxItems: 10
+        stopped:
+          type: boolean
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+      required:
+        - messages
+        - stopped
+        - lang
+      additionalProperties: false
+    SmsProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: number
+        code:
+          type: string
+          enum: *a3
+        messageKey:
+          type: string
+        lang:
+          type: string
+          minLength: 2
+          maxLength: 35
+        message:
+          type: string
+      required:
+        - type
+        - title
+        - status
+        - code
+        - messageKey
+        - lang
+        - message
+      additionalProperties: false
     SessionRequest:
       type: object
       properties:
@@ -201,7 +341,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a6
+          enum: &a8
             - web
             - api
           default: web
@@ -334,7 +474,7 @@ components:
                 maxLength: 35
               channel:
                 type: string
-                enum: &a12
+                enum: &a14
                   - web
                   - api
               createdAt:
@@ -519,12 +659,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a3
+                enum: &a5
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a4
+                enum: &a6
                   - live
                   - beta
                   - draft
@@ -579,7 +719,7 @@ components:
           maxLength: 35
         dir:
           type: string
-          enum: &a5
+          enum: &a7
             - ltr
             - rtl
         contentVersion:
@@ -761,7 +901,7 @@ components:
           type: array
           items:
             type: string
-            enum: &a13
+            enum: &a15
               - sms
               - telegram
         relayAvailable:
@@ -810,7 +950,7 @@ components:
           maxLength: 35
         channel:
           type: string
-          enum: &a15
+          enum: &a17
             - sms
             - telegram
         contact:
@@ -847,7 +987,7 @@ components:
           type: string
         status:
           type: string
-          enum: &a14
+          enum: &a16
             - active
             - stopped
       required:
@@ -882,7 +1022,7 @@ components:
               type: array
               items:
                 type: string
-                enum: &a1
+                enum: &a4
                   - sign_language_interpreter
                   - step_free_access
                   - written_questions
@@ -1004,7 +1144,7 @@ components:
           exclusiveMinimum: 0
         status:
           type: string
-          enum: &a16
+          enum: &a18
             - draft
             - approved
             - sent
@@ -1023,7 +1163,7 @@ components:
           type: array
           items:
             type: string
-            enum: *a1
+            enum: *a4
           minItems: 0
           maxItems: 6
         otherText:
@@ -1046,6 +1186,329 @@ components:
       additionalProperties: false
   parameters: {}
 paths:
+  /v1/sms/inbound:
+    post:
+      summary: Accept an authenticated SMS gateway or simulator inbound message
+      description: The simulator uses this same service path. IDs are stable per
+        pseudonymous phone identity; retries preserve the exact body, while
+        changed payloads conflict. First contact returns a numeric language
+        menu. STOP bypasses conversation burst/daily limits, confirms once and
+        remains permanent. Responses are no-store; the gateway secret and phone
+        number are never returned. At most 1000 Unicode code points are
+        accepted. Per-phone burst limit is 30 new messages/minute and outbound
+        limit defaults to 20/day; repeated inbound IDs do not repeat side
+        effects.
+      security:
+        - smsGatewayBearer: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                id:
+                  type: string
+                  pattern: ^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$
+                from:
+                  type: string
+                  pattern: ^\+[1-9]\d{6,14}$
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 2000
+                  description: Nonempty SMS text, at most 1000 Unicode code points
+              required:
+                - id
+                - from
+                - text
+              additionalProperties: false
+      responses:
+        "200":
+          description: Delivered or pending SMS messages, permanent STOP state and
+            persisted conversation language
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          minLength: 1
+                          maxLength: 256
+                        text:
+                          type: string
+                          minLength: 1
+                          maxLength: 2000
+                        encoding:
+                          type: string
+                          enum: *a1
+                        units:
+                          type: integer
+                          minimum: 0
+                        segments:
+                          type: integer
+                          minimum: 1
+                          maximum: 3
+                        status:
+                          type: string
+                          enum: *a2
+                      required:
+                        - id
+                        - text
+                        - encoding
+                        - units
+                        - segments
+                        - status
+                      additionalProperties: false
+                    maxItems: 10
+                  stopped:
+                    type: boolean
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                required:
+                  - messages
+                  - stopped
+                  - lang
+                additionalProperties: false
+        "400":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "401":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "409":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "413":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "429":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "500":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "503":
+          description: Localized SMS problem without contact or input text
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a3
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                    minLength: 2
+                    maxLength: 35
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
   /v1/help/availability:
     get:
       summary: Get scheduled helper availability and calm waiting threshold
@@ -1094,7 +1557,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1119,7 +1582,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1166,7 +1629,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1191,7 +1654,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1252,7 +1715,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1277,7 +1740,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1341,7 +1804,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1433,7 +1896,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1458,7 +1921,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1483,7 +1946,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1565,7 +2028,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1590,7 +2053,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1615,7 +2078,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1640,7 +2103,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1710,7 +2173,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1735,7 +2198,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1801,7 +2264,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1826,7 +2289,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -1918,10 +2381,10 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a3
+                          enum: *a5
                         status:
                           type: string
-                          enum: *a4
+                          enum: *a6
                         stt:
                           type: boolean
                         tts:
@@ -1975,7 +2438,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2047,7 +2510,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2106,7 +2569,7 @@ paths:
                     maxLength: 35
                   dir:
                     type: string
-                    enum: *a5
+                    enum: *a7
                   contentVersion:
                     type: string
                     minLength: 1
@@ -2206,7 +2669,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2236,7 +2699,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2263,7 +2726,7 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a6
+                  enum: *a8
                   default: web
                 sessionId:
                   type: string
@@ -2354,7 +2817,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2379,7 +2842,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2404,7 +2867,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2444,7 +2907,7 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a7
+                  enum: *a9
                 simple:
                   type: boolean
                   default: false
@@ -2467,14 +2930,14 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a8
+                    enum: *a10
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a9
+                    enum: *a11
                   citations:
                     type: array
                     items:
@@ -2491,7 +2954,7 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a10
+                          enum: *a12
                         timestamp:
                           type: number
                       required:
@@ -2508,7 +2971,7 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a11
+                          enum: *a13
                         label:
                           type: string
                       required:
@@ -2545,7 +3008,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2570,7 +3033,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2595,7 +3058,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2620,7 +3083,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2645,7 +3108,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2709,7 +3172,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2734,7 +3197,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2788,7 +3251,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2813,7 +3276,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2838,7 +3301,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2904,7 +3367,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2929,7 +3392,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2954,7 +3417,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -2999,7 +3462,7 @@ paths:
                           maxLength: 35
                         channel:
                           type: string
-                          enum: *a12
+                          enum: *a14
                         createdAt:
                           type: string
                           format: date-time
@@ -3036,7 +3499,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3061,7 +3524,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3112,7 +3575,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3137,7 +3600,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3188,7 +3651,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3213,7 +3676,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3273,7 +3736,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3298,7 +3761,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3323,7 +3786,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3374,7 +3837,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3454,7 +3917,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3479,7 +3942,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3504,7 +3967,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3623,7 +4086,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a13
+                      enum: *a15
                   relayAvailable:
                     type: boolean
                   glossary:
@@ -3660,7 +4123,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3685,7 +4148,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3725,7 +4188,7 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a14
+                          enum: *a16
                         jobType:
                           type:
                             - string
@@ -3767,7 +4230,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3792,7 +4255,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3838,7 +4301,7 @@ paths:
                   maxLength: 35
                 channel:
                   type: string
-                  enum: *a15
+                  enum: *a17
                 contact:
                   type: string
                   minLength: 1
@@ -3878,7 +4341,7 @@ paths:
                     type: string
                   status:
                     type: string
-                    enum: *a14
+                    enum: *a16
                 required:
                   - id
                   - status
@@ -3898,7 +4361,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3923,7 +4386,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3948,7 +4411,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3973,7 +4436,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -3998,7 +4461,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4056,7 +4519,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4081,7 +4544,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4106,7 +4569,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4148,7 +4611,7 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a16
+                          enum: *a18
                       required:
                         - id
                         - jobId
@@ -4172,7 +4635,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4197,7 +4660,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4252,7 +4715,7 @@ paths:
                       type: array
                       items:
                         type: string
-                        enum: *a1
+                        enum: *a4
                       minItems: 1
                       maxItems: 6
                     otherText:
@@ -4373,7 +4836,7 @@ paths:
                     exclusiveMinimum: 0
                   status:
                     type: string
-                    enum: *a16
+                    enum: *a18
                   sendAttempted:
                     type: boolean
                   message:
@@ -4388,7 +4851,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a1
+                      enum: *a4
                     minItems: 0
                     maxItems: 6
                   otherText:
@@ -4424,7 +4887,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4449,7 +4912,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4474,7 +4937,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4499,7 +4962,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4524,7 +4987,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4549,7 +5012,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4614,7 +5077,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4639,7 +5102,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:
@@ -4664,7 +5127,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a2
+                    enum: *a3
                   messageKey:
                     type: string
                 required:

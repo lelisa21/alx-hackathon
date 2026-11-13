@@ -47,6 +47,14 @@ import { createJobsRouter } from "./routes/jobs.js";
 import type { JobsApiService } from "./routes/jobs.js";
 import { createHostJobsDelivery } from "./jobs-delivery.js";
 import { createCareerRenderers } from "./jobs-format.js";
+import type { SmsGateway } from "@dimts/sms";
+import { createSmsRouter } from "./routes/sms.js";
+import {
+  createSmsRuntime,
+  smsConfigured,
+  withSmsJobsDelivery,
+} from "./sms-runtime.js";
+import type { SmsApiService } from "./sms-runtime.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -74,6 +82,9 @@ export interface BuildAppOptions {
   logDestination?: pino.DestinationStream;
   jobsService?: JobsApiService;
   jobsDelivery?: JobsDelivery;
+  smsService?: SmsApiService;
+  smsGateway?: SmsGateway;
+  smsCallbackTransport?: typeof fetch;
 }
 
 const defaultLocalesRoot = path.resolve(
@@ -111,7 +122,17 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.helpSocketStore ??
     (pool ? createPostgresHelpSocketStore(pool) : undefined);
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
-  const jobsDelivery = options.jobsDelivery ?? createHostJobsDelivery(config);
+  let smsService = options.smsService;
+  const nativeSmsEnabled =
+    Boolean(smsService) || (Boolean(pool) && smsConfigured(config));
+  const jobsDelivery =
+    options.jobsDelivery && !nativeSmsEnabled
+      ? options.jobsDelivery
+      : withSmsJobsDelivery(
+          options.jobsDelivery ?? createHostJobsDelivery(config),
+          () => smsService,
+          nativeSmsEnabled,
+        );
   const jobsService =
     options.jobsService ??
     (pool
@@ -153,6 +174,22 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
             logger.info({ event: "answer_cache", result }),
         })
       : undefined);
+  const smsRuntime =
+    !smsService && pool
+      ? createSmsRuntime({
+          config,
+          pool,
+          repository,
+          packs,
+          ...(askDependencies ? { askDependencies } : {}),
+          ...(jobsService ? { jobs: jobsService } : {}),
+          ...(options.smsGateway ? { gateway: options.smsGateway } : {}),
+          ...(options.smsCallbackTransport
+            ? { callbackTransport: options.smsCallbackTransport }
+            : {}),
+        })
+      : undefined;
+  smsService ??= smsRuntime?.service;
   const app = express();
   let sourceSyncManager: SourceSyncManager | undefined;
   let helpSocketRuntime: HelpSocketRuntime | undefined;
@@ -268,6 +305,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     try {
       await sourceSyncManager?.stop();
     } finally {
+      await smsRuntime?.close();
       await pool?.end();
     }
   };
@@ -306,6 +344,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         "if-none-match",
       ],
       exposedHeaders: ["ETag", "X-Dimts-Locale-Fallback"],
+    }),
+  );
+  app.use(
+    "/v1",
+    createSmsRouter({
+      config,
+      packs,
+      ...(smsService ? { service: smsService } : {}),
     }),
   );
   app.use(express.json({ limit: "100kb", strict: true }));

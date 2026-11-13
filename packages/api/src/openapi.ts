@@ -6,6 +6,12 @@ import {
 import { z } from "zod";
 import { stringify } from "yaml";
 import {
+  SmsInboundRequestSchema,
+  SmsInboundResponseSchema,
+  SmsMessageSchema,
+  SmsProblemSchema,
+} from "./sms-schemas.js";
+import {
   AccommodationListResponseSchema,
   AccommodationRequestSchema,
   AccommodationResponseSchema,
@@ -60,6 +66,10 @@ registry.register("FeedbackRequest", FeedbackRequestSchema);
 registry.register("FeedbackResponse", FeedbackResponseSchema);
 registry.register("Reply", ReplySchema);
 registry.register("Problem", ProblemSchema);
+registry.register("SmsInboundRequest", SmsInboundRequestSchema);
+registry.register("SmsMessage", SmsMessageSchema);
+registry.register("SmsInboundResponse", SmsInboundResponseSchema);
+registry.register("SmsProblem", SmsProblemSchema);
 registry.register("SessionRequest", SessionRequestSchema);
 registry.register("SessionResponse", SessionResponseSchema);
 registry.register("HealthResponse", HealthResponseSchema);
@@ -96,6 +106,12 @@ registry.registerComponent("securitySchemes", "cronBearer", {
   type: "http",
   scheme: "bearer",
 });
+registry.registerComponent("securitySchemes", "smsGatewayBearer", {
+  type: "http",
+  scheme: "bearer",
+  description:
+    "Separately configured DIMTS_SMS_GATEWAY_SECRET; never a session, host or cron credential",
+});
 
 const json = (schema: z.ZodTypeAny) => ({
   content: { "application/json": { schema } },
@@ -104,6 +120,34 @@ const problemResponse = {
   description: "Problem response",
   content: { "application/problem+json": { schema: ProblemSchema } },
 };
+
+const smsProblemResponse = {
+  description: "Localized SMS problem without contact or input text",
+  content: { "application/problem+json": { schema: SmsProblemSchema } },
+};
+registry.registerPath({
+  method: "post",
+  path: "/v1/sms/inbound",
+  summary: "Accept an authenticated SMS gateway or simulator inbound message",
+  description:
+    "The simulator uses this same service path. IDs are stable per pseudonymous phone identity; retries preserve the exact body, while changed payloads conflict. First contact returns a numeric language menu. STOP bypasses conversation burst/daily limits, confirms once and remains permanent. Responses are no-store; the gateway secret and phone number are never returned. At most 1000 Unicode code points are accepted. Per-phone burst limit is 30 new messages/minute and outbound limit defaults to 20/day; repeated inbound IDs do not repeat side effects.",
+  security: [{ smsGatewayBearer: [] }],
+  request: { body: { required: true, ...json(SmsInboundRequestSchema) } },
+  responses: {
+    "200": {
+      description:
+        "Delivered or pending SMS messages, permanent STOP state and persisted conversation language",
+      ...json(SmsInboundResponseSchema),
+    },
+    "400": smsProblemResponse,
+    "401": smsProblemResponse,
+    "409": smsProblemResponse,
+    "413": smsProblemResponse,
+    "429": smsProblemResponse,
+    "500": smsProblemResponse,
+    "503": smsProblemResponse,
+  },
+});
 
 registry.registerPath({
   method: "get",
