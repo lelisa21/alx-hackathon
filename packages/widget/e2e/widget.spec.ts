@@ -3,6 +3,174 @@ import { resolve } from "node:path";
 import { getVisiblePacks, loadPacks } from "../../locales-tools/src/index.js";
 
 const packs = loadPacks(resolve("locales"));
+
+test("FR-LANG-15 proposes editable text only after opt-in and requires confirmation before sending", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  const ui = packs.get("am")!.ui;
+  const question = page.locator("#message");
+  const suggestion = page.locator("#transliteration-suggestion");
+  const sent: string[] = [];
+  page.on("request", (request) => {
+    if (request.url().endsWith("/ask"))
+      sent.push(request.postDataJSON().text as string);
+  });
+  await question.fill("selam");
+  await expect(suggestion).toHaveCount(0);
+  await page
+    .getByRole("checkbox", { name: ui["transliteration.enable"] })
+    .check();
+  await expect(suggestion).toHaveValue("ሰላም");
+  await expect(question).toHaveValue("selam");
+  expect(sent).toEqual([]);
+  await suggestion.fill("ሰላም ለእርስዎ");
+  await suggestion.press("Enter");
+  expect(sent).toEqual([]);
+  await suggestion.fill("ሰላም ለእርስዎ");
+  await page.getByRole("button", { name: ui["transliteration.use"] }).click();
+  await expect(question).toHaveValue("ሰላም ለእርስዎ");
+  await expect(question).toBeFocused();
+  expect(sent).toEqual([]);
+  await page
+    .getByRole("button", { name: ui["review.send"], exact: true })
+    .click();
+  await expect.poll(() => sent).toEqual(["ሰላም ለእርስዎ"]);
+});
+
+test("FR-LANG-15 keeps direct Ethiopic input and removes suggestions when disabled", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  const ui = packs.get("am")!.ui;
+  const question = page.locator("#message");
+  const enabled = page.getByRole("checkbox", {
+    name: ui["transliteration.enable"],
+  });
+  await page.getByRole("button", { name: ui["settings.button"]! }).click();
+  await page.getByRole("button", { name: ui["settings.scale200"]! }).click();
+  await page.getByRole("button", { name: ui["settings.button"]! }).click();
+  await enabled.check();
+  await question.fill("ሰላም");
+  await expect(question).toHaveValue("ሰላም");
+  await expect(page.locator("#transliteration-suggestion")).toHaveCount(0);
+  await question.fill("selam");
+  await expect(page.locator("#transliteration-suggestion")).toHaveValue("ሰላም");
+  const layout = await page.locator("dimts-assistant").evaluate((element) => ({
+    scrollWidth: element.scrollWidth,
+    clientWidth: element.clientWidth,
+  }));
+  expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
+  const { AxeBuilder } = await import("@axe-core/playwright");
+  const accessibility = await new AxeBuilder({ page }).analyze();
+  expect(
+    accessibility.violations.filter((violation) =>
+      ["critical", "serious"].includes(violation.impact ?? ""),
+    ),
+  ).toEqual([]);
+  await enabled.uncheck();
+  await expect(page.locator("#transliteration-suggestion")).toHaveCount(0);
+  await expect(question).toHaveValue("selam");
+});
+
+test("FR-LANG-05 announces resolved string fallback once in a learner session", async ({
+  page,
+}) => {
+  await openWidget(page, {
+    languages: languageChoices,
+    fallbackLanguages: ["am", "om"],
+  });
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Change language" }).click();
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  await expect(page.locator("#language-fallback-notice")).toHaveText(
+    packs.get("am")!.ui["notice.languageFallback"]!,
+  );
+  await page
+    .getByRole("button", { name: packs.get("am")!.ui["language.button"]! })
+    .click();
+  await page.getByRole("button", { name: "Afaan Oromoo" }).click();
+  await expect(page.locator("#language-fallback-notice")).toHaveText("");
+  await expect(page.locator("#message")).toBeEnabled();
+});
+
+test("FR-LANG-05 preserves the fallback notice when the first session starts", async ({
+  page,
+}) => {
+  await openWidget(page, { fallbackLanguages: ["en"] });
+  await page.getByRole("button", { name: "English" }).click();
+  await expect(page.locator("#message")).toBeVisible();
+  await expect(page.locator("#language-fallback-notice")).toHaveText(
+    packs.get("en")!.ui["notice.languageFallback"]!,
+  );
+});
+
+test("FR-LANG-10 hides drafts by default and labels beta but not live choices", async ({
+  page,
+}) => {
+  await openWidget(page, {
+    languages: languageChoices.map((language) => ({
+      ...language,
+      status:
+        language.code === "en"
+          ? "live"
+          : language.code === "am"
+            ? "beta"
+            : "draft",
+    })),
+  });
+  await expect(page.getByRole("button", { name: "Afaan Oromoo" })).toHaveCount(
+    0,
+  );
+  await expect(page.getByRole("button", { name: "አማርኛ" })).toContainText(
+    packs.get("en")!.ui["status.beta"]!,
+  );
+  await expect(page.getByRole("button", { name: "English" })).not.toContainText(
+    packs.get("en")!.ui["status.beta"]!,
+  );
+});
+
+test("FR-LANG-10 explicit language preview lists draft cards and forwards the API preview query", async ({
+  page,
+}) => {
+  const requests: URL[] = [];
+  page.on("request", (request) => {
+    if (request.url().startsWith("http://api.test/v1/"))
+      requests.push(new URL(request.url()));
+  });
+  await openWidget(page, {
+    preview: true,
+    languages: languageChoices.map((language) => ({
+      ...language,
+      status: language.code === "en" ? "beta" : "draft",
+    })),
+  });
+  await expect(
+    page.getByRole("button", { name: "Afaan Oromoo" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "አማርኛ" }).click();
+  await expect(
+    page.getByText(packs.get("am")!.ui["error.network"]!, { exact: true }),
+  ).toBeVisible();
+  await expect(page.locator("#message")).toHaveCount(0);
+  expect(
+    requests
+      .filter(
+        (url) =>
+          url.pathname.endsWith("/languages") || url.pathname.endsWith("/ui"),
+      )
+      .every((url) => url.searchParams.get("lang_preview") === "1"),
+  ).toBe(true);
+  expect(requests.some((url) => url.pathname.endsWith("/locales/am/ui"))).toBe(
+    true,
+  );
+  expect(
+    requests.find((url) => url.pathname.endsWith("/sessions"))?.search,
+  ).toBe("");
+});
 interface TestLanguage {
   code: string;
   nameNative: string;
@@ -120,18 +288,25 @@ function contrastRatio(foreground: string, background: string): number {
 
 async function openWidget(
   page: import("@playwright/test").Page,
-  options: { failFirstAsk?: boolean; languages?: TestLanguage[] } = {},
+  options: {
+    failFirstAsk?: boolean;
+    languages?: TestLanguage[];
+    fallbackLanguages?: string[];
+    preview?: boolean;
+  } = {},
 ) {
   let failNextAsk = options.failFirstAsk ?? false;
   let networkOffline = false;
   const helpRequests: { sessionId: string; includeSummary: boolean }[] = [];
   const helpClosures: { requestId: string; sessionId: string }[] = [];
-  await page.route("http://127.0.0.1:4173/", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
-    }),
+  await page.route(
+    /^http:\/\/127\.0\.0\.1:4173\/(?:\?lang_preview=1)?$/u,
+    (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      }),
   );
   await page.route("http://api.test/v1/**", async (route) => {
     const url = new URL(route.request().url());
@@ -150,10 +325,28 @@ async function openWidget(
     }
     if (/\/locales\/[^/]+\/ui$/u.test(url.pathname)) {
       const code = url.pathname.split("/").at(-2) ?? "en";
-      await route.fulfill({ json: packs.get(code)?.ui ?? {} });
+      await route.fulfill({
+        json: packs.get(code)?.ui ?? {},
+        headers: {
+          "X-Dimts-Locale-Fallback": options.fallbackLanguages?.includes(code)
+            ? "1"
+            : "0",
+          "Access-Control-Expose-Headers": "X-Dimts-Locale-Fallback",
+        },
+      });
       return;
     }
     if (url.pathname.endsWith("/sessions")) {
+      const requestLanguage = route.request().postDataJSON().lang as string;
+      if (
+        options.languages?.some(
+          (language) =>
+            language.code === requestLanguage && language.status === "draft",
+        )
+      ) {
+        await route.fulfill({ status: 400, json: {} });
+        return;
+      }
       await route.fulfill({
         status: 201,
         json: {
@@ -220,7 +413,9 @@ async function openWidget(
     }
     await route.fulfill({ status: 404, json: {} });
   });
-  await page.goto("http://127.0.0.1:4173/");
+  await page.goto(
+    `http://127.0.0.1:4173/${options.preview ? "?lang_preview=1" : ""}`,
+  );
   return {
     disconnectApi: () => {
       networkOffline = true;
@@ -342,10 +537,7 @@ test("loads the language picker with a same-origin relative API root", async ({
       });
       return;
     }
-    if (
-      url.pathname.endsWith("/help") &&
-      route.request().method() === "POST"
-    ) {
+    if (url.pathname.endsWith("/help") && route.request().method() === "POST") {
       await route.fulfill({
         status: 201,
         json: { id: "help-request-1", status: "waiting" },
@@ -392,7 +584,9 @@ test("loads the language picker with a same-origin relative API root", async ({
   );
   await page.getByRole("button", { name: "End help" }).click();
   await expect(
-    page.getByText("This help chat has ended. You can continue with the tutor."),
+    page.getByText(
+      "This help chat has ended. You can continue with the tutor.",
+    ),
   ).toBeVisible();
 });
 
@@ -1049,7 +1243,9 @@ test("loads a self-hosted Ethiopic font only when Amharic is active", async ({
 
   await page.getByRole("button", { name: "Change language" }).click();
   await page.getByRole("button", { name: "አማርኛ" }).click();
-  await page.getByRole("button", { name: "Change language" }).click();
+  await page
+    .getByRole("button", { name: packs.get("am")!.ui["language.button"]! })
+    .click();
   await expect(page.getByRole("button", { name: "አማርኛ" })).toBeVisible();
   await expect.poll(() => fontRequests.length).toBeGreaterThan(0);
   expect(new Set(fontRequests)).toEqual(new Set(["http://127.0.0.1:4173"]));
@@ -1160,7 +1356,7 @@ test("suggests a language for typed text without switching until chosen", async 
   });
   await page.getByRole("button", { name: "English" }).click();
 
-  const composer = page.getByRole("textbox", { name: "Ask a question" });
+  const composer = page.locator("#message");
   await composer.fill("Hello there");
   await expect(page.getByText("Choose English or Afaan Oromoo.")).toBeVisible();
   await expect(

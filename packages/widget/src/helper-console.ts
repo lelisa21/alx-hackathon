@@ -1,5 +1,5 @@
 import { LitElement, css, html, nothing } from "lit";
-import { IntlMessageFormat } from "intl-messageformat";
+import { messageFor } from "./messages.js";
 import regularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
 import boldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
 
@@ -17,7 +17,34 @@ interface ChatMessage {
   text: string;
 }
 
-const uiLanguageOptions = ["en", "am", "om"] as const;
+interface HelperLanguage {
+  code: string;
+  nameNative: string;
+  nameEn: string;
+  script: string;
+  dir: "ltr" | "rtl";
+  status: "live" | "beta" | "draft";
+  stt: boolean;
+  tts: boolean;
+}
+
+function registryLanguage(value: unknown): value is HelperLanguage {
+  if (typeof value !== "object" || value === null) return false;
+  const item = value as Record<string, unknown>;
+  return (
+    typeof item.code === "string" &&
+    Boolean(item.code) &&
+    typeof item.nameNative === "string" &&
+    Boolean(item.nameNative) &&
+    typeof item.nameEn === "string" &&
+    typeof item.script === "string" &&
+    (item.dir === "ltr" || item.dir === "rtl") &&
+    ["live", "beta", "draft"].includes(String(item.status)) &&
+    typeof item.stt === "boolean" &&
+    typeof item.tts === "boolean"
+  );
+}
+
 let fontsRegistered = false;
 
 function registerEthiopicFonts(): void {
@@ -72,6 +99,7 @@ export class DimtsHelperConsole extends LitElement {
     api: { attribute: "data-api" },
     language: { attribute: "data-language", reflect: true },
     ui: { state: true },
+    languages: { state: true },
     initialized: { state: true },
     jwt: { state: true },
     filter: { state: true },
@@ -89,6 +117,7 @@ export class DimtsHelperConsole extends LitElement {
   declare api: string;
   declare language: string;
   declare private ui: Record<string, unknown>;
+  declare private languages: HelperLanguage[];
   declare private initialized: boolean;
   declare private jwt: string;
   declare private filter: string;
@@ -115,6 +144,7 @@ export class DimtsHelperConsole extends LitElement {
     this.api = "";
     this.language = "en";
     this.ui = {};
+    this.languages = [];
     this.initialized = false;
     this.jwt = "";
     this.filter = "";
@@ -149,7 +179,7 @@ export class DimtsHelperConsole extends LitElement {
       line-height: 1.5;
     }
 
-    :host([data-language="am"]) {
+    :host([data-script="Ethi"]) {
       font-family:
         "Noto Sans Ethiopic",
         system-ui,
@@ -304,7 +334,6 @@ export class DimtsHelperConsole extends LitElement {
 
   override connectedCallback(): void {
     super.connectedCallback();
-    if (this.language === "am") registerEthiopicFonts();
     void this.initialize();
     if (this.jwt) {
       void this.loadQueue();
@@ -336,25 +365,74 @@ export class DimtsHelperConsole extends LitElement {
   }
 
   private t(key: string, values: Record<string, string | number> = {}): string {
-    const message = this.ui[key];
-    if (typeof message !== "string") return "";
-    try {
-      return String(
-        new IntlMessageFormat(message, this.language).format(values),
-      );
-    } catch {
-      return message;
-    }
+    return messageFor(this.ui, key, values, this.language);
   }
 
   private async initialize(): Promise<void> {
-    await this.loadUi(this.language);
+    try {
+      const response = await fetch(
+        `${this.apiRoot}/languages${this.previewQuery}`,
+      );
+      if (!response.ok) throw new Error("helper languages");
+      const body: unknown = await response.json();
+      if (
+        typeof body !== "object" ||
+        body === null ||
+        !("languages" in body) ||
+        !Array.isArray(body.languages) ||
+        !body.languages.every(registryLanguage)
+      )
+        throw new Error("helper languages");
+      this.languages = body.languages.filter(
+        ({ status }) => this.previewQuery || status !== "draft",
+      );
+      if (!this.languages.length) throw new Error("helper languages");
+      const selected =
+        this.languages.find(({ code }) => code === this.language) ??
+        this.languages[0]!;
+      this.language = selected.code;
+      this.applyLanguageScript();
+      await this.loadUi(this.language);
+    } catch {
+      // Existing locale/login functionality remains usable if registry loading fails.
+      await this.loadUi(this.language);
+      this.notice = this.t("error.network");
+      this.noticeIsError = true;
+    }
+  }
+
+  private get previewQuery(): string {
+    return new URL(window.location.href).searchParams.get("lang_preview") ===
+      "1"
+      ? "?lang_preview=1"
+      : "";
+  }
+
+  private applyLanguageScript(): void {
+    const script =
+      this.languages.find(({ code }) => code === this.language)?.script ??
+      "Latn";
+    this.setAttribute("data-script", script);
+    if (script === "Ethi") registerEthiopicFonts();
+  }
+
+  private languageName(code: string): string {
+    return (
+      this.languages.find((language) => language.code === code)?.nameNative ??
+      code
+    );
+  }
+
+  private languageLabel(language: HelperLanguage): string {
+    return language.status === "beta"
+      ? `${language.nameNative} · ${this.t("status.beta")}`
+      : language.nameNative;
   }
 
   private async loadUi(language: string): Promise<boolean> {
     try {
       const response = await fetch(
-        `${this.apiRoot}/locales/${encodeURIComponent(language)}/ui`,
+        `${this.apiRoot}/locales/${encodeURIComponent(language)}/ui${this.previewQuery}`,
       );
       if (!response.ok) throw new Error("helper locale");
       const ui: unknown = await response.json();
@@ -378,30 +456,43 @@ export class DimtsHelperConsole extends LitElement {
   }
 
   private async setLanguage(language: string): Promise<void> {
-    if (!uiLanguageOptions.some((code) => code === language)) return;
+    if (!this.languages.some(({ code }) => code === language)) return;
     const previousLanguage = this.language;
     this.language = language;
     this.initialized = false;
-    if (language === "am") registerEthiopicFonts();
+    this.applyLanguageScript();
     if (!(await this.loadUi(language))) {
       this.language = previousLanguage;
+      this.applyLanguageScript();
     }
+    await this.updateComplete;
+    this.renderRoot
+      .querySelector<HTMLSelectElement>("[data-language-picker]")
+      ?.focus();
   }
 
   private languagePicker(): unknown {
+    if (!this.languages.length) return nothing;
     return html`
       <label>
         <span>${this.t("helper.uiLanguage")}</span>
         <select
+          data-language-picker
           .value=${this.language}
           @change=${(event: Event) =>
             void this.setLanguage(
               (event.currentTarget as HTMLSelectElement).value,
             )}
         >
-          ${uiLanguageOptions.map(
-            (code) => html`
-              <option value=${code}>${this.t(`helper.lang.${code}`)}</option>
+          ${this.languages.map(
+            (language) => html`
+              <option
+                value=${language.code}
+                lang=${language.code}
+                dir=${language.dir}
+              >
+                ${this.languageLabel(language)}
+              </option>
             `,
           )}
         </select>
@@ -626,7 +717,7 @@ export class DimtsHelperConsole extends LitElement {
     if (!this.isConnected || !this.activeRequest || !this.jwt) return;
     if (this.socket && this.socket.readyState < WebSocket.CLOSING) return;
     try {
-      const url = new URL(`${this.apiRoot}/help/ws`);
+      const url = new URL(`${this.apiRoot}/help/ws`, location.origin);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
       const socket = new WebSocket(url);
       this.socket = socket;
@@ -807,10 +898,14 @@ export class DimtsHelperConsole extends LitElement {
               }}
             >
               <option value="">${this.t("helper.filterAny")}</option>
-              ${uiLanguageOptions.map(
-                (code) => html`
-                  <option value=${code}>
-                    ${this.t(`helper.lang.${code}`)}
+              ${this.languages.map(
+                (language) => html`
+                  <option
+                    value=${language.code}
+                    lang=${language.code}
+                    dir=${language.dir}
+                  >
+                    ${this.languageLabel(language)}
                   </option>
                 `,
               )}
@@ -826,12 +921,7 @@ export class DimtsHelperConsole extends LitElement {
                     (request) => html`
                       <article data-request-id=${request.id}>
                         <h3>${request.id}</h3>
-                        <p>
-                          ${
-                            this.t(`helper.lang.${request.lang}`) ||
-                            request.lang
-                          }
-                        </p>
+                        <p>${this.languageName(request.lang)}</p>
                         <p>
                           ${this.t("helper.channel")}:
                           ${this.t(`helper.channel.${request.channel}`)}
@@ -944,7 +1034,10 @@ export class DimtsHelperConsole extends LitElement {
       </main>`;
     }
     return html`
-      <main lang=${this.language} dir="ltr">
+      <main
+        lang=${this.language}
+        dir=${this.languages.find(({ code }) => code === this.language)?.dir ?? "ltr"}
+      >
         <header>
           <h1>${this.t("helper.title")}</h1>
           ${this.languagePicker()}

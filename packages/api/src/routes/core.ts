@@ -5,7 +5,7 @@ import { ask } from "@dimts/engine";
 import type { AskDependencies } from "@dimts/engine";
 import type { PostgresGrounding } from "@dimts/grounding";
 import { z } from "zod";
-import { getVisiblePacks, translate } from "@dimts/locales-tools";
+import { getVisiblePacks, resolveUi, translate } from "@dimts/locales-tools";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ApiConfig } from "../config.js";
 import { generateOpenApiYaml } from "../openapi.js";
@@ -186,15 +186,19 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
 
-    const ui = JSON.stringify(pack.ui);
-    const etag = `"${createHash("sha256").update(ui).digest("base64url")}"`;
+    const resolved = resolveUi(packs, pack.meta.code);
+    const ui = JSON.stringify(resolved.ui);
+    const fallback = resolved.didFallback ? "1" : "0";
+    // The notice is part of the cached representation even when text is identical.
+    const etag = `"${createHash("sha256").update(`${fallback}:${ui}`).digest("base64url")}"`;
     response.setHeader("ETag", etag);
+    response.setHeader("X-Dimts-Locale-Fallback", fallback);
     response.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
     if (request.header("if-none-match")?.split(",").includes(etag)) {
       response.status(304).end();
       return;
     }
-    response.json(validateResponse(LocaleUiSchema, pack.ui));
+    response.json(validateResponse(LocaleUiSchema, resolved.ui));
   });
 
   router.get("/docs", (_request, response) => {

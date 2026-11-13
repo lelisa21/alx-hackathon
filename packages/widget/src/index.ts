@@ -1,8 +1,12 @@
 import { LitElement, css, html, nothing } from "lit";
-import { IntlMessageFormat } from "intl-messageformat";
+import { messageFor } from "./messages.js";
 import { MAX_RECORDING_MS, VoiceError } from "@dimts/voice";
 import type { SpeechToText, TextToSpeech } from "@dimts/voice";
 import { suggestLanguageOptions } from "./language.js";
+import {
+  hasTransliteration,
+  suggestTransliteration,
+} from "./transliteration.js";
 import ethiopicRegularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
 import ethiopicBoldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
 
@@ -105,21 +109,6 @@ const storage = {
   },
 };
 
-function messageFor(
-  messages: Record<string, unknown>,
-  key: string,
-  values: Record<string, string | number> = {},
-  locale = "en",
-): string {
-  const value = messages[key];
-  if (typeof value !== "string") return "";
-  try {
-    return String(new IntlMessageFormat(value, locale).format(values));
-  } catch {
-    return value;
-  }
-}
-
 export class DimtsAssistant extends LitElement {
   static override properties = {
     api: { attribute: "data-api" },
@@ -139,7 +128,10 @@ export class DimtsAssistant extends LitElement {
     retryAvailable: { state: true },
     panel: { state: true },
     notice: { state: true },
+    fallbackNotice: { state: true },
     draft: { state: true },
+    transliterationEnabled: { state: true },
+    transliterationSuggestion: { state: true },
     settings: { state: true },
     isRecording: { state: true },
     speechReview: { state: true },
@@ -175,7 +167,12 @@ export class DimtsAssistant extends LitElement {
   declare private retryAvailable: boolean;
   declare private panel: "language" | "settings" | null;
   declare private notice: string;
+  declare private fallbackNotice: string;
+  private fallbackAnnounced = false;
+  private fallbackPending = false;
   declare private draft: string;
+  declare private transliterationEnabled: boolean;
+  declare private transliterationSuggestion: string | null;
   declare private settings: WidgetSettings;
   declare private isRecording: boolean;
   declare private speechReview: boolean;
@@ -221,7 +218,10 @@ export class DimtsAssistant extends LitElement {
     this.retryAvailable = false;
     this.panel = null;
     this.notice = "";
+    this.fallbackNotice = "";
     this.draft = "";
+    this.transliterationEnabled = false;
+    this.transliterationSuggestion = null;
     this.settings = this.readSettings();
     this.isRecording = false;
     this.speechReview = false;
@@ -447,6 +447,12 @@ export class DimtsAssistant extends LitElement {
     .composer-actions {
       align-items: center;
       justify-content: space-between;
+      margin-block-start: 0.5rem;
+    }
+
+    .transliteration {
+      display: grid;
+      gap: 0.5rem;
       margin-block-start: 0.5rem;
     }
 
@@ -683,6 +689,11 @@ export class DimtsAssistant extends LitElement {
     if (this.helpRequestId) this.connectHelpSocket();
   }
 
+  protected override updated(): void {
+    // Populate an already mounted live region, including after initial startup.
+    if (!this.loading) this.announceFallback();
+  }
+
   override disconnectedCallback(): void {
     window.removeEventListener("offline", this.handleOffline);
     window.removeEventListener("online", this.handleOnline);
@@ -806,13 +817,22 @@ export class DimtsAssistant extends LitElement {
     return messageFor(this.ui, key, values, this.selectedLang || "en");
   }
 
+  private get previewQuery(): string {
+    return new URLSearchParams(window.location.search).get("lang_preview") ===
+      "1"
+      ? "?lang_preview=1"
+      : "";
+  }
+
   private async initialize(): Promise<void> {
     try {
-      const response = await this.fetchStatic(`${this.apiRoot}/languages`);
+      const response = await this.fetchStatic(
+        `${this.apiRoot}/languages${this.previewQuery}`,
+      );
       if (!response.ok) throw new Error("languages");
       const body = (await response.json()) as { languages: Language[] };
       this.languages = body.languages.filter(
-        (language) => language.status !== "draft",
+        (language) => language.status !== "draft" || Boolean(this.previewQuery),
       );
       if (this.languages.length === 0) throw new Error("languages");
       const stored = storage.get("dimts.lang");
@@ -831,17 +851,19 @@ export class DimtsAssistant extends LitElement {
   }
 
   private async loadUi(lang: string): Promise<void> {
-    const candidates = [lang, ...(lang === "en" ? [] : ["am", "en"])];
+    const candidates = [lang, "en"];
     for (const code of [...new Set(candidates)]) {
-      const preview = code === lang ? "" : "?lang_preview=1";
       try {
         const response = await this.fetchStatic(
-          `${this.apiRoot}/locales/${encodeURIComponent(code)}/ui${preview}`,
+          `${this.apiRoot}/locales/${encodeURIComponent(code)}/ui${this.previewQuery}`,
         );
         if (!response.ok) continue;
         this.ui = (await response.json()) as Record<string, unknown>;
-        if (code !== lang) {
-          this.notice = this.t("notice.languageFallback");
+        if (
+          code !== lang ||
+          response.headers.get("X-Dimts-Locale-Fallback") === "1"
+        ) {
+          this.fallbackPending = true;
         }
         return;
       } catch {
@@ -854,6 +876,8 @@ export class DimtsAssistant extends LitElement {
   private setSelectedLanguage(code: string): void {
     if (code === "am") registerEthiopicFonts();
     this.selectedLang = code;
+    this.transliterationEnabled = false;
+    this.transliterationSuggestion = null;
     this.setAttribute("lang", code);
   }
 
@@ -861,6 +885,8 @@ export class DimtsAssistant extends LitElement {
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
     this.stopSpeech();
+    this.fallbackNotice = "";
+    this.fallbackPending = false;
     this.setSelectedLanguage(selected.code);
     await this.loadUi(selected.code);
     if (persist) {
@@ -1018,7 +1044,7 @@ export class DimtsAssistant extends LitElement {
       return;
     }
     try {
-      const url = new URL(`${this.apiRoot}/help/ws`);
+      const url = new URL(`${this.apiRoot}/help/ws`, location.origin);
       url.protocol = url.protocol === "https:" ? "wss:" : "ws:";
       const socket = new WebSocket(url);
       this.helpSocket = socket;
@@ -1187,6 +1213,8 @@ export class DimtsAssistant extends LitElement {
       this.helpSocket?.close();
       this.helpSocket = undefined;
       this.helpReconnectAttempt = 0;
+      this.notice = this.t("help.ended");
+      this.noticeIsError = false;
       if (this.helpReconnectTimer !== undefined) {
         window.clearTimeout(this.helpReconnectTimer);
         this.helpReconnectTimer = undefined;
@@ -1218,6 +1246,8 @@ export class DimtsAssistant extends LitElement {
         sessionId: string;
         sessionToken: string;
       };
+      if (this.sessionId && this.sessionId !== session.sessionId)
+        this.fallbackAnnounced = false;
       this.sessionId = session.sessionId;
       this.sessionToken = session.sessionToken;
       this.notice = "";
@@ -1242,6 +1272,7 @@ export class DimtsAssistant extends LitElement {
     };
     this.messages = [...this.messages, learnerMessage];
     this.draft = "";
+    this.transliterationSuggestion = null;
     this.speechReview = false;
     this.busy = true;
     this.notice = "";
@@ -1316,6 +1347,101 @@ export class DimtsAssistant extends LitElement {
       clearTimeout(workingTimer);
       this.busy = false;
     }
+  }
+
+  private updateTransliteration(): void {
+    this.transliterationSuggestion = this.transliterationEnabled
+      ? suggestTransliteration(this.draft, this.ui)
+      : null;
+  }
+
+  private async useTransliteration(): Promise<void> {
+    if (!this.transliterationSuggestion?.trim() || this.busy) return;
+    this.draft = this.transliterationSuggestion;
+    this.transliterationSuggestion = null;
+    this.notice = this.t("transliteration.applied");
+    this.noticeIsError = false;
+    await this.updateComplete;
+    this.renderRoot.querySelector<HTMLTextAreaElement>("#message")?.focus();
+  }
+
+  private renderTransliteration() {
+    if (!hasTransliteration(this.ui)) return nothing;
+    return html`
+      <section class="transliteration">
+        <label class="setting-row">
+          <input
+            type="checkbox"
+            .checked=${this.transliterationEnabled}
+            ?disabled=${this.busy}
+            @change=${(event: Event) => {
+              this.transliterationEnabled = (
+                event.currentTarget as HTMLInputElement
+              ).checked;
+              this.updateTransliteration();
+            }}
+          />
+          <span>${this.t("transliteration.enable")}</span>
+        </label>
+        ${
+          this.transliterationEnabled
+            ? html`<p id="transliteration-hint">
+                ${this.t("transliteration.hint")}
+              </p>`
+            : nothing
+        }
+        ${
+          this.transliterationSuggestion !== null
+            ? html`
+                <label for="transliteration-suggestion"
+                  >${this.t("transliteration.suggestion")}</label
+                >
+                <textarea
+                  id="transliteration-suggestion"
+                  aria-describedby="transliteration-hint"
+                  .value=${this.transliterationSuggestion}
+                  ?disabled=${this.busy}
+                  @input=${(event: Event) => {
+                    this.transliterationSuggestion = (
+                      event.currentTarget as HTMLTextAreaElement
+                    ).value;
+                  }}
+                ></textarea>
+                <button
+                  type="button"
+                  ?disabled=${this.busy || !this.transliterationSuggestion.trim()}
+                  @click=${() => void this.useTransliteration()}
+                >
+                  ${this.t("transliteration.use")}
+                </button>
+              `
+            : this.transliterationEnabled && /[A-Za-z]/u.test(this.draft)
+              ? html`<p role="status">
+                  ${this.t("transliteration.unavailable")}
+                </p>`
+              : nothing
+        }
+      </section>
+    `;
+  }
+
+  private renderFallbackNotice() {
+    return html`<p
+      id="language-fallback-notice"
+      class=${this.fallbackNotice ? "status" : "visually-hidden"}
+      role="status"
+      aria-live="polite"
+    >
+      ${this.fallbackNotice}
+    </p>`;
+  }
+
+  private announceFallback(): void {
+    if (!this.sessionId || !this.fallbackPending || this.fallbackAnnounced)
+      return;
+    this.fallbackNotice = this.t("notice.languageFallback");
+    this.fallbackAnnounced = Boolean(this.fallbackNotice);
+    this.fallbackPending = false;
   }
 
   private async speak(text: string, lang: string, id: string): Promise<void> {
@@ -1980,8 +2106,9 @@ export class DimtsAssistant extends LitElement {
           lang=${this.selectedLang}
           dir=${this.currentLanguage?.dir ?? "ltr"}
         >
-          ${this.renderOfflineBanner()} ${this.renderHelpButton()}
-          ${this.renderHelpSession()} ${this.renderHelpPreview()}
+          ${this.renderOfflineBanner()} ${this.renderFallbackNotice()}
+          ${this.renderHelpButton()} ${this.renderHelpSession()}
+          ${this.renderHelpPreview()}
           <section class="welcome" aria-labelledby="welcome-heading">
             <h1 id="welcome-heading">${this.t("welcome.title")}</h1>
             <div class="language-list">${this.renderLanguageChoices()}</div>
@@ -1992,7 +2119,7 @@ export class DimtsAssistant extends LitElement {
     }
     return html`
       <main lang=${this.selectedLang} dir=${this.currentLanguage?.dir ?? "ltr"}>
-        ${this.renderOfflineBanner()}
+        ${this.renderOfflineBanner()} ${this.renderFallbackNotice()}
         <header>
           <strong>${this.t("app.name")}</strong>
           <div class="header-actions">
@@ -2145,10 +2272,10 @@ export class DimtsAssistant extends LitElement {
               .value=${this.draft}
               placeholder=${this.t("composer.placeholder")}
               ?disabled=${this.busy}
-              @input=${(event: Event) =>
-                (this.draft = (
-                  event.currentTarget as HTMLTextAreaElement
-                ).value)}
+              @input=${(event: Event) => {
+                this.draft = (event.currentTarget as HTMLTextAreaElement).value;
+                this.updateTransliteration();
+              }}
               @keydown=${(event: KeyboardEvent) => {
                 if (event.key === "Enter" && !event.shiftKey) {
                   event.preventDefault();
@@ -2156,6 +2283,7 @@ export class DimtsAssistant extends LitElement {
                 }
               }}
             ></textarea>
+            ${this.renderTransliteration()}
             ${
               this.speechReview
                 ? html`

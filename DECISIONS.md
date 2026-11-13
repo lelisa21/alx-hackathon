@@ -3,6 +3,63 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P01 — language capability decisions (13 November 2026)
+
+- **Requirements before implementation:** FR-LANG-01–05, 09–13, 15–17;
+  FR-CONV-05/07 phrase data; FR-TUTOR-08/10 prompt/evaluation data;
+  FR-AI-04/FR-UI-16 FAQ data; NFR-A11Y-07 voice-status data and the
+  NFR-MAINT-02 locale coverage floor. Scope follows P01 in
+  `docs/REMAINING_WORK_PLAN.md`, with Blueprint section 8 authoritative.
+- **Truthful pack status:** English stays beta, Amharic/Oromo stay draft,
+  and `ar-test` stays CI-only draft. Agent-authored translations and phrase
+  lists are drafts. A human must review them; filling a reviewer field is
+  not an automated review. Distress data also needs co-designer review.
+  Contacts remain absent until verified by the host, as Blueprint section
+  5 requires. No native-language, voice, or Android acceptance is claimed.
+- **Content boundary:** use only the checked-in study-plan and sample-job
+  sources for draft questions and FAQ provenance. Nine FAQ entries and 30
+  glossary seeds each for `en`, `am` and `om` are useful review material, not the 30 FAQ /
+  200 reviewed-term live target. Do not invent answers or pad lists.
+- **Per-key fallback contract:** keep the existing locale UI JSON record
+  and endpoint. Resolve missing keys through `meta.fallback`; the additive
+  `X-Dimts-Locale-Fallback: 0|1` response header is exposed through CORS,
+  documented in OpenAPI, retained on 304, and included in the ETag identity.
+  API and widget changes are paired in this branch for team review. The
+  widget announces a fallback once per active session. Transliteration
+  mappings are language capabilities, so they are not inherited from a
+  fallback language. Draft endpoint gating remains unchanged.
+- **Input helper:** optional `transliteration.map.<latin>` and
+  `transliteration.word.<latin>` keys carry suggestion data through the
+  existing string-only UI contract. Common control labels obey key parity;
+  these optional mapping prefixes are validated separately. Suggestions
+  remain editable and require confirmation; Send remains a separate action.
+- **Registry and preview:** both language pickers consume the existing
+  `/v1/languages` metadata. Helper names, direction, font script and beta
+  status come from that registry. Explicit `?lang_preview=1` is forwarded
+  for pack inspection; it does not grant draft languages permission to
+  create learner sessions or ask questions.
+- **Existing-flow regression (FR-HELP-07):** the full browser run exposed
+  a baseline WebSocket URL failure with `data-api="/v1"`. Resolve that URL
+  against the page origin in both existing clients, as already done for
+  static API requests. The test covers login/claim/chat/close with absolute
+  and relative API roots; this preserves help behavior without implementing
+  P05's remaining features or changing a help contract. Successful learner
+  closure also shows the existing `help.ended` notice even if no WebSocket
+  close frame arrives before the HTTP response.
+- **Formatting:** use the blueprint's locale month names and ICU date
+  templates, Western digits, UTC dates and deterministic Ethiopian
+  conversion. This avoids substituting a host ICU month spelling for the
+  required `ህዳር` fixture. Gregorian Oromo month names remain English pending
+  the language lead's decision, as allowed by the SRS language guide.
+- **Dependencies/tooling:** reuse existing YAML and ICU runtime dependencies.
+  Add only Vitest's matching MIT-licensed V8 coverage provider as a development
+  dependency to enforce the requested 70% locale coverage floor. Repair the
+  pre-existing lockfile omission of four `packages/eval` workspace links;
+  this does not implement P02. Keep CLI scaffolds atomic and prevent
+  overwriting an existing language folder.
+- **Acceptance evidence:** current checks and remaining blockers are recorded
+  in `docs/IMPLEMENTATION_PROGRESS.md`; no unverified requirement is complete.
+
 ## Setup baseline
 
 - **A-04, pre-kickoff code:** The user confirmed that organizer approval for

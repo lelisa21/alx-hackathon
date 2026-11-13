@@ -202,6 +202,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         callback(null, !origin || origins.has(origin));
       },
       allowedHeaders: ["content-type", "x-dimts-key", "authorization"],
+      exposedHeaders: ["ETag", "X-Dimts-Locale-Fallback"],
     }),
   );
   app.use(express.json({ limit: "100kb", strict: true }));

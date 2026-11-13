@@ -104,8 +104,29 @@ registry.registerPath({
     query: z.object({ lang_preview: z.enum(["0", "1"]).optional() }),
   },
   responses: {
-    "200": { description: "UI strings", ...json(LocaleUiSchema) },
-    "304": { description: "Not modified" },
+    "200": {
+      description: "UI strings resolved through the configured fallback chain",
+      headers: {
+        "X-Dimts-Locale-Fallback": {
+          description:
+            "1 when any UI string came from a fallback pack, otherwise 0",
+          schema: { type: "string", enum: ["0", "1"] },
+        },
+        ETag: {
+          description: "Validator for the resolved strings and fallback signal",
+          schema: { type: "string" },
+        },
+      },
+      ...json(LocaleUiSchema),
+    },
+    "304": {
+      description: "Not modified; retains the X-Dimts-Locale-Fallback header",
+      headers: {
+        "X-Dimts-Locale-Fallback": {
+          schema: { type: "string", enum: ["0", "1"] },
+        },
+      },
+    },
     "404": problemResponse,
   },
 });
@@ -243,9 +264,7 @@ registry.registerPath({
       required: false,
       content: {
         "application/json": {
-          schema: z
-            .object({ sessionId: z.string().min(8).max(64) })
-            .strict(),
+          schema: z.object({ sessionId: z.string().min(8).max(64) }).strict(),
         },
       },
     },

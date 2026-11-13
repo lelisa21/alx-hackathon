@@ -1,4 +1,4 @@
-import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { cp, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -105,7 +105,7 @@ describe("locale pack loading and translation", () => {
   it("formats the configured calendar with the alternate calendar in brackets", () => {
     const packs = loadPacks(localesRoot);
     for (const [lang, expectedMonth] of [
-      ["am", "ኅዳር"],
+      ["am", "ህዳር"],
       ["om", "Sadaasa"],
     ]) {
       const pack = packs.get(lang);
@@ -113,6 +113,7 @@ describe("locale pack loading and translation", () => {
       const formatted = formatDate(
         new Date("2026-11-14T12:00:00.000Z"),
         pack.meta,
+        pack.ui,
       );
       expect(formatted).toMatch(/5.*2019/);
       expect(formatted).toContain(expectedMonth);
@@ -129,18 +130,15 @@ describe("locale pack validation", () => {
   it("reports missing metadata and UI keys", async () => {
     const root = await copyLocales();
     const metaPath = path.join(root, "om", "meta.yaml");
-    const meta = (await readFile(metaPath, "utf8")).replace(
-      "sms_max_chars: 160\n",
-      "",
-    );
-    await writeFile(metaPath, meta);
+    const packs = loadPacks(root);
+    const { sms_max_chars: removed, ...meta } = packs.get("om")!.meta;
+    expect(removed).toBe(160);
+    await writeFile(metaPath, JSON.stringify(meta));
 
     const uiPath = path.join(root, "om", "ui.yaml");
-    const ui = (await readFile(uiPath, "utf8")).replace(
-      /^help\.button:.*\r?\n/m,
-      "",
-    );
-    await writeFile(uiPath, ui);
+    const ui = packs.get("om")!.ui;
+    delete ui["help.button"];
+    await writeFile(uiPath, JSON.stringify(ui));
 
     const issues = validatePacks(root);
     expect(issues.join("\n")).toContain("sms_max_chars");
@@ -150,20 +148,11 @@ describe("locale pack validation", () => {
   it("rejects malformed ICU messages and non-whitelisted markup", async () => {
     const root = await copyLocales();
     const uiPath = path.join(root, "en", "ui.yaml");
-    const ui = (await readFile(uiPath, "utf8"))
-      .replace(
-        /^review\.heard:.*\r?\n/m,
-        "review.heard: '{text, plural, one {heard}}'\n",
-      )
-      .replace(
-        /^share\.ask:.*\r?\n/m,
-        'share.ask: "<script>alert(1)</script>"\n',
-      )
-      .replace(
-        /^share\.stop:.*\r?\n/m,
-        'share.stop: "<custom>unsupported</custom>"\n',
-      );
-    await writeFile(uiPath, ui);
+    const ui = loadPacks(root).get("en")!.ui;
+    ui["review.heard"] = "{text, plural, one {heard}}";
+    ui["share.ask"] = "<script>alert(1)</script>";
+    ui["share.stop"] = "<custom>unsupported</custom>";
+    await writeFile(uiPath, JSON.stringify(ui));
 
     const issues = validatePacks(root).join("\n");
     expect(issues).toContain("review.heard");
@@ -174,11 +163,10 @@ describe("locale pack validation", () => {
   it("rejects live packs without reviewer sign-off and required content", async () => {
     const root = await copyLocales();
     const metaPath = path.join(root, "en", "meta.yaml");
-    const meta = (await readFile(metaPath, "utf8")).replace(
-      "status: beta",
-      "status: live",
-    );
-    await writeFile(metaPath, meta);
+    const meta = loadPacks(root).get("en")!.meta;
+    meta.status = "live";
+    await writeFile(metaPath, JSON.stringify(meta));
+    await writeFile(path.join(root, "en", "checks.yaml"), "[]\n");
 
     const issues = validatePacks(root).join("\n");
     expect(issues).toContain("reviewed_by");

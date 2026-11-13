@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
-import { readFile } from "node:fs/promises";
+import { cp, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
@@ -9,6 +10,7 @@ import { buildApp } from "../src/app.js";
 import type { BuildAppOptions } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { AskRequestSchema } from "../src/schemas.js";
+import { scaffoldPack } from "../../locales-tools/src/scaffold.js";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -157,6 +159,70 @@ async function createSession(app: ReturnType<typeof buildApp>) {
 }
 
 describe("WP02 configuration and API contracts", () => {
+  it("discovers a new draft folder on restart and serves it only in language preview", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-language-"));
+    try {
+      await cp(localesRoot, directory, { recursive: true });
+      scaffoldPack(directory, "ti");
+      const { app } = createApp(createRepository(), { localesRoot: directory });
+      const visible = await request(app).get("/v1/languages");
+      expect(
+        visible.body.languages.some(
+          (entry: { code: string }) => entry.code === "ti",
+        ),
+      ).toBe(false);
+      const preview = await request(app).get("/v1/languages?lang_preview=1");
+      expect(preview.body.languages).toContainEqual({
+        code: "ti",
+        nameNative: "ti",
+        nameEn: "ti",
+        script: "Latn",
+        dir: "ltr",
+        status: "draft",
+        stt: false,
+        tts: false,
+      });
+      expect((await request(app).get("/v1/locales/ti/ui")).status).toBe(404);
+      const ui = await request(app).get("/v1/locales/ti/ui?lang_preview=1");
+      expect(ui.status).toBe(200);
+      expect(ui.body["help.button"]).toBe("Help me now");
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+  it("resolves missing UI keys through the configured chain, exposes the fallback signal, and invalidates ETags", async () => {
+    const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-locales-"));
+    try {
+      await cp(localesRoot, directory, { recursive: true });
+      const file = path.join(directory, "om", "ui.yaml");
+      const original = await readFile(file, "utf8");
+      const complete = await request(
+        createApp(createRepository(), { localesRoot: directory }).app,
+      ).get("/v1/locales/om/ui?lang_preview=1");
+      await writeFile(file, original.replace(/^help\.button:.*\r?\n/m, ""));
+      const { app } = createApp(createRepository(), { localesRoot: directory });
+      const response = await request(app)
+        .get("/v1/locales/om/ui?lang_preview=1")
+        .set("origin", "https://learn.example");
+      const am = await request(app).get("/v1/locales/am/ui?lang_preview=1");
+      expect(response.status).toBe(200);
+      expect(response.body["help.button"]).toBe(am.body["help.button"]);
+      expect(response.body).not.toHaveProperty("transliteration.word.selam");
+      expect(response.headers["x-dimts-locale-fallback"]).toBe("1");
+      expect(response.headers["access-control-expose-headers"]).toContain(
+        "X-Dimts-Locale-Fallback",
+      );
+      expect(response.headers.etag).not.toBe(complete.headers.etag);
+      const cached = await request(app)
+        .get("/v1/locales/om/ui?lang_preview=1")
+        .set("if-none-match", response.headers.etag as string);
+      expect(cached.status).toBe(304);
+      expect(cached.headers["x-dimts-locale-fallback"]).toBe("1");
+      expect((await request(app).get("/v1/locales/om/ui")).status).toBe(404);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
   it("fails fast for missing, weak, or reused secrets", () => {
     expect(() =>
       parseConfig({ ...validEnv, DIMTS_HASH_KEY: undefined }),
@@ -483,7 +549,9 @@ describe("WP02 configuration and API contracts", () => {
           sessionId: anonymous.body.sessionId,
           clientMsgId: "offline-without-consent",
           lang: "en",
-          text: "How do I make a study plan?",
+          // Use a different question so the subsequent consent check exercises
+          // the remote adapter rather than reusing this valid offline cache entry.
+          text: "How should I choose a learning goal?",
           via: "text",
         });
       expect(firstAnswer.status).toBe(200);

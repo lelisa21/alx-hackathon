@@ -514,7 +514,19 @@ paths:
           in: query
       responses:
         "200":
-          description: UI strings
+          description: UI strings resolved through the configured fallback chain
+          headers:
+            X-Dimts-Locale-Fallback:
+              description: 1 when any UI string came from a fallback pack, otherwise 0
+              schema:
+                type: string
+                enum:
+                  - "0"
+                  - "1"
+            ETag:
+              description: Validator for the resolved strings and fallback signal
+              schema:
+                type: string
           content:
             application/json:
               schema:
@@ -522,7 +534,14 @@ paths:
                 additionalProperties:
                   type: string
         "304":
-          description: Not modified
+          description: Not modified; retains the X-Dimts-Locale-Fallback header
+          headers:
+            X-Dimts-Locale-Fallback:
+              schema:
+                type: string
+                enum:
+                  - "0"
+                  - "1"
         "404":
           description: Problem response
           content:

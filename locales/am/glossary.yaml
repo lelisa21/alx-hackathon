@@ -1,1 +1,181 @@
-[]
+# Unreviewed seed: SRS 20.6 terms plus sample study-plan vocabulary. Not a 200-term reviewed glossary.
+- id: lesson
+  en: lesson
+  am: ትምህርት
+  om: barnoota
+  simple_definition: "በአንድ ጊዜ የሚያጠኑት የኮርስ ክፍል።"
+  do_not_translate: false
+- id: course
+  en: course
+  am: ኮርስ
+  om: koorsii
+  simple_definition: "ስለ አንድ ርዕስ የሚማሩት የትምህርቶች ስብስብ።"
+  do_not_translate: false
+- id: password
+  en: password
+  am: ይለፍ ቃል
+  om: jecha darbii
+  simple_definition: "መለያዎን እርስዎ ብቻ እንዲከፍቱ የሚያስችል ሚስጥራዊ ቃል።"
+  do_not_translate: false
+- id: username
+  en: username
+  am: የተጠቃሚ ስም
+  om: maqaa fayyadamaa
+  simple_definition: "ለመግባት የሚጠቀሙበት ስም።"
+  do_not_translate: false
+- id: screen
+  en: screen
+  am: ስክሪን
+  om: iskiriinii
+  simple_definition: "የሚመለከቱት የስልክ ወይም የኮምፒውተር ክፍል።"
+  do_not_translate: false
+- id: keyboard
+  en: keyboard
+  am: ኪቦርድ
+  om: kiiboordii
+  simple_definition: "ለመጻፍ የሚጫኗቸው አዝራሮች።"
+  do_not_translate: false
+- id: save
+  en: save
+  am: አስቀምጥ
+  om: olkaa'i
+  simple_definition: "ስራዎ እንዳይጠፋ ማስቀመጥ።"
+  do_not_translate: false
+- id: download
+  en: download
+  am: አውርድ
+  om: buufadhu
+  simple_definition: "ፋይል ወደ ስልክዎ መቅዳት።"
+  do_not_translate: false
+- id: upload
+  en: upload
+  am: ጫን
+  om: ol-fe'i
+  simple_definition: "ፋይል ከስልክዎ ወደ በይነመረብ መላክ።"
+  do_not_translate: false
+- id: link
+  en: link
+  am: ሊንክ
+  om: liinkii
+  simple_definition: "ሌላ ገጽ ለመክፈት የሚጫኑት ጽሑፍ።"
+  do_not_translate: false
+- id: certificate
+  en: certificate
+  am: ሰርተፊኬት
+  om: ragaa xumuraa
+  simple_definition: "ኮርስ መጨረስዎን የሚያሳይ ወረቀት ወይም ፋይል።"
+  do_not_translate: false
+- id: deadline
+  en: deadline
+  am: የመጨረሻ ቀን
+  om: guyyaa dhumaa
+  simple_definition: "አንድን ነገር ለመስራት የሚችሉበት የመጨረሻ ቀን።"
+  do_not_translate: false
+- id: job
+  en: job
+  am: ስራ
+  om: hojii
+  simple_definition: "ገንዘብ ለማግኘት የሚሰሩት ስራ።"
+  do_not_translate: false
+- id: application
+  en: application
+  am: ማመልከቻ
+  om: iyyannoo
+  simple_definition: "ስራ ለማግኘት የሚቀርብ ጥያቄ።"
+  do_not_translate: false
+- id: interview
+  en: interview
+  am: ቃለ መጠይቅ
+  om: af-gaaffii
+  simple_definition: "ቀጣሪ ጥያቄዎችን የሚጠይቅዎት ውይይት።"
+  do_not_translate: false
+- id: help
+  en: help
+  am: እርዳታ
+  om: gargaarsa
+  simple_definition: "ከሰው የሚገኝ ድጋፍ።"
+  do_not_translate: false
+- id: privacy
+  en: privacy
+  am: ግላዊነት
+  om: iccitii dhuunfaa
+  simple_definition: "የራስዎን መረጃ በግል መጠበቅ።"
+  do_not_translate: false
+- id: consent
+  en: consent
+  am: ፈቃድ
+  om: hayyama
+  simple_definition: "አውቆና ፈልጎ እሺ ማለት።"
+  do_not_translate: false
+- id: share
+  en: share
+  am: አጋራ
+  om: qoodi
+  simple_definition: "ሌላ ሰው አንድን ነገር እንዲያይ ማድረግ።"
+  do_not_translate: false
+- id: stop
+  en: stop
+  am: አቁም
+  om: dhaabi
+  simple_definition: "እየተካሄደ ያለውን ነገር ማቆም።"
+  do_not_translate: false
+- id: goal
+  en: goal
+  am: ግብ
+  om: kaayyoo
+  simple_definition: "ለማሳካት የሚፈልጉት ነገር።"
+  do_not_translate: false
+- id: study
+  en: study
+  am: ማጥናት
+  om: qo'achuu
+  simple_definition: "ስለ አንድ ነገር ለመማር ጊዜ መውሰድ።"
+  do_not_translate: false
+- id: schedule
+  en: schedule
+  am: መርሐ ግብር
+  om: sagantaa
+  simple_definition: "ነገሮችን መቼ እንደሚሰሩ የሚያሳይ ዕቅድ።"
+  do_not_translate: false
+- id: calendar
+  en: calendar
+  am: የቀን መቁጠሪያ
+  om: kalaandarii
+  simple_definition: "ያቀዷቸውን ተግባራት የሚመዘግቡበት የቀናት ዝርዝር።"
+  do_not_translate: false
+- id: week
+  en: week
+  am: ሳምንት
+  om: torban
+  simple_definition: "የሰባት ቀናት ጊዜ።"
+  do_not_translate: false
+- id: progress
+  en: progress
+  am: እድገት
+  om: guddina
+  simple_definition: "ወደ ግብዎ ምን ያህል እንደተቃረቡ የሚያሳይ።"
+  do_not_translate: false
+- id: review
+  en: review
+  am: መከለስ
+  om: irra deebi'uu
+  simple_definition: "የተማሩትን እንደገና ማየት።"
+  do_not_translate: false
+- id: rest
+  en: rest
+  am: እረፍት
+  om: boqonnaa
+  simple_definition: "ስራ አቁመው ጉልበት የሚያድሱበት ጊዜ።"
+  do_not_translate: false
+- id: topic
+  en: topic
+  am: ርዕስ
+  om: mata duree
+  simple_definition: "እየተማሩበት ያለው ጉዳይ።"
+  do_not_translate: false
+- id: sentence
+  en: sentence
+  am: ዓረፍተ ነገር
+  om: hima
+  simple_definition: "ሙሉ ሐሳብ የሚገልጹ ቃላት።"
+  do_not_translate: false
