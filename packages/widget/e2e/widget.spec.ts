@@ -244,7 +244,7 @@ test("P03 shortcuts are documented, work with modifiers, and can be disabled", a
   await page.getByRole("button", { name: "Settings" }).click();
   await expect(
     page.getByText(
-      "Alt+Shift+M: microphone; Alt+Shift+H: help; Alt+Shift+L: language.",
+      "Alt+Shift+M: microphone; Alt+Shift+H: help; Alt+Shift+L: language; Alt+Shift+S: stop sharing.",
     ),
   ).toBeVisible();
   await page.getByRole("checkbox", { name: "Keyboard shortcuts" }).uncheck();

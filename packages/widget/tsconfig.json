@@ -7,5 +7,5 @@
     "types": []
   },
   "include": ["src/**/*.ts"],
-  "references": [{ "path": "../voice" }]
+  "references": [{ "path": "../voice" }, { "path": "../help" }]
 }

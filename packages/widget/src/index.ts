@@ -713,6 +713,27 @@ export class DimtsAssistant extends LitElement {
       padding: 0.75rem;
     }
 
+    .share-banner {
+      position: sticky;
+      inset-block-start: 0;
+      order: -1;
+      z-index: 4;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
+      background: var(--dimts-surface);
+      color: var(--dimts-text);
+      border: 2px solid var(--dimts-border);
+      padding: 0.5rem;
+    }
+
+    .share-fallback input {
+      max-inline-size: 100%;
+      min-inline-size: 0;
+    }
+
     .help-actions,
     .help-chat-messages {
       display: grid;
@@ -903,6 +924,7 @@ export class DimtsAssistant extends LitElement {
     this.disposeTheme = applyThemeGuard(this);
     void this.enableOfflineSupport();
     void this.initialize();
+    document.addEventListener("visibilitychange", this.handleHelpVisibility);
     if (this.helpRequestId) this.connectHelpSocket();
   }
 
@@ -915,6 +937,7 @@ export class DimtsAssistant extends LitElement {
     if (name === "hidden" && value !== null) {
       this.cancelRecording();
       this.stopSpeech();
+      this.helpModule?.stopSharing.call(this as unknown as HelpContext);
     }
   }
 
@@ -951,6 +974,8 @@ export class DimtsAssistant extends LitElement {
   }
 
   override disconnectedCallback(): void {
+    document.removeEventListener("visibilitychange", this.handleHelpVisibility);
+    this.helpModule?.suspend.call(this as unknown as HelpContext);
     activeWidgets.delete(this);
     this.lifecycleController.abort();
     this.browserVoiceRun += 1;
@@ -989,6 +1014,10 @@ export class DimtsAssistant extends LitElement {
   private readonly handleOffline = (): void => {
     this.offline = true;
   };
+  private readonly handleHelpVisibility = (): void => {
+    if (document.hidden)
+      this.helpModule?.stopSharing.call(this as unknown as HelpContext);
+  };
 
   private readonly handleOnline = (): void => {
     this.offline = false;
@@ -1007,9 +1036,18 @@ export class DimtsAssistant extends LitElement {
     )
       return;
     const key = event.key.toLowerCase();
-    if (!["m", "h", "l"].includes(key)) return;
+    if (!["m", "h", "l", "s"].includes(key)) return;
+    if (key === "s") {
+      event.preventDefault();
+      this.helpModule?.stopSharing.call(this as unknown as HelpContext);
+      return;
+    }
     // A modal owns its keyboard focus until explicitly dismissed.
-    if (this.helpPreviewOpen) return;
+    if (
+      this.helpPreviewOpen ||
+      this.helpModule?.shareDialogOpen.call(this as unknown as HelpContext)
+    )
+      return;
     event.preventDefault();
     if (key === "h") this.escalate();
     if (key === "l") this.panel = this.panel === "language" ? null : "language";
@@ -1536,6 +1574,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private resetExpiredSession(): void {
+    this.helpModule?.dispose.call(this as unknown as HelpContext);
     // The rotated credential cannot recover an old session after a lost response.
     // Cancel its work before starting an explicitly local-only replacement.
     this.sessionGeneration += 1;

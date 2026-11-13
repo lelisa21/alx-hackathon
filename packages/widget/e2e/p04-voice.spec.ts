@@ -475,10 +475,14 @@ test("P04 ends recording after sixty seconds, times out cleanly, and cancels on 
   await expect(page.locator("#message")).toBeEnabled();
   await page.getByRole("button", { name: "Start talking" }).click();
   expireSession();
+  // Use one activation: recovery intentionally leaves this checkbox unchecked.
   await page
     .getByRole("checkbox", { name: "Allow remote AI for this session" })
-    .check();
+    .click();
   await expect(page.getByText(ui["privacy.sessionRestarted"]!)).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: "Allow remote AI for this session" }),
+  ).not.toBeChecked();
   await finish(page, "A previous session transcript.");
   await expect(page.locator("#message")).toHaveValue("");
   expect(asks).toHaveLength(0);

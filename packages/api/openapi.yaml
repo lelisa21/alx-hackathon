@@ -174,7 +174,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a3
+          enum: &a1
             - invalid_request
             - unauthorized
             - forbidden
@@ -378,6 +378,129 @@ components:
       required:
         - ok
       additionalProperties: false
+    HelpAvailabilityResponse:
+      type: object
+      properties:
+        available:
+          type: boolean
+        nextOpenAt:
+          type: string
+          format: date-time
+        waitTimeoutMs:
+          type: integer
+          exclusiveMinimum: 0
+      required:
+        - available
+        - waitTimeoutMs
+      additionalProperties: false
+    HelperProfile:
+      type: object
+      properties:
+        displayName:
+          type:
+            - string
+            - "null"
+          minLength: 1
+          maxLength: 40
+      required:
+        - displayName
+      additionalProperties: false
+    HelpMetrics:
+      type: object
+      properties:
+        closedCount:
+          type: integer
+          minimum: 0
+        resolvedCount:
+          type: integer
+          minimum: 0
+        unresolvedCount:
+          type: integer
+          minimum: 0
+        totalWaitMs:
+          type: number
+          minimum: 0
+        totalResolutionMs:
+          type: number
+          minimum: 0
+      required:
+        - closedCount
+        - resolvedCount
+        - unresolvedCount
+        - totalWaitMs
+        - totalResolutionMs
+      additionalProperties: false
+    HelpIceResponse:
+      type: object
+      properties:
+        iceServers:
+          type: array
+          items:
+            type: object
+            properties:
+              urls:
+                anyOf:
+                  - type: string
+                    pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                  - type: array
+                    items:
+                      type: string
+                      pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                    minItems: 1
+                    maxItems: 16
+              username:
+                type: string
+                maxLength: 1024
+              credential:
+                type: string
+                maxLength: 1024
+            required:
+              - urls
+            additionalProperties: false
+          minItems: 1
+          maxItems: 16
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - iceServers
+      additionalProperties: false
+    HelpImage:
+      type: object
+      properties:
+        id:
+          type: string
+          minLength: 1
+          maxLength: 128
+        expiresAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - expiresAt
+      additionalProperties: false
+    HelpImageList:
+      type: object
+      properties:
+        images:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                minLength: 1
+                maxLength: 128
+              expiresAt:
+                type: string
+                format: date-time
+            required:
+              - id
+              - expiresAt
+            additionalProperties: false
+      required:
+        - images
+      additionalProperties: false
     LanguageList:
       type: object
       properties:
@@ -396,12 +519,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a1
+                enum: &a2
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a2
+                enum: &a3
                   - live
                   - beta
                   - draft
@@ -538,6 +661,796 @@ components:
       additionalProperties: false
   parameters: {}
 paths:
+  /v1/help/availability:
+    get:
+      summary: Get scheduled helper availability and calm waiting threshold
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          required: true
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: UTC schedule, not live helper presence
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  available:
+                    type: boolean
+                  nextOpenAt:
+                    type: string
+                    format: date-time
+                  waitTimeoutMs:
+                    type: integer
+                    exclusiveMinimum: 0
+                required:
+                  - available
+                  - waitTimeoutMs
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/helpers/profile:
+    get:
+      summary: Read or deliberately change the optional public helper first name
+      security:
+        - helperBearer: []
+      responses:
+        "200":
+          description: Null disables public name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayName:
+                    type:
+                      - string
+                      - "null"
+                    minLength: 1
+                    maxLength: 40
+                required:
+                  - displayName
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+    patch:
+      summary: Read or deliberately change the optional public helper first name
+      security:
+        - helperBearer: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                displayName:
+                  type:
+                    - string
+                    - "null"
+                  minLength: 1
+                  maxLength: 40
+              required:
+                - displayName
+              additionalProperties: false
+      responses:
+        "200":
+          description: Null disables public name
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  displayName:
+                    type:
+                      - string
+                      - "null"
+                    minLength: 1
+                    maxLength: 40
+                required:
+                  - displayName
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/help/metrics:
+    get:
+      summary: Anonymous service totals without content or identifiers
+      description: closedCount includes unclassified outcomes. Only explicit helper
+        resolved true/false increments resolvedCount/unresolvedCount. Wait and
+        resolution totals include only claimed requests that have closed; units
+        are milliseconds. No per-session or helper breakdown is stored.
+      security:
+        - helperBearer: []
+      responses:
+        "200":
+          description: Aggregate counts and duration totals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  closedCount:
+                    type: integer
+                    minimum: 0
+                  resolvedCount:
+                    type: integer
+                    minimum: 0
+                  unresolvedCount:
+                    type: integer
+                    minimum: 0
+                  totalWaitMs:
+                    type: number
+                    minimum: 0
+                  totalResolutionMs:
+                    type: number
+                    minimum: 0
+                required:
+                  - closedCount
+                  - resolvedCount
+                  - unresolvedCount
+                  - totalWaitMs
+                  - totalResolutionMs
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/help/{id}/ice:
+    post:
+      summary: Get short-lived ICE configuration for a claimed request participant
+      description: Authenticated owning session or assigned active helper. Public STUN
+        only when TURN is unconfigured/unavailable; application TURN secrets are
+        never returned. Responses are no-store.
+      security:
+        - sessionBearer: []
+        - helperBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sessionId:
+                  type: string
+                  minLength: 8
+                  maxLength: 64
+              additionalProperties: false
+      responses:
+        "200":
+          description: ICE configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  iceServers:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        urls:
+                          anyOf:
+                            - type: string
+                              pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                            - type: array
+                              items:
+                                type: string
+                                pattern: ^(?:stun|stuns|turn|turns):[^\s]{1,500}$
+                              minItems: 1
+                              maxItems: 16
+                        username:
+                          type: string
+                          maxLength: 1024
+                        credential:
+                          type: string
+                          maxLength: 1024
+                      required:
+                        - urls
+                      additionalProperties: false
+                    minItems: 1
+                    maxItems: 16
+                  expiresAt:
+                    type: string
+                    format: date-time
+                required:
+                  - iceServers
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/help/{id}/image:
+    post:
+      summary: Upload a learner-selected screen picture
+      description: Raw JPEG/PNG/WebP, maximum 2097152 bytes, fully decoded with a 16
+        million pixel cap, single frame, metadata stripped before database-only
+        storage. Owning learner of a waiting or claimed request. At most five
+        retained images per request. No filenames or data URLs. Expires after
+        two hours or earlier close/session deletion.
+      security:
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          required: true
+          name: sessionId
+          in: query
+      requestBody:
+        required: true
+        content:
+          image/jpeg:
+            schema:
+              type: string
+              format: binary
+          image/png:
+            schema:
+              type: string
+              format: binary
+          image/webp:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "201":
+          description: Stored image metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                    minLength: 1
+                    maxLength: 128
+                  expiresAt:
+                    type: string
+                    format: date-time
+                required:
+                  - id
+                  - expiresAt
+                additionalProperties: false
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "413":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+    get:
+      summary: List unexpired help picture metadata
+      security:
+        - sessionBearer: []
+        - helperBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          required: false
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: Private no-store image metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  images:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                          minLength: 1
+                          maxLength: 128
+                        expiresAt:
+                          type: string
+                          format: date-time
+                      required:
+                        - id
+                        - expiresAt
+                      additionalProperties: false
+                required:
+                  - images
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+  /v1/help/{id}/image/{imageId}:
+    get:
+      summary: Retrieve an authorized unexpired help picture
+      security:
+        - sessionBearer: []
+        - helperBearer: []
+      parameters:
+        - schema:
+            type: string
+          required: true
+          name: id
+          in: path
+        - schema:
+            type: string
+          required: true
+          name: imageId
+          in: path
+        - schema:
+            type: string
+            minLength: 8
+            maxLength: 64
+          required: false
+          name: sessionId
+          in: query
+      responses:
+        "200":
+          description: Private no-store image bytes with nosniff; owner or assigned active
+            helper only
+          content:
+            image/jpeg:
+              schema:
+                type: string
+                format: binary
+            image/png:
+              schema:
+                type: string
+                format: binary
+            image/webp:
+              schema:
+                type: string
+                format: binary
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "404":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a1
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
   /v1/docs:
     get:
       summary: Open API documentation
@@ -620,10 +1533,10 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a1
+                          enum: *a2
                         status:
                           type: string
-                          enum: *a2
+                          enum: *a3
                         stt:
                           type: boolean
                         tts:
@@ -677,7 +1590,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -749,7 +1662,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -908,7 +1821,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -938,7 +1851,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1056,7 +1969,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1081,7 +1994,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1106,7 +2019,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1247,7 +2160,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1272,7 +2185,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1297,7 +2210,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1322,7 +2235,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1347,7 +2260,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1411,7 +2324,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1436,7 +2349,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1490,7 +2403,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1515,7 +2428,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1540,7 +2453,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1606,7 +2519,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1631,7 +2544,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1656,7 +2569,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1738,7 +2651,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1763,7 +2676,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1814,7 +2727,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1839,7 +2752,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1890,7 +2803,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1915,7 +2828,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1942,15 +2855,21 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                sessionId:
-                  type: string
-                  minLength: 8
-                  maxLength: 64
-              required:
-                - sessionId
-              additionalProperties: false
+              anyOf:
+                - type: object
+                  properties:
+                    sessionId:
+                      type: string
+                      minLength: 8
+                      maxLength: 64
+                  required:
+                    - sessionId
+                  additionalProperties: false
+                - type: object
+                  properties:
+                    resolved:
+                      type: boolean
+                  additionalProperties: false
       responses:
         "204":
           description: Help request ended
@@ -1969,7 +2888,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -1994,7 +2913,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -2019,7 +2938,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:
@@ -2070,7 +2989,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a1
                   messageKey:
                     type: string
                 required:

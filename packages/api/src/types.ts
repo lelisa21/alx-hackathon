@@ -75,8 +75,19 @@ export interface HelpQueueRequest {
 }
 
 export type HelpCloseActor =
-  | { role: "learner"; sessionId: string }
-  | { role: "helper"; helperId: string };
+  { role: "learner"; sessionId: string } | { role: "helper"; helperId: string };
+
+export interface HelpImageMetadata {
+  id: string;
+  expiresAt: string;
+}
+export interface HelpMetrics {
+  closedCount: number;
+  resolvedCount: number;
+  unresolvedCount: number;
+  totalWaitMs: number;
+  totalResolutionMs: number;
+}
 
 export interface HelpStore extends HelpAuthStore {
   createRequest(
@@ -88,7 +99,38 @@ export interface HelpStore extends HelpAuthStore {
     lang?: string,
   ): Promise<HelpQueueRequest[]>;
   blockWaitingRequest(requestId: string, helperId: string): Promise<boolean>;
-  closeRequest(requestId: string, actor: HelpCloseActor): Promise<boolean>;
+  closeRequest(
+    requestId: string,
+    actor: HelpCloseActor,
+    resolved?: boolean,
+  ): Promise<boolean>;
+  authorizeRequest?(
+    requestId: string,
+    actor: HelpCloseActor,
+    claimedOnly: boolean,
+  ): Promise<boolean>;
+  getHelperProfile?(helperId: string): Promise<{ displayName: string | null }>;
+  setHelperProfile?(
+    helperId: string,
+    displayName: string | null,
+  ): Promise<{ displayName: string | null }>;
+  getMetrics?(): Promise<HelpMetrics>;
+  saveImage?(
+    requestId: string,
+    sessionId: string,
+    mime: string,
+    data: Buffer,
+  ): Promise<HelpImageMetadata | null>;
+  listImages?(
+    requestId: string,
+    actor: HelpCloseActor,
+  ): Promise<HelpImageMetadata[]>;
+  getImage?(
+    requestId: string,
+    imageId: string,
+    actor: HelpCloseActor,
+  ): Promise<{ mime: string; data: Buffer } | null>;
+  deleteExpiredImages?(): Promise<void>;
 }
 
 export interface AppDependencies {

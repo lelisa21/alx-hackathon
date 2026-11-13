@@ -13,6 +13,25 @@ const root = path.resolve(
 );
 const packs = loadPacks(path.join(root, "locales"));
 
+it("P05 keeps consent, fallback, image and helper operations in every locale", () => {
+  for (const pack of packs.values())
+    for (const key of [
+      "help.hoursClosed",
+      "help.nextOpen",
+      "help.timeout",
+      "help.leaveMessage",
+      "share.accept",
+      "share.privacy",
+      "share.imagePrivacy",
+      "share.imageInvalid",
+      "share.fallback",
+      "helper.profileNote",
+      "helper.resolutionUnknown",
+      "helper.shareFallback",
+    ])
+      expect(pack.ui[key], `${pack.meta.code}: ${key}`).toBeTruthy();
+});
+
 it("P04 provides localized voice states without enabling unreviewed engines", () => {
   for (const pack of packs.values()) {
     for (const key of [
