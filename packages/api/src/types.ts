@@ -8,12 +8,24 @@ export type ApiReply = z.infer<typeof ReplySchema>;
 
 export interface NewSession {
   id: string;
-  channel: "web" | "api" | "sms" | "telegram";
+  channel: "web" | "api" | "sms" | "telegram" | "lti";
   lang: string;
-  tokenHash: string;
-  resumeHash: string;
-  cloudOk: boolean;
-  consentVersion: string | null;
+  tokenHash?: string;
+  token?: string;
+  resumeHash?: string;
+  cloudOk?: boolean;
+  consentVersion?: string | null;
+  expiresAt?: Date;
+  ltiContext?: {
+    issuer: string;
+    platformId: string;
+    deploymentId: string;
+    ltiUserId: string;
+    roles: string[];
+    contextId?: string;
+    insightsAccess: boolean;
+    timestamp: number;
+  };
 }
 
 export interface ClaimedQuestion {

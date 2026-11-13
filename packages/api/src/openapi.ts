@@ -792,6 +792,119 @@ registry.registerPath({
   },
 });
 
+// P10: LTI 1.3 integration
+registry.registerComponent("securitySchemes", "ltiBearer", {
+  type: "http",
+  scheme: "bearer",
+  bearerFormat: "JWT",
+  description: "Signed LTI id_token from authorized platform",
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/v1/lti/login",
+  summary: "Initiate LTI OIDC login flow",
+  description:
+    "Platform calls with login_hint. Returns state and nonce for token request.",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              iss: z.string().url(),
+              client_id: z.string().min(1).max(256),
+              login_hint: z.string().min(1).max(256),
+              target_link_uri: z.string().url(),
+              lti_message_hint: z.string().optional(),
+            })
+            .strict(),
+        },
+      },
+    },
+  },
+  responses: {
+    "200": {
+      description: "Login parameters for token request",
+      ...json(
+        z
+          .object({
+            state: z.string(),
+            nonce: z.string(),
+            authLoginUrl: z.string().url(),
+            redirectUri: z.string().url(),
+          })
+          .strict()
+      ),
+    },
+    "400": problemResponse,
+    "404": problemResponse,
+  },
+});
+
+registry.registerPath({
+  method: "post",
+  path: "/v1/lti/launch",
+  summary: "Receive and validate signed LTI id_token, create session",
+  description:
+    "Validates signature, state, nonce, issuer, audience, deployment, expiry. Creates pseudonymous session. Instructor role sets insightsAccess flag.",
+  request: {
+    body: {
+      required: true,
+      content: {
+        "application/json": {
+          schema: z
+            .object({
+              id_token: z.string().min(100).max(10000),
+              state: z.string().min(1).max(1000),
+            })
+            .strict(),
+        },
+      },
+    },
+  },
+  responses: {
+    "200": {
+      description: "Session created with LTI context",
+      ...json(
+        z
+          .object({
+            sessionId: z.string(),
+            sessionToken: z.string(),
+            roles: z.array(z.string()),
+            insightsAccess: z.boolean(),
+            contextId: z.string().optional(),
+          })
+          .strict()
+      ),
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "403": problemResponse,
+    "500": problemResponse,
+  },
+});
+
+registry.registerPath({
+  method: "get",
+  path: "/v1/lti/jwks",
+  summary: "Publish platform public key for JWT verification",
+  description: "Returns empty JWKS for single-instance test; production uses key store.",
+  responses: {
+    "200": {
+      description: "JWKS public keys",
+      ...json(
+        z
+          .object({
+            keys: z.array(z.record(z.unknown())),
+          })
+          .strict()
+      ),
+    },
+  },
+});
+
 const document = new OpenApiGeneratorV31(registry.definitions).generateDocument(
   {
     openapi: "3.1.0",

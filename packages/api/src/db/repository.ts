@@ -228,8 +228,6 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
         [sessionId, clientMsgId],
       );
     },
-  };
-}
     async verifyHostKey(key: string) {
       // Verify against plaintext key (not hashed)
       // In production, this should hash the key and compare to key_hash in DB
@@ -245,6 +243,8 @@ export function createPostgresRepository(pool: pg.Pool): ApiRepository {
       return result.rows[0] ?? null;
     },
     getInsightsRepository() {
-      const { createInsightsRepository } = await import("./insights-repository.js");
+      const { createInsightsRepository } = require("./insights-repository.js");
       return createInsightsRepository(pool);
     },
+  };
+}
