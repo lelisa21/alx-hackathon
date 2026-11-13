@@ -55,6 +55,14 @@ import {
   withSmsJobsDelivery,
 } from "./sms-runtime.js";
 import type { SmsApiService } from "./sms-runtime.js";
+import {
+  createTelegramRuntime,
+  telegramConfigured,
+  withTelegramJobsDelivery,
+} from "./telegram-runtime.js";
+import type { TelegramApiService } from "./telegram-runtime.js";
+import type { TelegramTransport, TelegramVoice } from "@dimts/telegram";
+import { createTelegramRouter } from "./routes/telegram.js";
 
 export interface ApiSourceSyncOptions {
   sources?: readonly ContentSource[];
@@ -85,6 +93,9 @@ export interface BuildAppOptions {
   smsService?: SmsApiService;
   smsGateway?: SmsGateway;
   smsCallbackTransport?: typeof fetch;
+  telegramService?: TelegramApiService;
+  telegramTransport?: TelegramTransport;
+  telegramVoice?: TelegramVoice;
 }
 
 const defaultLocalesRoot = path.resolve(
@@ -118,20 +129,31 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.answerCache ?? (pool ? createPostgresAnswerCache(pool) : undefined);
   const helpStore =
     options.helpStore ?? (pool ? createPostgresHelpAuthStore(pool) : undefined);
-  const helpSocketStore =
+  let helpSocketStore =
     options.helpSocketStore ??
     (pool ? createPostgresHelpSocketStore(pool) : undefined);
   const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
   let smsService = options.smsService;
+  let telegramService = options.telegramService;
+  const nativeTelegramEnabled =
+    Boolean(telegramService) || (Boolean(pool) && telegramConfigured(config));
   const nativeSmsEnabled =
     Boolean(smsService) || (Boolean(pool) && smsConfigured(config));
-  const jobsDelivery =
+  const smsJobsDelivery =
     options.jobsDelivery && !nativeSmsEnabled
       ? options.jobsDelivery
       : withSmsJobsDelivery(
           options.jobsDelivery ?? createHostJobsDelivery(config),
           () => smsService,
           nativeSmsEnabled,
+        );
+  const jobsDelivery =
+    options.jobsDelivery && !nativeTelegramEnabled
+      ? smsJobsDelivery
+      : withTelegramJobsDelivery(
+          smsJobsDelivery,
+          () => telegramService,
+          nativeTelegramEnabled,
         );
   const jobsService =
     options.jobsService ??
@@ -193,6 +215,28 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   const app = express();
   let sourceSyncManager: SourceSyncManager | undefined;
   let helpSocketRuntime: HelpSocketRuntime | undefined;
+  const telegramRuntime =
+    !telegramService && pool
+      ? createTelegramRuntime({
+          config,
+          pool,
+          repository,
+          packs,
+          ...(askDependencies ? { askDependencies } : {}),
+          ...(jobsService ? { jobs: jobsService } : {}),
+          ...(helpStore ? { helpStore } : {}),
+          ...(helpSocketStore ? { helpSocketStore } : {}),
+          ...(options.telegramTransport
+            ? { transport: options.telegramTransport }
+            : {}),
+          ...(options.telegramVoice ? { voice: options.telegramVoice } : {}),
+          socket: () => helpSocketRuntime,
+          onError: () => logger.error({ event: "telegram_setup_failed" }),
+        })
+      : undefined;
+  telegramService ??= telegramRuntime?.service;
+  helpSocketStore = telegramRuntime?.helpSocketStore ?? helpSocketStore;
+  app.locals.telegramReady = telegramRuntime?.ready ?? Promise.resolve();
   let mediaCleanupRunning = false;
   let careerCleanupRunning = false;
   const cleanupCareer = async () => {
@@ -306,6 +350,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       await sourceSyncManager?.stop();
     } finally {
       await smsRuntime?.close();
+      await telegramRuntime?.close();
       await pool?.end();
     }
   };
@@ -319,6 +364,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         "req.headers.authorization",
         "req.headers.cookie",
         "req.headers.x-dimts-key",
+        "req.headers.x-telegram-bot-api-secret-token",
       ],
       serializers: {
         req: (request) => ({
@@ -352,6 +398,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       config,
       packs,
       ...(smsService ? { service: smsService } : {}),
+    }),
+  );
+  app.use(
+    "/v1",
+    createTelegramRouter({
+      config,
+      packs,
+      ...(telegramService ? { service: telegramService } : {}),
     }),
   );
   app.use(express.json({ limit: "100kb", strict: true }));
@@ -388,7 +442,10 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         config,
         repository,
         store: helpStore,
-        onClosed: (requestId) => helpSocketRuntime?.closeRequest(requestId),
+        onClosed: (requestId) => {
+          telegramRuntime?.forgetHelp(requestId);
+          return helpSocketRuntime?.closeRequest(requestId);
+        },
         onProfileChanged: (helperId) =>
           helpSocketRuntime?.refreshHelper(helperId),
       }),

@@ -61,6 +61,7 @@ interface Room {
 export interface HelpSocketRuntime {
   close(): void;
   closeRequest(requestId: string): Promise<void>;
+  publishMessage(requestId: string, message: HelpSocketMessage): Promise<void>;
   refreshHelper(helperId: string): Promise<void>;
 }
 
@@ -589,6 +590,22 @@ export function attachHelpWebSockets(
   server.on("upgrade", onUpgrade);
 
   return {
+    async publishMessage(requestId, message) {
+      const room = rooms.get(requestId);
+      if (!room || closed) return;
+      await enqueue(room, async () => {
+        await revalidate(room);
+        for (const peer of room.peers) {
+          if (peer.role === message.sender) continue;
+          await sendJson(peer.ws, {
+            type: "chat.message",
+            id: message.id,
+            text: message.text,
+            from: message.sender,
+          });
+        }
+      });
+    },
     async refreshHelper(helperId) {
       for (const room of rooms.values()) {
         if (![...room.peers].some((peer) => peer.helperId === helperId))

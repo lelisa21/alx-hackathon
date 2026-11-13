@@ -336,8 +336,24 @@ const environmentSchema = z
     DIMTS_AI_CONSENT_VERSION: z.string().min(1).max(64).default("remote-ai-v1"),
     DIMTS_CONFIDENCE_FLOOR: z.coerce.number().min(0).max(1).default(0.35),
     DIMTS_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
-    DIMTS_TELEGRAM_TOKEN: z.string().optional(),
-    DIMTS_TELEGRAM_SECRET: z.string().optional(),
+    DIMTS_TELEGRAM_TOKEN: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .max(256)
+        .regex(/^\d{1,20}:[A-Za-z0-9_-]{20,}$/u)
+        .optional(),
+    ),
+    DIMTS_TELEGRAM_SECRET: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .min(24)
+        .max(256)
+        .regex(/^[A-Za-z0-9_-]+$/u)
+        .optional(),
+    ),
+    DIMTS_TELEGRAM_MODE: z.enum(["webhook", "polling"]).default("webhook"),
     DIMTS_SMS_MODE: z.enum(["simulator", "gateway"]).default("simulator"),
     DIMTS_SMS_GATEWAY_SECRET: optionalSmsSecret,
     DIMTS_SMS_GATEWAY_URL: optionalSmsUrl,
@@ -363,6 +379,45 @@ const environmentSchema = z
     DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {
+    if (
+      config.DIMTS_TELEGRAM_MODE === "polling" &&
+      config.NODE_ENV === "production"
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_TELEGRAM_MODE"],
+        message:
+          "Telegram polling is allowed only locally; production requires webhook mode",
+      });
+    if (
+      config.DIMTS_TELEGRAM_TOKEN &&
+      config.DIMTS_TELEGRAM_MODE === "webhook" &&
+      !config.DIMTS_TELEGRAM_SECRET
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_TELEGRAM_SECRET"],
+        message: "Enabled Telegram webhooks require a separate secret",
+      });
+    if (
+      config.DIMTS_TELEGRAM_SECRET &&
+      [
+        config.DIMTS_ENC_KEY,
+        config.DIMTS_HASH_KEY,
+        config.DIMTS_JWT_SECRET,
+        config.DIMTS_CRON_SECRET,
+        config.DIMTS_SMS_GATEWAY_SECRET,
+        config.DIMTS_SMS_GATEWAY_TOKEN,
+        config.DIMTS_SMS_CALLBACK_SECRET,
+        config.DIMTS_JOBS_RELAY_SECRET,
+      ].includes(config.DIMTS_TELEGRAM_SECRET)
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_TELEGRAM_SECRET"],
+        message:
+          "Telegram webhook secret must differ from other configured credentials",
+      });
     if (
       Boolean(config.DIMTS_SMS_GATEWAY_URL) !==
         Boolean(config.DIMTS_SMS_GATEWAY_TOKEN) ||

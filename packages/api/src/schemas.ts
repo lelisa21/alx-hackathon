@@ -191,7 +191,7 @@ export const HelpQueueRequestSchema = z
   .object({
     id: z.string().min(1).max(128),
     lang: z.string().min(2).max(35),
-    channel: z.enum(["web", "api"]),
+    channel: z.enum(["web", "api", "telegram"]),
     createdAt: z.string().datetime(),
     summary: z.array(z.string().max(2000)).max(3).nullable(),
   })

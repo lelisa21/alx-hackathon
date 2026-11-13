@@ -3,6 +3,52 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P08 — Telegram private-chat adapter (13 November 2026)
+
+- **Scope before implementation:** FR-TG-01–12, FR-VOICE-02/10, related help,
+  security and privacy. P08 only. The checkout was clean on the committed P07
+  branch; the requested `phase-08-prompt` did not exist locally and was created
+  from that commit. No commit or push is authorized.
+- **Boundary:** Retain `DIMTS_TELEGRAM_TOKEN` and `DIMTS_TELEGRAM_SECRET` and
+  canonical `POST /v1/telegram/webhook`. Authenticate the standard
+  `X-Telegram-Bot-Api-Secret-Token` before parsing a bounded body. Hosted mode
+  uses webhooks; explicitly selected polling is allowed only outside production.
+  Accept supported Telegram update fields, validate strictly, and project away
+  names and unused metadata before dispatch. Nonprivate updates are acknowledged
+  without conversation effects. Responses contain no chat ID or message text.
+- **Reuse and consent:** Use the existing session, conversation, jobs and help
+  stores. HMAC identities use `DIMTS_HASH_KEY`; only explicit active P06 alert
+  consent permits encrypted contact persistence. Helper routing uses bounded,
+  temporary in-memory chat IDs; after restart, the next private inbound restores
+  routing and replays existing help messages. `/stop` permanently revokes alerts
+  for that identity and clears pending private activity; tutoring may resume.
+  Session deletion erases channel state; minimal stop/replay metadata must never
+  recreate a deleted session or contact through an old update.
+- **Voice capability:** P04 currently provides browser/none adapters, which
+  cannot transcribe or synthesize Telegram files on the server. Preserve that
+  honest limitation. Provide shared file-voice ports and fixture-backed review
+  tests, but no fabricated transcript or unapproved provider. Production voice
+  acceptance remains blocked until a compatible adapter and language/device
+  review exist. Audio stays transient and is never answered before Send.
+- **Delivery:** Queue about one send per second per chat. Retry confirmed
+  transient rejections with stable local identities. A lost Telegram send
+  response has no server-side idempotency key; do not claim exactly-once delivery
+  or blindly duplicate an ambiguous send. Preserve explicit delivery uncertainty
+  and a localized recovery path. Tokens, IDs, audio and text are never logged.
+  After durable STOP/deletion, cancel queued sends, retries and pending audio;
+  suppress stale recovery messages. Already accepted messages cannot be recalled.
+- **Consent and ordering:** Review/consent/confirm callbacks are bound to the
+  current alert setup. A previous setup cannot authorize a new subscription.
+  Receipt hashes accept unseen out-of-order updates; only STOP/deletion sets a
+  replay cutoff. Inbound receipts precede effects, so uncertain attempts are not
+  automatically repeated. Exactly-once recovery is not claimed.
+- **Presentation:** Helper Telegram sessions expose text chat and image-description
+  guidance, with unavailable browser media controls hidden. Registry language
+  choices retain full tags; Telegram command menus use deterministic ISO 639-1
+  aliases with English defaults. Labels are bounded to 20 Unicode characters.
+  Oversized single sentences fall back to word/code-point chunks; this policy
+  needs review and is not strict sentence-boundary acceptance for that edge case.
+
 ## P07 — SMS and simulator (13 November 2026)
 
 - **Scope before implementation:** FR-SMS-01–12, FR-LANG-12/17 and channel

@@ -515,11 +515,12 @@ redirects and expire after ten seconds. `DIMTS_JOBS_RELAY_CHANNELS` is an
 optional comma-separated list declaring host adapters; its default is empty.
 After P07, the default API composition takes SMS exclusively through the native
 SMS service: a legacy `sms` host advertisement is ignored, and absent native
-SMS configuration leaves SMS unavailable. `telegram` host delivery remains
-available when declared. A configured relay supports
+SMS configuration leaves SMS unavailable. After P08, Telegram likewise requires
+the native Telegram adapter; a legacy host channel advertisement cannot bypass
+its STOP, consent or queue controls. A configured relay supports
 accommodation delivery even when alert channels are empty. Missing relay
 configuration never produces a successful no-op. SMS delivery is now
-implemented by P07; native Telegram delivery remains P08.
+implemented by P07; native Telegram delivery is implemented by P08.
 
 The API POSTs JSON with `Authorization: Bearer <relay secret>` and
 `Idempotency-Key: <stable key>`:
@@ -625,3 +626,23 @@ The existing authenticated `/v1/internal/retention` operation clears expired
 SMS private ciphertext and SMS delivery metadata older than 24 hours.
 Session erasure clears linked SMS ciphertext. Permanent STOP tombstones are
 retained; retention does not resume messaging for a stopped number.
+
+## Telegram private chats (P08)
+
+`POST /v1/telegram/webhook` accepts Telegram's native update envelope, verified
+with `X-Telegram-Bot-Api-Secret-Token: DIMTS_TELEGRAM_SECRET` before JSON parsing.
+Bodies are limited to 64 KiB. Success is `{"ok":true}`; nonprivate updates are
+ignored. Invalid credentials return 401, invalid updates 400, oversized bodies
+413, and unavailable adapters 503. Safe error responses include localized
+recovery copy, never the submitted content or credentials.
+
+`DIMTS_TELEGRAM_TOKEN` enables the native grammY adapter.
+`DIMTS_TELEGRAM_MODE=webhook` is the default; explicit `polling` is allowed only
+outside production. Both modes use shared sessions, conversation, help and P06
+jobs services. Telegram jobs delivery uses the same native transport, consent
+checks and permanent STOP enforcement. No additional public session-creation
+channel is enabled. The helper queue includes `channel: "telegram"`.
+
+Apply migration 009 and follow [`TELEGRAM.md`](TELEGRAM.md) for webhook setup,
+commands, voice capability limits, replay semantics and retention. Live bot,
+language and device acceptance remains separate from fixture verification.

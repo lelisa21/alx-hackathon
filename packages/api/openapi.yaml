@@ -22,6 +22,11 @@ components:
       scheme: bearer
       description: Separately configured DIMTS_SMS_GATEWAY_SECRET; never a session,
         host or cron credential
+    telegramWebhookSecret:
+      type: apiKey
+      in: header
+      name: X-Telegram-Bot-Api-Secret-Token
+      description: Separately configured DIMTS_TELEGRAM_SECRET; hosted webhook mode only
   schemas:
     AskRequest:
       type: object
@@ -45,7 +50,7 @@ components:
           description: At most 1000 Unicode code points
         via:
           type: string
-          enum: &a9
+          enum: &a10
             - text
             - voice
             - sms
@@ -90,7 +95,7 @@ components:
           type: string
         kind:
           type: string
-          enum: &a10
+          enum: &a11
             - answer
             - notfound
             - escalation
@@ -102,7 +107,7 @@ components:
           type: string
         dir:
           type: string
-          enum: &a11
+          enum: &a12
             - ltr
             - rtl
         citations:
@@ -121,7 +126,7 @@ components:
                 type: string
               sourceType:
                 type: string
-                enum: &a12
+                enum: &a13
                   - course
                   - job
               timestamp:
@@ -140,7 +145,7 @@ components:
             properties:
               type:
                 type: string
-                enum: &a13
+                enum: &a14
                   - help
                   - more
                   - open_source
@@ -179,7 +184,7 @@ components:
           type: number
         code:
           type: string
-          enum: &a3
+          enum: &a2
             - invalid_request
             - unauthorized
             - forbidden
@@ -196,6 +201,813 @@ components:
         - status
         - code
         - messageKey
+      additionalProperties: false
+    TelegramUpdate:
+      type: object
+      properties:
+        update_id:
+          type: integer
+          minimum: 0
+          maximum: 9007199254740991
+        message:
+          type: object
+          properties:
+            message_id:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+              exclusiveMinimum: 0
+            date:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            chat:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                type:
+                  type: string
+                  enum: &a1
+                    - private
+                    - group
+                    - supergroup
+                    - channel
+                first_name:
+                  type: string
+                  maxLength: 256
+                last_name:
+                  type: string
+                  maxLength: 256
+                username:
+                  type: string
+                  maxLength: 64
+                title:
+                  type: string
+                  maxLength: 256
+                is_forum:
+                  type: boolean
+                is_direct_messages:
+                  type: boolean
+              required:
+                - id
+                - type
+              additionalProperties: false
+            from:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  exclusiveMinimum: 0
+                is_bot:
+                  type: boolean
+                first_name:
+                  type: string
+                  maxLength: 256
+                last_name:
+                  type: string
+                  maxLength: 256
+                username:
+                  type: string
+                  maxLength: 64
+                language_code:
+                  type: string
+                  maxLength: 35
+                is_premium:
+                  type: boolean
+                added_to_attachment_menu:
+                  type: boolean
+              required:
+                - id
+                - is_bot
+              additionalProperties: false
+            text:
+              type: string
+              minLength: 1
+              maxLength: 4096
+            entities:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  offset:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  length:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  url:
+                    type: string
+                    maxLength: 4096
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                        exclusiveMinimum: 0
+                      is_bot:
+                        type: boolean
+                      first_name:
+                        type: string
+                        maxLength: 256
+                      last_name:
+                        type: string
+                        maxLength: 256
+                      username:
+                        type: string
+                        maxLength: 64
+                      language_code:
+                        type: string
+                        maxLength: 35
+                      is_premium:
+                        type: boolean
+                      added_to_attachment_menu:
+                        type: boolean
+                    required:
+                      - id
+                      - is_bot
+                    additionalProperties: false
+                  language:
+                    type: string
+                    maxLength: 64
+                  custom_emoji_id:
+                    type: string
+                    maxLength: 128
+                  unix_time:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  date_time_format:
+                    type: string
+                    maxLength: 64
+                required:
+                  - type
+                  - offset
+                  - length
+                additionalProperties: false
+              maxItems: 100
+            voice:
+              type: object
+              properties:
+                file_id:
+                  type: string
+                  minLength: 1
+                  maxLength: 256
+                file_unique_id:
+                  type: string
+                  maxLength: 256
+                file_size:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                duration:
+                  type: integer
+                  minimum: 0
+                  maximum: 86400
+                mime_type:
+                  type: string
+                  maxLength: 128
+              required:
+                - file_id
+                - duration
+              additionalProperties: false
+            photo:
+              type: array
+              items:
+                type: object
+                properties:
+                  file_id:
+                    type: string
+                    minLength: 1
+                    maxLength: 256
+                  file_unique_id:
+                    type: string
+                    maxLength: 256
+                  file_size:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  width:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                    exclusiveMinimum: 0
+                  height:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                    exclusiveMinimum: 0
+                required:
+                  - file_id
+                  - width
+                  - height
+                additionalProperties: false
+              maxItems: 10
+            caption:
+              type: string
+              maxLength: 2048
+            caption_entities:
+              type: array
+              items:
+                type: object
+                properties:
+                  type:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                  offset:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  length:
+                    type: integer
+                    minimum: 0
+                    maximum: 9007199254740991
+                  url:
+                    type: string
+                    maxLength: 4096
+                  user:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                        exclusiveMinimum: 0
+                      is_bot:
+                        type: boolean
+                      first_name:
+                        type: string
+                        maxLength: 256
+                      last_name:
+                        type: string
+                        maxLength: 256
+                      username:
+                        type: string
+                        maxLength: 64
+                      language_code:
+                        type: string
+                        maxLength: 35
+                      is_premium:
+                        type: boolean
+                      added_to_attachment_menu:
+                        type: boolean
+                    required:
+                      - id
+                      - is_bot
+                    additionalProperties: false
+                  language:
+                    type: string
+                    maxLength: 64
+                  custom_emoji_id:
+                    type: string
+                    maxLength: 128
+                  unix_time:
+                    type: integer
+                    minimum: -9007199254740991
+                    maximum: 9007199254740991
+                  date_time_format:
+                    type: string
+                    maxLength: 64
+                required:
+                  - type
+                  - offset
+                  - length
+                additionalProperties: false
+              maxItems: 100
+            document: {}
+            audio: {}
+            video: {}
+            video_note: {}
+            sticker: {}
+            animation: {}
+            contact: {}
+            location: {}
+            venue: {}
+            poll: {}
+            dice: {}
+            reply_to_message: {}
+            reply_markup: {}
+            forward_origin: {}
+            external_reply: {}
+            quote: {}
+            media_group_id:
+              type: string
+              maxLength: 256
+            edit_date:
+              type: integer
+              minimum: 0
+              maximum: 9007199254740991
+            via_bot:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  exclusiveMinimum: 0
+                is_bot:
+                  type: boolean
+                first_name:
+                  type: string
+                  maxLength: 256
+                last_name:
+                  type: string
+                  maxLength: 256
+                username:
+                  type: string
+                  maxLength: 64
+                language_code:
+                  type: string
+                  maxLength: 35
+                is_premium:
+                  type: boolean
+                added_to_attachment_menu:
+                  type: boolean
+              required:
+                - id
+                - is_bot
+              additionalProperties: false
+            has_protected_content:
+              type: boolean
+            is_automatic_forward:
+              type: boolean
+            message_thread_id:
+              type: integer
+              minimum: -9007199254740991
+              maximum: 9007199254740991
+            business_connection_id:
+              type: string
+              maxLength: 256
+          required:
+            - message_id
+            - chat
+          additionalProperties: false
+        callback_query:
+          type: object
+          properties:
+            id:
+              type: string
+              minLength: 1
+              maxLength: 256
+            from:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  exclusiveMinimum: 0
+                is_bot:
+                  type: boolean
+                first_name:
+                  type: string
+                  maxLength: 256
+                last_name:
+                  type: string
+                  maxLength: 256
+                username:
+                  type: string
+                  maxLength: 64
+                language_code:
+                  type: string
+                  maxLength: 35
+                is_premium:
+                  type: boolean
+                added_to_attachment_menu:
+                  type: boolean
+              required:
+                - id
+                - is_bot
+              additionalProperties: false
+            message:
+              type: object
+              properties:
+                message_id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                  exclusiveMinimum: 0
+                date:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                chat:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    type:
+                      type: string
+                      enum: *a1
+                    first_name:
+                      type: string
+                      maxLength: 256
+                    last_name:
+                      type: string
+                      maxLength: 256
+                    username:
+                      type: string
+                      maxLength: 64
+                    title:
+                      type: string
+                      maxLength: 256
+                    is_forum:
+                      type: boolean
+                    is_direct_messages:
+                      type: boolean
+                  required:
+                    - id
+                    - type
+                  additionalProperties: false
+                from:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                      exclusiveMinimum: 0
+                    is_bot:
+                      type: boolean
+                    first_name:
+                      type: string
+                      maxLength: 256
+                    last_name:
+                      type: string
+                      maxLength: 256
+                    username:
+                      type: string
+                      maxLength: 64
+                    language_code:
+                      type: string
+                      maxLength: 35
+                    is_premium:
+                      type: boolean
+                    added_to_attachment_menu:
+                      type: boolean
+                  required:
+                    - id
+                    - is_bot
+                  additionalProperties: false
+                text:
+                  type: string
+                  minLength: 1
+                  maxLength: 4096
+                entities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      offset:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      length:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      url:
+                        type: string
+                        maxLength: 4096
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                            exclusiveMinimum: 0
+                          is_bot:
+                            type: boolean
+                          first_name:
+                            type: string
+                            maxLength: 256
+                          last_name:
+                            type: string
+                            maxLength: 256
+                          username:
+                            type: string
+                            maxLength: 64
+                          language_code:
+                            type: string
+                            maxLength: 35
+                          is_premium:
+                            type: boolean
+                          added_to_attachment_menu:
+                            type: boolean
+                        required:
+                          - id
+                          - is_bot
+                        additionalProperties: false
+                      language:
+                        type: string
+                        maxLength: 64
+                      custom_emoji_id:
+                        type: string
+                        maxLength: 128
+                      unix_time:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      date_time_format:
+                        type: string
+                        maxLength: 64
+                    required:
+                      - type
+                      - offset
+                      - length
+                    additionalProperties: false
+                  maxItems: 100
+                voice:
+                  type: object
+                  properties:
+                    file_id:
+                      type: string
+                      minLength: 1
+                      maxLength: 256
+                    file_unique_id:
+                      type: string
+                      maxLength: 256
+                    file_size:
+                      type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    duration:
+                      type: integer
+                      minimum: 0
+                      maximum: 86400
+                    mime_type:
+                      type: string
+                      maxLength: 128
+                  required:
+                    - file_id
+                    - duration
+                  additionalProperties: false
+                photo:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      file_id:
+                        type: string
+                        minLength: 1
+                        maxLength: 256
+                      file_unique_id:
+                        type: string
+                        maxLength: 256
+                      file_size:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      width:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                        exclusiveMinimum: 0
+                      height:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                        exclusiveMinimum: 0
+                    required:
+                      - file_id
+                      - width
+                      - height
+                    additionalProperties: false
+                  maxItems: 10
+                caption:
+                  type: string
+                  maxLength: 2048
+                caption_entities:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      type:
+                        type: string
+                        minLength: 1
+                        maxLength: 64
+                      offset:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      length:
+                        type: integer
+                        minimum: 0
+                        maximum: 9007199254740991
+                      url:
+                        type: string
+                        maxLength: 4096
+                      user:
+                        type: object
+                        properties:
+                          id:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                            exclusiveMinimum: 0
+                          is_bot:
+                            type: boolean
+                          first_name:
+                            type: string
+                            maxLength: 256
+                          last_name:
+                            type: string
+                            maxLength: 256
+                          username:
+                            type: string
+                            maxLength: 64
+                          language_code:
+                            type: string
+                            maxLength: 35
+                          is_premium:
+                            type: boolean
+                          added_to_attachment_menu:
+                            type: boolean
+                        required:
+                          - id
+                          - is_bot
+                        additionalProperties: false
+                      language:
+                        type: string
+                        maxLength: 64
+                      custom_emoji_id:
+                        type: string
+                        maxLength: 128
+                      unix_time:
+                        type: integer
+                        minimum: -9007199254740991
+                        maximum: 9007199254740991
+                      date_time_format:
+                        type: string
+                        maxLength: 64
+                    required:
+                      - type
+                      - offset
+                      - length
+                    additionalProperties: false
+                  maxItems: 100
+                document: {}
+                audio: {}
+                video: {}
+                video_note: {}
+                sticker: {}
+                animation: {}
+                contact: {}
+                location: {}
+                venue: {}
+                poll: {}
+                dice: {}
+                reply_to_message: {}
+                reply_markup: {}
+                forward_origin: {}
+                external_reply: {}
+                quote: {}
+                media_group_id:
+                  type: string
+                  maxLength: 256
+                edit_date:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                via_bot:
+                  type: object
+                  properties:
+                    id:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                      exclusiveMinimum: 0
+                    is_bot:
+                      type: boolean
+                    first_name:
+                      type: string
+                      maxLength: 256
+                    last_name:
+                      type: string
+                      maxLength: 256
+                    username:
+                      type: string
+                      maxLength: 64
+                    language_code:
+                      type: string
+                      maxLength: 35
+                    is_premium:
+                      type: boolean
+                    added_to_attachment_menu:
+                      type: boolean
+                  required:
+                    - id
+                    - is_bot
+                  additionalProperties: false
+                has_protected_content:
+                  type: boolean
+                is_automatic_forward:
+                  type: boolean
+                message_thread_id:
+                  type: integer
+                  minimum: -9007199254740991
+                  maximum: 9007199254740991
+                business_connection_id:
+                  type: string
+                  maxLength: 256
+              required:
+                - message_id
+                - chat
+              additionalProperties: false
+            inline_message_id:
+              type: string
+              maxLength: 256
+            chat_instance:
+              type: string
+              maxLength: 256
+            data:
+              type: string
+              minLength: 1
+            game_short_name:
+              type: string
+              maxLength: 256
+          required:
+            - id
+            - from
+          additionalProperties: false
+        edited_message: {}
+        channel_post: {}
+        edited_channel_post: {}
+        my_chat_member: {}
+        chat_member: {}
+        chat_join_request: {}
+        inline_query: {}
+        chosen_inline_result: {}
+        poll: {}
+        poll_answer: {}
+        message_reaction: {}
+        message_reaction_count: {}
+        business_connection: {}
+        business_message: {}
+        edited_business_message: {}
+        deleted_business_messages: {}
+        shipping_query: {}
+        pre_checkout_query: {}
+        purchased_paid_media: {}
+      required:
+        - update_id
+      additionalProperties: false
+    TelegramAck:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          enum:
+            - true
+      required:
+        - ok
+      additionalProperties: false
+    TelegramProblem:
+      type: object
+      properties:
+        type:
+          type: string
+        title:
+          type: string
+        status:
+          type: number
+        code:
+          type: string
+          enum: *a2
+        messageKey:
+          type: string
+        lang:
+          type: string
+        message:
+          type: string
+      required:
+        - type
+        - title
+        - status
+        - code
+        - messageKey
+        - lang
+        - message
       additionalProperties: false
     SmsInboundRequest:
       type: object
@@ -229,7 +1041,7 @@ components:
           maxLength: 2000
         encoding:
           type: string
-          enum: &a1
+          enum: &a3
             - gsm7
             - ucs2
         units:
@@ -241,7 +1053,7 @@ components:
           maximum: 3
         status:
           type: string
-          enum: &a2
+          enum: &a4
             - queued
             - sent
             - delivered
@@ -272,7 +1084,7 @@ components:
                 maxLength: 2000
               encoding:
                 type: string
-                enum: *a1
+                enum: *a3
               units:
                 type: integer
                 minimum: 0
@@ -282,7 +1094,7 @@ components:
                 maximum: 3
               status:
                 type: string
-                enum: *a2
+                enum: *a4
             required:
               - id
               - text
@@ -314,7 +1126,7 @@ components:
           type: number
         code:
           type: string
-          enum: *a3
+          enum: *a2
         messageKey:
           type: string
         lang:
@@ -341,7 +1153,7 @@ components:
           maxLength: 8
         channel:
           type: string
-          enum: &a8
+          enum: &a9
             - web
             - api
           default: web
@@ -474,9 +1286,10 @@ components:
                 maxLength: 35
               channel:
                 type: string
-                enum: &a14
+                enum: &a15
                   - web
                   - api
+                  - telegram
               createdAt:
                 type: string
                 format: date-time
@@ -659,12 +1472,12 @@ components:
                 type: string
               dir:
                 type: string
-                enum: &a5
+                enum: &a6
                   - ltr
                   - rtl
               status:
                 type: string
-                enum: &a6
+                enum: &a7
                   - live
                   - beta
                   - draft
@@ -719,7 +1532,7 @@ components:
           maxLength: 35
         dir:
           type: string
-          enum: &a7
+          enum: &a8
             - ltr
             - rtl
         contentVersion:
@@ -901,7 +1714,7 @@ components:
           type: array
           items:
             type: string
-            enum: &a15
+            enum: &a16
               - sms
               - telegram
         relayAvailable:
@@ -950,7 +1763,7 @@ components:
           maxLength: 35
         channel:
           type: string
-          enum: &a17
+          enum: &a18
             - sms
             - telegram
         contact:
@@ -987,7 +1800,7 @@ components:
           type: string
         status:
           type: string
-          enum: &a16
+          enum: &a17
             - active
             - stopped
       required:
@@ -1022,7 +1835,7 @@ components:
               type: array
               items:
                 type: string
-                enum: &a4
+                enum: &a5
                   - sign_language_interpreter
                   - step_free_access
                   - written_questions
@@ -1144,7 +1957,7 @@ components:
           exclusiveMinimum: 0
         status:
           type: string
-          enum: &a18
+          enum: &a19
             - draft
             - approved
             - sent
@@ -1163,7 +1976,7 @@ components:
           type: array
           items:
             type: string
-            enum: *a4
+            enum: *a5
           minItems: 0
           maxItems: 6
         otherText:
@@ -1186,6 +1999,958 @@ components:
       additionalProperties: false
   parameters: {}
 paths:
+  /v1/telegram/webhook:
+    post:
+      summary: Receive authenticated Telegram private-chat updates
+      description: Authenticate the standard secret header before parsing up to 64 KiB
+        of JSON. Nonprivate and unsupported update kinds are acknowledged
+        without effects. Supported private text, voice and callbacks use the
+        same durable channel service as local polling. No identifiers or message
+        content appear in acknowledgments. Malformed or spoofed private updates
+        are rejected. Local delivery receipts suppress replay; ambiguous
+        upstream sends are not blindly retried.
+      security:
+        - telegramWebhookSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                update_id:
+                  type: integer
+                  minimum: 0
+                  maximum: 9007199254740991
+                message:
+                  type: object
+                  properties:
+                    message_id:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                      exclusiveMinimum: 0
+                    date:
+                      type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    chat:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        type:
+                          type: string
+                          enum: *a1
+                        first_name:
+                          type: string
+                          maxLength: 256
+                        last_name:
+                          type: string
+                          maxLength: 256
+                        username:
+                          type: string
+                          maxLength: 64
+                        title:
+                          type: string
+                          maxLength: 256
+                        is_forum:
+                          type: boolean
+                        is_direct_messages:
+                          type: boolean
+                      required:
+                        - id
+                        - type
+                      additionalProperties: false
+                    from:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                          exclusiveMinimum: 0
+                        is_bot:
+                          type: boolean
+                        first_name:
+                          type: string
+                          maxLength: 256
+                        last_name:
+                          type: string
+                          maxLength: 256
+                        username:
+                          type: string
+                          maxLength: 64
+                        language_code:
+                          type: string
+                          maxLength: 35
+                        is_premium:
+                          type: boolean
+                        added_to_attachment_menu:
+                          type: boolean
+                      required:
+                        - id
+                        - is_bot
+                      additionalProperties: false
+                    text:
+                      type: string
+                      minLength: 1
+                      maxLength: 4096
+                    entities:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            minLength: 1
+                            maxLength: 64
+                          offset:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                          length:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                          url:
+                            type: string
+                            maxLength: 4096
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                                exclusiveMinimum: 0
+                              is_bot:
+                                type: boolean
+                              first_name:
+                                type: string
+                                maxLength: 256
+                              last_name:
+                                type: string
+                                maxLength: 256
+                              username:
+                                type: string
+                                maxLength: 64
+                              language_code:
+                                type: string
+                                maxLength: 35
+                              is_premium:
+                                type: boolean
+                              added_to_attachment_menu:
+                                type: boolean
+                            required:
+                              - id
+                              - is_bot
+                            additionalProperties: false
+                          language:
+                            type: string
+                            maxLength: 64
+                          custom_emoji_id:
+                            type: string
+                            maxLength: 128
+                          unix_time:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          date_time_format:
+                            type: string
+                            maxLength: 64
+                        required:
+                          - type
+                          - offset
+                          - length
+                        additionalProperties: false
+                      maxItems: 100
+                    voice:
+                      type: object
+                      properties:
+                        file_id:
+                          type: string
+                          minLength: 1
+                          maxLength: 256
+                        file_unique_id:
+                          type: string
+                          maxLength: 256
+                        file_size:
+                          type: integer
+                          minimum: 0
+                          maximum: 9007199254740991
+                        duration:
+                          type: integer
+                          minimum: 0
+                          maximum: 86400
+                        mime_type:
+                          type: string
+                          maxLength: 128
+                      required:
+                        - file_id
+                        - duration
+                      additionalProperties: false
+                    photo:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          file_id:
+                            type: string
+                            minLength: 1
+                            maxLength: 256
+                          file_unique_id:
+                            type: string
+                            maxLength: 256
+                          file_size:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                          width:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                            exclusiveMinimum: 0
+                          height:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                            exclusiveMinimum: 0
+                        required:
+                          - file_id
+                          - width
+                          - height
+                        additionalProperties: false
+                      maxItems: 10
+                    caption:
+                      type: string
+                      maxLength: 2048
+                    caption_entities:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          type:
+                            type: string
+                            minLength: 1
+                            maxLength: 64
+                          offset:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                          length:
+                            type: integer
+                            minimum: 0
+                            maximum: 9007199254740991
+                          url:
+                            type: string
+                            maxLength: 4096
+                          user:
+                            type: object
+                            properties:
+                              id:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                                exclusiveMinimum: 0
+                              is_bot:
+                                type: boolean
+                              first_name:
+                                type: string
+                                maxLength: 256
+                              last_name:
+                                type: string
+                                maxLength: 256
+                              username:
+                                type: string
+                                maxLength: 64
+                              language_code:
+                                type: string
+                                maxLength: 35
+                              is_premium:
+                                type: boolean
+                              added_to_attachment_menu:
+                                type: boolean
+                            required:
+                              - id
+                              - is_bot
+                            additionalProperties: false
+                          language:
+                            type: string
+                            maxLength: 64
+                          custom_emoji_id:
+                            type: string
+                            maxLength: 128
+                          unix_time:
+                            type: integer
+                            minimum: -9007199254740991
+                            maximum: 9007199254740991
+                          date_time_format:
+                            type: string
+                            maxLength: 64
+                        required:
+                          - type
+                          - offset
+                          - length
+                        additionalProperties: false
+                      maxItems: 100
+                    document: {}
+                    audio: {}
+                    video: {}
+                    video_note: {}
+                    sticker: {}
+                    animation: {}
+                    contact: {}
+                    location: {}
+                    venue: {}
+                    poll: {}
+                    dice: {}
+                    reply_to_message: {}
+                    reply_markup: {}
+                    forward_origin: {}
+                    external_reply: {}
+                    quote: {}
+                    media_group_id:
+                      type: string
+                      maxLength: 256
+                    edit_date:
+                      type: integer
+                      minimum: 0
+                      maximum: 9007199254740991
+                    via_bot:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                          exclusiveMinimum: 0
+                        is_bot:
+                          type: boolean
+                        first_name:
+                          type: string
+                          maxLength: 256
+                        last_name:
+                          type: string
+                          maxLength: 256
+                        username:
+                          type: string
+                          maxLength: 64
+                        language_code:
+                          type: string
+                          maxLength: 35
+                        is_premium:
+                          type: boolean
+                        added_to_attachment_menu:
+                          type: boolean
+                      required:
+                        - id
+                        - is_bot
+                      additionalProperties: false
+                    has_protected_content:
+                      type: boolean
+                    is_automatic_forward:
+                      type: boolean
+                    message_thread_id:
+                      type: integer
+                      minimum: -9007199254740991
+                      maximum: 9007199254740991
+                    business_connection_id:
+                      type: string
+                      maxLength: 256
+                  required:
+                    - message_id
+                    - chat
+                  additionalProperties: false
+                callback_query:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                      minLength: 1
+                      maxLength: 256
+                    from:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                          exclusiveMinimum: 0
+                        is_bot:
+                          type: boolean
+                        first_name:
+                          type: string
+                          maxLength: 256
+                        last_name:
+                          type: string
+                          maxLength: 256
+                        username:
+                          type: string
+                          maxLength: 64
+                        language_code:
+                          type: string
+                          maxLength: 35
+                        is_premium:
+                          type: boolean
+                        added_to_attachment_menu:
+                          type: boolean
+                      required:
+                        - id
+                        - is_bot
+                      additionalProperties: false
+                    message:
+                      type: object
+                      properties:
+                        message_id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                          exclusiveMinimum: 0
+                        date:
+                          type: integer
+                          minimum: 0
+                          maximum: 9007199254740991
+                        chat:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                            type:
+                              type: string
+                              enum: *a1
+                            first_name:
+                              type: string
+                              maxLength: 256
+                            last_name:
+                              type: string
+                              maxLength: 256
+                            username:
+                              type: string
+                              maxLength: 64
+                            title:
+                              type: string
+                              maxLength: 256
+                            is_forum:
+                              type: boolean
+                            is_direct_messages:
+                              type: boolean
+                          required:
+                            - id
+                            - type
+                          additionalProperties: false
+                        from:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                              exclusiveMinimum: 0
+                            is_bot:
+                              type: boolean
+                            first_name:
+                              type: string
+                              maxLength: 256
+                            last_name:
+                              type: string
+                              maxLength: 256
+                            username:
+                              type: string
+                              maxLength: 64
+                            language_code:
+                              type: string
+                              maxLength: 35
+                            is_premium:
+                              type: boolean
+                            added_to_attachment_menu:
+                              type: boolean
+                          required:
+                            - id
+                            - is_bot
+                          additionalProperties: false
+                        text:
+                          type: string
+                          minLength: 1
+                          maxLength: 4096
+                        entities:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              type:
+                                type: string
+                                minLength: 1
+                                maxLength: 64
+                              offset:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                              length:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                              url:
+                                type: string
+                                maxLength: 4096
+                              user:
+                                type: object
+                                properties:
+                                  id:
+                                    type: integer
+                                    minimum: -9007199254740991
+                                    maximum: 9007199254740991
+                                    exclusiveMinimum: 0
+                                  is_bot:
+                                    type: boolean
+                                  first_name:
+                                    type: string
+                                    maxLength: 256
+                                  last_name:
+                                    type: string
+                                    maxLength: 256
+                                  username:
+                                    type: string
+                                    maxLength: 64
+                                  language_code:
+                                    type: string
+                                    maxLength: 35
+                                  is_premium:
+                                    type: boolean
+                                  added_to_attachment_menu:
+                                    type: boolean
+                                required:
+                                  - id
+                                  - is_bot
+                                additionalProperties: false
+                              language:
+                                type: string
+                                maxLength: 64
+                              custom_emoji_id:
+                                type: string
+                                maxLength: 128
+                              unix_time:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              date_time_format:
+                                type: string
+                                maxLength: 64
+                            required:
+                              - type
+                              - offset
+                              - length
+                            additionalProperties: false
+                          maxItems: 100
+                        voice:
+                          type: object
+                          properties:
+                            file_id:
+                              type: string
+                              minLength: 1
+                              maxLength: 256
+                            file_unique_id:
+                              type: string
+                              maxLength: 256
+                            file_size:
+                              type: integer
+                              minimum: 0
+                              maximum: 9007199254740991
+                            duration:
+                              type: integer
+                              minimum: 0
+                              maximum: 86400
+                            mime_type:
+                              type: string
+                              maxLength: 128
+                          required:
+                            - file_id
+                            - duration
+                          additionalProperties: false
+                        photo:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              file_id:
+                                type: string
+                                minLength: 1
+                                maxLength: 256
+                              file_unique_id:
+                                type: string
+                                maxLength: 256
+                              file_size:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                              width:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                                exclusiveMinimum: 0
+                              height:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                                exclusiveMinimum: 0
+                            required:
+                              - file_id
+                              - width
+                              - height
+                            additionalProperties: false
+                          maxItems: 10
+                        caption:
+                          type: string
+                          maxLength: 2048
+                        caption_entities:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              type:
+                                type: string
+                                minLength: 1
+                                maxLength: 64
+                              offset:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                              length:
+                                type: integer
+                                minimum: 0
+                                maximum: 9007199254740991
+                              url:
+                                type: string
+                                maxLength: 4096
+                              user:
+                                type: object
+                                properties:
+                                  id:
+                                    type: integer
+                                    minimum: -9007199254740991
+                                    maximum: 9007199254740991
+                                    exclusiveMinimum: 0
+                                  is_bot:
+                                    type: boolean
+                                  first_name:
+                                    type: string
+                                    maxLength: 256
+                                  last_name:
+                                    type: string
+                                    maxLength: 256
+                                  username:
+                                    type: string
+                                    maxLength: 64
+                                  language_code:
+                                    type: string
+                                    maxLength: 35
+                                  is_premium:
+                                    type: boolean
+                                  added_to_attachment_menu:
+                                    type: boolean
+                                required:
+                                  - id
+                                  - is_bot
+                                additionalProperties: false
+                              language:
+                                type: string
+                                maxLength: 64
+                              custom_emoji_id:
+                                type: string
+                                maxLength: 128
+                              unix_time:
+                                type: integer
+                                minimum: -9007199254740991
+                                maximum: 9007199254740991
+                              date_time_format:
+                                type: string
+                                maxLength: 64
+                            required:
+                              - type
+                              - offset
+                              - length
+                            additionalProperties: false
+                          maxItems: 100
+                        document: {}
+                        audio: {}
+                        video: {}
+                        video_note: {}
+                        sticker: {}
+                        animation: {}
+                        contact: {}
+                        location: {}
+                        venue: {}
+                        poll: {}
+                        dice: {}
+                        reply_to_message: {}
+                        reply_markup: {}
+                        forward_origin: {}
+                        external_reply: {}
+                        quote: {}
+                        media_group_id:
+                          type: string
+                          maxLength: 256
+                        edit_date:
+                          type: integer
+                          minimum: 0
+                          maximum: 9007199254740991
+                        via_bot:
+                          type: object
+                          properties:
+                            id:
+                              type: integer
+                              minimum: -9007199254740991
+                              maximum: 9007199254740991
+                              exclusiveMinimum: 0
+                            is_bot:
+                              type: boolean
+                            first_name:
+                              type: string
+                              maxLength: 256
+                            last_name:
+                              type: string
+                              maxLength: 256
+                            username:
+                              type: string
+                              maxLength: 64
+                            language_code:
+                              type: string
+                              maxLength: 35
+                            is_premium:
+                              type: boolean
+                            added_to_attachment_menu:
+                              type: boolean
+                          required:
+                            - id
+                            - is_bot
+                          additionalProperties: false
+                        has_protected_content:
+                          type: boolean
+                        is_automatic_forward:
+                          type: boolean
+                        message_thread_id:
+                          type: integer
+                          minimum: -9007199254740991
+                          maximum: 9007199254740991
+                        business_connection_id:
+                          type: string
+                          maxLength: 256
+                      required:
+                        - message_id
+                        - chat
+                      additionalProperties: false
+                    inline_message_id:
+                      type: string
+                      maxLength: 256
+                    chat_instance:
+                      type: string
+                      maxLength: 256
+                    data:
+                      type: string
+                      minLength: 1
+                    game_short_name:
+                      type: string
+                      maxLength: 256
+                  required:
+                    - id
+                    - from
+                  additionalProperties: false
+                edited_message: {}
+                channel_post: {}
+                edited_channel_post: {}
+                my_chat_member: {}
+                chat_member: {}
+                chat_join_request: {}
+                inline_query: {}
+                chosen_inline_result: {}
+                poll: {}
+                poll_answer: {}
+                message_reaction: {}
+                message_reaction_count: {}
+                business_connection: {}
+                business_message: {}
+                edited_business_message: {}
+                deleted_business_messages: {}
+                shipping_query: {}
+                pre_checkout_query: {}
+                purchased_paid_media: {}
+              required:
+                - update_id
+              additionalProperties: false
+      responses:
+        "200":
+          description: Acknowledged or intentionally ignored
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok:
+                    type: boolean
+                    enum:
+                      - true
+                required:
+                  - ok
+                additionalProperties: false
+        "400":
+          description: Localized safe error with no update content or identifiers
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "401":
+          description: Localized safe error with no update content or identifiers
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "413":
+          description: Localized safe error with no update content or identifiers
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "500":
+          description: Localized safe error with no update content or identifiers
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
+        "503":
+          description: Localized safe error with no update content or identifiers
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum: *a2
+                  messageKey:
+                    type: string
+                  lang:
+                    type: string
+                  message:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                  - lang
+                  - message
+                additionalProperties: false
   /v1/sms/inbound:
     post:
       summary: Accept an authenticated SMS gateway or simulator inbound message
@@ -1247,7 +3012,7 @@ paths:
                           maxLength: 2000
                         encoding:
                           type: string
-                          enum: *a1
+                          enum: *a3
                         units:
                           type: integer
                           minimum: 0
@@ -1257,7 +3022,7 @@ paths:
                           maximum: 3
                         status:
                           type: string
-                          enum: *a2
+                          enum: *a4
                       required:
                         - id
                         - text
@@ -1293,7 +3058,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1326,7 +3091,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1359,7 +3124,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1392,7 +3157,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1425,7 +3190,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1458,7 +3223,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1491,7 +3256,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                   lang:
@@ -1557,7 +3322,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1582,7 +3347,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1629,7 +3394,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1654,7 +3419,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1715,7 +3480,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1740,7 +3505,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1804,7 +3569,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1896,7 +3661,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1921,7 +3686,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -1946,7 +3711,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2028,7 +3793,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2053,7 +3818,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2078,7 +3843,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2103,7 +3868,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2173,7 +3938,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2198,7 +3963,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2264,7 +4029,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2289,7 +4054,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2381,10 +4146,10 @@ paths:
                           type: string
                         dir:
                           type: string
-                          enum: *a5
+                          enum: *a6
                         status:
                           type: string
-                          enum: *a6
+                          enum: *a7
                         stt:
                           type: boolean
                         tts:
@@ -2438,7 +4203,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2510,7 +4275,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2569,7 +4334,7 @@ paths:
                     maxLength: 35
                   dir:
                     type: string
-                    enum: *a7
+                    enum: *a8
                   contentVersion:
                     type: string
                     minLength: 1
@@ -2669,7 +4434,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2699,7 +4464,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2726,7 +4491,7 @@ paths:
                   maxLength: 8
                 channel:
                   type: string
-                  enum: *a8
+                  enum: *a9
                   default: web
                 sessionId:
                   type: string
@@ -2817,7 +4582,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2842,7 +4607,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2867,7 +4632,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -2907,7 +4672,7 @@ paths:
                   description: At most 1000 Unicode code points
                 via:
                   type: string
-                  enum: *a9
+                  enum: *a10
                 simple:
                   type: boolean
                   default: false
@@ -2930,14 +4695,14 @@ paths:
                     type: string
                   kind:
                     type: string
-                    enum: *a10
+                    enum: *a11
                   text:
                     type: string
                   lang:
                     type: string
                   dir:
                     type: string
-                    enum: *a11
+                    enum: *a12
                   citations:
                     type: array
                     items:
@@ -2954,7 +4719,7 @@ paths:
                           type: string
                         sourceType:
                           type: string
-                          enum: *a12
+                          enum: *a13
                         timestamp:
                           type: number
                       required:
@@ -2971,7 +4736,7 @@ paths:
                       properties:
                         type:
                           type: string
-                          enum: *a13
+                          enum: *a14
                         label:
                           type: string
                       required:
@@ -3008,7 +4773,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3033,7 +4798,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3058,7 +4823,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3083,7 +4848,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3108,7 +4873,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3172,7 +4937,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3197,7 +4962,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3251,7 +5016,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3276,7 +5041,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3301,7 +5066,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3367,7 +5132,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3392,7 +5157,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3417,7 +5182,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3462,7 +5227,7 @@ paths:
                           maxLength: 35
                         channel:
                           type: string
-                          enum: *a14
+                          enum: *a15
                         createdAt:
                           type: string
                           format: date-time
@@ -3499,7 +5264,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3524,7 +5289,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3575,7 +5340,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3600,7 +5365,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3651,7 +5416,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3676,7 +5441,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3736,7 +5501,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3761,7 +5526,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3786,7 +5551,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3837,7 +5602,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3917,7 +5682,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3942,7 +5707,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -3967,7 +5732,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4086,7 +5851,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a15
+                      enum: *a16
                   relayAvailable:
                     type: boolean
                   glossary:
@@ -4123,7 +5888,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4148,7 +5913,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4188,7 +5953,7 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a16
+                          enum: *a17
                         jobType:
                           type:
                             - string
@@ -4230,7 +5995,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4255,7 +6020,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4301,7 +6066,7 @@ paths:
                   maxLength: 35
                 channel:
                   type: string
-                  enum: *a17
+                  enum: *a18
                 contact:
                   type: string
                   minLength: 1
@@ -4341,7 +6106,7 @@ paths:
                     type: string
                   status:
                     type: string
-                    enum: *a16
+                    enum: *a17
                 required:
                   - id
                   - status
@@ -4361,7 +6126,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4386,7 +6151,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4411,7 +6176,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4436,7 +6201,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4461,7 +6226,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4519,7 +6284,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4544,7 +6309,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4569,7 +6334,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4611,7 +6376,7 @@ paths:
                           type: string
                         status:
                           type: string
-                          enum: *a18
+                          enum: *a19
                       required:
                         - id
                         - jobId
@@ -4635,7 +6400,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4660,7 +6425,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4715,7 +6480,7 @@ paths:
                       type: array
                       items:
                         type: string
-                        enum: *a4
+                        enum: *a5
                       minItems: 1
                       maxItems: 6
                     otherText:
@@ -4836,7 +6601,7 @@ paths:
                     exclusiveMinimum: 0
                   status:
                     type: string
-                    enum: *a18
+                    enum: *a19
                   sendAttempted:
                     type: boolean
                   message:
@@ -4851,7 +6616,7 @@ paths:
                     type: array
                     items:
                       type: string
-                      enum: *a4
+                      enum: *a5
                     minItems: 0
                     maxItems: 6
                   otherText:
@@ -4887,7 +6652,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4912,7 +6677,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4937,7 +6702,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4962,7 +6727,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -4987,7 +6752,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -5012,7 +6777,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -5077,7 +6842,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -5102,7 +6867,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:
@@ -5127,7 +6892,7 @@ paths:
                     type: number
                   code:
                     type: string
-                    enum: *a3
+                    enum: *a2
                   messageKey:
                     type: string
                 required:

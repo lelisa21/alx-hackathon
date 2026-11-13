@@ -7,7 +7,7 @@ export type ApiReply = z.infer<typeof ReplySchema>;
 
 export interface NewSession {
   id: string;
-  channel: "web" | "api" | "sms";
+  channel: "web" | "api" | "sms" | "telegram";
   lang: string;
   tokenHash: string;
   resumeHash: string;
@@ -69,7 +69,7 @@ export interface HelpAuthStore {
 export interface HelpQueueRequest {
   id: string;
   lang: string;
-  channel: "web" | "api";
+  channel: "web" | "api" | "telegram";
   createdAt: string;
   summary: string[] | null;
 }

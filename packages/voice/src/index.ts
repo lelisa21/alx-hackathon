@@ -38,3 +38,9 @@ export const MAX_RECORDING_MS = 60_000;
 
 export { createBrowserVoiceAdapters } from "./browser.js";
 export type { BrowserVoiceAdapters, BrowserVoiceLanguage } from "./browser.js";
+export { createFileVoiceAdapters } from "./file.js";
+export type {
+  FileSpeechToText,
+  FileTextToSpeech,
+  FileVoiceAdapters,
+} from "./file.js";
