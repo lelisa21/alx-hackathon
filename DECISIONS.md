@@ -3,6 +3,20 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P08 — local Telegram polling (14 November 2026)
+
+- **Requirements:** FR-TG-01–12 and NFR-SEC local-versus-production channel
+  boundary.
+- **Decision:** The Compose `local` profile defaults to development mode so an
+  operator can explicitly enable Telegram polling with a configured bot token.
+  Hosted or isolated Compose acceptance remains production/webhook-only.
+- **Isolation:** `pnpm test:compose` overrides local `.env` channel credentials
+  and relay settings, preventing tests from polling or sending to external
+  services. SMS remains on its local simulator; unconfigured remote providers
+  remain disabled/offline.
+- **Limit:** This does not substitute for Savanna LTI metadata or production
+  OIDC; no issuer, client ID, endpoints, or deployment ID are invented.
+
 ## P09 — Anonymous feedback and teacher insights (13 November 2026)
 
 - **Scope before implementation:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20,

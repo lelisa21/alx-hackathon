@@ -47,6 +47,15 @@ loopback-published host ports and API integrations. All published ports bind
 only to loopback. The configured AI provider defaults to offline; no provider
 credentials are required for the local stack.
 
+The Compose `local` profile defaults to `NODE_ENV=development`; set
+`DIMTS_TELEGRAM_MODE=polling` in `.env` to test the configured bot locally.
+Polling requires a valid bot token and no active webhook. Do not combine it
+with production mode. To exercise scheduled job alerts, start the `scheduler`
+profile as well, and seed only the tracked sample records with
+`docker compose --profile local --profile seed run --rm seed`. The isolated
+`pnpm test:compose` harness pins production/webhook mode and disables external
+integrations so it never polls or sends through credentials from `.env`.
+
 `GET /v1/health`, `GET /v1/languages`, `GET /v1/locales/{code}/ui`,
 `GET /v1/openapi.yaml`, and `GET /v1/docs` are public. Draft packs are hidden
 unless `?lang_preview=1` is supplied.

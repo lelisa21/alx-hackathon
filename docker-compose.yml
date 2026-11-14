@@ -29,7 +29,7 @@ services:
       db:
         condition: service_healthy
     environment:
-      NODE_ENV: production
+      NODE_ENV: ${NODE_ENV:-development}
       PORT: "3000"
       DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
