@@ -1,10 +1,10 @@
 # Evaluation results
 
 | Language | Questions | Retrieval hit rate | Citation validity | Not-found correctness | Answer-language correctness | Average sentence length (words) |
-| -------- | --------: | -----------------: | ----------------: | --------------------: | --------------------------: | ------------------------------: |
-| am       |        15 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
-| en       |        13 |               100% |              100% |                  100% |                        100% |                             8.0 |
-| om       |        16 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| am | 15 | 0% | n/a | 100% | n/a | n/a |
+| en | 13 | 100% | 100% | 100% | 100% | 8.0 |
+| om | 16 | 0% | n/a | 100% | n/a | n/a |
 
 Sentence-length target: average at most 15 words, or 12 words in Simple mode. Normal and Simple measurements are separate.
 A value of n/a means the fixture set contains no applicable observations; it is not a pass.
@@ -41,7 +41,7 @@ FAQ matching is measured separately at the adapter boundary with each FAQ's actu
 
 ## Latency conditions
 
-Node v26.13.1; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 4.62 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 4.30 ms (target <50 ms).
+Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 1.70 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 1.99 ms (target <50 ms).
 
 Timings include retrieval, language/citation validation and reply construction. They do not establish deployed HTTP/PostgreSQL or real-model performance.
 

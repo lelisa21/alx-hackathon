@@ -13,7 +13,7 @@ export interface LtiPlatformConfig {
   authLoginUrl: string;
   authTokenUrl: string;
   jwksUri: string;
-  deploymentId?: string;
+  deploymentId: string;
 }
 
 export interface LtiIdTokenClaims extends JWTPayload {
@@ -73,11 +73,7 @@ export async function validateLtiToken(
     const deploymentId = claims[
       "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
     ] as string | undefined;
-    if (
-      platform.deploymentId &&
-      deploymentId &&
-      deploymentId !== platform.deploymentId
-    ) {
+    if (platform.deploymentId && deploymentId !== platform.deploymentId) {
       throw new Error("Invalid deployment ID");
     }
 

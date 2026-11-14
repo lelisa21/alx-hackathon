@@ -469,10 +469,16 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   }
   app.use("/v1", createInsightsRouter(repository));
   app.use(
-    "/v1",
+    "/v1/lti",
     createLtiRouter({
       repository,
       logger,
+      platformConfigs: new Map(
+        config.DIMTS_LTI_PLATFORMS.map((platform) => [
+          platform.platformId,
+          platform,
+        ]),
+      ),
     }),
   );
   app.use(

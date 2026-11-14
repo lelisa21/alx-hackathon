@@ -2,6 +2,38 @@
 
 **Integration Level 3:** Platform launches Dimts via LTI 1.3 (IMS Learning Tools Interoperability) with OIDC login and signed JWT token validation.
 
+> **Not production-ready:** this guide describes the intended contract, not a
+> working LMS setup. `DIMTS_LTI_PLATFORMS` loads static issuer/client/deployment
+> metadata, but `/v1/lti/jwks` currently returns an empty key set and the login
+> route does not complete the browser OIDC redirect flow. Deep linking and an
+> LMS-backed launch have not been verified. Do not follow the example requests
+> as production registration steps. Use the Level 1 widget or REST integration
+> until these gaps are resolved and a real platform trial passes.
+
+## Static host configuration
+
+Set `DIMTS_LTI_PLATFORMS` in the API environment to a JSON array with one entry
+per registered issuer/client pair. All URLs must use HTTPS. The metadata is
+public configuration, not a place for credentials:
+
+```json
+[
+  {
+    "platformId": "savanna",
+    "issuer": "https://lms.example.org",
+    "clientId": "dimts-client",
+    "authLoginUrl": "https://lms.example.org/oidc/login",
+    "authTokenUrl": "https://lms.example.org/oidc/token",
+    "jwksUri": "https://lms.example.org/.well-known/jwks.json",
+    "deploymentId": "savanna-production"
+  }
+]
+```
+
+Replace every example URL and identifier with values registered by the host;
+the example values do not identify an actual ALX Savanna tenant. Do not put
+private course content or secrets in this setting.
+
 ## Quick Start
 
 ### Platform registration checklist

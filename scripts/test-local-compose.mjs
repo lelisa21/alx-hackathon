@@ -106,6 +106,8 @@ environment = {
   DIMTS_SEED_HELPER_TOKEN: randomBytes(32).toString("base64url"),
   DIMTS_HOST_ORIGINS: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
   DIMTS_LOCAL_WIDGET_KEY: "local-widget-public-id",
+  DIMTS_LTI_PLATFORMS: "[]",
+  DIMTS_DEFAULT_LANG: "en",
   DIMTS_AI_PROVIDER: "offline",
   DIMTS_AI_LADDER: "offline",
   DIMTS_AI_PROVIDERS: "[]",
@@ -152,7 +154,31 @@ try {
     "-Atc",
     "SELECT (SELECT count(*) > 0 FROM passage)::text || '|' || (SELECT count(*) = 1 FROM job WHERE id='https://jobs.example/jobs/community-garden-assistant')::text || '|' || (SELECT count(*) = 1 FROM helper WHERE id='local-sample-helper')::text",
   ]);
-  assert.equal(seeded, "t|t|t");
+  assert.equal(seeded, "true|true|true");
+
+  const ltiSessionId = `compose-lti-${randomBytes(8).toString("hex")}`;
+  const ltiState = `compose-state-${randomBytes(8).toString("hex")}`;
+  const ltiNonce = randomBytes(16).toString("hex");
+  const ltiTokenHash = randomBytes(32).toString("hex");
+  const ltiSql = [
+    `INSERT INTO session(id,channel,lang,token_hash,expires_at,lti_context) VALUES('${ltiSessionId}','lti','en','${ltiTokenHash}',now()+interval '1 hour','{"insightsAccess":true}')`,
+    `INSERT INTO lti_nonce_state(state,platform_id,nonce,expires_at) VALUES('${ltiState}','static-config-only-platform','${ltiNonce}',now()+interval '5 minutes')`,
+    `INSERT INTO lti_token_replay(token_hash,platform_id) VALUES('${ltiTokenHash}','static-config-only-platform')`,
+    `SELECT channel || '|' || (expires_at > now())::text || '|' || (lti_context->>'insightsAccess') FROM session WHERE id='${ltiSessionId}'`,
+  ].join(";");
+  const ltiPersistence = runCompose([
+    "exec",
+    "-T",
+    "db",
+    "psql",
+    "-U",
+    "dimts",
+    "-d",
+    "dimts",
+    "-qAtc",
+    ltiSql,
+  ]);
+  assert.equal(ltiPersistence, "lti|true|true");
 
   const sessionResponse = await fetch(`${apiOrigin}/v1/sessions`, {
     method: "POST",
@@ -278,7 +304,7 @@ try {
     "-Atc",
     `SELECT (SELECT count(*) = 1 FROM help_image WHERE id='${helpImageId}')::text || '|' || (SELECT count(*) = 1 FROM job WHERE id='https://jobs.example/jobs/community-garden-assistant')::text`,
   ]);
-  assert.equal(persisted, "t|t");
+  assert.equal(persisted, "true|true");
   assert.ok(Date.now() - startedAt < 300_000);
 } finally {
   runCompose(

@@ -1,6 +1,6 @@
 # Implementation progress
 
-Updated: 13 November 2026. Current branch: `phase-10-prompt`.
+Updated: 14 November 2026. Current branch: `main`.
 
 ## P11 — implemented increment; acceptance blocked
 
@@ -11,15 +11,19 @@ FR-CONV-10/13, and G1–G13.
 
 **Verified acceptance evidence:**
 
-- `pnpm test`: 822 passed; 57 skipped across 82 passing test files and 11
-  skipped files. `pnpm test:lang -- --maxWorkers=1`: 67 passed.
+- `pnpm test -- --maxWorkers=1`: 819 passed; 57 skipped across 84 passing
+  test files and 11 skipped files. One scaffold timing test exceeded its
+  default timeout under parallel load in the unbounded run; the serialized
+  full suite passes.
 - `pnpm test:widget`: 137 passed, 2 skipped, including the P11 deletion
   confirmation/success/failure flow and automated axe matrix.
 - `pnpm typecheck`, `pnpm lint`, `pnpm lang:check`, `pnpm eval`,
   `pnpm size`, and `pnpm audit --audit-level high` pass. The offline eval
   reports zero measured gate failures and eight acceptance blockers; it is
   not multilingual or hosted-model acceptance.
-- Initial-load compressed assets: 139,940 / 153,600 bytes. Widget,
+- `pnpm test:compose` passes with isolated PostgreSQL, idempotent seed,
+  session replay after API restart, and persisted help-image/job data.
+- Initial-load compressed assets: 139,951 / 153,600 bytes. Widget,
   helper-console, and SMS simulator JavaScript are each below their
   individual 61,440-byte limits.
 - Deletion authorization/idempotency/failure behavior, OpenAPI JSON/YAML,
@@ -31,11 +35,12 @@ FR-CONV-10/13, and G1–G13.
 
 **Acceptance remains blocked by:**
 
-- Docker is unavailable, so `pnpm test:compose` and local PostgreSQL/restart
-  integration were not run. PostgreSQL suites requiring
-  `DIMTS_TEST_DATABASE_URL` remain skipped.
+- PostgreSQL suites requiring `DIMTS_TEST_DATABASE_URL` remain skipped;
+  the isolated Compose lifecycle test passes separately.
 - `pnpm test:core` ran 230 tests but exits on grounding branch coverage of
   62.33%, below its 70% threshold. The threshold was not weakened.
+- Repository-wide `pnpm format:check` still reports 307 baseline files;
+  changed files pass targeted formatting checks.
 - The offline `pnpm eval` has eight acceptance blockers; Amharic and Afaan
   Oromoo answer recall remains 0%, English answer recall is 16.7%, and
   provider-backed targets are unmeasured.
@@ -49,6 +54,35 @@ P11 is not release-complete. See [GATE_CHECKLIST.md](GATE_CHECKLIST.md),
 [EVAL.md](EVAL.md), [WCAG_REPORT.md](WCAG_REPORT.md), and
 [FREE_TIER.md](FREE_TIER.md) for the outstanding evidence.
 
+## P10 — LTI security and session persistence follow-up (14 November 2026)
+
+Requirements: FR-INT-05/06/07/10, FR-INSIGHT instructor access, and
+NFR-PRIV-03. Tests cover signed JWT validation, static platform wiring,
+session persistence, and instructor insights authorization.
+
+- Replaced the remaining synthetic signature/issuer/audience/deployment/
+  expiry/nonce assertions with real RS256 tokens verified against mocked JWKS.
+- LTI launch now uses a random opaque session ID. The repository hashes the
+  session bearer token and stores the LTI context and expiry. Migration 011
+  permits LTI sessions and supports static platform IDs in nonce/replay data.
+- Replay checks use one atomic insert with `ON CONFLICT ... RETURNING`, so
+  concurrent duplicates cannot both pass a separate read-then-write check.
+- Instructor insights access now resolves the bearer-token hash directly to a
+  live LTI session with `insightsAccess`; a caller-supplied session ID or
+  arbitrary bearer token is not authorization.
+- `pnpm exec vitest run packages/api/test/p10-lti.test.ts
+  packages/api/test/p10-lti-config.test.ts
+  packages/api/test/p10-lti-persistence.test.ts
+  packages/api/test/p09-insights.test.ts` passes (33 tests).
+- `pnpm test -- --maxWorkers=1`, `pnpm typecheck`, and `pnpm lint` pass.
+  Compose could not be rerun after migration 011 because Docker Desktop's
+  daemon was unavailable; the earlier Compose pass predates these migration
+  changes.
+
+The production-integration boundary is unchanged: browser OIDC redirects,
+tool JWKS signing, deep-link responses, and a real Savanna launch are not
+implemented or verified. Do not claim production LTI support.
+
 ## P10 — LTI 1.3 integration and OpenAPI (Review fixes - 13 November 2026)
 
 **Review findings addressed:**
@@ -59,12 +93,12 @@ P11 is not release-complete. See [GATE_CHECKLIST.md](GATE_CHECKLIST.md),
    - Created migration 010_lti_platform_nonce_replay.sql with tables for nonce_state, nonce_used, token_replay
    - Survives API restart and horizontal scaling
    - Automatic cleanup via retention scheduler
-4. ✓ **Test assertion fixed** - JWT signature validation test now properly checks for invalid base64url characters
+4. ✓ **JWT validation regressions strengthened** - The signature test now signs a real RS256 token and verifies a tampered signature against a mocked JWKS; a missing registered deployment claim is rejected.
 5. ✓ **Repository interface extended** - Added getSessionDetails, storeLtiState, getLtiStateAndNonce, checkAndMarkNonceUsed, checkAndMarkTokenReplayed
 
 **Verification results:**
 
-- ✓ All 28 P10 LTI tests pass (platform registration, JWT validation, learner/instructor flows, replay prevention, OpenAPI validation, insights access)
+- ✓ All 29 focused P10 LTI tests pass, including the real-signature and required-deployment regressions (platform registration, JWT validation, learner/instructor flows, replay prevention, OpenAPI validation, insights access)
 - ✓ LTI context stored as JSONB in session for audit trail (FR-INT-07)
 - ✓ Nonce/state/token-hash persisted in database (no longer in-memory)
 - ✓ Learner sessions cannot access insights, instructor sessions can (with or without X-Dimts-Key)
@@ -73,8 +107,11 @@ P11 is not release-complete. See [GATE_CHECKLIST.md](GATE_CHECKLIST.md),
 
 **Known open items:**
 
-- Platform registry loading from database (currently uses injected platformConfigs Map)
-- JWKS endpoint returns empty keys (stub for testing)
+- Static `DIMTS_LTI_PLATFORMS` metadata now reaches the API router and login
+  initiation matches both issuer and client ID. Browser OIDC redirects,
+  tool JWKS signing, deep-link responses, and a real LMS launch remain
+  unimplemented or unverified. The LTI example is explicitly marked as a
+  prototype, not an installable LMS integration.
 
 ## P10 — LTI 1.3 integration and OpenAPI (13 November 2026)
 

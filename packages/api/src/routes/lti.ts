@@ -10,7 +10,9 @@ import {
 } from "@dimts/lti";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
+import { sha256 } from "../middleware/auth.js";
 import pino from "pino";
+import { randomBytes } from "node:crypto";
 
 /**
  * P10 LTI 1.3 routes: login, launch, JWKS key distribution
@@ -61,12 +63,15 @@ export function createLtiRouter(options: {
     try {
       const payload = LtiLoginRequestSchema.parse(req.body);
 
-      // Find platform config by issuer
+      // Match the exact registered OIDC client for this issuer.
       let platformConfig: LtiPlatformConfig | undefined;
       let platformId: string | undefined;
 
       for (const [id, config] of platformConfigs) {
-        if (config.issuer === payload.iss) {
+        if (
+          config.issuer === payload.iss &&
+          config.clientId === payload.client_id
+        ) {
           platformConfig = config;
           platformId = id;
           break;
@@ -77,20 +82,25 @@ export function createLtiRouter(options: {
         return sendProblem(res, 404, "not_found", "lti.login.unregistered");
       }
 
+      if (!options.repository.storeLtiState) {
+        logger.error(
+          "LTI login unavailable (state storage is not implemented)",
+        );
+        return sendProblem(res, 500, "internal", "error.server");
+      }
+
       // Generate state (expires in 5 min) and nonce
       const { state } = generateLtiState(platformId);
       const nonce = generateLtiNonce();
       const expiresAt = new Date(Date.now() + 5 * 60 * 1000);
 
       // Store nonce for later validation using database (persistent across restarts)
-      if (options.repository.storeLtiState) {
-        await options.repository.storeLtiState(
-          state,
-          platformId,
-          nonce,
-          expiresAt,
-        );
-      }
+      await options.repository.storeLtiState(
+        state,
+        platformId,
+        nonce,
+        expiresAt,
+      );
 
       // In production: redirect to platform's auth_login_url with state/client_id/redirect_uri
       res.json({
@@ -160,14 +170,12 @@ export function createLtiRouter(options: {
       }
 
       // Check for token replay (using database for persistence)
-      const tokenHash = Buffer.from(payload.id_token.split(".")[2] || "")
-        .toString("hex")
-        .slice(0, 64);
+      const tokenHash = sha256(payload.id_token);
 
       const isReplayed = await options.repository.checkAndMarkTokenReplayed?.(
         tokenHash,
         stateData.platformId,
-        "",
+        null,
       );
       if (isReplayed === true) {
         logger.warn(
@@ -187,7 +195,7 @@ export function createLtiRouter(options: {
       // Check nonce one-time use (checkAndMarkNonceUsed returns true if ALREADY used = replay)
       const nonceAlreadyUsed = await options.repository.checkAndMarkNonceUsed?.(
         stateData.nonce,
-        "",
+        null,
       );
       if (nonceAlreadyUsed === true) {
         logger.warn("Nonce replay detected");
@@ -204,15 +212,10 @@ export function createLtiRouter(options: {
       const { roles, insightsAccess } = mapLtiRoles(claims);
 
       // Create or resume session (pseudonymous, no account creation)
-      // Generate session ID from key (in production, use HMAC)
-      const sessionId =
-        "session-" +
-        Buffer.from(claims.sub).toString("hex").slice(0, 12).padEnd(12, "0");
+      const sessionId = randomBytes(16).toString("base64url");
 
       // Generate session token (short-lived, httpOnly cookie)
-      const sessionToken = Buffer.from(
-        crypto.getRandomValues(new Uint8Array(32)),
-      ).toString("hex");
+      const sessionToken = randomBytes(32).toString("hex");
 
       // Store session with LTI context
       try {

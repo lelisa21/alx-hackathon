@@ -34,18 +34,22 @@ contract, not an ALX Savanna deployment.
 
 ## Current ALX Savanna integration boundary
 
-There is no Savanna-specific connector, LMS launch, or private course content
-configured in this repository. The existing integration surface is the generic
-Level 1 widget embed and REST API described here and in [API.md](./API.md).
+There is no Savanna-specific connector, platform registration, or private
+course content configured in this repository. Generic LTI 1.3 metadata can be
+loaded from the host's `DIMTS_LTI_PLATFORMS` setting, but the prototype is not
+yet an operational LMS launch: `/v1/lti/jwks` publishes an empty key set, and
+the current login response does not complete the browser OIDC redirect flow.
+Do not register this build as an LTI tool. The usable integration surfaces are
+the Level 1 widget embed and REST API described here and in [API.md](./API.md).
 An authorized host must serve the widget, register its origin and public host
 identifier with the API, and set the API URL and CSP. No Savanna session cookie,
 learner roster, or role-specific content is read.
 
 Course content enters through the generic public-sitemap connector or a
 host-owned `ContentSource`/`HostAuth` adapter documented in [API.md](./API.md).
-The adapter must only publish content authorized for every learner using that
+the adapter must only publish content authorized for every learner using that
 source. There is no Savanna API endpoint or credential assumed by Dimts, and
-the current widget/REST contract does not implement an LMS/LTI launch.
+the current widget/REST contract is not connected to an LMS/LTI launch.
 The demonstration recorded for this work used only
 [`content/sample-course`](../content/sample-course); it is not ALX course
 material or evidence of a Savanna connection.

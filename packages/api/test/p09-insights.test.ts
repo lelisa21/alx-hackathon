@@ -10,6 +10,7 @@ import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import type { ApiRepository } from "../src/types.js";
 import type { InsightsRepository } from "@dimts/insights";
+import { sha256 } from "../src/middleware/auth.js";
 
 describe("GET /v1/insights", () => {
   let mockRepository: ApiRepository;
@@ -52,7 +53,36 @@ describe("GET /v1/insights", () => {
       createSession: async () => {},
       resumeSession: async () => null,
       getCloudConsent: async () => null,
-      getSessionTokenHash: async () => null,
+      getLtiSessionByTokenHash: async (tokenHash: string) =>
+        tokenHash === sha256("valid-instructor-token")
+          ? {
+              id: "instructor-session",
+              channel: "lti",
+              ltiContext: {
+                issuer: "https://platform.example.com",
+                platformId: "platform-1",
+                deploymentId: "deployment-1",
+                ltiUserId: "instructor-1",
+                roles: ["Instructor"],
+                insightsAccess: true,
+                timestamp: Date.now(),
+              },
+            }
+          : tokenHash === sha256("valid-learner-token")
+            ? {
+                id: "learner-session",
+                channel: "lti",
+                ltiContext: {
+                  issuer: "https://platform.example.com",
+                  platformId: "platform-1",
+                  deploymentId: "deployment-1",
+                  ltiUserId: "learner-1",
+                  roles: ["Learner"],
+                  insightsAccess: false,
+                  timestamp: Date.now(),
+                },
+              }
+            : null,
       touchSession: async () => {},
       findReply: async () => null,
       countRecentQuestions: async () => 0,
@@ -94,6 +124,30 @@ describe("GET /v1/insights", () => {
     expect(res.body).toHaveProperty("insights");
     expect(res.body).toHaveProperty("period");
     expect(res.body).toHaveProperty("exportedAt");
+  });
+
+  it("allows an LTI instructor only with that session's bearer token", async () => {
+    const res = await request(app)
+      .get("/v1/insights")
+      .set("Authorization", "Bearer valid-instructor-token");
+
+    expect(res.status).toBe(200);
+  });
+
+  it("rejects an arbitrary bearer token for an LTI instructor session", async () => {
+    const res = await request(app)
+      .get("/v1/insights")
+      .set("Authorization", "Bearer attacker-controlled-token");
+
+    expect(res.status).toBe(401);
+  });
+
+  it("does not grant insights to an LTI learner with a valid session token", async () => {
+    const res = await request(app)
+      .get("/v1/insights")
+      .set("Authorization", "Bearer valid-learner-token");
+
+    expect(res.status).toBe(401);
   });
 
   it("returns CSV when format=csv", async () => {

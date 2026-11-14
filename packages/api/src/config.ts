@@ -62,6 +62,83 @@ const publicSourcesSchema = z
     return parsed.data;
   });
 
+const ltiPlatformUrlSchema = z
+  .string()
+  .url()
+  .refine((value) => {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" &&
+      !url.username &&
+      !url.password &&
+      !url.search &&
+      !url.hash
+    );
+  }, "must use HTTPS without credentials, query or fragment");
+
+const ltiPlatformSchema = z
+  .object({
+    platformId: z.string().regex(/^[A-Za-z0-9._-]{1,64}$/u),
+    issuer: ltiPlatformUrlSchema,
+    clientId: z.string().min(1).max(256),
+    authLoginUrl: ltiPlatformUrlSchema,
+    authTokenUrl: ltiPlatformUrlSchema,
+    jwksUri: ltiPlatformUrlSchema,
+    deploymentId: z.string().min(1).max(256),
+  })
+  .strict();
+
+const ltiPlatformsSchema = z
+  .string()
+  .default("[]")
+  .transform((value, context) => {
+    let decoded: unknown;
+    try {
+      decoded = JSON.parse(value);
+    } catch {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "must contain valid JSON",
+      });
+      return z.NEVER;
+    }
+
+    const parsed = z.array(ltiPlatformSchema).safeParse(decoded);
+    if (!parsed.success) {
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: parsed.error.issues
+          .map((issue) => {
+            const key =
+              issue.path.length > 0 ? `${issue.path.join(".")}: ` : "";
+            return `${key}${issue.message}`;
+          })
+          .join("; "),
+      });
+      return z.NEVER;
+    }
+
+    const platformIds = new Set<string>();
+    const issuerClientPairs = new Set<string>();
+    for (const [index, platform] of parsed.data.entries()) {
+      const issuerClientPair = `${platform.issuer}\u0000${platform.clientId}`;
+      if (
+        platformIds.has(platform.platformId) ||
+        issuerClientPairs.has(issuerClientPair)
+      ) {
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `platform ID and issuer/client pair at index ${index} must be unique`,
+        });
+        return z.NEVER;
+      }
+      platformIds.add(platform.platformId);
+      issuerClientPairs.add(issuerClientPair);
+    }
+
+    return parsed.data;
+  });
+
 const providerCapabilitiesSchema = z
   .object({
     languages: z.array(z.string().min(1)).min(1),
@@ -256,6 +333,7 @@ const environmentSchema = z
     DATABASE_URL: z.string().min(1),
     DATABASE_URL_DIRECT: z.string().optional(),
     DIMTS_PUBLIC_SOURCES: publicSourcesSchema,
+    DIMTS_LTI_PLATFORMS: ltiPlatformsSchema,
     DIMTS_SOURCE_SYNC_INTERVAL_MS: z.coerce
       .number()
       .int()

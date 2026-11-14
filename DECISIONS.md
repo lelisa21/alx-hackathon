@@ -1161,3 +1161,31 @@ selection remain prerequisites for production voice.
   actual hosted configuration, and physical-device gates are not evidenced.
   `GATE_CHECKLIST.md` is the release authority; no G1–G13 pass is inferred
   from code or automated tests alone.
+
+## P10 — static LTI platform configuration (14 November 2026)
+
+- **Requirements:** FR-INT-05/06 and NFR-ADOPT-01/02.
+- **Decision:** Per the user's selection, support an ALX Savanna/custom host
+  through the generic LTI 1.3 contract and load platform metadata from static
+  host configuration. Do not assume a Savanna-specific API, credentials, or
+  private content.
+- **Configuration contract:** `DIMTS_LTI_PLATFORMS` is a JSON array using the
+  existing `LtiPlatformConfig` field names. Each entry identifies one
+  issuer/client/deployment and its HTTPS authorization, token, and JWKS URLs.
+  Platform IDs and issuer/client pairs must be unique. This is deployment
+  configuration, not a public registration endpoint; no secrets belong in
+  browser code or this JSON.
+- **Boundary:** Static configuration makes registered platform metadata
+  available to the existing API router; it does not by itself complete the
+  browser OIDC redirect, tool JWKS signing, deep linking, or an ALX Savanna
+  launch. Those remain explicit P10 acceptance blockers until standard
+  end-to-end flows and a real platform trial pass.
+- **Session security follow-up:** LTI sessions use random opaque IDs and
+  bearer tokens are stored only as SHA-256 hashes. Persist the LTI context and
+  expiry with the session; authorize insights only by resolving the presented
+  bearer-token hash to a live LTI instructor session. Do not accept a caller-
+  supplied session ID as proof of authorization.
+- **Static platform persistence:** The host configuration remains the source
+  of platform metadata. LTI state and replay tables therefore do not require
+  rows in the legacy `lti_platform` registration table; their platform IDs
+  remain configuration identifiers, not foreign keys to learner data.

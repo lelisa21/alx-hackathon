@@ -39,6 +39,7 @@ services:
       DIMTS_CRON_SECRET: ${DIMTS_CRON_SECRET:?Set DIMTS_CRON_SECRET in .env}
       DIMTS_HOST_ORIGINS: ${DIMTS_HOST_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
       DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
+      DIMTS_LTI_PLATFORMS: "${DIMTS_LTI_PLATFORMS:-[]}"
       DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
       DIMTS_STT_ENGINE: ${DIMTS_STT_ENGINE:-none}
       DIMTS_TTS_ENGINE: ${DIMTS_TTS_ENGINE:-none}
@@ -128,6 +129,7 @@ services:
       DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DIMTS_SEED_HELPER_TOKEN: ${DIMTS_SEED_HELPER_TOKEN:?Set DIMTS_SEED_HELPER_TOKEN in .env}
+      DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
       DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-https://learn.example/course/}
     command:
       - sh

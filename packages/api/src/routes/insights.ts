@@ -9,6 +9,7 @@ import { createInsightsService } from "@dimts/insights";
 import { InsightsQuerySchema, InsightsResponseSchema } from "../schemas.js";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
+import { sha256 } from "../middleware/auth.js";
 
 export function createInsightsRouter(repository: ApiRepository): Router {
   const router = Router();
@@ -34,25 +35,11 @@ export function createInsightsRouter(repository: ApiRepository): Router {
       if (!isAuthorized && authHeader) {
         const match = /^Bearer ([A-Za-z0-9_-]{20,100})$/u.exec(authHeader);
         if (match) {
-          // Extract sessionId from query or body
-          const sessionId =
-            typeof req.body?.sessionId === "string"
-              ? req.body.sessionId
-              : typeof req.query.sessionId === "string"
-                ? (req.query.sessionId as string)
-                : "";
-
-          if (sessionId) {
-            // Get session details to check LTI context and insights access
-            const sessionDetails =
-              await repository.getSessionDetails?.(sessionId);
-            if (
-              sessionDetails &&
-              sessionDetails.channel === "lti" &&
-              sessionDetails.ltiContext?.insightsAccess
-            ) {
-              isAuthorized = true;
-            }
+          const sessionDetails = await repository.getLtiSessionByTokenHash?.(
+            sha256(match[1]!),
+          );
+          if (sessionDetails?.ltiContext?.insightsAccess) {
+            isAuthorized = true;
           }
         }
       }
