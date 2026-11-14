@@ -1238,3 +1238,71 @@ selection remain prerequisites for production voice.
 - **Fixed defects:** SIGTERM crashed (`server.app` is undefined), skipping pool
   and timer cleanup; nginx dropped WebSocket upgrade headers for
   `/v1/help/ws`; two PostgreSQL integration tests had stale fixtures.
+
+## Savanna integration, trilingual content and channel verification (14 November 2026)
+
+- **Requirements:** FR-INT-01/11 (embed), FR-LANG-01/04, FR-CONV-05,
+  FR-TUTOR-08/10 (citations), FR-SMS, FR-TG, FR-VOICE-01/02 (preview).
+- **Root cause of "nothing answers":** the `passage` table was empty (no
+  content had ever been ingested), and Amharic/Oromo were hidden because their
+  packs are `draft`. Every question returned `notfound` in every language.
+- **Trilingual course content:** `content/savanna/{en,am,om}/` holds six
+  lessons per language written from the frozen Savanna captures (dashboard,
+  scores and graduation, WR 100, VA-1, study plan, getting help). Headings are
+  phrased as learner questions because headings are indexed with the passage.
+  Every sentence is at most 12 words so Simple mode and SMS never reject an
+  extract. The Amharic and Oromo text is unreviewed draft content; the lesson
+  pages say so.
+- **Ingestion:** `content:ingest` now accepts language subfolders. Lesson ids
+  are `<lesson>.<lang>` and each passage cites
+  `DIMTS_CONTENT_BASE_URL/<lang>/<lesson>#<section>`. `--if-changed` skips the
+  ingest when the active source hash matches, so the local API container
+  re-ingests on start only after content changes.
+- **Lesson pages:** `scripts/build-lessons.mjs` renders the same Markdown to
+  `/learn/<lang>/<lesson>`. Heading ids come from `markdownOutline()`, the
+  function ingestion uses for anchors, so every citation lands on its section
+  (verified for all 144 passages). The cited section is highlighted.
+- **Draft language preview:** `DIMTS_PREVIEW_LANGS=am,om` publishes listed
+  draft packs as `beta` in memory. Pack files and review metadata are
+  unchanged, so glossary cross-language retrieval, published FAQs and voice
+  flags stay review-gated. Rejected alternative: marking the packs `beta` in
+  YAML, which the validator correctly refuses without a named reviewer.
+- **Oromo language check bug:** `isAnswerInLanguage` split words at the hudhaa
+  apostrophe (`danda'a` → `danda` + `a`), and `a` is an English stopword, so
+  correct Oromo answers were rejected. Apostrophes inside Oromo words are now
+  joined first, and the Oromo function-word list was extended with common
+  non-English words.
+- **Escalation keywords (FR-CONV-05):** bare keywords such as "help", "human"
+  or ሰው matched anywhere, so "Will AI replace human virtual assistants?" was
+  escalated instead of answered. A single-word escalation keyword now fires
+  only in messages of three words or fewer ("help", "I need help"); multi-word
+  phrases match anywhere, and explicit phrases ("need a person", "talk to a
+  human", ሰው ያስፈልገኛል, nama barbaada) were added as data. Distress keywords
+  are never narrowed.
+- **Remote AI:** Gemini (`gemini-3.1-flash-lite`, ~1.5 s; `gemini-4-hydrogen`
+  fallback) and OpenRouter are configured for en/am/om in extractive mode with
+  `evaluatedLanguages: []`. They run only after the learner allows remote AI.
+  `DIMTS_AI_RECALL_FLOOR=0.15` lets inflected Amharic questions reach the
+  consented provider; it still returns not-found when passages do not answer.
+- **Savanna integration:** the web image serves the unmodified captures at
+  `/savanna/` and nginx `sub_filter` injects one `<script async
+src="/dimts-host.js">`, the same single-tag embed a real host would add.
+  `dimts-host.js` is an nginx envsubst template carrying the public widget key.
+- **Widget UI:** branded header, starter questions (`suggest.*` keys), typing
+  indicator, avatar bubbles, citation chips, pill launcher and a close icon
+  whose accessible name comes from `embed.close`. The initial language follows
+  the browser, then English, instead of the first pack alphabetically (which
+  showed Amharic to everyone). Inside the embed the help button flows below the
+  composer instead of covering it, and the panel is sized in `em` so a host's
+  small root font size cannot shrink it.
+- **Gemini 4 adapter:** the adapter sent `thinking_level: minimal` to every
+  Gemini 3+ model; Gemini 4 rejects it with HTTP 400, so a Gemini 4 binding could
+  never answer. Gemini 4 now uses `low`. The local ladder is flash-lite 3.1,
+  flash-lite 3.5, OpenRouter, Gemini 4, offline; Interactions API latency varied
+  from 1 s to 50 s during testing, which the per-provider timeouts absorb.
+- **Fixed defects:** `@dimts/telegram` did not type-check (grammY's fetch shim
+  types), which blocked every Docker build; `lti.launch.unconfigured` was
+  missing from every pack.
+- **Known limitation:** Playwright's bundled headless Chromium crashes when the
+  widget probes speech APIs with voice enabled. Installed Chrome and Edge do
+  not; the e2e suite mocks voice and is unaffected.

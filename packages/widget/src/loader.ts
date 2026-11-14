@@ -50,9 +50,14 @@ export function installEmbed(script: HTMLScriptElement): void {
     *{box-sizing:border-box} [hidden]{display:none!important}
     button{font:inherit;color:var(--dimts-text);background:var(--dimts-surface);border:2px solid var(--dimts-border);border-radius:var(--dimts-radius);min-block-size:48px;min-inline-size:48px;padding:.625rem .875rem;cursor:pointer;overflow-wrap:anywhere}
     button:focus-visible{outline:3px solid var(--dimts-focus);outline-offset:2px;box-shadow:0 0 0 2px var(--dimts-surface)}
-    #dimts-panel{inline-size:min(26rem,calc(var(--dimts-viewport-inline,100vw) - 2rem));max-block-size:calc(var(--dimts-viewport-block,100dvh) - 2rem);overflow:auto;background:var(--dimts-surface);border:2px solid var(--dimts-border);border-radius:var(--dimts-radius)}
-    #dimts-close{display:block;margin-block:.5rem;margin-inline:auto .5rem}
-    dimts-assistant{display:block} @media(max-width:599px){:host{inset-block-end:0;inset-inline-end:0;max-inline-size:var(--dimts-viewport-inline,100vw)}:host([data-position=start]){inset-inline-start:0}#dimts-panel{inline-size:var(--dimts-viewport-inline,100vw);max-block-size:var(--dimts-viewport-block,100dvh);border-radius:0}}
+    #dimts-launcher{display:inline-flex;align-items:center;gap:.625rem;border-color:var(--dimts-primary);border-radius:999px;background:var(--dimts-primary);color:var(--dimts-primary-text);font-weight:700;padding-inline:1rem 1.375rem;box-shadow:0 10px 28px rgb(0 0 0/28%)}
+    #dimts-launcher::before{content:"";inline-size:1.5rem;block-size:1.5rem;flex:none;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H9l-5 4v-4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z'/%3E%3C/svg%3E") center/contain no-repeat}
+    #dimts-launcher:hover{filter:brightness(1.12)}
+    #dimts-panel{display:flex;flex-direction:column;inline-size:min(25em,calc(var(--dimts-viewport-inline,100vw) - 2rem));max-block-size:calc(var(--dimts-viewport-block,100dvh) - 2rem);overflow:auto;background:var(--dimts-surface);border:1px solid var(--dimts-border);border-radius:calc(var(--dimts-radius) + .5rem);box-shadow:0 24px 64px rgb(0 0 0/30%)}
+    #dimts-panel{position:relative}
+    #dimts-close{position:absolute;inset-block-start:.5rem;inset-inline-end:.5rem;z-index:5;display:grid;place-items:center;padding:0;border:1px solid var(--dimts-primary-text);border-radius:50%;background:var(--dimts-primary);color:var(--dimts-primary-text)}
+    #dimts-close::before{content:"";inline-size:1.25rem;block-size:1.25rem;background:currentColor;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M6 6l12 12M18 6L6 18' stroke='black' stroke-width='2.5' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat}
+    dimts-assistant{display:block;--dimts-help-position:static;--dimts-help-order:0;--dimts-close-space:3.25rem;--dimts-frame-border:0;--dimts-frame-radius:0;--dimts-frame-shadow:none;--dimts-embed-height:calc(var(--dimts-viewport-block,100dvh) - 2rem - 2px)} @media(max-width:599px){:host{inset-block-end:0;inset-inline-end:0;max-inline-size:var(--dimts-viewport-inline,100vw)}:host([data-position=start]){inset-inline-start:0}#dimts-panel{inline-size:var(--dimts-viewport-inline,100vw);max-block-size:var(--dimts-viewport-block,100dvh);border-radius:0}dimts-assistant{--dimts-embed-height:var(--dimts-viewport-block,100dvh)}#dimts-launcher{margin:1rem}}
     @media(prefers-reduced-motion:reduce){*{animation:none;transition:none}}
   `;
   root.append(style);
@@ -85,7 +90,8 @@ export function installEmbed(script: HTMLScriptElement): void {
   root.append(launcher, panel);
   const labels = () => {
     launcher.textContent = widget.uiText("embed.open");
-    close.textContent = widget.uiText("embed.close");
+    close.setAttribute("aria-label", widget.uiText("embed.close"));
+    close.title = widget.uiText("embed.close");
     panel.setAttribute("aria-label", widget.uiText("embed.open"));
     host.lang = widget.uiLanguage;
     host.dir = widget.dir || "ltr";

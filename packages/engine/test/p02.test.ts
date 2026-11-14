@@ -254,6 +254,24 @@ describe("P02 engine safety and bounded answers", () => {
     );
     expect(isAnswerInLanguage("Выберите цель обучения.", "en")).toBe(false);
   });
+
+  it("accepts Oromo words written with the hudhaa apostrophe", () => {
+    // "danda'a" must not split into "danda" + the English stopword "a".
+    for (const mark of ["'", "’", "ʼ"]) {
+      expect(
+        isAnswerInLanguage(
+          `Walgahii cuunfuu ni danda${mark}a. AI gargaaruu danda${mark}a.`,
+          "om",
+        ),
+      ).toBe(true);
+    }
+    expect(isAnswerInLanguage("Koorsiin kun torbanoota 15 qaba.", "om")).toBe(
+      true,
+    );
+    // English text is still rejected for Oromo and vice versa.
+    expect(isAnswerInLanguage("It is a course for you.", "om")).toBe(false);
+    expect(isAnswerInLanguage("The course is hin dha.", "en")).toBe(false);
+  });
 });
 
 describe("P02 normalized, validated, private answer cache", () => {

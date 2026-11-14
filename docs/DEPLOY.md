@@ -41,10 +41,19 @@ Never commit them, reuse the local `.env` values, or put them in browser code.
 2. Fill the prompted values for `dimts-api`:
    `DATABASE_URL`, `DATABASE_URL_DIRECT`, the four secrets, and
    `DIMTS_HOST_ORIGINS`: a comma-separated list of the exact HTTPS origins
-   (scheme and host, no path) of every page that embeds the widget.
-3. Deploy. The first API start applies all migrations; later starts print
+   (scheme and host, no path) of every page that embeds the widget, including
+   the static site itself (its lesson pages embed the assistant).
+   Also set `DIMTS_CONTENT_BASE_URL` to `https://<static-site>/learn/`.
+   `DIMTS_PREVIEW_LANGS=am,om` is preset so Amharic and Afaan Oromoo are
+   offered while their packs await native review.
+3. For `dimts-widget-assets`, set `DIMTS_PUBLIC_API` to
+   `https://<api-host>/v1` and `DIMTS_PUBLIC_WIDGET_KEY` to the public host key
+   created in section 4. The build bakes them into `dimts-host.js`; redeploy the static
+   site after creating the key.
+4. Deploy. The first API start applies all migrations; later starts print
    `No pending migrations.`
-4. Check `https://<api-host>/v1/health` returns `"db": true`.
+5. Check `https://<api-host>/v1/health` returns `"db": true`, then
+   `https://<static-site>/learn/` lists the lessons.
 
 Optional integrations stay disabled until configured in the Render
 environment; the API validates each at start:
@@ -91,11 +100,15 @@ DIMTS_PROVISION_SECRET="$(node -p "require('crypto').randomBytes(32).toString('b
 
 Re-running a command with the same `--id` rotates that key or token.
 
-## 5. Ingest course content (optional)
+## 5. Ingest course content
+
+Each API start ingests `content/savanna` (English, Amharic, Afaan Oromoo) when
+it changed since the last start, so a normal deploy needs no manual step. To
+ingest another content folder by hand:
 
 ```sh
 DATABASE_URL='<direct url>' DIMTS_DEFAULT_LANG=en \
-  DIMTS_CONTENT_BASE_URL='https://<lessons>/' pnpm content:ingest <content directory>
+  DIMTS_CONTENT_BASE_URL='https://<lessons>/' pnpm content:ingest <content directory> --if-changed
 ```
 
 Or configure `DIMTS_PUBLIC_SOURCES` for sitemap synchronisation. The sample

@@ -144,6 +144,7 @@ export class DimtsAssistant extends LitElement {
     sessionToken: { state: true },
     loading: { state: true },
     voiceInstall: { state: true },
+    cloudVoiceAsk: { state: true },
     offline: { state: true },
     offlineSupportAvailable: { state: true },
     busy: { state: true },
@@ -180,6 +181,7 @@ export class DimtsAssistant extends LitElement {
     deleteDataNotice: { state: true },
     faqState: { state: true },
     faqItems: { state: true },
+    courseQuestions: { state: true },
     faqCached: { state: true },
     feedback: { state: true },
     startingSession: { state: true },
@@ -198,6 +200,13 @@ export class DimtsAssistant extends LitElement {
   declare private sessionToken: string;
   declare private loading: boolean;
   declare private voiceInstall: "idle" | "installing" | "failed";
+  /** Asking the learner to allow cloud voice for this session. */
+  declare private cloudVoiceAsk: boolean;
+  private cloudVoiceOk = false;
+  private cloudVoiceAnswer: ((allowed: boolean) => void) | undefined;
+  private cloudVoiceLangs: string[] = [];
+  /** Set by an explicit voice action; automatic speech never asks for consent. */
+  private voiceIntent = false;
   declare private offline: boolean;
   declare private offlineSupportAvailable: boolean;
   declare private busy: boolean;
@@ -250,6 +259,8 @@ export class DimtsAssistant extends LitElement {
   declare private deletingData: boolean;
   declare private deleteDataNotice: string;
   declare private faqState: "idle" | "loading" | "ready" | "failed";
+  /** Questions the course answers, shown when no reviewed FAQ exists yet. */
+  declare private courseQuestions: string[];
   declare private faqItems: FaqItem[];
   declare private faqCached: boolean;
   declare private feedback: Record<string, boolean>;
@@ -365,25 +376,77 @@ export class DimtsAssistant extends LitElement {
   private async configureBrowserVoice(): Promise<void> {
     const run = ++this.browserVoiceRun;
     this.disposeBrowserVoice();
-    if (
-      !this.languages.some(
-        (language) => language.voice && (language.stt || language.tts),
-      )
-    )
-      return;
+    const deviceVoice = this.languages.some(
+      (language) => language.voice && (language.stt || language.tts),
+    );
+    // Cloud speech covers languages this device cannot recognise or speak.
+    const cloud = (await this.request(`${this.apiRoot}/voice/cloud`)
+      .then((response) => (response.ok ? response.json() : null))
+      .catch(() => null)) as {
+      available?: boolean;
+      languages?: unknown;
+    } | null;
+    this.cloudVoiceLangs =
+      cloud?.available === true && Array.isArray(cloud.languages)
+        ? cloud.languages.filter(
+            (code): code is string =>
+              typeof code === "string" &&
+              this.languages.some((language) => language.code === code),
+          )
+        : [];
+    if (!deviceVoice && !this.cloudVoiceLangs.length) return;
     try {
       const runtime = await this.loadVoice();
       if (!this.isConnected || run !== this.browserVoiceRun) return;
-      const adapters = await runtime.createBrowserAdapters({
-        languages: this.languages.map((language) => ({
-          ...language,
-          voice: language.voice ?? null,
-        })),
-        onCapabilitiesChanged: () => {
-          if (this.isConnected && run === this.browserVoiceRun)
-            this.requestUpdate();
-        },
-      });
+      const device = deviceVoice
+        ? await runtime.createBrowserAdapters({
+            languages: this.languages.map((language) => ({
+              ...language,
+              voice: language.voice ?? null,
+            })),
+            onCapabilitiesChanged: () => {
+              if (this.isConnected && run === this.browserVoiceRun)
+                this.requestUpdate();
+            },
+          })
+        : undefined;
+      const remote = this.cloudVoiceLangs.length
+        ? runtime.createCloudAdapters({
+            languages: this.cloudVoiceLangs,
+            consent: () => this.allowCloudVoice(),
+            transport: {
+              transcribe: async (input) =>
+                String(
+                  (
+                    (await this.cloudVoiceCall("transcribe", input)) as {
+                      text?: unknown;
+                    }
+                  ).text ?? "",
+                ),
+              synthesize: async (input) =>
+                (await this.cloudVoiceCall("speak", input)) as {
+                  audio: string;
+                  mimeType: string;
+                },
+            },
+          })
+        : undefined;
+      const adapters = remote
+        ? {
+            speechToText: runtime.combineSpeechToText(
+              device?.speechToText,
+              remote.speechToText,
+            ),
+            textToSpeech: runtime.combineTextToSpeech(
+              device?.textToSpeech,
+              remote.textToSpeech,
+            ),
+            dispose: () => {
+              device?.dispose();
+              remote.dispose();
+            },
+          }
+        : device!;
       if (!this.isConnected || run !== this.browserVoiceRun) {
         adapters.dispose();
         return;
@@ -397,6 +460,78 @@ export class DimtsAssistant extends LitElement {
       // Text stays ready when device capability detection fails.
       if (this.isConnected) this.requestUpdate();
     }
+  }
+
+  /** Resolves true once the learner allows cloud voice for this session. */
+  private allowCloudVoice(): Promise<boolean> {
+    if (this.cloudVoiceOk) return Promise.resolve(true);
+    if (!this.voiceIntent) return Promise.resolve(false);
+    this.voiceIntent = false;
+    this.cloudVoiceAnswer?.(false);
+    this.cloudVoiceAsk = true;
+    return new Promise((resolve) => {
+      this.cloudVoiceAnswer = resolve;
+    });
+  }
+
+  private answerCloudVoice(allowed: boolean): void {
+    this.cloudVoiceOk = allowed;
+    this.cloudVoiceAsk = false;
+    this.courseQuestions = [];
+    const answer = this.cloudVoiceAnswer;
+    this.cloudVoiceAnswer = undefined;
+    answer?.(allowed);
+  }
+
+  private async cloudVoiceCall(
+    action: "transcribe" | "speak",
+    input: object,
+  ): Promise<unknown> {
+    const response = await this.request(`${this.apiRoot}/voice/${action}`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${this.sessionToken}`,
+      },
+      body: JSON.stringify({
+        sessionId: this.sessionId,
+        consentVersion: "cloud-voice-v1",
+        ...input,
+      }),
+    });
+    if (!response.ok) throw new Error("cloud-voice");
+    return response.json();
+  }
+
+  private renderCloudVoicePrompt(): unknown {
+    return this.cloudVoiceAsk
+      ? html`<div
+          class="consent cloud-voice"
+          role="group"
+          aria-labelledby="cloud-voice-text"
+        >
+          <p id="cloud-voice-text">${this.t("voice.cloudConsent")}</p>
+          <div class="header-actions">
+            <button
+              class="primary"
+              type="button"
+              lang=${this.uiLanguage}
+              dir=${this.uiDirection}
+              @click=${() => this.answerCloudVoice(true)}
+            >
+              ${this.t("voice.cloudAllow")}
+            </button>
+            <button
+              type="button"
+              lang=${this.uiLanguage}
+              dir=${this.uiDirection}
+              @click=${() => this.answerCloudVoice(false)}
+            >
+              ${this.t("voice.cloudDecline")}
+            </button>
+          </div>
+        </div>`
+      : nothing;
   }
 
   private disposeBrowserVoice(): void {
@@ -439,6 +574,7 @@ export class DimtsAssistant extends LitElement {
     this.messages = [];
     this.sessionId = "";
     this.sessionToken = "";
+    this.cloudVoiceAsk = false;
     this.loading = true;
     this.voiceInstall = "idle";
     this.offline = typeof navigator !== "undefined" && !navigator.onLine;
@@ -562,13 +698,14 @@ export class DimtsAssistant extends LitElement {
     }
 
     main {
-      --dimts-available-height: max(
-        6rem,
-        calc(100dvh - var(--dimts-help-reserve, 5em) - 2rem)
+      --dimts-available-height: var(
+        --dimts-embed-height,
+        max(6rem, calc(100dvh - var(--dimts-help-reserve, 5em) - 2rem))
       );
       background: var(--dimts-surface);
-      border: 1px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 0.75rem);
+      border: var(--dimts-frame-border, 1px) solid
+        color-mix(in srgb, var(--dimts-border) 40%, var(--dimts-surface));
+      border-radius: var(--dimts-frame-radius, var(--dimts-radius, 1rem));
       display: flex;
       flex-direction: column;
       margin-inline: auto;
@@ -579,35 +716,261 @@ export class DimtsAssistant extends LitElement {
       scroll-padding-block: 1rem;
       overflow-wrap: anywhere;
       position: relative;
-      box-shadow:
+      box-shadow: var(
+        --dimts-frame-shadow,
         0 1px 2px rgb(0 0 0 / 8%),
-        0 8px 24px rgb(0 0 0 / 10%);
-      border-block-start: 4px solid var(--dimts-primary);
+        0 12px 32px rgb(0 0 0 / 14%)
+      );
+    }
+
+    /* Room for the embed's close button in the top row. */
+    main > .header-actions {
+      padding-block-start: 0.75rem;
+      padding-inline: 1rem calc(1rem + var(--dimts-close-space, 0px));
     }
 
     /* Header and composer stay in view while the conversation scrolls. */
     header {
       align-items: center;
-      background: var(--dimts-surface);
+      background: var(--dimts-primary);
+      color: var(--dimts-primary-text);
       border-block-end: 1px solid var(--dimts-border);
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
       inset-block-start: 0;
       justify-content: space-between;
-      padding: 0.75rem 1rem;
+      padding-block: 0.625rem;
+      padding-inline: 1rem calc(1rem + var(--dimts-close-space, 0px));
       position: sticky;
       z-index: 2;
     }
 
+    header > .header-actions {
+      flex-basis: 100%;
+      flex-wrap: nowrap;
+      overflow-x: auto;
+      padding: 0.25rem;
+      margin: -0.25rem;
+      scrollbar-width: thin;
+    }
+
+    header > .header-actions > *,
+    header .header-actions .header-actions > * {
+      flex: none;
+    }
+
+    @media (max-width: 30rem) {
+      .tagline {
+        display: none;
+      }
+
+      .empty-state {
+        padding-block: 0.75rem;
+      }
+
+      .avatar-lg {
+        block-size: 2.75rem;
+        inline-size: 2.75rem;
+      }
+    }
+
+    @media (max-height: 40rem) {
+      header,
+      .composer {
+        position: static;
+      }
+    }
+
+    header .header-actions .header-actions {
+      display: contents;
+    }
+
     header strong {
-      color: var(--dimts-primary-strong, var(--dimts-text));
-      font-size: 1.25em;
+      font-size: 1.15em;
       letter-spacing: 0.01em;
     }
 
-    .career-launcher {
-      margin: 0.75rem 1rem 0;
+    header button {
+      background: transparent;
+      border-color: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 55%,
+        var(--dimts-primary)
+      );
+      border-radius: 999px;
+      border-width: 1px;
+      color: var(--dimts-primary-text);
+      font-size: 0.8125em;
+      padding-inline: 0.75rem;
+    }
+
+    header button:not(:disabled):hover {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 14%,
+        var(--dimts-primary)
+      );
+    }
+
+    .brand {
+      align-items: center;
+      display: flex;
+      gap: 0.625rem;
+    }
+
+    .a11y {
+      display: flex;
+      gap: 0.375rem;
+    }
+
+    header > .a11y {
+      margin-inline-start: auto;
+    }
+
+    .a11y button {
+      font-weight: 800;
+      padding: 0;
+      inline-size: 48px;
+    }
+
+    .a11y button[aria-pressed="true"] {
+      background: var(--dimts-primary-text);
+      color: var(--dimts-primary);
+    }
+
+    main > .header-actions .a11y button[aria-pressed="true"] {
+      background: var(--dimts-primary);
+      color: var(--dimts-primary-text);
+    }
+
+    .a11y-size::before {
+      content: "A" / "";
+      font-size: 0.75em;
+    }
+
+    .a11y-size::after {
+      content: "A" / "";
+      font-size: 1.15em;
+    }
+
+    .a11y-contrast::before {
+      content: "\\25D0" / "";
+      font-size: 1.3em;
+    }
+
+    .a11y-simple::before {
+      content: "1\\2219 2" / "";
+    }
+
+    .brand-text,
+    .empty-state {
+      display: grid;
+    }
+
+    .tagline {
+      font-size: 0.8em;
+      opacity: 0.9;
+    }
+
+    .avatar {
+      align-items: center;
+      background: var(--dimts-primary);
+      border-radius: 50%;
+      color: var(--dimts-primary-text);
+      display: inline-flex;
+      flex: none;
+      font-weight: 800;
+      block-size: 2.25rem;
+      inline-size: 2.25rem;
+      justify-content: center;
+    }
+
+    header .avatar {
+      background: var(--dimts-primary-text);
+      color: var(--dimts-primary);
+    }
+
+    .avatar-lg {
+      block-size: 3.5rem;
+      font-size: 1.5em;
+      inline-size: 3.5rem;
+      justify-self: center;
+      margin-block-end: 0.5rem;
+    }
+
+    .suggestions-list {
+      display: grid;
+      gap: 0.5rem;
+      margin-block-start: 1.25rem;
+      text-align: start;
+    }
+
+    .suggest-title {
+      color: var(--dimts-muted);
+      font-size: 0.8em;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+    }
+
+    .suggestion {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 7%,
+        var(--dimts-surface)
+      );
+      border-radius: 999px;
+      padding-inline: 1.125rem;
+      text-align: start;
+    }
+
+    .typing {
+      align-items: center;
+      display: flex;
+      gap: 0.625rem;
+    }
+
+    .dots {
+      display: inline-flex;
+      gap: 0.3rem;
+      padding: 0.875rem 1rem;
+      border-radius: 1rem;
+      background: color-mix(
+        in srgb,
+        var(--dimts-text) 6%,
+        var(--dimts-surface)
+      );
+    }
+
+    .dots i {
+      animation: dimts-dot 1.2s infinite ease-in-out;
+      background: var(--dimts-muted);
+      block-size: 0.5rem;
+      border-radius: 50%;
+      inline-size: 0.5rem;
+    }
+
+    .dots i:nth-child(2) {
+      animation-delay: 0.15s;
+    }
+
+    .dots i:nth-child(3) {
+      animation-delay: 0.3s;
+    }
+
+    @keyframes dimts-dot {
+      0%,
+      80%,
+      100% {
+        opacity: 0.35;
+        transform: translateY(0);
+      }
+
+      40% {
+        opacity: 1;
+        transform: translateY(-0.25rem);
+      }
     }
 
     button:not(:disabled):hover {
@@ -652,13 +1015,22 @@ export class DimtsAssistant extends LitElement {
       );
       border: 1px solid var(--dimts-border);
       border-radius: var(--dimts-radius, 0.75rem);
-      font-size: 0.9375em;
+      font-size: 0.8125em;
       margin: 0.75rem 1rem 0;
-      padding: 0.25rem 0.75rem;
+      padding: 0.125rem 0.75rem;
     }
 
     .consent p {
-      margin-block: 0.375rem;
+      margin-block: 0.25rem;
+    }
+
+    .consent p:empty {
+      display: none;
+    }
+
+    .empty-state .consent {
+      margin: 1.25rem 0 0;
+      text-align: start;
     }
 
     .consent input[type="checkbox"] {
@@ -748,8 +1120,38 @@ export class DimtsAssistant extends LitElement {
     }
 
     .language-choice {
-      min-block-size: 64px;
+      align-items: center;
+      border-radius: 1rem;
+      column-gap: 0.875rem;
+      display: grid;
+      grid-template-columns: 2.75rem minmax(0, 1fr);
+      min-block-size: 72px;
       text-align: start;
+    }
+
+    .language-choice::before {
+      align-items: center;
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 12%,
+        var(--dimts-surface)
+      );
+      block-size: 2.75rem;
+      border-radius: 0.75rem;
+      color: var(--dimts-text);
+      content: "EN" / "";
+      display: flex;
+      font-weight: 800;
+      grid-row: span 2;
+      justify-content: center;
+    }
+
+    .language-choice[lang="am"]::before {
+      content: "\\12A0\\121B" / "";
+    }
+
+    .language-choice[lang="om"]::before {
+      content: "OM" / "";
     }
 
     .language-name {
@@ -782,8 +1184,10 @@ export class DimtsAssistant extends LitElement {
     .empty-state {
       align-self: center;
       color: var(--dimts-muted);
+      gap: 0.25rem;
+      inline-size: min(100%, 26rem);
       margin-block: auto;
-      padding: 1.5rem 1rem;
+      padding: 1.5rem 0.5rem;
       text-align: center;
     }
 
@@ -801,25 +1205,46 @@ export class DimtsAssistant extends LitElement {
       );
       border: 1px solid
         color-mix(in srgb, var(--dimts-border) 45%, var(--dimts-surface));
-      border-radius: 1rem;
+      border-radius: 1.125rem;
       border-end-start-radius: 0.25rem;
-      margin-block: 0 0.75rem;
+      margin-block: 0 0.875rem;
       max-inline-size: 92%;
       padding: 0.75rem 1rem;
     }
 
-    article[data-role="learner"] {
-      align-self: flex-end;
+    article[data-role="assistant"] {
+      background: var(--dimts-surface);
+      border: 0;
+      column-gap: 0.625rem;
+      display: grid;
+      grid-template-columns: auto minmax(0, 1fr);
+      padding: 0;
+    }
+
+    article[data-role="assistant"] > :not(.avatar) {
+      grid-column: 2;
+    }
+
+    article[data-role="assistant"] > p {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 12%,
+        var(--dimts-text) 5%,
         var(--dimts-surface)
       );
-      border-color: color-mix(
-        in srgb,
-        var(--dimts-primary) 40%,
-        var(--dimts-surface)
-      );
+      border-radius: 1.125rem;
+      border-end-start-radius: 0.25rem;
+      padding: 0.75rem 1rem;
+    }
+
+    article[data-role="assistant"] > .avatar {
+      grid-row: 1 / span 3;
+    }
+
+    article[data-role="learner"] {
+      align-self: flex-end;
+      background: var(--dimts-primary);
+      border-color: var(--dimts-primary);
+      color: var(--dimts-primary-text);
       border-end-end-radius: 0.25rem;
       border-end-start-radius: 1rem;
       max-inline-size: 85%;
@@ -834,7 +1259,42 @@ export class DimtsAssistant extends LitElement {
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
-      margin-block-start: 0.75rem;
+      margin-block-start: 0.5rem;
+    }
+
+    .citation {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 8%,
+        var(--dimts-surface)
+      );
+      border: 1px solid var(--dimts-border);
+      border-radius: 999px;
+      font-size: 0.875em;
+      gap: 0.375rem;
+      padding: 0.25rem 0.875rem;
+      text-decoration: none;
+    }
+
+    .citation::before {
+      background: currentColor;
+      block-size: 1em;
+      content: "";
+      flex: none;
+      inline-size: 1em;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")
+        center / contain no-repeat;
+    }
+
+    .citation:hover {
+      text-decoration: underline;
+    }
+
+    .reply-actions button {
+      border-radius: 999px;
+      border-width: 1px;
+      font-size: 0.875em;
+      padding-block: 0.375rem;
     }
 
     a {
@@ -850,21 +1310,23 @@ export class DimtsAssistant extends LitElement {
       border-block-start: 1px solid var(--dimts-border);
       box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
       inset-block-end: 0;
-      padding: 0.75rem 1rem 1rem;
+      padding: 0.625rem 1rem 0.75rem;
       position: sticky;
       z-index: 2;
     }
 
     .composer > label {
       display: block;
+      font-size: 0.875em;
       font-weight: 600;
-      margin-block-end: 0.375rem;
+      margin-block-end: 0.25rem;
     }
 
     textarea {
+      max-block-size: 40vh;
       background: var(--dimts-surface);
       border: 2px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 0.75rem);
+      border-radius: var(--dimts-radius, 1rem);
       display: block;
       inline-size: 100%;
       min-block-size: 3rem;
@@ -896,6 +1358,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .send-action {
+      border-radius: 999px;
       min-inline-size: 7rem;
     }
 
@@ -904,6 +1367,21 @@ export class DimtsAssistant extends LitElement {
       display: inline-flex;
       flex-wrap: wrap;
       gap: 0.5rem;
+      font-size: 0.8125em;
+    }
+
+    .voice-install button {
+      border-radius: 999px;
+      border-width: 1px;
+    }
+
+    .voice-install .muted:empty {
+      display: none;
+    }
+
+    .composer > .muted {
+      font-size: 0.75em;
+      margin-block: 0.375rem 0;
     }
 
     .help {
@@ -912,9 +1390,12 @@ export class DimtsAssistant extends LitElement {
       box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
       inset-block-end: 1rem;
       inset-inline-end: 1rem;
-      order: 1;
+      margin: 0 1rem 1rem;
+      /* In-flow layouts put it under the header, clear of the composer. */
+      order: var(--dimts-help-order, 1);
       padding-inline: 1.25rem;
-      position: fixed;
+      /* Embedded panels keep it in flow so it never covers the composer. */
+      position: var(--dimts-help-position, fixed);
       z-index: 3;
     }
 
@@ -1044,6 +1525,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .mic {
+      border-radius: 999px;
       min-block-size: 64px;
       min-inline-size: 64px;
     }
@@ -1091,31 +1573,10 @@ export class DimtsAssistant extends LitElement {
         border-radius: 0;
       }
 
-      header {
-        align-items: flex-start;
-        flex-direction: column;
-      }
-
-      .composer-actions {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr);
-      }
-
-      .composer-actions > .muted {
-        grid-column: 1;
-        grid-row: 1;
-      }
-
-      .composer-actions .mic {
-        grid-column: 1;
-        grid-row: 2;
-        justify-self: center;
-      }
-
-      .composer-actions .send-action {
-        grid-column: 1;
-        grid-row: 3;
-        justify-self: end;
+      /* Notes take a full row; microphone and Send share the next one. */
+      .composer-actions > .muted,
+      .composer-actions > .voice-install {
+        flex-basis: 100%;
       }
     }
 
@@ -1516,7 +1977,12 @@ export class DimtsAssistant extends LitElement {
       if (remembered) {
         await this.chooseLanguage(remembered.code, false);
       } else {
-        this.setSelectedLanguage(this.languages[0]!.code);
+        // Show the picker in the learner's own language when it is offered.
+        const preferred = (navigator.languages ?? [navigator.language])
+          .map((tag) => tag.toLowerCase().split("-")[0])
+          .concat("en")
+          .find((code) => this.languages.some((item) => item.code === code));
+        this.setSelectedLanguage(preferred ?? this.languages[0]!.code);
         await this.loadUi(this.selectedLang);
       }
     } catch {
@@ -1914,7 +2380,7 @@ export class DimtsAssistant extends LitElement {
       class="consent"
       aria-label=${this.t("privacy.cloudOk")}
     >
-      <p>${this.t("privacy.remoteNotice")}</p>
+      ${this.messages.length ? nothing : html`<p>${this.t("privacy.remoteNotice")}</p>`}
       <label class="setting-row" for="cloud-consent"
         ><span>${this.t("privacy.cloudOk")}</span
         ><input
@@ -1926,7 +2392,7 @@ export class DimtsAssistant extends LitElement {
           ?disabled=${this.consentBusy}
           @change=${(event: Event) => void this.changeConsent((event.currentTarget as HTMLInputElement).checked)}
       /></label>
-      ${!this.cloudOk ? html`<p>${this.t("privacy.localOnly")}</p>` : nothing}
+      ${!this.cloudOk && !this.messages.length ? html`<p>${this.t("privacy.localOnly")}</p>` : nothing}
       <p role="status" aria-live="polite">${this.consentNotice}</p>
       ${this.consentFailed ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.changeConsent(this.cloudOk)}>${this.t("error.retry")}</button>` : nothing}
     </section>`;
@@ -1990,6 +2456,20 @@ export class DimtsAssistant extends LitElement {
       );
       if (run !== this.faqRun || !this.isConnected) return;
       this.faqItems = result.items;
+      this.courseQuestions = result.items.length
+        ? []
+        : await this.request(
+            `${this.apiRoot}/course/questions?lang=${encodeURIComponent(this.selectedLang || "en")}`,
+          )
+            .then((response) => (response.ok ? response.json() : null))
+            .then((body: { questions?: { text?: unknown }[] } | null) =>
+              (body?.questions ?? [])
+                .map(({ text }) => (typeof text === "string" ? text : ""))
+                .filter(Boolean)
+                .slice(0, 12),
+            )
+            .catch(() => []);
+      if (run !== this.faqRun || !this.isConnected) return;
       this.faqCached = result.cached;
       this.faqState = "ready";
     } catch {
@@ -2010,6 +2490,32 @@ export class DimtsAssistant extends LitElement {
         ${this.t(this.faqState === "loading" ? "faq.loading" : this.faqState === "failed" ? "faq.failed" : !this.faqItems.length ? "faq.empty" : this.faqCached ? "faq.cached" : "")}
       </p>
       ${this.faqState === "failed" ? html`<button lang=${this.uiLanguage} dir=${this.uiDirection} type="button" @click=${() => void this.openFaq()}>${this.t("error.retry")}</button>` : nothing}
+      ${
+        !this.faqItems.length && this.sessionId && this.courseQuestions.length
+          ? html`<div
+              class="suggestions-list"
+              role="group"
+              aria-label=${this.t("suggest.title")}
+            >
+              <span class="suggest-title">${this.t("suggest.title")}</span>
+              ${this.courseQuestions.map(
+                (question) =>
+                  html`<button
+                    type="button"
+                    class="suggestion"
+                    lang=${this.selectedLang}
+                    dir=${this.currentDirection}
+                    @click=${() => {
+                      this.panel = null;
+                      void this.askSuggestion(question);
+                    }}
+                  >
+                    ${question}
+                  </button>`,
+              )}
+            </div>`
+          : nothing
+      }
       ${this.faqItems.map(
         (item) =>
           html`<article lang=${item.lang} dir=${item.dir}>
@@ -2033,6 +2539,58 @@ export class DimtsAssistant extends LitElement {
     } finally {
       if (this.askPromise === pending) this.askPromise = undefined;
     }
+  }
+
+  private async askSuggestion(text: string): Promise<void> {
+    if (this.busy || this.isRecording) return;
+    this.pendingQuestion = undefined;
+    this.draft = text;
+    await this.updateComplete;
+    this.renderRoot
+      .querySelector<HTMLFormElement>(".composer")
+      ?.requestSubmit();
+  }
+
+  private get avatarLetter(): string {
+    return Array.from(this.t("app.name"))[0] ?? "";
+  }
+
+  private renderEmptyState(): unknown {
+    const suggestions = ["suggest.1", "suggest.2", "suggest.3"]
+      .map((key) => ({ key, text: this.t(key) }))
+      .filter(({ key, text }) => text && text !== key);
+    return html`<div class="empty-state">
+      <span class="avatar avatar-lg" aria-hidden="true"
+        >${this.avatarLetter}</span
+      >
+      <strong>${this.t("welcome.ready")}</strong>
+      <span>${this.t("app.tagline")}</span>
+      ${
+        suggestions.length
+          ? html`<div
+              class="suggestions-list"
+              role="group"
+              aria-label=${this.t("suggest.title")}
+            >
+              <span class="suggest-title">${this.t("suggest.title")}</span>
+              ${suggestions.map(
+                ({ text }) =>
+                  html`<button
+                    type="button"
+                    class="suggestion"
+                    lang=${this.selectedLang}
+                    dir=${this.currentDirection}
+                    ?disabled=${this.busy}
+                    @click=${() => void this.askSuggestion(text)}
+                  >
+                    ${text}
+                  </button>`,
+              )}
+            </div>`
+          : nothing
+      }
+      ${this.renderConsent()}
+    </div>`;
   }
 
   private async retryQuestion(): Promise<void> {
@@ -2299,6 +2857,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private startRecording(): void {
+    this.voiceIntent = true;
     this.careerModule?.cancelVoice.call(this as unknown as CareerContext);
     if (this.hidden || !this.canRecord() || this.isRecording) return;
     const generation = this.sessionGeneration;
@@ -2390,7 +2949,8 @@ export class DimtsAssistant extends LitElement {
 
   private canRecord(lang = this.selectedLang): boolean {
     return Boolean(
-      this.languages.find((language) => language.code === lang)?.stt &&
+      (this.languages.find((language) => language.code === lang)?.stt ||
+        this.cloudVoiceLangs.includes(lang)) &&
       this.speechToText?.supported(lang),
     );
   }
@@ -2414,7 +2974,8 @@ export class DimtsAssistant extends LitElement {
 
   private canSpeak(lang: string): boolean {
     return Boolean(
-      this.languages.find((language) => language.code === lang)?.tts &&
+      (this.languages.find((language) => language.code === lang)?.tts ||
+        this.cloudVoiceLangs.includes(lang)) &&
       this.textToSpeech?.supported(lang),
     );
   }
@@ -2828,8 +3389,53 @@ export class DimtsAssistant extends LitElement {
     `;
   }
 
-  private renderUtilities(): unknown {
+  /** Text size, high contrast and Simple mode, one tap away on every screen. */
+  private renderA11y(): unknown {
+    const { textScale, highContrast, simple } = this.settings;
+    const sizeLabel = `${this.t("settings.textSize")} ${textScale}%`;
+    const toggle = (
+      kind: string,
+      label: string,
+      pressed: boolean,
+      patch: Partial<WidgetSettings>,
+    ) =>
+      html`<button
+        class=${`a11y-${kind}`}
+        type="button"
+        lang=${this.uiLanguage}
+        dir=${this.uiDirection}
+        aria-label=${label}
+        title=${label}
+        aria-pressed=${pressed}
+        @click=${() => this.updateSettings(patch)}
+      ></button>`;
+    return html`<div
+      class="a11y"
+      role="group"
+      aria-label=${this.t("settings.title")}
+    >
+      <button
+        class="a11y-size"
+        type="button"
+        lang=${this.uiLanguage}
+        dir=${this.uiDirection}
+        aria-label=${sizeLabel}
+        title=${sizeLabel}
+        @click=${() =>
+          this.updateSettings({
+            textScale: textScale === 100 ? 150 : textScale === 150 ? 200 : 100,
+          })}
+      ></button>
+      ${toggle("contrast", this.t("settings.highContrast"), highContrast, {
+        highContrast: !highContrast,
+      })}
+      ${toggle("simple", this.t("settings.simple"), simple, { simple: !simple })}
+    </div>`;
+  }
+
+  private renderUtilities(a11y = true): unknown {
     return html`<div class="header-actions">
+      ${a11y ? this.renderA11y() : nothing}
       <button
         lang=${this.uiLanguage}
         dir=${this.uiDirection}
@@ -2922,7 +3528,14 @@ export class DimtsAssistant extends LitElement {
       <main lang=${this.selectedLang} dir=${this.currentLanguage?.dir ?? "ltr"}>
         ${this.renderOfflineBanner()} ${this.renderFallbackNotice()}
         <header>
-          <strong>${this.t("app.name")}</strong>
+          <span class="brand">
+            <span class="avatar" aria-hidden="true">${this.avatarLetter}</span>
+            <span class="brand-text"
+              ><strong>${this.t("app.name")}</strong
+              ><span class="tagline">${this.t("app.tagline")}</span></span
+            >
+          </span>
+          ${this.renderA11y()}
           <div class="header-actions">
             <button
               type="button"
@@ -2932,20 +3545,20 @@ export class DimtsAssistant extends LitElement {
             >
               ${this.t("language.button")}
             </button>
-            ${this.renderUtilities()}
+            <button
+              class="career-launcher"
+              type="button"
+              lang=${this.uiLanguage}
+              dir=${this.uiDirection}
+              @click=${() => void this.openCareer()}
+            >
+              ${this.t("jobs.title")}
+            </button>
+            ${this.renderUtilities(false)}
           </div>
         </header>
-        ${this.renderHelpButton()}
-        <button
-          class="career-launcher"
-          type="button"
-          lang=${this.uiLanguage}
-          dir=${this.uiDirection}
-          @click=${() => void this.openCareer()}
-        >
-          ${this.t("jobs.title")}
-        </button>
-        ${this.renderHelpSession()} ${this.renderHelpPreview()}
+        ${this.renderHelpButton()} ${this.renderHelpSession()}
+        ${this.renderHelpPreview()}
         ${this.careerModule?.render.call(this as unknown as CareerContext) ?? nothing}
         ${
           this.panel === "language"
@@ -2959,7 +3572,8 @@ export class DimtsAssistant extends LitElement {
             : nothing
         }
         ${this.panel === "settings" ? this.renderSettings() : nothing}
-        ${this.renderFaq()} ${this.renderConsent()}
+        ${this.renderFaq()}
+        ${this.messages.length ? this.renderConsent() : nothing}
         <div class="chat">
           <div
             class="messages"
@@ -2968,7 +3582,7 @@ export class DimtsAssistant extends LitElement {
             aria-relevant="additions"
             aria-label=${this.t("chat.log")}
           >
-            ${this.messages.length === 0 ? html`<div class="empty-state"><strong>${this.t("welcome.ready")}</strong>${this.t("composer.placeholder")}</div>` : nothing}
+            ${this.messages.length === 0 ? this.renderEmptyState() : nothing}
             ${this.messages.map((message) =>
               message.role === "learner"
                 ? html`
@@ -2991,6 +3605,9 @@ export class DimtsAssistant extends LitElement {
                       dir=${message.dir}
                       aria-label=${this.t("chat.dimts")}
                     >
+                      <span class="avatar" aria-hidden="true"
+                        >${this.avatarLetter}</span
+                      >
                       <p>${message.text}</p>
                       ${
                         message.citations.length
@@ -3002,6 +3619,7 @@ export class DimtsAssistant extends LitElement {
                                 ).map(
                                   (citation) => html`
                                     <a
+                                      class="citation"
                                       lang=${this.uiLanguage}
                                       dir=${this.uiDirection}
                                       href=${citation.url}
@@ -3051,12 +3669,14 @@ export class DimtsAssistant extends LitElement {
                                   type="button"
                                   lang=${this.uiLanguage}
                                   dir=${this.uiDirection}
-                                  @click=${() =>
+                                  @click=${() => {
+                                    this.voiceIntent = true;
                                     void this.speak(
                                       message.text,
                                       message.lang,
                                       message.id,
-                                    )}
+                                    );
+                                  }}
                                 >
                                   ${this.t("voice.readReply")}
                                 </button>
@@ -3073,6 +3693,14 @@ export class DimtsAssistant extends LitElement {
                     </article>
                   `,
             )}
+            ${
+              this.busy
+                ? html`<div class="typing" aria-hidden="true">
+                    <span class="avatar">${this.avatarLetter}</span
+                    ><span class="dots"><i></i><i></i><i></i></span>
+                  </div>`
+                : nothing
+            }
           </div>
           <p
             class="status"
@@ -3131,7 +3759,7 @@ export class DimtsAssistant extends LitElement {
                 }
               }}
             ></textarea>
-            ${this.renderTransliteration()}
+            ${this.renderTransliteration()} ${this.renderCloudVoicePrompt()}
             ${this.currentLanguage?.status === "beta" && (this.canRecord() || this.canSpeak(this.selectedLang)) ? html`<p class="muted">${this.t("status.beta")}: ${this.t("voice.betaNote")}</p>` : nothing}
             ${this.isRecording ? html`<p class="status" role="status" aria-live="polite">${this.t(this.recordingStopRequested ? "voice.processing" : "voice.listening")}</p>` : nothing}
             ${

@@ -60,13 +60,23 @@ th{color:var(--muted);font-weight:600}
 .note{border-inline-start:4px solid var(--primary);background:var(--accent);padding:.75rem 1rem;border-radius:.4rem}
 a{color:var(--primary)}
 footer{color:var(--muted);padding-block:1rem 3rem}
+.layout{display:grid;grid-template-columns:minmax(0,13rem) minmax(0,1fr);gap:2rem;align-items:start;justify-content: space-between;}
+.toc{position:sticky;inset-block-start:1rem;background:var(--surface);border:1px solid var(--border);border-radius:.9rem;padding:1rem}
+.toc strong{display:block;font-size:.75rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-block-end:.5rem}
+.toc ol{margin:0;padding-inline-start:1.1rem;display:grid;gap:.3rem;font-size:.92rem}
+.toc a{text-decoration:none}.toc a:hover{text-decoration:underline}
+.pill{display:inline-block;font-size:.75rem;font-weight:700;border-radius:999px;padding:.05rem .55rem;background:var(--accent);color:var(--primary);margin-inline-end:.35rem}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(16rem,1fr));gap:1rem}
+.grid2>div{border:1px solid var(--border);border-radius:.7rem;padding:1rem}
+.grid2 h3{margin:.1rem 0 .4rem;font-size:1.05rem}
+@media (max-width:56rem){.layout{grid-template-columns:minmax(0,1fr)}.toc{position:static}}
 :focus-visible{outline:3px solid var(--primary);outline-offset:2px}
 </style>
 </head>
 <body>
 <header><div class="wrap">
 <h1>Dimts integration guide</h1>
-<p>Add the multilingual tutor to your learning platform. Pick one path below. Every URL on this page already points at this deployment: <code>${api}</code>.</p>
+<p>Add the multilingual tutor to your learning platform. It answers in English, Amharic and Afaan Oromoo from your own course content, cites the lesson it used, and reaches learners on the web, by voice, SMS and Telegram. Every URL on this page already points at this deployment: <code>${api}</code>.</p>
 </div></header>
 <main class="wrap">
 <nav class="cards" aria-label="Integration paths">
@@ -75,6 +85,18 @@ footer{color:var(--muted);padding-block:1rem 3rem}
 <a href="#lti"><span class="tag">Level 3 · LMS</span><strong>LTI 1.3</strong>Launch from Moodle, Canvas or another LMS.</a>
 </nav>
 
+<div class="layout">
+<nav class="toc" aria-label="On this page"><strong>On this page</strong><ol>
+<li><a href="#before">Before you start</a></li>
+<li><a href="#embed">Embed the widget</a></li>
+<li><a href="#rest">REST API</a></li>
+<li><a href="#reply">Reply format</a></li>
+<li><a href="#lti">LTI 1.3</a></li>
+<li><a href="#channels">Voice, SMS, Telegram, help</a></li>
+<li><a href="#content">Course content in three languages</a></li>
+<li><a href="#languages">Language visibility</a></li>
+</ol></nav>
+<div>
 <section aria-labelledby="before">
 <h2 id="before">Before you start</h2>
 <p>Ask the Dimts operator for a <strong>host key</strong>. A <em>public</em> key identifies your web page (it is not a secret, but it only works from the origins registered with it). A <em>secret</em> key is for server-to-server calls such as job import and insights; never put it in a browser.</p>
@@ -93,6 +115,12 @@ ${code(`&lt;script type="module" src="${widget}"&gt;&lt;/script&gt;
 &gt;&lt;/dimts-assistant&gt;`)}</li>
 <li>Open the page. Learners choose a language and start asking questions. Remote AI is used only when the learner allows it.</li>
 </ol>
+<p>Prefer a floating launcher? Use the single asynchronous tag instead. It adds an <q>Open Dimts</q> button and a panel without blocking your page; removing the tag uninstalls it:</p>
+${code(`&lt;script async src="${widget.replace(/dimts-widget\.js$/u, "dimts-embed.js")}"
+  data-api="${api}/v1"
+  data-host-key="YOUR-PUBLIC-HOST-KEY"
+  data-lang="am"&gt;&lt;/script&gt;`)}
+<p>Your page can then call <code>window.Dimts.open()</code>, <code>close()</code>, <code>setLanguage("om")</code> or <code>escalate()</code>, and listen for <code>dimts:opened</code>, <code>dimts:closed</code>, <code>dimts:language</code> and <code>dimts:escalated</code>. <code>data-lang</code> is optional; without it the learner chooses, starting from their browser language.</p>
 <p class="note">Optional theming: set CSS custom properties such as <code>--dimts-primary</code> on the element. The widget renders in its own shadow root, so your page styles do not leak in.</p>
 </section>
 
@@ -119,6 +147,25 @@ ${code(`curl -X POST ${api}/v1/ask \\
 <tr><td><code>escalation</code></td><td>Learner should talk to a person</td><td><code>text</code> and the help action</td></tr>
 </tbody></table></li>
 </ol>
+<h3 id="reply">Reply format</h3>
+<p>A grounded answer always carries at least one citation. The link opens the lesson at the exact section the answer came from:</p>
+${code(`{
+  "id": "Vq3…",
+  "kind": "answer",
+  "lang": "am",
+  "dir": "ltr",
+  "text": "70 በመቶ ወይም ከዚያ በላይ ውጤት ያስፈልግዎታል። …",
+  "citations": [{
+    "passageId": "…",
+    "label": "ውጤት፣ እድገት እና ምረቃ / ኮርስ ለማለፍ ምን ያህል ውጤት ያስፈልገኛል?",
+    "url": "https://learn.example.org/learn/am/scores-and-progress#…",
+    "sourceLang": "am",
+    "sourceType": "course"
+  }],
+  "actions": [],
+  "contentVersion": "…"
+}`)}
+<p>The question's language is detected per message, so a learner may switch language mid-conversation. <code>distress</code> replies come from reviewed keyword lists before any AI call and carry the help action.</p>
 <table><thead><tr><th>Other calls</th><th>Purpose</th></tr></thead><tbody>
 <tr><td><code>GET ${api}/v1/languages</code></td><td>Available languages and voice support</td></tr>
 <tr><td><code>POST ${api}/v1/feedback</code></td><td>Helpful / not helpful (counts only)</td></tr>
@@ -154,6 +201,48 @@ The operator also sets <code>DIMTS_LTI_WIDGET_URL</code> and <code>DIMTS_LTI_WID
 </ol>
 <p class="note">Dimts never receives learner names or emails from the launch; it keeps only an opaque platform user ID for the session.</p>
 </section>
+
+<section aria-labelledby="channels">
+<h2 id="channels">Voice, SMS, Telegram and human help</h2>
+<p>Every channel uses the same grounded engine, language packs and privacy rules as the web widget.</p>
+<div class="grid2">
+<div><h3><span class="pill">Voice</span>Browser speech</h3>
+<p>Each item in <code>GET ${api}/v1/languages</code> reports <code>stt</code>, <code>tts</code> and a BCP 47 <code>voice.bcp_tag</code>. The widget records and reads aloud in the browser; audio is never uploaded or stored. The learner reviews the recognised text before it is sent.</p></div>
+<div><h3><span class="pill">SMS</span>Gateway or simulator</h3>
+<p>Your gateway posts each inbound text to <code>POST ${api}/v1/sms/inbound</code> with <code>authorization: Bearer GATEWAY-SECRET</code> and body <code>{"id","from","text"}</code>. Replies fit one message (GSM-7 or UCS-2 for Amharic) and paginate with <q>1 for more</q>. HELP, JOBS and STOP work in every language.</p></div>
+<div><h3><span class="pill">Telegram</span>Private bot</h3>
+<p>Register <code>${api}/v1/telegram/webhook</code> with Telegram and the secret in <code>DIMTS_TELEGRAM_SECRET</code>. Learners send <code>/start</code>, choose a language and ask normally. Local development can use polling instead of a public URL.</p></div>
+<div><h3><span class="pill">Help</span>Human helpers</h3>
+<p><code>POST ${api}/v1/help</code> queues a request with the learner's language and, only if they agree, their last three questions. Helpers sign in to the helper console and chat in real time over <code>/v1/help/ws</code>.</p></div>
+</div>
+</section>
+
+<section aria-labelledby="content">
+<h2 id="content">Course content in three languages</h2>
+<ol class="steps">
+<li>Put one Markdown file per lesson in a folder per language. Use the same file name for the same lesson:
+${code(`content/savanna/
+  en/scores-and-progress.md
+  am/scores-and-progress.md
+  om/scores-and-progress.md`)}</li>
+<li>Give every section a heading. Headings phrased as learner questions retrieve best, and become citation anchors:
+${code(`# Scores, progress and graduation
+
+## What score do I need to pass a course?
+
+You need a score of 70% or higher. This score earns your course badge.`)}
+Keep sentences short (12 words or fewer): Simple mode and SMS reject longer ones rather than cutting them.</li>
+<li>Ingest. Each passage cites <code>DIMTS_CONTENT_BASE_URL/&lt;lang&gt;/&lt;lesson&gt;#&lt;section&gt;</code>; the local stack renders those pages and re-ingests on start when the files change:
+${code(`pnpm content:ingest content/savanna --if-changed`)}</li>
+</ol>
+</section>
+
+<section aria-labelledby="languages">
+<h2 id="languages">Language visibility</h2>
+<p>A language pack is <code>live</code>, <code>beta</code> or <code>draft</code>. Draft packs are hidden from learners unless the host lists them in <code>DIMTS_PREVIEW_LANGS</code> (for example <code>am,om</code>), which publishes them as beta. Review-gated features, such as published FAQ answers, cross-language glossary retrieval and voice flags, stay off until a named reviewer is recorded in the pack.</p>
+</section>
+</div>
+</div>
 </main>
 <footer class="wrap">
 <a href="/v1/health">Service health</a> · <a href="/v1/openapi.yaml">OpenAPI</a>

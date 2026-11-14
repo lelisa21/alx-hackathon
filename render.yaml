@@ -6,8 +6,9 @@ services:
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
     # The free plan has no pre-deploy hook; migrations are idempotent and run
-    # under an advisory lock before the server starts.
-    startCommand: pnpm --filter @dimts/api migrate && pnpm --filter @dimts/api start
+    # under an advisory lock before the server starts. Course content is then
+    # ingested only when content/savanna changed since the last deploy.
+    startCommand: pnpm --filter @dimts/api migrate && node packages/grounding/dist/cli.js content/savanna --if-changed && pnpm --filter @dimts/api start
     healthCheckPath: /v1/health
     envVars:
       - key: NODE_VERSION
@@ -34,6 +35,12 @@ services:
         sync: false
       - key: DIMTS_DEFAULT_LANG
         value: en
+      # Amharic and Afaan Oromoo packs await native review; publish them as beta.
+      - key: DIMTS_PREVIEW_LANGS
+        value: am,om
+      # Lesson pages on the static site, e.g. https://dimts-widget-assets.onrender.com/learn/
+      - key: DIMTS_CONTENT_BASE_URL
+        sync: false
       - key: DIMTS_RETENTION_HOURS
         value: "24"
       - key: DIMTS_PUBLIC_SOURCES
@@ -56,11 +63,19 @@ services:
   - type: web
     name: dimts-widget-assets
     runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @dimts/widget... build
+    # Builds the widget, the lesson pages that citations open (/learn/), and
+    # dimts-host.js for the one-tag embed.
+    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @dimts/widget... --filter @dimts/grounding... build && node scripts/build-lessons.mjs content/savanna packages/widget/dist/learn
     staticPublishPath: ./packages/widget/dist
     envVars:
       - key: NODE_VERSION
         value: 22.18.0
+      # Public values baked into dimts-host.js: the API base ending in /v1 and
+      # a public host key whose origins include this static site.
+      - key: DIMTS_PUBLIC_API
+        sync: false
+      - key: DIMTS_PUBLIC_WIDGET_KEY
+        sync: false
     headers:
       # Host pages on other origins import the ES module and its lazy chunks
       # and fonts; module scripts and fonts are always fetched with CORS.

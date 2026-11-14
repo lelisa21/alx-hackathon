@@ -142,6 +142,13 @@ function isThinkingModel(model: string): boolean {
   return Boolean(match && Number(match[1]) >= 3);
 }
 
+// Gemini 3.x accepts "minimal"; Gemini 4 rejects it (400) and "low" is its
+// lowest supported level.
+function thinkingLevel(model: string): "minimal" | "low" {
+  const match = /^(?:models\/)?gemini-(\d+)/u.exec(model);
+  return match && Number(match[1]) >= 4 ? "low" : "minimal";
+}
+
 function supportsTemperature(model: string): boolean {
   const match = /^(?:models\/)?gemini-(\d+)(?:\.(\d+))?/u.exec(model);
   if (!match) return true;
@@ -235,7 +242,9 @@ export class GeminiProvider extends ProviderBase {
         max_output_tokens: this.maxTokens,
         // Thinking tokens count against max_output_tokens; grounded extraction
         // needs none, and without a limit replies end "incomplete".
-        ...(isThinkingModel(this.model) ? { thinking_level: "minimal" } : {}),
+        ...(isThinkingModel(this.model)
+          ? { thinking_level: thinkingLevel(this.model) }
+          : {}),
         ...(supportsTemperature(this.model)
           ? { temperature: this.temperature }
           : {}),

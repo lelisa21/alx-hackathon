@@ -264,6 +264,9 @@ export function createLtiRouter(options: {
           token: sessionToken,
           lang: "en",
           channel: "lti",
+          // Remote AI stays off until the learner opts in inside the tutor.
+          cloudOk: false,
+          consentVersion: null,
           expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000),
           ltiContext: {
             issuer: platformConfig.issuer,

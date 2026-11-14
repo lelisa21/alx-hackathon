@@ -246,6 +246,28 @@ export class PostgresGrounding {
     return matches.length === 1 ? matches[0]!.id : null;
   }
 
+  /** Questions the active course content answers: its question headings. */
+  async courseQuestions(
+    lang: string,
+    limit = 40,
+  ): Promise<{ text: string; lesson: string }[]> {
+    const result = await this.pool.query<{ text: string; lesson: string }>(
+      `SELECT p.section_title AS text, min(p.lesson_title) AS lesson
+       FROM passage p
+       JOIN active_source_generation active
+         ON active.generation_id = p.content_version_id
+        AND active.source_id = p.source_id
+       WHERE p.source_type = 'course'
+         AND p.lang = $1
+         AND p.section_title ~ '[?፧]$'
+       GROUP BY p.section_title
+       ORDER BY min(p.lesson_title), min(p.anchor)
+       LIMIT $2`,
+      [lang, Math.max(1, Math.min(100, limit))],
+    );
+    return result.rows;
+  }
+
   async currentVersion(): Promise<string> {
     const result = await this.pool.query<{
       source_id: string;

@@ -497,6 +497,52 @@ describe("P08 Telegram domain FR-TG-01–12", () => {
     });
     expect(h.ask).toHaveBeenCalledTimes(1);
   });
+  it("asks once before sending voice notes to a remote transcriber", async () => {
+    const voice = {
+      supported: () => ({ stt: true, tts: false }),
+      transcribe: vi.fn(async () => "Reviewed words"),
+      synthesize: vi.fn(),
+    };
+    const h = setup({ voice, voiceConsentRequired: true });
+    const voiceUpdate = (id: number) =>
+      h.service.handleUpdate({
+        update_id: id,
+        message: {
+          message_id: id,
+          chat: { id: 12345, type: "private" },
+          from: { id: 12345, is_bot: false },
+          voice: { file_id: "opaque", duration: 2 },
+        },
+      });
+    const tap = (id: number, data: string) =>
+      h.service.handleUpdate({
+        update_id: id,
+        callback_query: {
+          id: String(id),
+          from: { id: 12345, is_bot: false },
+          data,
+          message: { message_id: id, chat: { id: 12345, type: "private" } },
+        },
+      });
+    const sentKeys = () => h.send.mock.calls.map(([message]) => message.text);
+
+    // "Not now" discards the held note without transcribing it.
+    await voiceUpdate(1);
+    expect(voice.transcribe).not.toHaveBeenCalled();
+    expect(sentKeys()).toContain("en:telegram.voice_consent");
+    await tap(2, "voice:deny:1");
+    expect(voice.transcribe).not.toHaveBeenCalled();
+    expect(h.store.inspect()[0]?.state.voiceFile).toBeUndefined();
+
+    // "I agree" transcribes the held note, then later notes go straight through.
+    await voiceUpdate(3);
+    await tap(4, "voice:allow:3");
+    expect(voice.transcribe).toHaveBeenCalledTimes(1);
+    expect(sentKeys()).toContain("en:telegram.voice_review");
+    await voiceUpdate(5);
+    expect(voice.transcribe).toHaveBeenCalledTimes(2);
+    expect(h.ask).not.toHaveBeenCalled();
+  });
   it("reports unavailable file voice honestly and does not trust a transcript in update", async () => {
     const h = setup();
     await h.service.handleUpdate({

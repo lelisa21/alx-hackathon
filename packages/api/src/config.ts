@@ -62,13 +62,29 @@ const publicSourcesSchema = z
     return parsed.data;
   });
 
+// Plain HTTP is accepted only for a local demo platform on this machine, and
+// only with NODE_ENV=development (enforced in the superRefine below).
+const LOCAL_HTTP_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "host.docker.internal",
+]);
+export function isLocalHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 const ltiPlatformUrlSchema = z
   .string()
   .url()
   .refine((value) => {
     const url = new URL(value);
     return (
-      url.protocol === "https:" &&
+      (url.protocol === "https:" || isLocalHttpUrl(value)) &&
       !url.username &&
       !url.password &&
       !url.search &&
@@ -163,7 +179,7 @@ const providerBindingSchema = z
     priority: z.number().int().min(0).max(100_000),
     timeoutMs: z.number().int().min(100).max(120_000),
     allowedDataClasses: z
-      .array(z.enum(["question", "course-passage", "glossary"]))
+      .array(z.enum(["question", "course-passage", "job-posting", "glossary"]))
       .refine((values) => new Set(values).size === values.length),
     evaluatedLanguages: z.array(z.string().min(1)).default([]),
     capabilities: providerCapabilitiesSchema,
@@ -335,7 +351,18 @@ const environmentSchema = z
     DIMTS_PUBLIC_SOURCES: publicSourcesSchema,
     DIMTS_LTI_PLATFORMS: ltiPlatformsSchema,
     // LTI launch page: the widget module URL and its public host key.
-    DIMTS_LTI_WIDGET_URL: optionalSmsUrl,
+    DIMTS_LTI_WIDGET_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .url()
+        .refine(
+          (value) =>
+            new URL(value).protocol === "https:" || isLocalHttpUrl(value),
+          "must use HTTPS",
+        )
+        .optional(),
+    ),
     DIMTS_LTI_WIDGET_KEY: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(1).max(256).optional(),
@@ -371,6 +398,66 @@ const environmentSchema = z
       (value) => (value === "" ? undefined : value),
       z.string().min(24).optional(),
     ),
+    // Cloud speech for languages the browser cannot recognise or speak. Runs
+    // only after the learner allows cloud voice for the session.
+    DIMTS_CLOUD_VOICE: z.enum(["off", "gemini"]).default("off"),
+    DIMTS_CLOUD_VOICE_LANGS: z
+      .string()
+      .default("en,am,om")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    DIMTS_CLOUD_VOICE_STT_MODEL: z
+      .string()
+      .min(1)
+      .default("gemini-3.5-flash-lite"),
+    DIMTS_CLOUD_VOICE_TTS_MODEL: z
+      .string()
+      .min(1)
+      .default("gemini-3.1-flash-tts-preview"),
+    DIMTS_CLOUD_VOICE_CREDENTIAL_REF: z
+      .string()
+      .min(1)
+      .default("GEMINI_API_KEY"),
+    // Job platforms to import from: ethiojobs, hahujobs, afriwork.
+    DIMTS_JOB_SOURCES: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.enum(["ethiojobs", "hahujobs", "afriwork"]))),
+    DIMTS_JOB_SYNC_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(604800000)
+      .default(21600000),
+    DIMTS_JOB_SYNC_LIMIT: z.coerce.number().int().min(1).max(200).default(40),
+    DIMTS_JOB_USER_AGENT: z.string().max(200).default("DimtsJobsBot/0.1"),
+    // Partner feeds: HahuJobs and Afriwork publish no public API or feed.
+    DIMTS_HAHUJOBS_FEED_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().url().optional(),
+    ),
+    DIMTS_HAHUJOBS_FEED_TOKEN: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(8).max(512).optional(),
+    ),
+    DIMTS_AFRIWORK_FEED_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().url().optional(),
+    ),
+    DIMTS_AFRIWORK_FEED_TOKEN: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(8).max(512).optional(),
+    ),
     DIMTS_JOBS_ALERT_INTERVAL_MS: z.coerce
       .number()
       .int()
@@ -405,6 +492,26 @@ const environmentSchema = z
       }),
     DIMTS_HOST_ORIGINS: z.string().default(""),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
+    // Draft packs this host publishes as beta. Review-gated features stay off.
+    DIMTS_PREVIEW_LANGS: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      )
+      .pipe(
+        z.array(
+          z
+            .string()
+            .regex(
+              /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u,
+              "invalid language code",
+            ),
+        ),
+      ),
     DIMTS_STT_ENGINE: z.enum(["none", "browser"]).default("none"),
     DIMTS_TTS_ENGINE: z.enum(["none", "browser"]).default("none"),
     // Development only: try browser voice before the device review protocol.
@@ -487,6 +594,24 @@ const environmentSchema = z
         message:
           "DIMTS_LTI_WIDGET_URL and DIMTS_LTI_WIDGET_KEY must be configured together",
       });
+    if (config.NODE_ENV !== "development") {
+      const localHttp = [
+        config.DIMTS_LTI_WIDGET_URL ?? "",
+        ...config.DIMTS_LTI_PLATFORMS.flatMap((platform) => [
+          platform.issuer,
+          platform.authLoginUrl,
+          platform.authTokenUrl,
+          platform.jwksUri,
+        ]),
+      ].some(isLocalHttpUrl);
+      if (localHttp)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["DIMTS_LTI_PLATFORMS"],
+          message:
+            "Plain-HTTP LTI URLs are allowed only with NODE_ENV=development",
+        });
+    }
     if (config.DIMTS_VOICE_PREVIEW && config.NODE_ENV !== "development")
       context.addIssue({
         code: z.ZodIssueCode.custom,

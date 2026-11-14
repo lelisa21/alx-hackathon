@@ -1,0 +1,40 @@
+// Same-origin host loader for the demo Savanna pages and lesson pages.
+// nginx renders this template at startup with the public widget key, then
+// injects <script async src="/dimts-host.js"> into each served Savanna page.
+// It installs the documented asynchronous embed (FR-INT) exactly as a host
+// would: one script tag with data attributes. Removing the tag uninstalls it.
+(function () {
+  var current = document.currentScript;
+  if (document.querySelector("script[data-dimts-embed]")) return;
+  var embed = document.createElement("script");
+  embed.async = true;
+  // Load the embed from the same place as this loader.
+  embed.src = new URL("dimts-embed.js", current ? current.src : location.href).href;
+  embed.setAttribute("data-dimts-embed", "");
+  embed.setAttribute("data-api", "${DIMTS_PUBLIC_API}");
+  embed.setAttribute("data-host-key", "${DIMTS_LOCAL_WIDGET_KEY}");
+  var lang = current && current.getAttribute("data-lang");
+  if (lang) embed.setAttribute("data-lang", lang);
+  document.body.appendChild(embed);
+
+  // Optional host buttons: <button data-dimts-open hidden>…</button>
+  // They stay hidden unless the widget actually installs.
+  function wireButtons() {
+    var buttons = document.querySelectorAll("[data-dimts-open]");
+    for (var i = 0; i < buttons.length; i += 1) {
+      buttons[i].hidden = false;
+      buttons[i].addEventListener("click", function () {
+        if (window.Dimts) window.Dimts.open();
+      });
+    }
+  }
+  // The module installs window.Dimts asynchronously after the loader runs.
+  var tries = 0;
+  var timer = setInterval(function () {
+    tries += 1;
+    if (window.Dimts || tries > 60) {
+      clearInterval(timer);
+      if (window.Dimts) wireButtons();
+    }
+  }, 250);
+})();

@@ -49,13 +49,35 @@ function hasRuleMatch(text: string, phrases: string[], lang: string): boolean {
   return phrases.some((phrase) => containsPhrase(text, phrase, lang));
 }
 
+/**
+ * FR-CONV-05: explicit requests for a person. A single keyword such as "help"
+ * or "human" is an explicit request when it is (nearly) the whole message —
+ * "help", "I need help" — but not inside a course question such as "Will AI
+ * replace human assistants?". Multi-word phrases match anywhere. Distress
+ * rules never use this narrowing.
+ */
+const SHORT_REQUEST_WORDS = 3;
+
+function hasEscalationMatch(
+  text: string,
+  phrases: string[],
+  lang: string,
+): boolean {
+  const short = words(text, lang).length <= SHORT_REQUEST_WORDS;
+  return phrases.some(
+    (phrase) =>
+      (short || words(phrase, lang).length > 1) &&
+      containsPhrase(text, phrase, lang),
+  );
+}
+
 export function detectConversationRule(
   text: string,
   lang: string,
   rules: RuleSet,
 ): "distress" | "escalation" | null {
   if (hasRuleMatch(text, rules.distress, lang)) return "distress";
-  if (hasRuleMatch(text, rules.escalation, lang)) return "escalation";
+  if (hasEscalationMatch(text, rules.escalation, lang)) return "escalation";
   return null;
 }
 
@@ -208,7 +230,7 @@ export async function ask(
   }
   if (
     ruleSet &&
-    hasRuleMatch(turnRequest.text, ruleSet.escalation, turnRequest.lang)
+    hasEscalationMatch(turnRequest.text, ruleSet.escalation, turnRequest.lang)
   ) {
     return ruleReply(turnRequest, deps, contentVersion, "escalation");
   }

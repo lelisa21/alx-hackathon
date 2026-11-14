@@ -10,6 +10,7 @@ import { FrancLanguageDetector } from "@dimts/ai";
 import { JobsService } from "@dimts/jobs";
 import type { JobsDelivery } from "@dimts/jobs";
 import { loadPacks } from "@dimts/locales-tools";
+import { withPreviewLanguages } from "./preview-languages.js";
 import {
   PostgresGrounding,
   PostgresSourceSyncStore,
@@ -38,6 +39,9 @@ import { createInsightsRouter } from "./routes/insights.js";
 import { attachHelpWebSockets } from "./help-sockets.js";
 import type { HelpSocketRuntime, HelpSocketStore } from "./help-sockets.js";
 import { createInternalRouter } from "./routes/internal.js";
+import { createJobSourceSync } from "./job-sources.js";
+import { cloudVoiceFileAdapters, createGeminiVoice } from "./cloud-voice.js";
+import { createVoiceRouter } from "./routes/voice.js";
 import { createEngineDependencies } from "./engine.js";
 import { createApiProviderRuntime } from "./provider-runtime.js";
 import type { ApiConfig } from "./config.js";
@@ -136,7 +140,28 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   let helpSocketStore =
     options.helpSocketStore ??
     (pool ? createPostgresHelpSocketStore(pool) : undefined);
-  const packs = loadPacks(options.localesRoot ?? defaultLocalesRoot);
+  const cloudVoiceKey =
+    config.DIMTS_CLOUD_VOICE === "gemini"
+      ? (options.providerSecrets ?? process.env)[
+          config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF
+        ]?.trim()
+      : undefined;
+  if (config.DIMTS_CLOUD_VOICE === "gemini" && !cloudVoiceKey)
+    throw new Error(
+      `Cloud voice credential ${config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF} is unavailable.`,
+    );
+  const cloudVoice = cloudVoiceKey
+    ? createGeminiVoice({
+        apiKey: cloudVoiceKey,
+        sttModel: config.DIMTS_CLOUD_VOICE_STT_MODEL,
+        ttsModel: config.DIMTS_CLOUD_VOICE_TTS_MODEL,
+        languages: config.DIMTS_CLOUD_VOICE_LANGS,
+      })
+    : undefined;
+  const packs = withPreviewLanguages(
+    loadPacks(options.localesRoot ?? defaultLocalesRoot),
+    config.DIMTS_PREVIEW_LANGS ?? [],
+  );
   let smsService = options.smsService;
   let telegramService = options.telegramService;
   const nativeTelegramEnabled =
@@ -236,6 +261,9 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
             ? { transport: options.telegramTransport }
             : {}),
           ...(options.telegramVoice ? { voice: options.telegramVoice } : {}),
+          ...(cloudVoice
+            ? { cloudVoice: cloudVoiceFileAdapters(cloudVoice) }
+            : {}),
           socket: () => helpSocketRuntime,
           onError: () => logger.error({ event: "telegram_setup_failed" }),
         })
@@ -245,6 +273,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   app.locals.telegramReady = telegramRuntime?.ready ?? Promise.resolve();
   let mediaCleanupRunning = false;
   let careerCleanupRunning = false;
+  const jobSourceSync =
+    jobsService && pool && config.DIMTS_JOB_SOURCES.length > 0
+      ? createJobSourceSync(config, jobsService, (event) =>
+          logger.warn({ event: "job_source_sync_failed", ...event }),
+        )
+      : undefined;
+  if (jobSourceSync && config.NODE_ENV !== "test")
+    void jobSourceSync.start().catch(() => undefined);
   const cleanupCareer = async () => {
     if (careerCleanupRunning || !jobsService) return;
     careerCleanupRunning = true;
@@ -351,6 +387,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     if (careerCleanupTimer) clearInterval(careerCleanupTimer);
     if (alertsTimer) clearInterval(alertsTimer);
     if (imageCleanupTimer) clearInterval(imageCleanupTimer);
+    await jobSourceSync?.stop();
     helpSocketRuntime?.close();
     try {
       await sourceSyncManager?.stop();
@@ -414,6 +451,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       ...(telegramService ? { service: telegramService } : {}),
     }),
   );
+  // Recordings exceed the 100 KB JSON limit below; this router parses its own.
+  app.use("/v1", createVoiceRouter({ repository, voice: cloudVoice }));
   app.use(express.json({ limit: "100kb", strict: true }));
 
   app.use(
@@ -466,6 +505,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         repository,
         packs,
         defaultLang: config.DIMTS_DEFAULT_LANG,
+        ...(jobSourceSync ? { sources: jobSourceSync } : {}),
       }),
     );
   }
@@ -493,7 +533,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   );
   app.use(
     "/v1/internal",
-    createInternalRouter(config, repository, jobsService),
+    createInternalRouter(config, repository, jobsService, jobSourceSync),
   );
 
   // OpenAPI documentation

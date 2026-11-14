@@ -103,6 +103,39 @@ describe("core intelligence requirements", () => {
     },
   );
 
+  it("treats a single keyword as a request only when it is nearly the whole message", async () => {
+    const rules = {
+      escalation: ["help", "human", "talk to a person"],
+      distress: ["unsafe"],
+    };
+    const escalate = async (text: string) =>
+      (
+        await ask(
+          { ...question, text },
+          dependencies({ rulesFor: () => rules }),
+        )
+      ).kind;
+
+    expect(await escalate("help")).toBe("escalation");
+    expect(await escalate("I need help")).toBe("escalation");
+    expect(await escalate("human please")).toBe("escalation");
+    // Multi-word phrases still match inside longer messages.
+    expect(
+      await escalate("Sorry, can I talk to a person about my score?"),
+    ).toBe("escalation");
+    // A course question that mentions the keyword is answered, not escalated.
+    expect(
+      await escalate("Will AI replace human virtual assistants in the future?"),
+    ).not.toBe("escalation");
+    expect(
+      await escalate("Where can I get help with my weekly score?"),
+    ).not.toBe("escalation");
+    // Distress keywords are never narrowed.
+    expect(
+      await escalate("I have felt unsafe at home for many weeks now"),
+    ).toBe("distress");
+  });
+
   it("uses distress rules and host-configured support text before any provider call", async () => {
     const answer = vi.fn();
     const deps = dependencies({

@@ -86,6 +86,9 @@ export function createTelegramTransport(options: {
   now?: () => number;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }): TelegramTransport {
+  type GrammyFetch = NonNullable<
+    NonNullable<ConstructorParameters<typeof Api>[1]>["fetch"]
+  >;
   if (
     !/^[0-9]+:[A-Za-z0-9_-]{20,}$/u.test(options.token) ||
     options.hashKey.length < 32
@@ -98,7 +101,9 @@ export function createTelegramTransport(options: {
   // grammY creates a polyfill signal internally. Node's native fetch rejects
   // that object; relay its abort event to a native controller. Keep the listener
   // through JSON consumption so a stalled response body is bounded too.
-  const sdkFetch: typeof fetch = async (url, request) => {
+  // grammY types fetch with its own RequestInit/Response shims, which are
+  // structurally compatible with Node's but not assignable; convert here.
+  const sdkFetch = async (url: URL | RequestInfo, request?: RequestInit) => {
     const controller = new AbortController();
     const upstream = request?.signal;
     const abort = () => controller.abort();
@@ -125,7 +130,7 @@ export function createTelegramTransport(options: {
     }
   };
   const api = new Api(options.token, {
-    fetch: sdkFetch,
+    fetch: sdkFetch as unknown as GrammyFetch,
     timeoutSeconds: 35,
     sensitiveLogs: false,
     baseFetchConfig: { redirect: "error" },

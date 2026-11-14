@@ -1,6 +1,6 @@
 import { z } from "zod";
 import type { AnswerRequest } from "@dimts/engine";
-import { InvalidProviderResponseError } from "./provider.js";
+import { InvalidProviderResponseError, permittedPassages } from "./provider.js";
 import type {
   AiProvider,
   AnswerResult,
@@ -143,12 +143,11 @@ export abstract class ProviderBase implements AiProvider {
   }
   protected data(request: AnswerRequest): ProviderInput {
     const allowed = new Set(this.allowedDataClasses);
-    const passages = allowed.has("course-passage")
-      ? request.passages.filter(
-          ({ sourceType }) =>
-            this.privacyClass === "local" || sourceType === "course",
-        )
-      : [];
+    const passages = permittedPassages(
+      request.passages,
+      allowed,
+      this.privacyClass,
+    );
     if (
       !allowed.has("question") ||
       !request.question.trim() ||

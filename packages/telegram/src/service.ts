@@ -384,6 +384,40 @@ export class TelegramService {
       await reply("welcome");
       return;
     }
+    if (data.startsWith("voice:allow:") || data.startsWith("voice:deny:")) {
+      const [, action, id] = data.split(":");
+      const held = record.state.voiceFile;
+      delete record.state.voiceFile;
+      if (action === "deny") {
+        await locked.save(record);
+        await reply("voice_retry");
+        return;
+      }
+      record.state.cloudVoice = true;
+      await locked.save(record);
+      if (
+        !held ||
+        held.id !== Number(id) ||
+        held.expiresAt <= this.now().getTime()
+      ) {
+        await reply("voice_expired");
+        return;
+      }
+      await this.transcribeVoice(
+        {
+          chatId,
+          updateId: held.id,
+          fileId: held.fileId,
+          duration: held.duration,
+          ...(held.fileSize === undefined ? {} : { fileSize: held.fileSize }),
+          ...(held.mimeType ? { mimeType: held.mimeType } : {}),
+        },
+        record,
+        locked,
+        key,
+      );
+      return;
+    }
     if (data.startsWith("voice:")) {
       const [_, action, id] = data.split(":");
       void _;
@@ -736,6 +770,53 @@ export class TelegramService {
       );
       return;
     }
+    if (this.options.voiceConsentRequired && !record.state.cloudVoice) {
+      record.state.voiceFile = {
+        id: update.updateId,
+        fileId: update.fileId,
+        duration: update.duration,
+        ...(update.fileSize === undefined ? {} : { fileSize: update.fileSize }),
+        ...(update.mimeType ? { mimeType: update.mimeType } : {}),
+        expiresAt: this.now().getTime() + 3600000,
+      };
+      await locked.save(record);
+      await this.send(
+        update.chatId,
+        key + ":voice_consent",
+        this.copy(record.lang, "voice_consent"),
+        [
+          [
+            this.button(
+              record.lang,
+              "consent",
+              "voice:allow:" + update.updateId,
+            ),
+            this.button(
+              record.lang,
+              "decline",
+              "voice:deny:" + update.updateId,
+            ),
+          ],
+        ],
+      );
+      return;
+    }
+    await this.transcribeVoice(update, record, locked, key);
+  }
+  private async transcribeVoice(
+    update: {
+      chatId: string;
+      updateId: number;
+      fileId: string;
+      duration: number;
+      fileSize?: number;
+      mimeType?: string;
+    },
+    record: TelegramRecord,
+    locked: TelegramLockedStore,
+    key: string,
+  ): Promise<void> {
+    const voice = this.options.voice!;
     const text = await voice.transcribe(
       {
         file_id: update.fileId,

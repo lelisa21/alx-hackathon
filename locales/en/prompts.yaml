@@ -8,6 +8,16 @@ escalation:
   - human
   - talk to someone
   - agent
+  - talk to a person
+  - talk to a human
+  - real person
+  - speak to someone
+  - human agent
+  - need a person
+  - need a human
+  - need help
+  - want a person
+  - want a human
 distress:
   - I want to die
   - I want to hurt myself

@@ -182,6 +182,10 @@ describe("LTI 1.3 browser flow", () => {
       expect(csp).toContain(`frame-ancestors ${platform.issuer}`);
       expect(csp).toContain("script-src https://assets.example.org");
       expect(repository.createSession).toHaveBeenCalledOnce();
+      // The session table requires cloud_ok; remote AI starts off for LTI.
+      expect(repository.createSession).toHaveBeenCalledWith(
+        expect.objectContaining({ cloudOk: false, consentVersion: null }),
+      );
     } finally {
       await app.locals.close();
     }

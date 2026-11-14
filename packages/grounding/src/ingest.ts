@@ -133,6 +133,41 @@ function markdownParts(markdown: string): {
   return { lessonTitle, chunks };
 }
 
+export interface MarkdownHeading {
+  level: number;
+  title: string;
+  anchor: string;
+}
+
+/**
+ * Headings with the exact anchors that citations use. Renderers must take ids
+ * from here so a citation link always lands on its section.
+ */
+export function markdownOutline(markdown: string): MarkdownHeading[] {
+  const anchors = new Map<string, number>();
+  const fence = /^\s*(```+|~~~+)/u;
+  const heading = /^(#{1,6})\s+(.+?)\s*#*\s*$/u;
+  // markdownParts reserves the implicit introduction anchor first.
+  uniqueAnchor("Introduction", anchors);
+  const headings: MarkdownHeading[] = [];
+  let fenced = false;
+  for (const rawLine of markdown.split(/\r?\n/u)) {
+    if (fence.test(rawLine)) {
+      fenced = !fenced;
+      continue;
+    }
+    const match = fenced ? null : heading.exec(rawLine.trim());
+    const title = match?.[2]?.trim();
+    if (!match || !title) continue;
+    headings.push({
+      level: match[1]!.length,
+      title,
+      anchor: uniqueAnchor(title, anchors),
+    });
+  }
+  return headings;
+}
+
 function htmlParts(html: string): {
   lessonTitle: string;
   chunks: ContentChunk[];

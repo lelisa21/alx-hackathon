@@ -142,9 +142,10 @@ export function createPostgresRepository(
           session.channel,
           session.lang,
           tokenHash,
-          session.resumeHash,
-          session.cloudOk,
-          session.consentVersion,
+          session.resumeHash ?? null,
+          // NOT NULL in the schema; channels that omit it have no consent.
+          session.cloudOk ?? false,
+          session.consentVersion ?? null,
           session.expiresAt,
           session.ltiContext ? JSON.stringify(session.ltiContext) : null,
         ],

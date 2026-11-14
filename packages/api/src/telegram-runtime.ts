@@ -6,6 +6,7 @@ import type { JobsDelivery } from "@dimts/jobs";
 import type { LangPack } from "@dimts/locales-tools";
 import {
   TelegramService,
+  createTelegramVoice,
   createTelegramTransport,
   startTelegramPolling,
 } from "@dimts/telegram";
@@ -158,6 +159,8 @@ export function createTelegramRuntime(options: {
   jobs?: JobsApiService;
   transport?: TelegramTransport;
   voice?: TelegramVoice;
+  /** Cloud transcription for voice notes when no voice port is supplied. */
+  cloudVoice?: Parameters<typeof createTelegramVoice>[0]["adapters"];
   helpStore?: HelpStore;
   helpSocketStore?: HelpSocketStore;
   socket(): HelpSocketRuntime | undefined;
@@ -267,7 +270,18 @@ export function createTelegramRuntime(options: {
           },
         }
       : {}),
-    ...(options.voice ? { voice: options.voice } : {}),
+    ...(options.voice
+      ? { voice: options.voice }
+      : options.cloudVoice
+        ? {
+            voice: createTelegramVoice({
+              transport,
+              adapters: options.cloudVoice,
+            }),
+            // Audio goes to a remote speech service: ask each chat once.
+            voiceConsentRequired: true,
+          }
+        : {}),
   });
   const ready = (async () => {
     for (const registration of telegramCommandRegistrations(packs)) {

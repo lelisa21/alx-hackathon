@@ -44,7 +44,7 @@ interface CoreRouteOptions {
   askDependencies?: AskDependencies;
   providerRuntime?: ApiProviderRuntime;
   grounding?: Pick<PostgresGrounding, "currentVersion"> &
-    Partial<Pick<PostgresGrounding, "resolveFaqCitations">>;
+    Partial<Pick<PostgresGrounding, "resolveFaqCitations" | "courseQuestions">>;
   conversationStore?: ConversationStateStore;
 }
 
@@ -243,6 +243,21 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
     response.json(payload);
+  });
+
+  // Public: the questions this language's course content answers. Asking one
+  // goes through the normal grounded, cited answer path.
+  router.get("/course/questions", async (request, response) => {
+    const lang =
+      typeof request.query.lang === "string" ? request.query.lang : "";
+    if (!validPublicLang(packs, lang)) {
+      sendProblem(response, 400, "invalid_request", "error.invalid");
+      return;
+    }
+    const questions =
+      (await options.grounding?.courseQuestions?.(lang).catch(() => [])) ?? [];
+    response.set("Cache-Control", "public, max-age=300");
+    response.json({ lang, questions });
   });
 
   router.get("/docs", (request, response) => {

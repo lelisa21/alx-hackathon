@@ -9,6 +9,8 @@ RUN pnpm fetch --frozen-lockfile
 COPY . .
 RUN pnpm install --frozen-lockfile --offline
 RUN pnpm build
+# Static lesson pages for citation links (/learn/<lang>/<lesson>).
+RUN node scripts/build-lessons.mjs content/savanna packages/widget/dist/learn
 
 FROM node:22-alpine AS api
 
@@ -55,4 +57,8 @@ FROM nginx:alpine AS web
 
 COPY packages/widget/nginx.conf /etc/nginx/conf.d/default.conf
 COPY --from=workspace /app/packages/widget/dist /usr/share/nginx/html
+# Frozen Savanna captures, served at /savanna/ with the widget injected by nginx.
+COPY index.html /usr/share/nginx/html/savanna/index.html
+COPY pages /usr/share/nginx/html/savanna/pages
+COPY assets /usr/share/nginx/html/savanna/assets
 EXPOSE 80

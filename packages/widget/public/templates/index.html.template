@@ -3,33 +3,716 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dimts</title>
+    <title>Dimts · Multilingual learning assistant for ALX Savanna</title>
+    <meta
+      name="description"
+      content="Dimts answers learners' course questions in English, Amharic and Afaan Oromoo, with a citation for every answer, on the web, by voice, SMS and Telegram."
+    />
     <link
       rel="icon"
       href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23164e63'/%3E%3Cpath d='M9 8h7a8 8 0 0 1 0 16H9z' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E"
     />
     <style>
+      @font-face {
+        font-family: "Noto Sans Ethiopic";
+        font-display: swap;
+        src: url("/NotoSansEthiopic-ethiopic-400-normal.woff2") format("woff2");
+        unicode-range: U+1200-139F;
+      }
+      :root {
+        --bg: #f4f7f8;
+        --surface: #ffffff;
+        --text: #14232b;
+        --muted: #4a5f69;
+        --line: #d5dfe3;
+        --brand: #164e63;
+        --brand-ink: #ffffff;
+        --navy: #002b56;
+        --accent: #0e7c6b;
+        --hero: linear-gradient(135deg, #002b56 0%, #164e63 60%, #0e7c6b 100%);
+        --shadow: 0 1px 2px rgb(16 35 43 / 6%), 0 10px 30px rgb(16 35 43 / 8%);
+        color-scheme: light;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #0a141f;
+          --surface: #0f1b2d;
+          --text: #f2efe8;
+          --muted: #b7c6cc;
+          --line: #23364a;
+          --brand: #5ed0cb;
+          --brand-ink: #0a141f;
+          --accent: #5ed0cb;
+          --hero: linear-gradient(135deg, #06101c 0%, #0f2a3a 60%, #0d3b37 100%);
+          --shadow: 0 1px 2px rgb(0 0 0 / 30%), 0 10px 30px rgb(0 0 0 / 30%);
+          color-scheme: dark;
+        }
+      }
+      * {
+        box-sizing: border-box;
+      }
       html {
-        background: #eef3f5;
+        background: var(--bg);
       }
       body {
         margin: 0;
-        min-block-size: 100dvh;
-        padding: 1.5rem 1rem 6rem;
-        box-sizing: border-box;
+        background: var(--bg);
+        color: var(--text);
+        font:
+          17px/1.6 system-ui,
+          -apple-system,
+          "Segoe UI",
+          Roboto,
+          "Noto Sans Ethiopic",
+          sans-serif;
       }
-      @media (prefers-color-scheme: dark) {
-        html {
-          background: #0a141f;
+      a {
+        color: var(--brand);
+      }
+      :focus-visible {
+        outline: 3px solid #9cc9ff;
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .wrap {
+        max-inline-size: 76rem;
+        margin-inline: auto;
+        padding-inline: clamp(1rem, 4vw, 2.5rem);
+      }
+      .nav {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding-block: 0.875rem;
+      }
+      .nav-links {
+        display: flex;
+        gap: 0.25rem 1.25rem;
+        margin-inline-start: auto;
+        overflow-x: auto;
+        scrollbar-width: none;
+        white-space: nowrap;
+      }
+      .nav-links a {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 44px;
+      }
+      .skip {
+        position: absolute;
+        inset-inline-start: 1rem;
+        inset-block-start: -10rem;
+        z-index: 10;
+        padding: 0.75rem 1rem;
+        border-radius: 8px;
+        background: #fff;
+        color: #002b56;
+        font-weight: 700;
+      }
+      .skip:focus {
+        inset-block-start: 1rem;
+      }
+      .status-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+        gap: 0.75rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .status-item {
+        display: grid;
+        gap: 0.25rem;
+        padding: 1rem 1.125rem;
+        border: 1px solid var(--line);
+        border-inline-start: 6px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .status-item[data-state="ok"] {
+        border-inline-start-color: #138a4a;
+      }
+      .status-item[data-state="setup"] {
+        border-inline-start-color: #c27a00;
+      }
+      .status-item[data-state="down"] {
+        border-inline-start-color: #c0362c;
+      }
+      .status-item strong {
+        font-size: 1rem;
+      }
+      .state {
+        font-weight: 700;
+        font-size: 0.9rem;
+      }
+      .status-item p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      .nav a {
+        color: #fff;
+        text-decoration: none;
+        font-size: 0.95rem;
+        opacity: 0.9;
+      }
+      .nav a:hover {
+        opacity: 1;
+        text-decoration: underline;
+      }
+      .logo {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-inline-end: auto;
+        font-weight: 800;
+        font-size: 1.15rem;
+        opacity: 1 !important;
+      }
+      .mark {
+        display: grid;
+        place-items: center;
+        inline-size: 2rem;
+        block-size: 2rem;
+        border-radius: 9px;
+        background: #5ed0cb;
+        color: #0a141f;
+      }
+      .hero {
+        background: var(--hero);
+        color: #fff;
+        padding-block-end: 3rem;
+      }
+      .hero-grid {
+        display: grid;
+        grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+        gap: 2.5rem;
+        align-items: start;
+        padding-block-start: 2rem;
+      }
+      .eyebrow {
+        display: inline-block;
+        padding: 0.25rem 0.75rem;
+        border: 1px solid rgb(255 255 255 / 35%);
+        border-radius: 999px;
+        font-size: 0.85rem;
+      }
+      h1 {
+        margin: 1rem 0 0.75rem;
+        font-size: clamp(2rem, 4.4vw, 3.25rem);
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+        text-wrap: balance;
+      }
+      .lede {
+        max-inline-size: 36rem;
+        font-size: 1.125rem;
+        opacity: 0.92;
+      }
+      .greetings {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+        margin-block: 1.25rem;
+        padding: 0;
+        list-style: none;
+      }
+      .greetings li {
+        padding: 0.375rem 0.875rem;
+        border-radius: 999px;
+        background: rgb(255 255 255 / 12%);
+      }
+      .ctas {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-block-start: 1.5rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        min-block-size: 48px;
+        padding: 0.625rem 1.25rem;
+        border-radius: 999px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .btn-primary {
+        background: #fff;
+        color: #002b56;
+      }
+      .btn-ghost {
+        border: 1px solid rgb(255 255 255 / 55%);
+        color: #fff;
+      }
+      .live {
+        position: relative;
+      }
+      .live-label {
+        display: block;
+        margin-block-end: 0.5rem;
+        font-size: 0.85rem;
+        opacity: 0.85;
+      }
+      .live dimts-assistant {
+        display: block;
+        --dimts-help-position: static;
+        --dimts-help-order: 0;
+        --dimts-embed-height: min(40rem, calc(100dvh - 4rem));
+      }
+      section {
+        padding-block: 3rem 1rem;
+      }
+      h2 {
+        margin: 0 0 0.5rem;
+        font-size: clamp(1.5rem, 3vw, 2rem);
+        letter-spacing: -0.01em;
+      }
+      .section-lede {
+        max-inline-size: 44rem;
+        margin: 0 0 1.5rem;
+        color: var(--muted);
+      }
+      .cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 16rem), 1fr));
+        gap: 1rem;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+      }
+      .card {
+        display: grid;
+        align-content: start;
+        gap: 0.375rem;
+        padding: 1.25rem;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+        background: var(--surface);
+        box-shadow: var(--shadow);
+      }
+      .card h3 {
+        margin: 0;
+        font-size: 1.1rem;
+      }
+      .card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.95rem;
+      }
+      .card a {
+        font-weight: 700;
+      }
+      .icon {
+        display: grid;
+        place-items: center;
+        inline-size: 2.5rem;
+        block-size: 2.5rem;
+        margin-block-end: 0.25rem;
+        border-radius: 12px;
+        background: color-mix(in srgb, var(--brand) 14%, var(--surface));
+        color: var(--brand);
+        font-size: 1.25rem;
+      }
+      .steps {
+        counter-reset: step;
+      }
+      .steps .card::before {
+        counter-increment: step;
+        content: counter(step);
+        display: grid;
+        place-items: center;
+        inline-size: 2rem;
+        block-size: 2rem;
+        border-radius: 50%;
+        background: var(--brand);
+        color: var(--brand-ink);
+        font-weight: 800;
+      }
+      .samples {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+        gap: 1rem;
+      }
+      .samples ul {
+        margin: 0.5rem 0 0;
+        padding-inline-start: 1.1rem;
+        color: var(--muted);
+      }
+      .samples [lang="am"] {
+        font-family: "Noto Sans Ethiopic", system-ui, sans-serif;
+        line-height: 1.8;
+      }
+      footer {
+        margin-block-start: 3rem;
+        padding-block: 2rem;
+        border-block-start: 1px solid var(--line);
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
+      [hidden] {
+        display: none !important;
+      }
+      @media (max-width: 60rem) {
+        .hero-grid {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+      @media (max-width: 40rem) {
+        .nav {
+          flex-wrap: wrap;
+        }
+        .nav-links {
+          flex-basis: 100%;
+          margin-inline-start: 0;
+        }
+        .ctas .btn {
+          justify-content: center;
+          inline-size: 100%;
+        }
+        .hero {
+          padding-block-end: 2rem;
+        }
+        .live dimts-assistant {
+          --dimts-embed-height: calc(100dvh - 2rem);
+        }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        * {
+          scroll-behavior: auto !important;
+          transition: none !important;
         }
       }
     </style>
   </head>
   <body>
-    <dimts-assistant
-      data-api="/v1"
-      data-host-key="${DIMTS_LOCAL_WIDGET_KEY}"
-    ></dimts-assistant>
+    <a class="skip" href="#assistant">Skip to the assistant</a>
+    <header class="hero">
+      <nav class="wrap nav" aria-label="Dimts">
+        <a class="logo" href="/"><span class="mark" aria-hidden="true">D</span>Dimts</a>
+        <div class="nav-links">
+          <a href="/savanna/pages/homepage-v1-paced.html">Savanna demo</a>
+          <a href="/learn/">Course library</a>
+          <a href="#status">Live status</a>
+          <a href="/sim/sms">SMS</a>
+          <a href="/helper">Helper console</a>
+          <a href="/v1/docs">API docs</a>
+        </div>
+      </nav>
+      <div class="wrap hero-grid">
+        <div>
+          <span class="eyebrow">Built for ALX Savanna learners</span>
+          <h1>Ask your course anything, in your own language.</h1>
+          <p class="lede">
+            Dimts answers from the course itself and shows exactly which
+            lesson it used. It never guesses. When it cannot help, it brings in
+            a person.
+          </p>
+          <ul class="greetings" aria-label="Languages">
+            <li lang="en">English</li>
+            <li lang="am">አማርኛ</li>
+            <li lang="om">Afaan Oromoo</li>
+          </ul>
+          <div class="ctas">
+            <a class="btn btn-primary" href="/savanna/pages/homepage-v1-paced.html"
+              >Open Savanna with Dimts</a
+            >
+            <a class="btn btn-ghost" href="/learn/">Browse the lessons</a>
+          </div>
+        </div>
+        <div class="live" id="assistant" tabindex="-1">
+          <span class="live-label">Live assistant: try it here</span>
+          <dimts-assistant
+            data-api="/v1"
+            data-host-key="${DIMTS_LOCAL_WIDGET_KEY}"
+          ></dimts-assistant>
+        </div>
+      </div>
+    </header>
+
+    <main class="wrap">
+      <section aria-labelledby="channels">
+        <h2 id="channels">One assistant, every channel learners use</h2>
+        <p class="section-lede">
+          The same grounded engine answers on the web, by voice, by SMS and on
+          Telegram, and hands over to a human helper when needed.
+        </p>
+        <ul class="cards">
+          <li class="card">
+            <span class="icon" aria-hidden="true">▣</span>
+            <h3>Inside Savanna</h3>
+            <p>One script tag adds the assistant to any Savanna page.</p>
+            <a href="/savanna/">Open the Savanna pages</a>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true">◉</span>
+            <h3>Voice</h3>
+            <p>
+              Speak a question and hear the reply. Speech stays in the browser;
+              you review the text before it is sent.
+            </p>
+            <a href="/savanna/pages/concept-with-navigation.html">Try it in a lesson</a>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true">✉</span>
+            <h3>SMS</h3>
+            <p>
+              Short replies that fit one message, for learners without data.
+              HELP, JOBS and STOP work in every language.
+            </p>
+            <a href="/sim/sms">Open the SMS simulator</a>
+          </li>
+          <li class="card" id="telegram-card" hidden>
+            <span class="icon" aria-hidden="true">➤</span>
+            <h3>Telegram</h3>
+            <p>Private chat with the same answers, language choice and help.</p>
+            <a id="telegram-link" href="https://t.me/" rel="noopener">Open the bot</a>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true">☺</span>
+            <h3>Human help</h3>
+            <p>
+              “Help me now” connects the learner to a helper who sees only
+              what the learner chose to share.
+            </p>
+            <a href="/helper">Open the helper console</a>
+          </li>
+          <li class="card">
+            <span class="icon" aria-hidden="true">{ }</span>
+            <h3>Open API</h3>
+            <p>REST endpoints, an OpenAPI contract and an LTI 1.3 launch.</p>
+            <a href="/v1/docs">Read the API docs</a>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="access">
+        <h2 id="access">Made for every learner</h2>
+        <p class="section-lede">
+          The three buttons at the top of the assistant change text size,
+          switch to high contrast, and turn on Simple mode. They work on every
+          page and are remembered on this device.
+        </p>
+        <ul class="cards">
+          <li class="card">
+            <h3>Low vision</h3>
+            <p>
+              Text up to 200%, a high-contrast black and yellow theme, large
+              48-pixel buttons, and a layout that reflows when you zoom.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Blind and screen reader users</h3>
+            <p>
+              Every control is named in your language. New answers are
+              announced, and replies can be read aloud in English, Amharic and
+              Afaan Oromoo.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Deaf and hard of hearing</h3>
+            <p>
+              Everything works in text. Voice is optional, recording shows a
+              visible "Listening" state, and human help happens by text chat.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Easy reading</h3>
+            <p>
+              Simple mode gives shorter sentences, one source, bigger text and
+              reads answers aloud automatically.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Keyboard and motor</h3>
+            <p>
+              Full keyboard use with visible focus. Alt+Shift+M starts the
+              microphone, Alt+Shift+H asks for help, Alt+Shift+L changes
+              language.
+            </p>
+          </li>
+          <li class="card">
+            <h3>No data or a basic phone</h3>
+            <p>
+              Ask by SMS from any phone, or on Telegram. Saved answers work
+              offline, and Data saver keeps downloads small.
+            </p>
+          </li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="status">
+        <h2 id="status">Live status</h2>
+        <p class="section-lede">
+          Checked from this server just now. Anything that is not working says
+          why and what it needs.
+        </p>
+        <ul class="status-grid" id="status-list" aria-live="polite">
+          <li class="status-item"><strong>Checking…</strong></li>
+        </ul>
+      </section>
+
+      <section aria-labelledby="how">
+        <h2 id="how">How every answer is made</h2>
+        <p class="section-lede">
+          Grounded first, AI second, privacy always.
+        </p>
+        <ol class="cards steps">
+          <li class="card">
+            <h3>Detect the language</h3>
+            <p>The question is answered in the language it was asked in.</p>
+          </li>
+          <li class="card">
+            <h3>Find the lesson</h3>
+            <p>Dimts searches the course for the passage that answers it.</p>
+          </li>
+          <li class="card">
+            <h3>Write the answer</h3>
+            <p>
+              Offline extraction by default. Remote AI only if the learner
+              allows it for the session.
+            </p>
+          </li>
+          <li class="card">
+            <h3>Cite the source</h3>
+            <p>
+              Every answer links to the exact lesson section. No source, no
+              answer: Dimts offers a person instead.
+            </p>
+          </li>
+        </ol>
+      </section>
+
+      <section aria-labelledby="try">
+        <h2 id="try">Questions to try</h2>
+        <p class="section-lede">
+          Ask these in the assistant above, on a Savanna page, or by SMS.
+        </p>
+        <div class="samples">
+          <div class="card" lang="en">
+            <h3>English</h3>
+            <ul>
+              <li>What score do I need to pass a course?</li>
+              <li>How do I verify content generated by AI?</li>
+              <li>Will AI replace virtual assistants?</li>
+            </ul>
+          </div>
+          <div class="card" lang="am">
+            <h3>አማርኛ</h3>
+            <ul>
+              <li>ኮርስ ለማለፍ ምን ያህል ውጤት ያስፈልገኛል?</li>
+              <li>የፍጥነት ማበረታቻ ምንድን ነው?</li>
+              <li>ምናባዊ ረዳት ማለት ምንድን ነው?</li>
+            </ul>
+          </div>
+          <div class="card" lang="om">
+            <h3>Afaan Oromoo</h3>
+            <ul>
+              <li>Koorsii darbuuf qabxii hammamii barbaada?</li>
+              <li>Jajjabeessi saffisaa maali?</li>
+              <li>Gargaaraan dijitaalaa maali?</li>
+            </ul>
+          </div>
+        </div>
+      </section>
+
+      <footer>
+        Dimts · open-source multilingual learning assistant. Amharic and Afaan
+        Oromoo content is awaiting native-speaker review.
+        <a href="/v1/health">Service status</a>
+      </footer>
+    </main>
+
+    <script>
+      // Shown only when the host configures a public Telegram bot username.
+      (function () {
+        var bot = "${DIMTS_PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
+        if (!/^[A-Za-z0-9_]{5,32}$/.test(bot)) return;
+        document.getElementById("telegram-link").href = "https://t.me/" + bot;
+        document.getElementById("telegram-card").hidden = false;
+      })();
+    </script>
+    <script>
+      // Live status board: everything here comes from the running API.
+      (function () {
+        var list = document.getElementById("status-list");
+        function item(name, state, label, detail) {
+          var li = document.createElement("li");
+          li.className = "status-item";
+          li.dataset.state = state;
+          var strong = document.createElement("strong");
+          strong.textContent = name;
+          var badge = document.createElement("span");
+          badge.className = "state";
+          badge.textContent = label;
+          var p = document.createElement("p");
+          p.textContent = detail;
+          li.append(strong, badge, p);
+          return li;
+        }
+        function get(path) {
+          return fetch(path, { cache: "no-store" })
+            .then(function (r) {
+              return r.ok ? r.json() : null;
+            })
+            .catch(function () {
+              return null;
+            });
+        }
+        var reasons = {
+          partner_feed_required:
+            "No public API or feed. Needs a partner feed URL and token from the platform (DIMTS_*_FEED_URL).",
+          no_open_postings: "Reached, but no open postings were found.",
+          unreachable: "Could not reach the platform from this server.",
+        };
+        Promise.all([
+          get("/v1/health"),
+          get("/v1/languages"),
+          get("/v1/voice/cloud"),
+          get("/v1/jobs/sources"),
+        ]).then(function (r) {
+          var health = r[0], langs = r[1], voice = r[2], jobs = r[3];
+          var items = [];
+          items.push(
+            health && health.ok
+              ? item("Tutor and database", "ok", "Working", "Grounded answers with citations. Providers: " + (health.ladder || []).join(", ") + ".")
+              : item("Tutor and database", "down", "Not working", "The API or database is not responding."),
+          );
+          var codes = langs && langs.languages ? langs.languages.map(function (l) { return l.nameNative; }) : [];
+          items.push(
+            codes.length >= 3
+              ? item("Languages", "ok", "Working", codes.join(" · ") + ". Amharic and Afaan Oromoo await native-speaker review.")
+              : item("Languages", "setup", "Partial", (codes.join(" · ") || "None") + ". Set DIMTS_PREVIEW_LANGS=am,om to offer drafts."),
+          );
+          var device = langs && langs.languages ? langs.languages.filter(function (l) { return l.stt || l.tts; }).length : 0;
+          items.push(
+            voice && voice.available
+              ? item("Voice", "ok", "Working", "Browser speech where the device supports it; " + voice.provider + " cloud speech for " + voice.languages.join(", ") + " after the learner allows it.")
+              : device
+                ? item("Voice", "setup", "Partial", "Browser speech only. Set DIMTS_CLOUD_VOICE=gemini for Amharic and Afaan Oromoo.")
+                : item("Voice", "setup", "Off", "Set DIMTS_STT_ENGINE/DIMTS_TTS_ENGINE=browser and DIMTS_CLOUD_VOICE=gemini."),
+          );
+          (jobs && jobs.sources ? jobs.sources : []).forEach(function (s) {
+            var state = s.state === "ok" ? "ok" : s.state === "needs_setup" ? "setup" : s.state === "pending" ? "setup" : "down";
+            var label = s.state === "ok" ? "Working" : s.state === "needs_setup" ? "Needs your action" : s.state === "pending" ? "Importing…" : "Not working";
+            var detail = s.state === "ok"
+              ? s.imported + " open jobs imported" + (s.lastSyncedAt ? " at " + new Date(s.lastSyncedAt).toLocaleTimeString() : "") + ". Ask about jobs or open Jobs and support."
+              : reasons[s.reason] || "Waiting for the first import.";
+            items.push(item("Jobs: " + s.name, state, label, detail));
+          });
+          items.push(item("SMS", "ok", "Simulator working", "Real phone numbers need an SMS gateway account (DIMTS_SMS_MODE=gateway or smsethiopia)."));
+          var bot = "${DIMTS_PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
+          items.push(
+            /^[A-Za-z0-9_]{5,32}$/.test(bot)
+              ? item("Telegram", "ok", "Working", "@" + bot + " answers text and voice notes. Hosting needs a public HTTPS webhook.")
+              : item("Telegram", "setup", "Needs your action", "Set DIMTS_TELEGRAM_TOKEN and DIMTS_PUBLIC_TELEGRAM_BOT."),
+          );
+          items.push(item("Human help", "ok", "Working", "Learners tap Help me now; a helper answers at /helper."));
+          items.push(item("LTI 1.3", "setup", "Needs your LMS", "Register Dimts in Moodle or Canvas (see API docs) or run scripts/lti-demo-platform.mjs."));
+          list.replaceChildren.apply(list, items);
+        });
+      })();
+    </script>
     <script type="module" src="/dimts-widget.js"></script>
   </body>
 </html>

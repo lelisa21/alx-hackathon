@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
+import { provisionHelper } from "./admin.js";
 import { applyMigrations } from "./migrate.js";
 
 interface LocalHostKeyClient {
@@ -83,6 +84,18 @@ async function main(): Promise<void> {
       key,
       origins,
     });
+    // Local demo helper so "Help me now" reaches a person: sign in at /helper
+    // with DIMTS_SEED_HELPER_TOKEN. Skipped when the token is not set.
+    const helperToken = process.env.DIMTS_SEED_HELPER_TOKEN?.trim();
+    if (helperToken) {
+      await provisionHelper(client, {
+        id: "local-demo-helper",
+        displayName: "Demo helper",
+        token: helperToken,
+        langs: ["en", "am", "om"],
+      });
+      process.stdout.write("Local demo helper is ready.\n");
+    }
     for (const migration of migrations) {
       process.stdout.write(`applied ${migration}\n`);
     }

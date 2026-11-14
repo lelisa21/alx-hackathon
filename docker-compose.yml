@@ -46,6 +46,7 @@ services:
       DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
       DIMTS_LTI_PLATFORMS: "${DIMTS_LTI_PLATFORMS:-[]}"
       DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
+      DIMTS_PREVIEW_LANGS: ${DIMTS_PREVIEW_LANGS:-}
       DIMTS_STT_ENGINE: ${DIMTS_STT_ENGINE:-none}
       DIMTS_TTS_ENGINE: ${DIMTS_TTS_ENGINE:-none}
       DIMTS_VOICE_PREVIEW: ${DIMTS_VOICE_PREVIEW:-false}
@@ -68,7 +69,8 @@ services:
       DIMTS_HELP_WAIT_TIMEOUT_MS: ${DIMTS_HELP_WAIT_TIMEOUT_MS:-300000}
       DIMTS_TURN_APP: ${DIMTS_TURN_APP:-}
       DIMTS_TURN_API_KEY: ${DIMTS_TURN_API_KEY:-}
-      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-https://learn.example/course/}
+      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-http://localhost:5173/learn/}
+      DIMTS_CONTENT_PATH: ${DIMTS_CONTENT_PATH:-content/savanna}
       DIMTS_PUBLIC_SOURCES: ${DIMTS_PUBLIC_SOURCES:-[]}
       DIMTS_SOURCE_SYNC_INTERVAL_MS: ${DIMTS_SOURCE_SYNC_INTERVAL_MS:-300000}
       DIMTS_AI_PROVIDER: ${DIMTS_AI_PROVIDER:-offline}
@@ -83,7 +85,10 @@ services:
     command:
       - sh
       - -c
-      - node packages/api/dist/db/local-bootstrap.js && exec node packages/api/dist/server.js
+      - >-
+        node packages/api/dist/db/local-bootstrap.js &&
+        node packages/grounding/dist/cli.js "$$DIMTS_CONTENT_PATH" --if-changed &&
+        exec node packages/api/dist/server.js
     healthcheck:
       test:
         - CMD
@@ -110,6 +115,10 @@ services:
         condition: service_healthy
     environment:
       DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
+      # API base the injected host loader uses; nginx proxies /v1 locally.
+      DIMTS_PUBLIC_API: /v1
+      # Public bot username shown on the demo page; empty hides the Telegram card.
+      DIMTS_PUBLIC_TELEGRAM_BOT: ${DIMTS_PUBLIC_TELEGRAM_BOT:-}
       NGINX_ENVSUBST_TEMPLATE_DIR: /usr/share/nginx/html/templates
       NGINX_ENVSUBST_OUTPUT_DIR: /usr/share/nginx/html
     ports:
@@ -136,11 +145,11 @@ services:
       DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DIMTS_SEED_HELPER_TOKEN: ${DIMTS_SEED_HELPER_TOKEN:?Set DIMTS_SEED_HELPER_TOKEN in .env}
       DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
-      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-https://learn.example/course/}
+      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-http://localhost:5173/learn/}
     command:
       - sh
       - -c
-      - node packages/grounding/dist/cli.js content/sample-course && node scripts/seed.mjs
+      - node packages/grounding/dist/cli.js content/savanna && node scripts/seed.mjs
     networks:
       - backend
 

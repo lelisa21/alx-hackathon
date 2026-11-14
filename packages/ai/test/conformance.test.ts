@@ -356,9 +356,11 @@ describe("Gemini Interactions model controls", () => {
     const sentRequest =
       target instanceof Request ? target : new Request(target, init);
     const body = await sentRequest.clone().json();
+    // The live API rejects "minimal" for Gemini 4 with HTTP 400; "low" is
+    // its lowest accepted thinking level.
     expect(body.generation_config).toEqual({
       max_output_tokens: 300,
-      thinking_level: "minimal",
+      thinking_level: "low",
     });
   });
 });

@@ -54,6 +54,8 @@ export interface TelegramServiceOptions {
     }): Promise<void>;
   };
   voice?: TelegramVoice;
+  /** The voice adapter sends audio to a remote service: ask first, once. */
+  voiceConsentRequired?: boolean;
   now?: () => Date;
   perMinuteLimit?: number;
 }
@@ -74,6 +76,17 @@ export interface TelegramPrivateState {
   jobLang?: string;
   flowId?: number;
   voice?: { text: string; id: number; expiresAt: number };
+  /** The learner allowed remote transcription of their voice notes. */
+  cloudVoice?: boolean;
+  /** A voice note waiting for that permission (file reference only). */
+  voiceFile?: {
+    id: number;
+    fileId: string;
+    duration: number;
+    fileSize?: number;
+    mimeType?: string;
+    expiresAt: number;
+  };
   helpRequestId?: string;
 }
 export interface TelegramRecord {

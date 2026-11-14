@@ -47,3 +47,9 @@ export type {
   FileTextToSpeech,
   FileVoiceAdapters,
 } from "./file.js";
+export {
+  combineSpeechToText,
+  combineTextToSpeech,
+  createCloudVoiceAdapters,
+} from "./cloud.js";
+export type { CloudVoiceAdapters, CloudVoiceTransport } from "./cloud.js";

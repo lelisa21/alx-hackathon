@@ -1,46 +1,93 @@
-# Quick start: interactive Dimts MVP
+# Dimts: multilingual learning assistant for ALX Savanna
 
-The root `index.html` is an offline Savanna reference catalog. To run the
-interactive learner widget with its API:
+Dimts answers learners' course questions in **English, Amharic and Afaan
+Oromoo**, from the course content itself. Every answer links to the exact lesson
+section it used. When there is no source, Dimts says so and offers a person.
+The same engine serves the Savanna web widget, browser voice, SMS and
+Telegram.
 
-1. Start Docker Desktop and make sure its Linux container engine is running.
-2. On first run, create `.env` from `.env.example` and set the local secrets as
+## Quick start
+
+1. Start Docker Desktop (Linux containers).
+2. First run only: copy `.env.example` to `.env` and set the secrets as
    described in [Local API setup](./docs/API.md#start-locally).
-3. From the repository root, build and start the app:
+3. Build and start:
 
    ```powershell
    docker compose --profile local up --build -d --wait
    ```
 
-4. Open [http://localhost:5173/](http://localhost:5173/). Check
-   [http://localhost:5173/v1/health](http://localhost:5173/v1/health) to confirm
-   the API is ready through the widget's proxy.
-5. To stop the app and preserve local data:
+   The API applies migrations and ingests `content/savanna` (all three
+   languages) on start, and again whenever the content changes.
 
-   ```powershell
-   docker compose --profile local down
-   ```
+4. Open <http://localhost:5173/>.
 
-If the browser says **Failed to Load Page**, first check that Docker Desktop is
-running, then run `docker compose --profile local ps`. Start or inspect the
-services with:
+If port 3000 is taken, set `DIMTS_COMPOSE_API_PORT=3001` in `.env`. Stop with
+`docker compose --profile local down` (add `--volumes` to drop the database).
+
+## What to open
+
+| URL | What it shows |
+| --- | --- |
+| <http://localhost:5173/> | Demo hub with the live assistant |
+| <http://localhost:5173/savanna/pages/homepage-v1-paced.html> | Savanna learner dashboard with the **Open Dimts** launcher |
+| <http://localhost:5173/savanna/pages/concept-with-navigation.html> | Savanna concept page with the assistant |
+| <http://localhost:5173/learn/> | Course library: the lessons Dimts answers from, in three languages; citations land here |
+| <http://localhost:5173/sim/sms> | SMS simulator (enter `DIMTS_SMS_GATEWAY_SECRET`, any +251 test number) |
+| <http://localhost:5173/helper> | Helper console for human help requests |
+| <http://localhost:5173/v1/docs> | Integration guide: embed, REST, LTI, channels, content |
+| Telegram | Message your bot (`DIMTS_TELEGRAM_TOKEN`), send `/start`, pick a language |
+
+The Savanna pages in `pages/` and `assets/` are unmodified captures. nginx
+adds one `<script async src="/dimts-host.js">` tag to each page as it serves
+it, exactly as a real host would embed Dimts.
+
+## Demo walkthrough
+
+1. Open the Savanna dashboard and select **Open Dimts**. Choose a language;
+   the picker starts in the browser's language.
+2. Tap a starter question, or type one, for example:
+   - English: *What score do I need to pass a course?*
+   - Amharic: *ኮርስ ለማለፍ ምን ያህል ውጤት ያስፈልገኛል?*
+   - Afaan Oromoo: *Jajjabeessi saffisaa maali?*
+3. Open the citation chip. The lesson page opens at the highlighted section.
+4. Tick **Allow remote AI for this session** and ask a paraphrase such as
+   *If I only get 65 percent, will I earn the badge?* Gemini answers from the
+   same cited passages. Without consent, answers come from offline extraction.
+5. Ask something outside the course to see the honest not-found reply, or type
+   *I need a person* to see the human-help offer.
+6. Repeat a question in the SMS simulator or on Telegram.
+
+Check the tutor end to end from the command line:
 
 ```powershell
-docker compose --profile local up --build -d --wait
-docker compose --profile local logs --tail=100 api widget
+node scripts/smoke-ask.mjs            # offline answers, all three languages
+node scripts/smoke-ask.mjs --cloud    # with remote-AI consent
 ```
 
-If startup reports that host port `3000` is already allocated, use another API
-port in the same PowerShell window:
+## Languages, AI and voice
 
-```powershell
-$env:DIMTS_COMPOSE_API_PORT = "3001"
-docker compose --profile local up --build -d --wait
-```
+- **Languages:** English is `beta`. Amharic and Afaan Oromoo packs and lesson
+  translations are drafts awaiting native-speaker review.
+  `DIMTS_PREVIEW_LANGS=am,om` shows them to learners while review-gated features
+  (published FAQ answers, glossary cross-language retrieval, voice flags) stay
+  off. See [DECISIONS.md](./DECISIONS.md).
+- **AI:** offline extraction by default. Configure Gemini or any
+  OpenAI-compatible provider in `DIMTS_AI_PROVIDERS` (example in
+  `.env.example`). Remote providers run only after the learner consents.
+- **Voice:** browser speech, so audio never leaves the device. Local
+  development can use `DIMTS_VOICE_PREVIEW=true` with
+  `DIMTS_STT_ENGINE=browser` and `DIMTS_TTS_ENGINE=browser`. Production
+  requires the device review in [VOICE_TEST.md](./docs/VOICE_TEST.md); the
+  preview flag is rejected there.
 
-See [Local API setup](./docs/API.md#start-locally) for port conflicts and
-configuration. Opening `index.html` directly still shows only the offline
-reference pages.
+## Adding course content
+
+Put one Markdown lesson per language in `content/savanna/<lang>/`, using the
+same file name for the same lesson. Phrase `##` headings as learner questions
+and keep sentences to 12 words or fewer. Restart the API container, or run
+`pnpm content:ingest content/savanna --if-changed`. Lesson pages are rebuilt in
+the web image by `scripts/build-lessons.mjs`.
 
 ## Operations and release readiness
 

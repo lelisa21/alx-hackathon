@@ -1,5 +1,5 @@
 import type { AnswerRequest } from "@dimts/engine";
-import { InvalidProviderResponseError } from "./provider.js";
+import { InvalidProviderResponseError, permittedPassages } from "./provider.js";
 import type { AiProvider, AnswerResult } from "./provider.js";
 
 const COOLDOWN_MS = 60_000;
@@ -166,12 +166,11 @@ export class Ladder {
       mode: request.mode,
       systemPrompt: request.systemPrompt,
       question: allowed.has("question") ? request.question : "",
-      passages: allowed.has("course-passage")
-        ? request.passages.filter(
-            ({ sourceType }) =>
-              provider.privacyClass === "local" || sourceType === "course",
-          )
-        : [],
+      passages: permittedPassages(
+        request.passages,
+        allowed,
+        provider.privacyClass,
+      ),
       glossary:
         provider.privacyClass === "local" && allowed.has("glossary")
           ? request.glossary

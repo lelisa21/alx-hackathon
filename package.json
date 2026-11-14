@@ -14,7 +14,7 @@
     "admin": "pnpm --filter @dimts/api build && node --env-file-if-exists=.env packages/api/dist/db/admin.js",
     "local:bootstrap": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api bootstrap:local",
     "content:ingest": "pnpm --filter @dimts/engine build && pnpm --filter @dimts/grounding build && node --env-file-if-exists=.env packages/grounding/dist/cli.js",
-    "seed": "pnpm content:ingest content/sample-course && node --env-file-if-exists=.env scripts/seed.mjs",
+    "seed": "pnpm content:ingest content/savanna && node --env-file-if-exists=.env scripts/seed.mjs",
     "usage": "node --env-file-if-exists=.env scripts/usage.mjs",
     "purge:dry-run": "node --env-file-if-exists=.env scripts/purge-event-data.mjs --dry-run",
     "purge:event": "node --env-file-if-exists=.env scripts/purge-event-data.mjs --apply",
