@@ -154,29 +154,52 @@ integration points.
 
 ### 5. Verify real external integration boundaries
 
+**Status: Not complete. Blocked until host-provided credentials, real-device
+checks, and platform acceptance are available.**
+
 **Packages:** P05–P08 and P10; depends on the applicable completed feature
 contracts and host-provided credentials/configuration.
 
-- **Human help (P05):** test sharing, permission/stop behavior, and network
-  fallback on real devices and restrictive networks. A configured TURN
-  provider/credential and hosted retention behavior have not been verified.
-- **Jobs (P06):** validate the configured host relay and actual delivery
-  path with authorized integration credentials. Local protocol tests do not
-  establish a production host's acceptance/delivery.
-- **Telegram (P08):** complete an authorized live bot/webhook and delivery
-  verification. Tests and simulator data do not substitute for host credentials.
-- **LTI / REST (P10):** complete browser OIDC redirects, tool key/JWKS
-  publication, deep-link response, and a real test-platform learner/instructor
-  launch. Current static launch validation and mocked-JWKS tests are not a
-  production LMS integration. Run the documented Level 2/3 examples and an
-  outsider integration trial.
-- **SMS (P07):** the simulator and replaceable gateway contract are the event
-  scope. A real operator connection is explicitly out of scope and is not a
-  release prerequisite.
+The following items remain unverified and must be completed before workflow 5
+can be marked done:
 
-Do not invent credentials, host endpoints, legal contact values, or
-platform-specific fields. Agree and record any contract changes in
-`DECISIONS.md` before implementation.
+- **Human help (P05):**
+  - Real-device sharing and invite flow verification.
+  - Permission/stop behavior on actual learner/helper sessions.
+  - Network fallback handling on restrictive or low-connectivity devices.
+  - TURN provider validation with real credentials, not just protocol tests.
+  - Hosted retention behavior and deletion timing on the real deployment.
+  - No production claim is valid from local mocks or simulator-only tests.
+- **Jobs (P06):**
+  - Real host relay validation with authorized integration credentials.
+  - Actual delivery and acceptance path verification for the configured host.
+  - Live outbound job alert behavior against the real jobs relay/host backend.
+  - Validation of consent, unsubscribe, stop, and retention on the deployed path.
+  - Local protocol tests do not establish a production host's acceptance.
+- **Telegram (P08):**
+  - Authorized live bot/webhook verification with the real Telegram credentials.
+  - End-to-end delivery checks across inbound, reply, callback, and voice flow.
+  - Real webhook security, retry, and replay handling in the deployed environment.
+  - Consent/deletion and data-policy review for any voice or media handling.
+  - Simulator tests are not evidence of live hosting or operational readiness.
+- **LTI / REST (P10):**
+  - Real browser OIDC and redirect flow verification.
+  - Tool key/JWKS publication and validation against a real platform.
+  - Deep-link launch response validation with a real LMS environment.
+  - Real learner/instructor launch testing on a production-style platform.
+  - Level 2/3 example runs and an outsider integration trial still required.
+  - Static launch validation and mocked-JWKS tests are not production LMS proof.
+- **SMS (P07):**
+  - The simulator and replaceable gateway contract are in scope for event testing.
+  - A real operator connection is explicitly out of scope and is not a release
+    prerequisite.
+  - No SMS production validation is required for this release gate.
+
+**Required gating rule:** Do not invent credentials, host endpoints, legal
+contact values, or platform-specific fields. Agree and record any contract
+changes in `DECISIONS.md` before implementation. Workflow 5 remains blocked until
+all items above are verified against the real configured environment and
+approved by the host or integration owner.
 
 ### 6. Complete human accessibility and co-designer acceptance
 
