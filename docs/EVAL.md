@@ -41,7 +41,7 @@ FAQ matching is measured separately at the adapter boundary with each FAQ's actu
 
 ## Latency conditions
 
-Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 1.70 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 1.99 ms (target <50 ms).
+Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 3.13 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 2.66 ms (target <50 ms).
 
 Timings include retrieval, language/citation validation and reply construction. They do not establish deployed HTTP/PostgreSQL or real-model performance.
 

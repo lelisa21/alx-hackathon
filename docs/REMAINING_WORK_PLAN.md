@@ -52,19 +52,19 @@ store, replace source synchronization, or alter the frozen Savanna captures in
 These are not remaining implementation prompts. Their acceptance caveats are
 listed as actionable workflows below.
 
-| Work package | Delivered implementation increment |
-| --- | --- |
-| P01 | Locale checker/scaffolder, pack fallback and preview behavior, date/number formatting, and optional confirmed Amharic transliteration. |
-| P02 | Grounded answer pipeline, provider registry/policy, durable cache and signals, JobPosting passage handling, and evaluation tooling. |
-| P03 | Widget/offline FAQ and consent flows, reply controls, accessibility automation, and Level 1 embed contract. |
-| P04 | Browser voice adapters, explicit recording/review/send, playback controls, and capability gating. |
-| P05 | Help queue/relay, availability and fallback behavior, consented sharing/image paths, and helper workflow. |
-| P06 | Job import/search, alert and accommodation services, persistence, and learner career flows. |
-| P07 | SMS simulator, gateway boundary, encoding/continuation, STOP and subscription integration. Real carrier service remains out of event scope. |
-| P08 | Private Telegram adapter, shared tutor/help/jobs paths, alert consent and STOP, and voice-note review boundary. |
-| P09 | Insights aggregation service/API, privacy suppression, CSV, and authorization foundations. The teacher-facing page and full aggregate event wiring remain open. |
-| P10 | Static LTI configuration, launch validation/session persistence, replay protection, instructor authorization, and REST/OpenAPI examples. A complete production LTI/OIDC integration remains open. |
-| P11 | Operations/privacy/deletion scaffolding, CI and Compose/evaluation/a11y gates, and release documentation. Human and hosted evidence remains open. |
+| Work package | Delivered implementation increment                                                                                                                                                                |
+| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| P01          | Locale checker/scaffolder, pack fallback and preview behavior, date/number formatting, and optional confirmed Amharic transliteration.                                                            |
+| P02          | Grounded answer pipeline, provider registry/policy, durable cache and signals, JobPosting passage handling, and evaluation tooling.                                                               |
+| P03          | Widget/offline FAQ and consent flows, reply controls, accessibility automation, and Level 1 embed contract.                                                                                       |
+| P04          | Browser voice adapters, explicit recording/review/send, playback controls, and capability gating.                                                                                                 |
+| P05          | Help queue/relay, availability and fallback behavior, consented sharing/image paths, and helper workflow.                                                                                         |
+| P06          | Job import/search, alert and accommodation services, persistence, and learner career flows.                                                                                                       |
+| P07          | SMS simulator, gateway boundary, encoding/continuation, STOP and subscription integration. Real carrier service remains out of event scope.                                                       |
+| P08          | Private Telegram adapter, shared tutor/help/jobs paths, alert consent and STOP, and voice-note review boundary.                                                                                   |
+| P09          | Insights aggregation service/API, privacy suppression, CSV, and authorization foundations. The teacher-facing page and full aggregate event wiring remain open.                                   |
+| P10          | Static LTI configuration, launch validation/session persistence, replay protection, instructor authorization, and REST/OpenAPI examples. A complete production LTI/OIDC integration remains open. |
+| P11          | Operations/privacy/deletion scaffolding, CI and Compose/evaluation/a11y gates, and release documentation. Human and hosted evidence remains open.                                                 |
 
 ## Remaining workflows
 
@@ -108,9 +108,9 @@ AR-01/06/08, NFR-MAINT-02, NFR-PRIV-03, NFR-PERF-03.
   conformance tests do not establish real model quality or latency.
 - Verify provider p95 targets with the configured adapters, including
   conditions and failure cases. Keep unsupported/unmeasured results explicit.
-- Restore the engine/grounding/AI coverage floor: current `pnpm test:core`
-  evidence is below the 70% grounding branch-coverage requirement; do not lower
-  the threshold.
+- Maintain the engine/grounding/AI coverage floor. Task 2's focused regression
+  tests now make `pnpm test:core -- --maxWorkers=1` pass; grounding branch
+  coverage is 74.95% against the unchanged 70% threshold.
 - Preserve citation validity, language checks, injection tests, cache
   invalidation, and restart-safe ask idempotency while closing these gaps.
 
@@ -199,12 +199,12 @@ platform-specific fields. Agree and record any contract changes in
 
 - Verify hosted Render/Neon setup, secrets, TLS/CSP/origins, scheduled jobs,
   retention, actual free-tier use, database size, and warm 50-session p95.
-- Run PostgreSQL integration tests with the configured test database and
-  reconcile the grounding branch-coverage failure without reducing thresholds.
+- Run PostgreSQL integration tests with the configured test database and keep
+  the core package coverage thresholds enforced in CI.
 - Re-run the clean-machine Compose/restart workflow after the latest migrations.
-  The progress report records a Compose pass, while the gate checklist still
-  describes Docker execution as unavailable; refresh both records from one
-  reproducible run.
+  Earlier progress records a Compose pass, but Docker is unavailable in this
+  verification environment and its local `.env` does not parse. Reproduce the
+  runtime check after those environment blockers are resolved.
 - Resolve/report the remaining evaluation blockers; attach CI results for axe,
   audit and secret scan; report any skipped checks.
 - `pnpm format:check` currently flags 307 baseline files. Do not reformat
@@ -223,10 +223,11 @@ budget, and ownership approval.
 
 ## Verification snapshot
 
-The latest `IMPLEMENTATION_PROGRESS.md` reports 819 tests passed and 57
-skipped in the serialized full suite; 137 widget tests passed and 2 were
-skipped. Typecheck, lint, locale check, evaluation command, size gate, audit,
-and Compose test are reported as passing. This does not close the outstanding
-acceptance workflows above: the core coverage threshold, evaluation quality,
-native-speaker/co-designer evidence, real provider/hosted integration, and
-release gate remain open.
+The task 2 follow-up build and serialized full suite report 836 tests passed
+and 57 skipped across 85 passing test files and 11 skipped files; the separate
+core coverage run passes 246 tests across 23 files, including the grounding
+branch floor. Typecheck, lint, evaluation, and size checks pass. Compose
+interpolation parses with `.env.example`, but the Docker engine was unavailable
+and the local `.env` has a line-47 parse error, so container deployment was
+not verified. Multilingual tutor quality, native-speaker/co-designer evidence,
+real provider/hosted integration, and release gates remain open.
