@@ -132,11 +132,20 @@ export function createSmsRuntime(options: {
   smsPool.on("error", () => undefined);
   const gateway =
     options.gateway ??
-    createSmsGateway({
-      type: config.DIMTS_SMS_MODE === "simulator" ? "simulator" : "gateway",
-      url: config.DIMTS_SMS_GATEWAY_URL,
-      token: config.DIMTS_SMS_GATEWAY_TOKEN,
-    });
+    (() => {
+      if (config.DIMTS_SMS_MODE === "simulator") {
+        return createSmsGateway({ type: "simulator" });
+      }
+      if (!config.DIMTS_SMS_GATEWAY_URL || !config.DIMTS_SMS_GATEWAY_TOKEN) {
+        return undefined;
+      }
+      return createSmsGateway({
+        type: "gateway",
+        url: config.DIMTS_SMS_GATEWAY_URL,
+        token: config.DIMTS_SMS_GATEWAY_TOKEN,
+      });
+    })();
+  if (!gateway) return undefined;
   const conversation = createConversationService({
     config,
     repository,
