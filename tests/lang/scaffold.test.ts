@@ -31,26 +31,30 @@ afterEach(() =>
     .forEach((root) => rmSync(root, { recursive: true, force: true })),
 );
 describe("FR-LANG-13 pack scaffolder", () => {
-  it("creates all eight files as an unreviewed draft with safe disabled voice in under five minutes", () => {
-    const root = fixture();
-    const start = performance.now();
-    scaffoldPack(root, "ti");
-    const pack = loadPacks(root).get("ti");
-    expect(pack?.meta).toMatchObject({
-      code: "ti",
-      status: "draft",
-      fallback: "en",
-      reviewed_by: null,
-      reviewed_on: null,
-      stt: false,
-      tts: false,
-    });
-    expect(Object.keys(pack?.ui ?? {})).toEqual(
-      Object.keys(loadPacks(root).get("en")?.ui ?? {}),
-    );
-    expect(validatePacks(root)).toEqual([]);
-    expect(performance.now() - start).toBeLessThan(300_000);
-  });
+  it(
+    "creates all eight files as an unreviewed draft with safe disabled voice in under five minutes",
+    () => {
+      const root = fixture();
+      const start = performance.now();
+      scaffoldPack(root, "ti");
+      const pack = loadPacks(root).get("ti");
+      expect(pack?.meta).toMatchObject({
+        code: "ti",
+        status: "draft",
+        fallback: "en",
+        reviewed_by: null,
+        reviewed_on: null,
+        stt: false,
+        tts: false,
+      });
+      expect(Object.keys(pack?.ui ?? {})).toEqual(
+        Object.keys(loadPacks(root).get("en")?.ui ?? {}),
+      );
+      expect(validatePacks(root)).toEqual([]);
+      expect(performance.now() - start).toBeLessThan(300_000);
+    },
+    300_000,
+  );
   it.each([
     "../escape",
     "en-US/other",

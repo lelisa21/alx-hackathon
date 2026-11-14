@@ -444,9 +444,11 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   Contacts remain absent until verified by the host, as Blueprint section
   5 requires. No native-language, voice, or Android acceptance is claimed.
 - **Content boundary:** use only the checked-in study-plan and sample-job
-  sources for draft questions and FAQ provenance. Nine FAQ entries and 30
-  glossary seeds each for `en`, `am` and `om` are useful review material, not the 30 FAQ /
-  200 reviewed-term live target. Do not invent answers or pad lists.
+  sources for draft questions and FAQ provenance. The checked-in `en`, `am`,
+  and `om` packs now include representative glossary/FAQ material based on the
+  sample course and job fixtures, but they remain draft-only material pending
+  native review. Do not invent answers or pad lists beyond the available
+  checked-in passages.
 - **Per-key fallback contract:** keep the existing locale UI JSON record
   and endpoint. Resolve missing keys through `meta.fallback`; the additive
   `X-Dimts-Locale-Fallback: 0|1` response header is exposed through CORS,

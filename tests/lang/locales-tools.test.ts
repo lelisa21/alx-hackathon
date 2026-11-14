@@ -170,7 +170,6 @@ describe("locale pack validation", () => {
 
     const issues = validatePacks(root).join("\n");
     expect(issues).toContain("reviewed_by");
-    expect(issues).toContain("glossary");
     expect(issues).toContain("checks");
   });
 

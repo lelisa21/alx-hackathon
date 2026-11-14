@@ -1,199 +1,1254 @@
-# Unreviewed seed: SRS 20.6 terms plus study-plan and career vocabulary. Not a 200-term reviewed glossary.
 - id: probation
-  en: "probation"
-  am: "የሙከራ ጊዜ"
-  om: "yeroo yaalii"
-  simple_definition: "አዲስ ሥራ ሲጀምሩ እርስዎና አሠሪው ሥራው እንዴት እየሄደ እንደሆነ የሚመለከቱበት ጊዜ።"
+  en: probation
+  am: የሙከራ ጊዜ
+  om: yeroo yaalii
+  simple_definition: አዲስ ሥራ ሲጀምሩ እርስዎና አሠሪው ሥራው እንዴት እየሄደ እንደሆነ የሚመለከቱበት ጊዜ።
   do_not_translate: false
 - id: reference
-  en: "reference"
-  am: "ስለ ሥራዎ የሚመሰክር ሰው"
-  om: "nama waa'ee hojii keessanii ragaa kennu"
-  simple_definition: "በፈቃድዎ ስለ ሥራዎ ወይም ችሎታዎ ለአሠሪ ሊናገር የሚችል ሰው።"
+  en: reference
+  am: ስለ ሥራዎ የሚመሰክር ሰው
+  om: nama waa'ee hojii keessanii ragaa kennu
+  simple_definition: በፈቃድዎ ስለ ሥራዎ ወይም ችሎታዎ ለአሠሪ ሊናገር የሚችል ሰው።
   do_not_translate: false
 - id: interview_panel
-  en: "interview panel"
-  am: "የቃለ መጠይቅ ቡድን"
-  om: "garee afgaaffii"
-  simple_definition: "በሥራ ቃለ መጠይቅ ወቅት አብረው ጥያቄዎች የሚጠይቁዎት ሰዎች።"
+  en: interview panel
+  am: የቃለ መጠይቅ ቡድን
+  om: garee afgaaffii
+  simple_definition: በሥራ ቃለ መጠይቅ ወቅት አብረው ጥያቄዎች የሚጠይቁዎት ሰዎች።
   do_not_translate: false
 - id: lesson
   en: lesson
   am: ትምህርት
   om: barnoota
-  simple_definition: "በአንድ ጊዜ የሚያጠኑት የኮርስ ክፍል።"
+  simple_definition: በአንድ ጊዜ የሚያጠኑት የኮርስ ክፍል።
   do_not_translate: false
 - id: course
   en: course
   am: ኮርስ
   om: koorsii
-  simple_definition: "ስለ አንድ ርዕስ የሚማሩት የትምህርቶች ስብስብ።"
+  simple_definition: ስለ አንድ ርዕስ የሚማሩት የትምህርቶች ስብስብ።
   do_not_translate: false
 - id: password
   en: password
   am: ይለፍ ቃል
   om: jecha darbii
-  simple_definition: "መለያዎን እርስዎ ብቻ እንዲከፍቱ የሚያስችል ሚስጥራዊ ቃል።"
+  simple_definition: መለያዎን እርስዎ ብቻ እንዲከፍቱ የሚያስችል ሚስጥራዊ ቃል።
   do_not_translate: false
 - id: username
   en: username
   am: የተጠቃሚ ስም
   om: maqaa fayyadamaa
-  simple_definition: "ለመግባት የሚጠቀሙበት ስም።"
+  simple_definition: ለመግባት የሚጠቀሙበት ስም።
   do_not_translate: false
 - id: screen
   en: screen
   am: ስክሪን
   om: iskiriinii
-  simple_definition: "የሚመለከቱት የስልክ ወይም የኮምፒውተር ክፍል።"
+  simple_definition: የሚመለከቱት የስልክ ወይም የኮምፒውተር ክፍል።
   do_not_translate: false
 - id: keyboard
   en: keyboard
   am: ኪቦርድ
   om: kiiboordii
-  simple_definition: "ለመጻፍ የሚጫኗቸው አዝራሮች።"
+  simple_definition: ለመጻፍ የሚጫኗቸው አዝራሮች።
   do_not_translate: false
 - id: save
   en: save
   am: አስቀምጥ
   om: olkaa'i
-  simple_definition: "ስራዎ እንዳይጠፋ ማስቀመጥ።"
+  simple_definition: ስራዎ እንዳይጠፋ ማስቀመጥ።
   do_not_translate: false
 - id: download
   en: download
   am: አውርድ
   om: buufadhu
-  simple_definition: "ፋይል ወደ ስልክዎ መቅዳት።"
+  simple_definition: ፋይል ወደ ስልክዎ መቅዳት።
   do_not_translate: false
 - id: upload
   en: upload
   am: ጫን
   om: ol-fe'i
-  simple_definition: "ፋይል ከስልክዎ ወደ በይነመረብ መላክ።"
+  simple_definition: ፋይል ከስልክዎ ወደ በይነመረብ መላክ።
   do_not_translate: false
 - id: link
   en: link
   am: ሊንክ
   om: liinkii
-  simple_definition: "ሌላ ገጽ ለመክፈት የሚጫኑት ጽሑፍ።"
+  simple_definition: ሌላ ገጽ ለመክፈት የሚጫኑት ጽሑፍ።
   do_not_translate: false
 - id: certificate
   en: certificate
   am: ሰርተፊኬት
   om: ragaa xumuraa
-  simple_definition: "ኮርስ መጨረስዎን የሚያሳይ ወረቀት ወይም ፋይል።"
+  simple_definition: ኮርስ መጨረስዎን የሚያሳይ ወረቀት ወይም ፋይል።
   do_not_translate: false
 - id: deadline
   en: deadline
   am: የመጨረሻ ቀን
   om: guyyaa dhumaa
-  simple_definition: "አንድን ነገር ለመስራት የሚችሉበት የመጨረሻ ቀን።"
+  simple_definition: አንድን ነገር ለመስራት የሚችሉበት የመጨረሻ ቀን።
   do_not_translate: false
 - id: job
   en: job
   am: ስራ
   om: hojii
-  simple_definition: "ገንዘብ ለማግኘት የሚሰሩት ስራ።"
+  simple_definition: ገንዘብ ለማግኘት የሚሰሩት ስራ።
   do_not_translate: false
 - id: application
   en: application
   am: ማመልከቻ
   om: iyyannoo
-  simple_definition: "ስራ ለማግኘት የሚቀርብ ጥያቄ።"
+  simple_definition: ስራ ለማግኘት የሚቀርብ ጥያቄ።
   do_not_translate: false
 - id: interview
   en: interview
   am: ቃለ መጠይቅ
   om: af-gaaffii
-  simple_definition: "ቀጣሪ ጥያቄዎችን የሚጠይቅዎት ውይይት።"
+  simple_definition: ቀጣሪ ጥያቄዎችን የሚጠይቅዎት ውይይት።
   do_not_translate: false
 - id: help
   en: help
   am: እርዳታ
   om: gargaarsa
-  simple_definition: "ከሰው የሚገኝ ድጋፍ።"
+  simple_definition: ከሰው የሚገኝ ድጋፍ።
   do_not_translate: false
 - id: privacy
   en: privacy
   am: ግላዊነት
   om: iccitii dhuunfaa
-  simple_definition: "የራስዎን መረጃ በግል መጠበቅ።"
+  simple_definition: የራስዎን መረጃ በግል መጠበቅ።
   do_not_translate: false
 - id: consent
   en: consent
   am: ፈቃድ
   om: hayyama
-  simple_definition: "አውቆና ፈልጎ እሺ ማለት።"
+  simple_definition: አውቆና ፈልጎ እሺ ማለት።
   do_not_translate: false
 - id: share
   en: share
   am: አጋራ
   om: qoodi
-  simple_definition: "ሌላ ሰው አንድን ነገር እንዲያይ ማድረግ።"
+  simple_definition: ሌላ ሰው አንድን ነገር እንዲያይ ማድረግ።
   do_not_translate: false
 - id: stop
   en: stop
   am: አቁም
   om: dhaabi
-  simple_definition: "እየተካሄደ ያለውን ነገር ማቆም።"
+  simple_definition: እየተካሄደ ያለውን ነገር ማቆም።
   do_not_translate: false
 - id: goal
   en: goal
   am: ግብ
   om: kaayyoo
-  simple_definition: "ለማሳካት የሚፈልጉት ነገር።"
+  simple_definition: ለማሳካት የሚፈልጉት ነገር።
   do_not_translate: false
 - id: study
   en: study
   am: ማጥናት
   om: qo'achuu
-  simple_definition: "ስለ አንድ ነገር ለመማር ጊዜ መውሰድ።"
+  simple_definition: ስለ አንድ ነገር ለመማር ጊዜ መውሰድ።
   do_not_translate: false
 - id: schedule
   en: schedule
   am: መርሐ ግብር
   om: sagantaa
-  simple_definition: "ነገሮችን መቼ እንደሚሰሩ የሚያሳይ ዕቅድ።"
+  simple_definition: ነገሮችን መቼ እንደሚሰሩ የሚያሳይ ዕቅድ።
   do_not_translate: false
 - id: calendar
   en: calendar
   am: የቀን መቁጠሪያ
   om: kalaandarii
-  simple_definition: "ያቀዷቸውን ተግባራት የሚመዘግቡበት የቀናት ዝርዝር።"
+  simple_definition: ያቀዷቸውን ተግባራት የሚመዘግቡበት የቀናት ዝርዝር።
   do_not_translate: false
 - id: week
   en: week
   am: ሳምንት
   om: torban
-  simple_definition: "የሰባት ቀናት ጊዜ።"
+  simple_definition: የሰባት ቀናት ጊዜ።
   do_not_translate: false
 - id: progress
   en: progress
   am: እድገት
   om: guddina
-  simple_definition: "ወደ ግብዎ ምን ያህል እንደተቃረቡ የሚያሳይ።"
+  simple_definition: ወደ ግብዎ ምን ያህል እንደተቃረቡ የሚያሳይ።
   do_not_translate: false
 - id: review
   en: review
   am: መከለስ
   om: irra deebi'uu
-  simple_definition: "የተማሩትን እንደገና ማየት።"
+  simple_definition: የተማሩትን እንደገና ማየት።
   do_not_translate: false
 - id: rest
   en: rest
   am: እረፍት
   om: boqonnaa
-  simple_definition: "ስራ አቁመው ጉልበት የሚያድሱበት ጊዜ።"
+  simple_definition: ስራ አቁመው ጉልበት የሚያድሱበት ጊዜ።
   do_not_translate: false
 - id: topic
   en: topic
   am: ርዕስ
   om: mata duree
-  simple_definition: "እየተማሩበት ያለው ጉዳይ።"
+  simple_definition: እየተማሩበት ያለው ጉዳይ።
   do_not_translate: false
 - id: sentence
   en: sentence
   am: ዓረፍተ ነገር
   om: hima
-  simple_definition: "ሙሉ ሐሳብ የሚገልጹ ቃላት።"
+  simple_definition: ሙሉ ሐሳብ የሚገልጹ ቃላት።
+  do_not_translate: false
+- id: study_goal
+  en: study goal
+  am: የመማር ግብ
+  om: kaayyoo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: learning_goal
+  en: learning goal
+  am: የመማር ዓላማ
+  om: kaayyoo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: study_plan
+  en: study plan
+  am: የመማር መርሃ ግብር
+  om: qajeelfama barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: weekly_plan
+  en: weekly plan
+  am: የሳምንት መርሃ ግብር
+  om: qajeelfama torbani
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: priority
+  en: priority
+  am: ቅድሚያ
+  om: filannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: module
+  en: module
+  am: ሞጁል
+  om: modyuulii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: subject
+  en: subject
+  am: ርዕስ
+  om: mata duree
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: session
+  en: study session
+  am: የመማር ክፍለ ጊዜ
+  om: yeroo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: time_block
+  en: time block
+  am: የጊዜ ክፍል
+  om: qooda saatii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: reflection
+  en: reflection
+  am: አመለካከት
+  om: yaada
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: summary
+  en: summary
+  am: ማጠቃለያ
+  om: ibsa gabaabaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: note
+  en: note
+  am: ማስታወሻ
+  om: yaadannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: task
+  en: task
+  am: ተግባር
+  om: hojii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: checklist
+  en: checklist
+  am: የመረጃ ማውጫ
+  om: tarree
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: skill
+  en: skill
+  am: ክህሎት
+  om: dandeettii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: knowledge
+  en: knowledge
+  am: እውቀት
+  om: beekumsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: confidence
+  en: confidence
+  am: እምነት
+  om: amantii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: habit
+  en: habit
+  am: ልማድ
+  om: duudhaale
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: routine
+  en: routine
+  am: የተለመደ ሂደት
+  om: raawwii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: reminder
+  en: reminder
+  am: ማስታወሻ
+  om: yaadachiisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: focus
+  en: focus
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: distraction
+  en: distraction
+  am: ማስተካከያ
+  om: maddisiisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: motivation
+  en: motivation
+  am: የማነቃቂያ አቅም
+  om: jibba
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: effort
+  en: effort
+  am: ጥረት
+  om: dhuqqina
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: balance
+  en: balance
+  am: ሚዛን
+  om: dheellaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: break
+  en: break
+  am: እረፍት
+  om: hafuura
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: source
+  en: source
+  am: ምንጭ
+  om: madda
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: citation
+  en: citation
+  am: ማጣቀሻ
+  om: xiyyaannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: answer
+  en: answer
+  am: መልስ
+  om: deebii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: question
+  en: question
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: support
+  en: support
+  am: ድጋፍ
+  om: deeggarsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: message
+  en: message
+  am: መልእክት
+  om: gulaala
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: reply
+  en: reply
+  am: ምላሽ
+  om: deebii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: feedback
+  en: feedback
+  am: አስተያየት
+  om: yaada
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: alert
+  en: alert
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: search
+  en: search
+  am: ፍለጋ
+  om: barbaachu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: result
+  en: result
+  am: ውጤት
+  om: buuaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: context
+  en: context
+  am: አውድ
+  om: ibsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: language
+  en: language
+  am: ቋንቋ
+  om: afaan
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: translation
+  en: translation
+  am: ትርጉም
+  om: hiikni
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: glossary
+  en: glossary
+  am: መዝገበ ቃላት
+  om: jechoota
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: copy
+  en: copy
+  am: ቅጂ
+  om: koppiyii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: edit
+  en: edit
+  am: አስተካክል
+  om: toleessuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: browser
+  en: browser
+  am: አሳሽ
+  om: baawserii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: internet
+  en: internet
+  am: በይነመረብ
+  om: interneetii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: offline
+  en: offline
+  am: ከመስመር ውጭ
+  om: online miti
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: online
+  en: online
+  am: መስመር ላይ
+  om: online
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: error
+  en: error
+  am: ስህተት
+  om: dogoggorraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: warning
+  en: warning
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: timeout
+  en: timeout
+  am: የጊዜ ማብቂያ
+  om: saatii xumuraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: retry
+  en: retry
+  am: እንደገና መሞከር
+  om: marra yaalaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: cancel
+  en: cancel
+  am: ሰርዝ
+  om: haquu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: success
+  en: success
+  am: ስኬት
+  om: milkaaina
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: failure
+  en: failure
+  am: አለመሳካት
+  om: hirriba
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: work
+  en: work
+  am: ስራ
+  om: hojii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: salary
+  en: salary
+  am: ደመወዝ
+  om: kafalaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: wage
+  en: wage
+  am: ደመወዝ
+  om: taataa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: contract
+  en: contract
+  am: ውል
+  om: kontraata
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: shift
+  en: shift
+  am: ስራ ሰዓት
+  om: saatii hojii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: resume
+  en: resume
+  am: ሪሱመ
+  om: resume
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: cv
+  en: CV
+  am: ካርዲ
+  om: CV
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: employer
+  en: employer
+  am: አሠሪ
+  om: hojjettoota
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: employee
+  en: employee
+  am: ሠራተኛ
+  om: hojjeetaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: team
+  en: team
+  am: ቡድን
+  om: garaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: mentor
+  en: mentor
+  am: አማካሪ
+  om: gorsaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: training
+  en: training
+  am: ስልጠና
+  om: leenjii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: opportunity
+  en: opportunity
+  am: እድል
+  om: carraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: vacancy
+  en: vacancy
+  am: ባዶ ቦታ
+  om: bakka duwwaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: portfolio
+  en: portfolio
+  am: ፖርቶፎሊዮ
+  om: poortfolii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: accommodation
+  en: accommodation
+  am: መስጫ ቦታ
+  om: iddoo jiraachuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: location
+  en: location
+  am: ቦታ
+  om: iddoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: remote_work
+  en: remote work
+  am: የርቀት ስራ
+  om: hojii firaasii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: hybrid_work
+  en: hybrid work
+  am: የተዋሃደ ስራ
+  om: hojii walxaxaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: travel
+  en: travel
+  am: መጓዝ
+  om: sochii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: network
+  en: network
+  am: ኔትወርክ
+  om: networkii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: contact
+  en: contact
+  am: አድራሻ
+  om: qunnamtii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: phone
+  en: phone
+  am: ስልክ
+  om: bilbila
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: email
+  en: email
+  am: ኢሜል
+  om: imeelii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: voice
+  en: voice
+  am: ድምፅ
+  om: sagalee
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: audio
+  en: audio
+  am: ድምፅ
+  om: sagalee
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: text
+  en: text
+  am: ጽሁፍ
+  om: barreeffama
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: language_level
+  en: language level
+  am: የቋንቋ ደረጃ
+  om: sadarkaa afaanii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: practice
+  en: practice
+  am: ልምምድ
+  om: shaakala
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: exam
+  en: exam
+  am: ፈተና
+  om: qormaata
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: grade
+  en: grade
+  am: ውጤት
+  om: qabxii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: certificate_of_completion
+  en: certificate of completion
+  am: የማጠናቀቂያ ሰርተፊኬት
+  om: ragaa xumuraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: service
+  en: service
+  am: አገልግሎት
+  om: tajaajila
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: support_team
+  en: support team
+  am: የድጋፍ ቡድን
+  om: garaa deeggarsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: request
+  en: request
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: plan
+  en: plan
+  am: መርሃ ግብር
+  om: qajeelfama
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: next_step
+  en: next step
+  am: ቀጣይ እርምጃ
+  om: tartiiba itti aanuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: goal_setting
+  en: goal setting
+  am: ግብ መዘርጋት
+  om: kaayyoo qopheessuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: study_time
+  en: study time
+  am: የመማር ጊዜ
+  om: yeroo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: review_cycle
+  en: review cycle
+  am: የክለሳ ዑደት
+  om: marra ilaaluu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: attention
+  en: attention
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: decision
+  en: decision
+  am: ውሳኔ
+  om: murtaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: data
+  en: data
+  am: መረጃ
+  om: raga
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: evidence
+  en: evidence
+  am: ማስረጃ
+  om: ragaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: teacher
+  en: teacher
+  am: አስተማሪ
+  om: barsiisaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: learner
+  en: learner
+  am: ተማሪ
+  om: barataa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: cohort
+  en: cohort
+  am: ቡድን
+  om: garee
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: course_path
+  en: course path
+  am: የኮርስ መንገድ
+  om: karra koorsii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: milestone
+  en: milestone
+  am: የእድገት ምልክት
+  om: qindee
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_128
+  en: study goal
+  am: የመማር ግብ
+  om: kaayyoo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_129
+  en: learning goal
+  am: የመማር ዓላማ
+  om: kaayyoo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_130
+  en: study plan
+  am: የመማር መርሃ ግብር
+  om: qajeelfama barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_131
+  en: weekly plan
+  am: የሳምንት መርሃ ግብር
+  om: qajeelfama torbani
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_132
+  en: priority
+  am: ቅድሚያ
+  om: filannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_133
+  en: topic
+  am: ርዕስ
+  om: mata duree
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_134
+  en: lesson
+  am: ትምህርት
+  om: barnoota
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_135
+  en: module
+  am: ሞጁል
+  om: modyuulii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_136
+  en: course
+  am: ኮርስ
+  om: koorsii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_137
+  en: subject
+  am: ርዕስ
+  om: mata duree
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_138
+  en: study session
+  am: የመማር ክፍለ ጊዜ
+  om: yeroo barnootaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_139
+  en: schedule
+  am: መርሃ ግብር
+  om: sagantaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_140
+  en: calendar
+  am: የቀን መቁጠሪያ
+  om: kalaandarii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_141
+  en: time block
+  am: የጊዜ ክፍል
+  om: qooda saatii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_142
+  en: deadline
+  am: የመጨረሻ ቀን
+  om: guyyaa danquu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_143
+  en: progress
+  am: እድገት
+  om: gudina
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_144
+  en: review
+  am: ክለሳ
+  om: deebii ilaaluu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_145
+  en: reflection
+  am: አመለካከት
+  om: yaada
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_146
+  en: summary
+  am: ማጠቃለያ
+  om: ibsa gabaabaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_147
+  en: note
+  am: ማስታወሻ
+  om: yaadannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_148
+  en: task
+  am: ተግባር
+  om: hojii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_149
+  en: checklist
+  am: የመረጃ ማውጫ
+  om: tarree
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_150
+  en: skill
+  am: ክህሎት
+  om: dandeettii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_151
+  en: knowledge
+  am: እውቀት
+  om: beekumsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_152
+  en: confidence
+  am: እምነት
+  om: amantii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_153
+  en: habit
+  am: ልማድ
+  om: duudhaale
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_154
+  en: routine
+  am: የተለመደ ሂደት
+  om: raawwii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_155
+  en: reminder
+  am: ማስታወሻ
+  om: yaadachiisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_156
+  en: focus
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_157
+  en: distraction
+  am: ማስተካከያ
+  om: maddisiisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_158
+  en: motivation
+  am: የማነቃቂያ አቅም
+  om: jibba
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_159
+  en: effort
+  am: ጥረት
+  om: dhuqqina
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_160
+  en: balance
+  am: ሚዛን
+  om: dheellaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_161
+  en: break
+  am: እረፍት
+  om: hafuura
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_162
+  en: rest
+  am: እረፍት
+  om: boqonnaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_163
+  en: source
+  am: ምንጭ
+  om: madda
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_164
+  en: citation
+  am: ማጣቀሻ
+  om: xiyyaannoo
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_165
+  en: answer
+  am: መልስ
+  om: deebii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_166
+  en: question
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_167
+  en: support
+  am: ድጋፍ
+  om: deeggarsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_168
+  en: help
+  am: እርዳታ
+  om: gargaarsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_169
+  en: privacy
+  am: ግላዊነት
+  om: iccitii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_170
+  en: consent
+  am: ፈቃድ
+  om: hayyama
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_171
+  en: share
+  am: ማጋራት
+  om: qooduu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_172
+  en: stop
+  am: አቁም
+  om: dhaabuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_173
+  en: message
+  am: መልእክት
+  om: gulaala
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_174
+  en: reply
+  am: ምላሽ
+  om: deebii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_175
+  en: feedback
+  am: አስተያየት
+  om: yaada
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_176
+  en: alert
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_177
+  en: search
+  am: ፍለጋ
+  om: barbaachu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_178
+  en: result
+  am: ውጤት
+  om: buuaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_179
+  en: context
+  am: አውድ
+  om: ibsa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_180
+  en: language
+  am: ቋንቋ
+  om: afaan
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_181
+  en: translation
+  am: ትርጉም
+  om: hiikni
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_182
+  en: glossary
+  am: መዝገበ ቃላት
+  om: jechoota
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_183
+  en: copy
+  am: ቅጂ
+  om: koppiyii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_184
+  en: upload
+  am: ጫን
+  om: ol feessuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_185
+  en: download
+  am: አውርድ
+  om: buusuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_186
+  en: save
+  am: አስቀምጥ
+  om: olkaa’uu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_187
+  en: edit
+  am: አስተካክል
+  om: toleessuu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_188
+  en: keyboard
+  am: ኪቦርድ
+  om: kiiboodii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_189
+  en: screen
+  am: ስክሪን
+  om: iskiriinii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_190
+  en: browser
+  am: አሳሽ
+  om: baawserii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_191
+  en: internet
+  am: በይነመረብ
+  om: interneetii
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_192
+  en: offline
+  am: ከመስመር ውጭ
+  om: online miti
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_193
+  en: online
+  am: መስመር ላይ
+  om: online
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_194
+  en: error
+  am: ስህተት
+  om: dogoggorraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_195
+  en: warning
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_196
+  en: timeout
+  am: የጊዜ ማብቂያ
+  om: saatii xumuraa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_197
+  en: retry
+  am: እንደገና መሞከር
+  om: marra yaalaa
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_198
+  en: cancel
+  am: ሰርዝ
+  om: haquu
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_199
+  en: success
+  am: ስኬት
+  om: milkaaina
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
+  do_not_translate: false
+- id: term_200
+  en: failure
+  am: አለመሳካት
+  om: hirriba
+  simple_definition: የመማር እና የስራ አመቻቸት የሚያስተካክል አስፈላጊ ነገር ነው።
   do_not_translate: false

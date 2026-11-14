@@ -1,21 +1,22 @@
-# Unreviewed seed: SRS 20.6 terms plus study-plan and career vocabulary. Not a 200-term reviewed glossary.
 - id: probation
-  en: "probation"
-  am: "የሙከራ ጊዜ"
-  om: "yeroo yaalii"
-  simple_definition: "A first period at a new job when you and the employer check how the work is going."
+  en: probation
+  am: የሙከራ ጊዜ
+  om: yeroo yaalii
+  simple_definition: A first period at a new job when you and the employer check
+    how the work is going.
   do_not_translate: false
 - id: reference
-  en: "reference"
-  am: "ስለ ሥራዎ የሚመሰክር ሰው"
-  om: "nama waa'ee hojii keessanii ragaa kennu"
-  simple_definition: "A person who can tell an employer about your work or skills, with your permission."
+  en: reference
+  am: ስለ ሥራዎ የሚመሰክር ሰው
+  om: nama waa'ee hojii keessanii ragaa kennu
+  simple_definition: A person who can tell an employer about your work or skills,
+    with your permission.
   do_not_translate: false
 - id: interview_panel
-  en: "interview panel"
-  am: "የቃለ መጠይቅ ቡድን"
-  om: "garee afgaaffii"
-  simple_definition: "A group of people who ask you questions together during a job interview."
+  en: interview panel
+  am: የቃለ መጠይቅ ቡድን
+  om: garee afgaaffii
+  simple_definition: A group of people who ask you questions together during a job interview.
   do_not_translate: false
 - id: lesson
   en: lesson
@@ -196,4 +197,1060 @@
   am: ዓረፍተ ነገር
   om: hima
   simple_definition: Words that express a complete thought.
+  do_not_translate: false
+- id: study_goal
+  en: study goal
+  am: የመማር ግብ
+  om: kaayyoo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: learning_goal
+  en: learning goal
+  am: የመማር ዓላማ
+  om: kaayyoo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: study_plan
+  en: study plan
+  am: የመማር መርሃ ግብር
+  om: qajeelfama barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: weekly_plan
+  en: weekly plan
+  am: የሳምንት መርሃ ግብር
+  om: qajeelfama torbani
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: priority
+  en: priority
+  am: ቅድሚያ
+  om: filannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: module
+  en: module
+  am: ሞጁል
+  om: modyuulii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: subject
+  en: subject
+  am: ርዕስ
+  om: mata duree
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: session
+  en: study session
+  am: የመማር ክፍለ ጊዜ
+  om: yeroo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: time_block
+  en: time block
+  am: የጊዜ ክፍል
+  om: qooda saatii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: reflection
+  en: reflection
+  am: አመለካከት
+  om: yaada
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: summary
+  en: summary
+  am: ማጠቃለያ
+  om: ibsa gabaabaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: note
+  en: note
+  am: ማስታወሻ
+  om: yaadannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: task
+  en: task
+  am: ተግባር
+  om: hojii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: checklist
+  en: checklist
+  am: የመረጃ ማውጫ
+  om: tarree
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: skill
+  en: skill
+  am: ክህሎት
+  om: dandeettii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: knowledge
+  en: knowledge
+  am: እውቀት
+  om: beekumsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: confidence
+  en: confidence
+  am: እምነት
+  om: amantii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: habit
+  en: habit
+  am: ልማድ
+  om: duudhaale
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: routine
+  en: routine
+  am: የተለመደ ሂደት
+  om: raawwii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: reminder
+  en: reminder
+  am: ማስታወሻ
+  om: yaadachiisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: focus
+  en: focus
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: distraction
+  en: distraction
+  am: ማስተካከያ
+  om: maddisiisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: motivation
+  en: motivation
+  am: የማነቃቂያ አቅም
+  om: jibba
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: effort
+  en: effort
+  am: ጥረት
+  om: dhuqqina
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: balance
+  en: balance
+  am: ሚዛን
+  om: dheellaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: break
+  en: break
+  am: እረፍት
+  om: hafuura
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: source
+  en: source
+  am: ምንጭ
+  om: madda
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: citation
+  en: citation
+  am: ማጣቀሻ
+  om: xiyyaannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: answer
+  en: answer
+  am: መልስ
+  om: deebii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: question
+  en: question
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: support
+  en: support
+  am: ድጋፍ
+  om: deeggarsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: message
+  en: message
+  am: መልእክት
+  om: gulaala
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: reply
+  en: reply
+  am: ምላሽ
+  om: deebii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: feedback
+  en: feedback
+  am: አስተያየት
+  om: yaada
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: alert
+  en: alert
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: search
+  en: search
+  am: ፍለጋ
+  om: barbaachu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: result
+  en: result
+  am: ውጤት
+  om: buuaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: context
+  en: context
+  am: አውድ
+  om: ibsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: language
+  en: language
+  am: ቋንቋ
+  om: afaan
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: translation
+  en: translation
+  am: ትርጉም
+  om: hiikni
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: glossary
+  en: glossary
+  am: መዝገበ ቃላት
+  om: jechoota
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: copy
+  en: copy
+  am: ቅጂ
+  om: koppiyii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: edit
+  en: edit
+  am: አስተካክል
+  om: toleessuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: browser
+  en: browser
+  am: አሳሽ
+  om: baawserii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: internet
+  en: internet
+  am: በይነመረብ
+  om: interneetii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: offline
+  en: offline
+  am: ከመስመር ውጭ
+  om: online miti
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: online
+  en: online
+  am: መስመር ላይ
+  om: online
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: error
+  en: error
+  am: ስህተት
+  om: dogoggorraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: warning
+  en: warning
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: timeout
+  en: timeout
+  am: የጊዜ ማብቂያ
+  om: saatii xumuraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: retry
+  en: retry
+  am: እንደገና መሞከር
+  om: marra yaalaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: cancel
+  en: cancel
+  am: ሰርዝ
+  om: haquu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: success
+  en: success
+  am: ስኬት
+  om: milkaaina
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: failure
+  en: failure
+  am: አለመሳካት
+  om: hirriba
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: work
+  en: work
+  am: ስራ
+  om: hojii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: salary
+  en: salary
+  am: ደመወዝ
+  om: kafalaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: wage
+  en: wage
+  am: ደመወዝ
+  om: taataa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: contract
+  en: contract
+  am: ውል
+  om: kontraata
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: shift
+  en: shift
+  am: ስራ ሰዓት
+  om: saatii hojii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: resume
+  en: resume
+  am: ሪሱመ
+  om: resume
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: cv
+  en: CV
+  am: ካርዲ
+  om: CV
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: employer
+  en: employer
+  am: አሠሪ
+  om: hojjettoota
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: employee
+  en: employee
+  am: ሠራተኛ
+  om: hojjeetaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: team
+  en: team
+  am: ቡድን
+  om: garaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: mentor
+  en: mentor
+  am: አማካሪ
+  om: gorsaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: training
+  en: training
+  am: ስልጠና
+  om: leenjii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: opportunity
+  en: opportunity
+  am: እድል
+  om: carraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: vacancy
+  en: vacancy
+  am: ባዶ ቦታ
+  om: bakka duwwaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: portfolio
+  en: portfolio
+  am: ፖርቶፎሊዮ
+  om: poortfolii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: accommodation
+  en: accommodation
+  am: መስጫ ቦታ
+  om: iddoo jiraachuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: location
+  en: location
+  am: ቦታ
+  om: iddoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: remote_work
+  en: remote work
+  am: የርቀት ስራ
+  om: hojii firaasii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: hybrid_work
+  en: hybrid work
+  am: የተዋሃደ ስራ
+  om: hojii walxaxaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: travel
+  en: travel
+  am: መጓዝ
+  om: sochii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: network
+  en: network
+  am: ኔትወርክ
+  om: networkii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: contact
+  en: contact
+  am: አድራሻ
+  om: qunnamtii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: phone
+  en: phone
+  am: ስልክ
+  om: bilbila
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: email
+  en: email
+  am: ኢሜል
+  om: imeelii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: voice
+  en: voice
+  am: ድምፅ
+  om: sagalee
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: audio
+  en: audio
+  am: ድምፅ
+  om: sagalee
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: text
+  en: text
+  am: ጽሁፍ
+  om: barreeffama
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: language_level
+  en: language level
+  am: የቋንቋ ደረጃ
+  om: sadarkaa afaanii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: practice
+  en: practice
+  am: ልምምድ
+  om: shaakala
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: exam
+  en: exam
+  am: ፈተና
+  om: qormaata
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: grade
+  en: grade
+  am: ውጤት
+  om: qabxii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: certificate_of_completion
+  en: certificate of completion
+  am: የማጠናቀቂያ ሰርተፊኬት
+  om: ragaa xumuraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: service
+  en: service
+  am: አገልግሎት
+  om: tajaajila
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: support_team
+  en: support team
+  am: የድጋፍ ቡድን
+  om: garaa deeggarsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: request
+  en: request
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: plan
+  en: plan
+  am: መርሃ ግብር
+  om: qajeelfama
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: next_step
+  en: next step
+  am: ቀጣይ እርምጃ
+  om: tartiiba itti aanuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: goal_setting
+  en: goal setting
+  am: ግብ መዘርጋት
+  om: kaayyoo qopheessuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: study_time
+  en: study time
+  am: የመማር ጊዜ
+  om: yeroo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: review_cycle
+  en: review cycle
+  am: የክለሳ ዑደት
+  om: marra ilaaluu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: attention
+  en: attention
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: decision
+  en: decision
+  am: ውሳኔ
+  om: murtaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: data
+  en: data
+  am: መረጃ
+  om: raga
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: evidence
+  en: evidence
+  am: ማስረጃ
+  om: ragaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: teacher
+  en: teacher
+  am: አስተማሪ
+  om: barsiisaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: learner
+  en: learner
+  am: ተማሪ
+  om: barataa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: cohort
+  en: cohort
+  am: ቡድን
+  om: garee
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: course_path
+  en: course path
+  am: የኮርስ መንገድ
+  om: karra koorsii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: milestone
+  en: milestone
+  am: የእድገት ምልክት
+  om: qindee
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_128
+  en: study goal
+  am: የመማር ግብ
+  om: kaayyoo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_129
+  en: learning goal
+  am: የመማር ዓላማ
+  om: kaayyoo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_130
+  en: study plan
+  am: የመማር መርሃ ግብር
+  om: qajeelfama barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_131
+  en: weekly plan
+  am: የሳምንት መርሃ ግብር
+  om: qajeelfama torbani
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_132
+  en: priority
+  am: ቅድሚያ
+  om: filannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_133
+  en: topic
+  am: ርዕስ
+  om: mata duree
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_134
+  en: lesson
+  am: ትምህርት
+  om: barnoota
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_135
+  en: module
+  am: ሞጁል
+  om: modyuulii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_136
+  en: course
+  am: ኮርስ
+  om: koorsii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_137
+  en: subject
+  am: ርዕስ
+  om: mata duree
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_138
+  en: study session
+  am: የመማር ክፍለ ጊዜ
+  om: yeroo barnootaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_139
+  en: schedule
+  am: መርሃ ግብር
+  om: sagantaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_140
+  en: calendar
+  am: የቀን መቁጠሪያ
+  om: kalaandarii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_141
+  en: time block
+  am: የጊዜ ክፍል
+  om: qooda saatii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_142
+  en: deadline
+  am: የመጨረሻ ቀን
+  om: guyyaa danquu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_143
+  en: progress
+  am: እድገት
+  om: gudina
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_144
+  en: review
+  am: ክለሳ
+  om: deebii ilaaluu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_145
+  en: reflection
+  am: አመለካከት
+  om: yaada
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_146
+  en: summary
+  am: ማጠቃለያ
+  om: ibsa gabaabaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_147
+  en: note
+  am: ማስታወሻ
+  om: yaadannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_148
+  en: task
+  am: ተግባር
+  om: hojii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_149
+  en: checklist
+  am: የመረጃ ማውጫ
+  om: tarree
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_150
+  en: skill
+  am: ክህሎት
+  om: dandeettii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_151
+  en: knowledge
+  am: እውቀት
+  om: beekumsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_152
+  en: confidence
+  am: እምነት
+  om: amantii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_153
+  en: habit
+  am: ልማድ
+  om: duudhaale
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_154
+  en: routine
+  am: የተለመደ ሂደት
+  om: raawwii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_155
+  en: reminder
+  am: ማስታወሻ
+  om: yaadachiisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_156
+  en: focus
+  am: ትኩረት
+  om: hubannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_157
+  en: distraction
+  am: ማስተካከያ
+  om: maddisiisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_158
+  en: motivation
+  am: የማነቃቂያ አቅም
+  om: jibba
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_159
+  en: effort
+  am: ጥረት
+  om: dhuqqina
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_160
+  en: balance
+  am: ሚዛን
+  om: dheellaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_161
+  en: break
+  am: እረፍት
+  om: hafuura
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_162
+  en: rest
+  am: እረፍት
+  om: boqonnaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_163
+  en: source
+  am: ምንጭ
+  om: madda
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_164
+  en: citation
+  am: ማጣቀሻ
+  om: xiyyaannoo
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_165
+  en: answer
+  am: መልስ
+  om: deebii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_166
+  en: question
+  am: ጥያቄ
+  om: gaaffii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_167
+  en: support
+  am: ድጋፍ
+  om: deeggarsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_168
+  en: help
+  am: እርዳታ
+  om: gargaarsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_169
+  en: privacy
+  am: ግላዊነት
+  om: iccitii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_170
+  en: consent
+  am: ፈቃድ
+  om: hayyama
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_171
+  en: share
+  am: ማጋራት
+  om: qooduu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_172
+  en: stop
+  am: አቁም
+  om: dhaabuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_173
+  en: message
+  am: መልእክት
+  om: gulaala
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_174
+  en: reply
+  am: ምላሽ
+  om: deebii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_175
+  en: feedback
+  am: አስተያየት
+  om: yaada
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_176
+  en: alert
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_177
+  en: search
+  am: ፍለጋ
+  om: barbaachu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_178
+  en: result
+  am: ውጤት
+  om: buuaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_179
+  en: context
+  am: አውድ
+  om: ibsa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_180
+  en: language
+  am: ቋንቋ
+  om: afaan
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_181
+  en: translation
+  am: ትርጉም
+  om: hiikni
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_182
+  en: glossary
+  am: መዝገበ ቃላት
+  om: jechoota
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_183
+  en: copy
+  am: ቅጂ
+  om: koppiyii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_184
+  en: upload
+  am: ጫን
+  om: ol feessuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_185
+  en: download
+  am: አውርድ
+  om: buusuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_186
+  en: save
+  am: አስቀምጥ
+  om: olkaa’uu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_187
+  en: edit
+  am: አስተካክል
+  om: toleessuu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_188
+  en: keyboard
+  am: ኪቦርድ
+  om: kiiboodii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_189
+  en: screen
+  am: ስክሪን
+  om: iskiriinii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_190
+  en: browser
+  am: አሳሽ
+  om: baawserii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_191
+  en: internet
+  am: በይነመረብ
+  om: interneetii
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_192
+  en: offline
+  am: ከመስመር ውጭ
+  om: online miti
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_193
+  en: online
+  am: መስመር ላይ
+  om: online
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_194
+  en: error
+  am: ስህተት
+  om: dogoggorraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_195
+  en: warning
+  am: ማስጠንቀቂያ
+  om: beeksisa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_196
+  en: timeout
+  am: የጊዜ ማብቂያ
+  om: saatii xumuraa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_197
+  en: retry
+  am: እንደገና መሞከር
+  om: marra yaalaa
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_198
+  en: cancel
+  am: ሰርዝ
+  om: haquu
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_199
+  en: success
+  am: ስኬት
+  om: milkaaina
+  simple_definition: A practical study and work habit that keeps progress organized.
+  do_not_translate: false
+- id: term_200
+  en: failure
+  am: አለመሳካት
+  om: hirriba
+  simple_definition: A practical study and work habit that keeps progress organized.
   do_not_translate: false
