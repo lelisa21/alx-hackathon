@@ -138,6 +138,12 @@ export class DimtsHelperConsole extends LitElement {
     resolution: { state: true },
     shareState: { state: true },
     pictures: { state: true },
+    insightsState: { state: true },
+    insightsRows: { state: true },
+    insightsError: { state: true },
+    insightsFilterLang: { state: true },
+    insightsFilterStart: { state: true },
+    insightsFilterEnd: { state: true },
   };
 
   declare api: string;

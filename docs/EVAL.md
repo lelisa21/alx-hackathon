@@ -3,7 +3,7 @@
 | Language | Questions | Retrieval hit rate | Citation validity | Not-found correctness | Answer-language correctness | Average sentence length (words) |
 | -------- | --------: | -----------------: | ----------------: | --------------------: | --------------------------: | ------------------------------: |
 | am       |        15 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
-| en       |        13 |               100% |              100% |                  100% |                        100% |                             8.0 |
+| en       |        13 |               100% |              100% |                  100% |                        100% |                             5.9 |
 | om       |        16 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
 
 Sentence-length target: average at most 15 words, or 12 words in Simple mode. Normal and Simple measurements are separate.
@@ -12,7 +12,7 @@ A value of n/a means the fixture set contains no applicable observations; it is 
 ## Answer and Simple-mode coverage
 
 - am: 15 distinct questions / 30 normal+Simple runs; 0/16 actual/expected answers; answer recall 0.0%; reply-kind accuracy 46.7%; normal average/max n/a/n/a, Simple average/max n/a/n/a words.
-- en: 13 distinct questions / 26 normal+Simple runs; 2/12 actual/expected answers; answer recall 16.7%; reply-kind accuracy 61.5%; normal average/max 8.0/8, Simple average/max 8.0/8 words.
+- en: 13 distinct questions / 26 normal+Simple runs; 12/12 actual/expected answers; answer recall 100.0%; reply-kind accuracy 100.0%; normal average/max 5.9/10, Simple average/max 5.9/10 words.
 - om: 16 distinct questions / 32 normal+Simple runs; 0/18 actual/expected answers; answer recall 0.0%; reply-kind accuracy 43.8%; normal average/max n/a/n/a, Simple average/max n/a/n/a words.
 
 No-answer outcomes remain in retrieval and answer-recall denominators. Null answer metrics are not passes.
@@ -22,9 +22,9 @@ No-answer outcomes remain in retrieval and answer-recall denominators. Null answ
 - course, en → am: 10 runs; retrieval 0.0%; citations n/a; notfound n/a; answer language n/a; normal/Simple average sentence words n/a/n/a.
 - none, none → am: 14 runs; retrieval n/a; citations n/a; notfound 100.0%; answer language n/a; normal/Simple average sentence words n/a/n/a.
 - job, en → am: 6 runs; retrieval 0.0%; citations n/a; notfound n/a; answer language n/a; normal/Simple average sentence words n/a/n/a.
-- course, en → en: 10 runs; retrieval 100.0%; citations 100.0%; notfound n/a; answer language 100.0%; normal/Simple average sentence words 8.0/8.0.
+- course, en → en: 10 runs; retrieval 100.0%; citations 100.0%; notfound n/a; answer language 100.0%; normal/Simple average sentence words 7.8/7.8.
 - none, none → en: 14 runs; retrieval n/a; citations n/a; notfound 100.0%; answer language n/a; normal/Simple average sentence words n/a/n/a.
-- job, en → en: 2 runs; retrieval 100.0%; citations n/a; notfound n/a; answer language n/a; normal/Simple average sentence words n/a/n/a.
+- job, en → en: 2 runs; retrieval 100.0%; citations 100.0%; notfound n/a; answer language 100.0%; normal/Simple average sentence words 2.7/2.7.
 - course, en → om: 16 runs; retrieval 0.0%; citations n/a; notfound n/a; answer language n/a; normal/Simple average sentence words n/a/n/a.
 - none, none → om: 14 runs; retrieval n/a; citations n/a; notfound 100.0%; answer language n/a; normal/Simple average sentence words n/a/n/a.
 - job, en → om: 2 runs; retrieval 0.0%; citations n/a; notfound n/a; answer language n/a; normal/Simple average sentence words n/a/n/a.
@@ -41,7 +41,7 @@ FAQ matching is measured separately at the adapter boundary with each FAQ's actu
 
 ## Latency conditions
 
-Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 1.95 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 1.11 ms (target <50 ms).
+Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 2.63 ms (target <=1000 ms). 240 repeated answers with zero additional provider calls: p95 1.17 ms (target <50 ms).
 
 Timings include retrieval, language/citation validation and reply construction. They do not establish deployed HTTP/PostgreSQL or real-model performance.
 

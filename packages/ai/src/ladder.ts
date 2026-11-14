@@ -1,8 +1,24 @@
 import type { AnswerRequest } from "@dimts/engine";
-import { InvalidProviderResponseError, permittedPassages } from "./provider.js";
+import {
+  describeProviderFailure,
+  InvalidProviderResponseError,
+  permittedPassages,
+} from "./provider.js";
 import type { AiProvider, AnswerResult } from "./provider.js";
 
 const COOLDOWN_MS = 60_000;
+// A rejected key or unknown model will not fix itself within a minute.
+const PERMANENT_COOLDOWN_MS = 15 * 60_000;
+
+/** Content-free description of a failed provider attempt, for operators. */
+export interface ProviderFailureEvent {
+  provider: string;
+  reason: string;
+  status?: number;
+  vendorCode?: string;
+  vendorMessage?: string;
+  cooldownMs: number;
+}
 // A healthy probe is reused so each learner question costs one remote call.
 const HEALTHY_FOR_MS = 60_000;
 
@@ -17,15 +33,19 @@ export class Ladder {
   private readonly timeouts: Record<string, number>;
   private readonly now: () => number;
   private activeProviderId = "offline";
+  private readonly onFailure:
+    ((event: ProviderFailureEvent) => void) | undefined;
 
   constructor(
     providers: AiProvider[],
     timeouts: Record<string, number>,
     now: () => number = () => Date.now(),
+    onFailure?: (event: ProviderFailureEvent) => void,
   ) {
     this.providers = providers;
     this.timeouts = timeouts;
     this.now = now;
+    this.onFailure = onFailure;
   }
 
   get activeProvider(): string {
@@ -66,7 +86,13 @@ export class Ladder {
             remaining(),
             () => controller.abort(),
           );
-          if (!health.ok) throw new Error("Provider health check failed.");
+          if (!health.ok) {
+            const status = /^status_(\d{3})$/u.exec(health.reasonCode ?? "");
+            throw Object.assign(new Error("Provider health check failed."), {
+              healthReason: health.reasonCode ?? "unhealthy",
+              ...(status ? { healthStatus: Number(status[1]) } : {}),
+            });
+          }
           this.healthyUntil.set(provider.name, this.now() + HEALTHY_FOR_MS);
         }
 
@@ -111,9 +137,49 @@ export class Ladder {
             throw error;
           }
         }
-      } catch {
-        this.healthyUntil.delete(provider.name);
-        this.coolUntil.set(provider.name, this.now() + COOLDOWN_MS);
+      } catch (error) {
+        const failure = describeProviderFailure(error);
+        const healthStatus = (error as { healthStatus?: unknown }).healthStatus;
+        if (typeof healthStatus === "number") {
+          failure.status = healthStatus;
+          failure.reason =
+            healthStatus === 401 || healthStatus === 403
+              ? "unauthorized"
+              : healthStatus === 404
+                ? "model_not_found"
+                : healthStatus === 400
+                  ? "rejected"
+                  : "health_check_failed";
+        }
+        // Google answers an invalid API key with 400 INVALID_ARGUMENT, both on
+        // the health probe and on generation.
+        const permanent =
+          failure.reason === "unauthorized" ||
+          failure.reason === "model_not_found" ||
+          (failure.status === 400 && typeof healthStatus === "number") ||
+          (failure.status === 400 &&
+            /api key|api_key|permission|not found|not supported/iu.test(
+              `${failure.vendorCode ?? ""} ${failure.vendorMessage ?? ""}`,
+            ));
+        // Blueprint 3.2: cool down a provider that is down or rate limited.
+        // A malformed answer (after its one retry) says nothing about
+        // availability: this question falls through, the next one tries the
+        // provider again instead of sending every learner to the fallback.
+        const malformed = error instanceof InvalidProviderResponseError;
+        const cooldownMs = malformed
+          ? 0
+          : permanent
+            ? PERMANENT_COOLDOWN_MS
+            : COOLDOWN_MS;
+        if (!malformed) {
+          this.healthyUntil.delete(provider.name);
+          this.coolUntil.set(provider.name, this.now() + cooldownMs);
+        }
+        try {
+          this.onFailure?.({ provider: provider.name, ...failure, cooldownMs });
+        } catch {
+          // Logging must never break answering.
+        }
       } finally {
         controller.abort();
       }

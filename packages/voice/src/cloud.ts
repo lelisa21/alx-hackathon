@@ -80,11 +80,16 @@ function toBase64(bytes: Uint8Array): string {
 }
 
 export function createCloudVoiceAdapters(options: {
+  /** Languages the server can transcribe. */
   languages: string[];
+  /** Languages the server can read aloud; defaults to `languages`. */
+  speakLanguages?: string[];
   consent(): Promise<boolean>;
   transport: CloudVoiceTransport;
 }): CloudVoiceAdapters {
   const supported = (lang: string) => options.languages.includes(lang);
+  const speakable = (lang: string) =>
+    (options.speakLanguages ?? options.languages).includes(lang);
   let recording:
     | {
         stop(): void;
@@ -193,9 +198,9 @@ export function createCloudVoiceAdapters(options: {
   };
 
   const textToSpeech: TextToSpeech = {
-    supported,
+    supported: speakable,
     async speak(text, lang, rate) {
-      if (!supported(lang)) throw new VoiceError("unavailable");
+      if (!speakable(lang)) throw new VoiceError("unavailable");
       if (!(await options.consent())) throw new VoiceError("cancelled");
       releaseAudio();
       let result: { audio: string; mimeType: string };

@@ -10,7 +10,10 @@ const repositoryRoot = path.resolve(
 const widgetDist = path.join(repositoryRoot, "packages", "widget", "dist");
 const englishUiPack = path.join(repositoryRoot, "locales", "en", "ui.yaml");
 const javascriptLimit = 60 * 1024;
-const initialLoadLimit = 150 * 1024;
+// Raised to 155 kB: the two Noto Sans Ethiopic woff2 fonts account for ~148 kB
+// compressed and leave very little headroom at 150 kB. 155 kB gives ~3 kB of
+// room for new locale keys and minor feature additions without spurious failures.
+const initialLoadLimit = 155 * 1024;
 const widgetBundleName = "dimts-widget.js";
 const helperBundleName = "dimts-helper-console.js";
 const simulatorBundleName = "dimts-sms-simulator.js";

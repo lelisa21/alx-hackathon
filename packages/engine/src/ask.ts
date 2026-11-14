@@ -116,7 +116,11 @@ function isValidCachedAnswer(
     cached.lang === lang &&
     cached.contentVersion === contentVersion &&
     cached.text.trim() &&
-    isAnswerInLanguage(cached.text, lang) &&
+    isAnswerInLanguage(cached.text, lang, {
+      factsOnly:
+        cached.citations.length > 0 &&
+        cached.citations.every(({ sourceType }) => sourceType === "job"),
+    }) &&
     isAnswerLengthAllowed(cached.text, simple) &&
     !hasInstructionInjection(cached.text) &&
     cached.citations.length > 0 &&
@@ -366,7 +370,12 @@ export async function ask(
       break;
     }
     if (
-      isAnswerInLanguage(result.text, turnRequest.lang) &&
+      isAnswerInLanguage(result.text, turnRequest.lang, {
+        // Job-posting answers quote title/employer/place lines (names only).
+        factsOnly: result.usedPassageIds.every(
+          (id) => passagesById.get(id)?.sourceType === "job",
+        ),
+      }) &&
       isAnswerLengthAllowed(result.text, turnRequest.simple ?? false) &&
       !hasInstructionInjection(result.text)
     )

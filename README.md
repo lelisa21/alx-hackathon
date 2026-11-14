@@ -10,7 +10,9 @@ Telegram.
 
 1. Start Docker Desktop (Linux containers).
 2. First run only: copy `.env.example` to `.env` and set the secrets as
-   described in [Local API setup](./docs/API.md#start-locally).
+   described in [Local API setup](./docs/API.md#start-locally). Every
+   variable, and where to get its value, is listed in
+   [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md).
 3. Build and start:
 
    ```powershell
@@ -91,7 +93,8 @@ the web image by `scripts/build-lessons.mjs`.
 
 ## Operations and release readiness
 
-To deploy the hosted stack (Render + Neon), follow [docs/DEPLOY.md](./docs/DEPLOY.md).
+To deploy the hosted stack (Render + Neon), follow [docs/DEPLOY.md](./docs/DEPLOY.md)
+and the production checklist in [docs/ENVIRONMENT.md](./docs/ENVIRONMENT.md#production-checklist).
 
 The [integration contract](./docs/INTEGRATION.md), [privacy policy](./docs/PRIVACY.md),
 [free-tier notes](./docs/FREE_TIER.md), [cost controls](./docs/COST.md),

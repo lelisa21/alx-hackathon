@@ -81,7 +81,7 @@ describe("FR-AI-03/05/06 capability, retry and cooldown contract", () => {
       expect(candidate.health).not.toHaveBeenCalled();
     },
   );
-  it("retries malformed output once and cools down for exactly 60 seconds", async () => {
+  it("retries malformed output once, falls back, and does not cool down", async () => {
     let now = 0;
     const candidate = provider({
       answer: vi.fn(async () => {
@@ -97,12 +97,33 @@ describe("FR-AI-03/05/06 capability, retry and cooldown contract", () => {
       "offline",
     );
     expect(candidate.answer).toHaveBeenCalledTimes(2);
-    now = 59_999;
-    await ladder.answer(request, { cloudOk: true });
-    expect(candidate.answer).toHaveBeenCalledTimes(2);
-    now = 60_000;
+    // Blueprint 3.2 cools down only providers that are down or rate limited;
+    // one bad answer must not send every learner to the fallback.
+    now = 1;
     await ladder.answer(request, { cloudOk: true });
     expect(candidate.answer).toHaveBeenCalledTimes(4);
+  });
+
+  it("cools a failing provider down for exactly 60 seconds", async () => {
+    let now = 0;
+    const candidate = provider({
+      answer: vi.fn(async () => {
+        throw new Error("upstream unavailable");
+      }),
+    });
+    const ladder = new Ladder(
+      [candidate, new OfflineProvider()],
+      {},
+      () => now,
+    );
+    await ladder.answer(request, { cloudOk: true });
+    expect(candidate.answer).toHaveBeenCalledTimes(1);
+    now = 59_999;
+    await ladder.answer(request, { cloudOk: true });
+    expect(candidate.answer).toHaveBeenCalledTimes(1);
+    now = 60_000;
+    await ladder.answer(request, { cloudOk: true });
+    expect(candidate.answer).toHaveBeenCalledTimes(2);
   });
   it("retries invalid citation output once then falls back", async () => {
     const candidate = provider({

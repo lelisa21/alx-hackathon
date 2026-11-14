@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { generateOpenApiDocument } from "../src/openapi.js";
 
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -45,6 +46,31 @@ describe("backend contract documentation", () => {
     expect(blueprint).toMatch(/`lastMessageId`/u);
     expect(blueprint).toMatch(/5 seconds/u);
     expect(blueprint).toMatch(/4401/u);
+  });
+
+  it("publishes the insights auth, filters, JSON, and CSV contracts", () => {
+    const document = generateOpenApiDocument() as {
+      paths?: Record<string, { get?: Record<string, unknown> }>;
+    };
+    const get = document.paths?.["/v1/insights"]?.get;
+
+    expect(get).toBeDefined();
+    expect(get?.security).toEqual(
+      expect.arrayContaining([{ hostKey: [] }, { sessionBearer: [] }]),
+    );
+    expect(get?.responses).toMatchObject({
+      "200": expect.any(Object),
+      "400": expect.any(Object),
+      "401": expect.any(Object),
+    });
+    expect(get?.parameters).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          name: "minCellSize",
+          schema: expect.objectContaining({ minimum: 5 }),
+        }),
+      ]),
+    );
   });
 
   it("freezes the WP07 confirmation and UTC availability contracts", async () => {

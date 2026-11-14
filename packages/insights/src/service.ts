@@ -29,21 +29,25 @@ export function createInsightsService(
         grouped.get(key)!.push(row);
       }
 
-      // Apply small-cell suppression: combine rows with total count < minCellSize into "Other"
-      const minCellSize = query.minCellSize ?? 5;
+      // The SRS threshold is questions per topic/period; feedback votes and
+      // not-found subcounts must not make a small topic visible.
+      const minCellSize = Math.max(5, query.minCellSize ?? 5);
       const result: InsightRow[] = [];
-      const otherRows: RawInsightRow[] = [];
+      const otherGroups = new Map<string, RawInsightRow[]>();
 
       for (const rows of grouped.values()) {
-        const totalCount = rows.reduce(
-          (sum, r) =>
-            sum + r.question_count + r.notfound_count + r.helpful + r.unhelpful,
+        const questionCount = rows.reduce(
+          (sum, row) => sum + row.question_count,
           0,
         );
 
-        if (totalCount < minCellSize) {
-          // Accumulate for "Other" category
-          otherRows.push(...rows);
+        if (questionCount < minCellSize) {
+          for (const row of rows) {
+            const key = `${row.lang}|${row.period}`;
+            const otherRows = otherGroups.get(key) ?? [];
+            otherRows.push(row);
+            otherGroups.set(key, otherRows);
+          }
         } else {
           // Regular row
           for (const row of rows) {
@@ -62,8 +66,8 @@ export function createInsightsService(
         }
       }
 
-      // Add "Other" aggregate if there are suppressed rows
-      if (otherRows.length > 0) {
+      // Keep each suppressed "Other" total inside its language and period.
+      for (const otherRows of otherGroups.values()) {
         const otherAgg: RawInsightRow = {
           topic_id: "Other",
           lang: otherRows[0]?.lang ?? "unknown",

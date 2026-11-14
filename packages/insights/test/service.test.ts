@@ -62,7 +62,7 @@ describe("InsightsService", () => {
             period: "2026-11-13",
             question_count: 1,
             notfound_count: 0,
-            helpful: 1,
+            helpful: 10,
             unhelpful: 0,
           },
         ];
@@ -78,7 +78,74 @@ describe("InsightsService", () => {
     // "small" should be combined into "other"
     const others = rows.filter((r) => r.topicId === "Other");
     expect(others.length).toBe(1);
-    expect(others[0].questionCount).toBe(1);
+    expect(others[0]).toMatchObject({ questionCount: 1, helpfulCount: 10 });
+  });
+
+  it("does not let a caller lower the anonymity floor below five", async () => {
+    const service = createInsightsService(mockRepository);
+    const rows = await service.getRows({ minCellSize: 1 });
+
+    expect(rows.some((row) => row.topicId === "unit-2")).toBe(false);
+    expect(rows.find((row) => row.topicId === "Other")).toMatchObject({
+      questionCount: 2,
+      notfoundCount: 1,
+      helpfulCount: 1,
+    });
+  });
+
+  it("keeps suppressed Other totals separate by language and period", async () => {
+    const repository: InsightsRepository = {
+      async queryInsights() {
+        return [
+          {
+            topic_id: "en-day-one",
+            lang: "en",
+            period: "2026-11-13",
+            question_count: 1,
+            notfound_count: 0,
+            helpful: 0,
+            unhelpful: 0,
+          },
+          {
+            topic_id: "om-day-one",
+            lang: "om",
+            period: "2026-11-13",
+            question_count: 2,
+            notfound_count: 0,
+            helpful: 0,
+            unhelpful: 0,
+          },
+          {
+            topic_id: "en-day-two",
+            lang: "en",
+            period: "2026-11-14",
+            question_count: 1,
+            notfound_count: 0,
+            helpful: 0,
+            unhelpful: 0,
+          },
+        ];
+      },
+      async topicLabel() {
+        return null;
+      },
+    };
+    const service = createInsightsService(repository);
+    const rows = await service.getRows({});
+
+    expect(
+      rows
+        .filter((row) => row.topicId === "Other")
+        .map(({ lang, period, questionCount }) => ({
+          lang,
+          period,
+          questionCount,
+        })),
+    ).toEqual([
+      { lang: "en", period: "2026-11-14", questionCount: 1 },
+      { lang: "en", period: "2026-11-13", questionCount: 1 },
+      { lang: "om", period: "2026-11-13", questionCount: 2 },
+    ]);
   });
 
   it("generates RFC 4180 CSV with formula-injection defense", async () => {

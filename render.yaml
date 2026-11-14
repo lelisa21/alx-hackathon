@@ -47,18 +47,61 @@ services:
         value: "[]"
       - key: DIMTS_LTI_PLATFORMS
         value: "[]"
+      # Public HTTPS URL of this service, e.g. https://dimts-api.onrender.com.
+      # The API registers <url>/v1/telegram/webhook with Telegram on start.
+      - key: DIMTS_PUBLIC_API_URL
+        sync: false
+      # Telegram: token from @BotFather and a distinct 24+ character secret
+      # (A-Z a-z 0-9 _ -). Leave the token empty to disable the bot. Stop any
+      # local poller using the same token, or both will miss messages.
       - key: DIMTS_TELEGRAM_MODE
         value: webhook
+      - key: DIMTS_TELEGRAM_TOKEN
+        sync: false
+      - key: DIMTS_TELEGRAM_SECRET
+        sync: false
+      # SMS: "simulator" until an SMS Ethiopia campaign key is available; then
+      # set DIMTS_SMS_MODE=smsethiopia and DIMTS_SMS_GATEWAY_TOKEN.
       - key: DIMTS_SMS_MODE
         value: simulator
+      # Jobs: Ethiojobs imports from its public pages every 6 hours; alerts go
+      # out hourly through the Telegram bot and SMS.
+      - key: DIMTS_JOB_SOURCES
+        value: ethiojobs,hahujobs,afriwork
       - key: DIMTS_JOBS_ALERT_INTERVAL_MS
-        value: "0"
+        value: "3600000"
+      # AI ladder: Gemini gemini-4-hydrogen, then OpenRouter free models, then
+      # the offline extractive answerer. Remote AI answers only after the
+      # learner allows it. Keys: https://aistudio.google.com/apikey and
+      # https://openrouter.ai/settings/keys
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
       - key: DIMTS_AI_PROVIDER
-        value: offline
+        value: gemini
       - key: DIMTS_AI_LADDER
-        value: offline
+        value: gemini,openrouter,offline
       - key: DIMTS_AI_PROVIDERS
-        value: "[]"
+        value: '[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":12000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":[],"capabilities":{"languages":["en","am","om"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"openrouter","adapter":"openrouter","model":"particle-ai/particle-1:free","fallbackModels":["inclusionai/ling-3.2-flash:free","nvidia/nemotron-3.5-super-vl:free"],"credentialRef":"OPENROUTER_API_KEY","privacyClass":"remote","enabled":true,"priority":2,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":[],"capabilities":{"languages":["en","am","om"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}}]'
+      - key: DIMTS_AI_MAX_TOKENS
+        value: "512"
+      - key: DIMTS_AI_TEMPERATURE
+        value: "0.2"
+      - key: DIMTS_AI_RECALL_FLOOR
+        value: "0.15"
+      # Voice: browser speech where the device supports the language, Gemini
+      # cloud speech (after consent) for Amharic and Afaan Oromoo.
+      - key: DIMTS_STT_ENGINE
+        value: browser
+      - key: DIMTS_TTS_ENGINE
+        value: browser
+      - key: DIMTS_CLOUD_VOICE
+        value: gemini
+      - key: DIMTS_CLOUD_VOICE_LANGS
+        value: en,am,om
+      - key: DIMTS_CLOUD_VOICE_SPEAK_LANGS
+        value: en,am
 
   - type: web
     name: dimts-widget-assets

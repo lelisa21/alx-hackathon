@@ -368,3 +368,24 @@ describe("provider runtime configuration", () => {
     ).toThrow(/DIMTS_AI_TEMPERATURE/u);
   });
 });
+
+describe("placeholder credentials", () => {
+  it("recognises template values but never a real or short local token", async () => {
+    const { isPlaceholderCredential } =
+      await import("../src/provider-runtime.js");
+    for (const value of [
+      "REPLACE_WITH_YOUR_GEMINI_API_KEY",
+      "your-api-key",
+      "sk-or-...",
+      "<gemini key>",
+      "changeme",
+    ])
+      expect(isPlaceholderCredential(value)).toBe(true);
+    for (const value of [
+      "ollama",
+      "AIzaSyD4x9y8Q7w6E5r4T3y2U1i0O9p8A7s6D5f",
+      "sk-or-v1-0123456789abcdef0123456789abcdef",
+    ])
+      expect(isPlaceholderCredential(value)).toBe(false);
+  });
+});

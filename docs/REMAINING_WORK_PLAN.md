@@ -121,17 +121,25 @@ adapter results are separate and do not satisfy full-pipeline acceptance.
 ### 3. Complete teacher insights end to end
 
 **Packages:** P09, with P02/P03 integration; P10 supplies instructor access.
-**Requirements:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20, NFR-PRIV-03.
+**Requirements:** FR-CONV-12, FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01.
+FR-UI-20 covers per-reply controls; it is not the teacher-page requirement.
 
-- Add the accessible teacher-facing insights screen with localized loading,
-  empty, error, filter, semantic-table, summary, and CSV states.
-- Wire question and notfound outcome counts into the privacy-safe aggregate
-  path; current evidence confirms the aggregate API/service, but not a complete
-  event-to-dashboard workflow.
-- Verify that only authorized host/instructor access is granted and that
-  groups below five are suppressed/combined. Do not expose question text,
-  session IDs, or learner identifiers in aggregates or exports.
-- Add browser accessibility and authorization/aggregation end-to-end tests.
+**Implementation now delivered:** the instructor insights page has localized
+loading, empty, error/retry, filter, summary, semantic-table, and CSV states.
+Reply outcomes and feedback are wired into anonymous aggregates. LTI instructor
+launches open the insights page; public widget keys cannot authorize it. The
+API and service enforce the minimum group size of five. Focused API/service and
+Playwright/axe regressions cover authorization, aggregate replay behavior,
+privacy suppression, filters, export, and page states.
+
+**Acceptance still open:**
+
+- Run the PostgreSQL-backed integration suite against the configured database.
+- Verify instructor launch, data population, and export on a real LMS and
+  hosted deployment.
+- Complete co-designer, NVDA, TalkBack, and criterion-level WCAG review for the
+  insights screen; automated axe coverage alone does not pass the gate.
+- Review the aggregate topic-label quality against authorized source data.
 
 ### 4. Finish production voice and channel verification
 
@@ -183,9 +191,13 @@ can be marked done:
   - Consent/deletion and data-policy review for any voice or media handling.
   - Simulator tests are not evidence of live hosting or operational readiness.
 - **LTI / REST (P10):**
-  - Real browser OIDC and redirect flow verification.
-  - Tool key/JWKS publication and validation against a real platform.
-  - Deep-link launch response validation with a real LMS environment.
+  - Verify the implemented browser OIDC redirect and platform-JWKS validation
+    against a real LMS.
+  - Tool key/JWKS publication is not required by current launches, which do not
+    sign tool-originated messages. Add it only with an in-scope deep-link or
+    grade-passback contract.
+  - Deep-link launch response validation with a real LMS if that launch type is
+    in the accepted integration scope.
   - Real learner/instructor launch testing on a production-style platform.
   - Level 2/3 example runs and an outsider integration trial still required.
   - Static launch validation and mocked-JWKS tests are not production LMS proof.

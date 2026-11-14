@@ -41,7 +41,37 @@ const SpeakSchema = z
 export function createVoiceRouter(options: {
   repository: ApiRepository;
   voice?: CloudVoice | undefined;
+  /** Content-free failure report (direction, reason, HTTP status). */
+  onError?: (event: {
+    direction: "transcribe" | "speak";
+    reason: string;
+    status?: number;
+    vendorMessage?: string;
+  }) => void;
 }): express.Router {
+  const report = (direction: "transcribe" | "speak", error: unknown) => {
+    const failure = error as {
+      reason?: unknown;
+      status?: unknown;
+      vendorMessage?: unknown;
+      name?: unknown;
+    };
+    options.onError?.({
+      direction,
+      reason:
+        typeof failure?.reason === "string"
+          ? failure.reason
+          : failure?.name === "TimeoutError"
+            ? "timeout"
+            : "unknown",
+      ...(typeof failure?.status === "number"
+        ? { status: failure.status }
+        : {}),
+      ...(typeof failure?.vendorMessage === "string"
+        ? { vendorMessage: failure.vendorMessage }
+        : {}),
+    });
+  };
   const router = express.Router();
   const session = createSessionAuth(options.repository);
   const limit = rateLimit({
@@ -59,13 +89,22 @@ export function createVoiceRouter(options: {
     response.json({
       available: Boolean(options.voice),
       languages: options.voice?.languages ?? [],
+      speakLanguages: options.voice?.speakLanguages ?? [],
       consentVersion: CLOUD_VOICE_CONSENT_VERSION,
       provider: options.voice ? "Google Gemini" : null,
     });
   });
 
-  const unavailable = (response: express.Response, lang: string) => {
-    if (options.voice?.languages.includes(lang)) return false;
+  const unavailable = (
+    response: express.Response,
+    lang: string,
+    direction: "transcribe" | "speak" = "transcribe",
+  ) => {
+    const languages =
+      direction === "speak"
+        ? options.voice?.speakLanguages
+        : options.voice?.languages;
+    if (languages?.includes(lang)) return false;
     sendProblem(response, 503, "internal", "voice.unsupported");
     return true;
   };
@@ -97,7 +136,8 @@ export function createVoiceRouter(options: {
         });
         response.set("Cache-Control", "no-store");
         response.json({ text: text.slice(0, 1000) });
-      } catch {
+      } catch (error) {
+        report("transcribe", error);
         sendProblem(response, 502, "internal", "voice.retry");
       } finally {
         audio.fill(0);
@@ -117,7 +157,7 @@ export function createVoiceRouter(options: {
         return;
       }
       const body = parsed.data;
-      if (unavailable(response, body.lang)) return;
+      if (unavailable(response, body.lang, "speak")) return;
       try {
         const result = await options.voice!.synthesize({
           text: body.text,
@@ -129,7 +169,8 @@ export function createVoiceRouter(options: {
           mimeType: result.mimeType,
           audio: Buffer.from(result.audio).toString("base64"),
         });
-      } catch {
+      } catch (error) {
+        report("speak", error);
         sendProblem(response, 502, "internal", "voice.outputFailed");
       }
     },

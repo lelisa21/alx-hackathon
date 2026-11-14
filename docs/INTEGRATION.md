@@ -36,10 +36,12 @@ contract, not an ALX Savanna deployment.
 
 There is no Savanna-specific connector, platform registration, or private
 course content configured in this repository. Generic LTI 1.3 metadata can be
-loaded from the host's `DIMTS_LTI_PLATFORMS` setting, but the prototype is not
-yet an operational LMS launch: `/v1/lti/jwks` publishes an empty key set, and
-the current login response does not complete the browser OIDC redirect flow.
-Do not register this build as an LTI tool. The usable integration surfaces are
+loaded from the host's `DIMTS_LTI_PLATFORMS` setting. Browser OIDC redirect and
+platform-JWKS launch validation are implemented, but have not been accepted
+against a real LMS. `/v1/lti/jwks` publishes an empty tool key set; current
+launches do not sign tool-originated deep-link or grade-passback messages, so
+that is expected for the implemented path. Do not register this build as an LTI
+tool until a real platform launch is verified. The usable integration surfaces are
 the Level 1 widget embed and REST API described here and in [API.md](./API.md).
 An authorized host must serve the widget, register its origin and public host
 identifier with the API, and set the API URL and CSP. No Savanna session cookie,

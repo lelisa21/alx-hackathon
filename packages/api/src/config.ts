@@ -182,11 +182,20 @@ const providerBindingSchema = z
       .array(z.enum(["question", "course-passage", "job-posting", "glossary"]))
       .refine((values) => new Set(values).size === values.length),
     evaluatedLanguages: z.array(z.string().min(1)).default([]),
+    // OpenRouter only: models tried in order when the primary is rate
+    // limited or down (OpenRouter allows three models per request).
+    fallbackModels: z.array(z.string().min(1).max(256)).max(2).optional(),
     capabilities: providerCapabilitiesSchema,
   })
   .strict()
   .superRefine((binding, context) => {
-    if (["openai", "gemini", "xai"].includes(binding.adapter)) {
+    if (binding.fallbackModels?.length && binding.adapter !== "openrouter")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "fallbackModels is supported only by the openrouter adapter",
+        path: ["fallbackModels"],
+      });
+    if (["openai", "gemini", "xai", "openrouter"].includes(binding.adapter)) {
       if (binding.privacyClass !== "remote")
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -401,6 +410,7 @@ const environmentSchema = z
     // Cloud speech for languages the browser cannot recognise or speak. Runs
     // only after the learner allows cloud voice for the session.
     DIMTS_CLOUD_VOICE: z.enum(["off", "gemini"]).default("off"),
+    // Languages cloud speech recognition serves.
     DIMTS_CLOUD_VOICE_LANGS: z
       .string()
       .default("en,am,om")
@@ -410,14 +420,24 @@ const environmentSchema = z
           .map((code) => code.trim())
           .filter(Boolean),
       ),
-    DIMTS_CLOUD_VOICE_STT_MODEL: z
+    // Languages cloud read-aloud serves. Gemini TTS speaks Amharic but not
+    // Afaan Oromoo (https://aistudio.google.com/docs/speech-generation).
+    DIMTS_CLOUD_VOICE_SPEAK_LANGS: z
       .string()
-      .min(1)
-      .default("gemini-3.5-flash-lite"),
+      .default("en,am")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    // Transcription runs on a multimodal model through the Interactions API.
+    // gemini-2.0-flash-lite is shut down; gemini-2.5-flash is deprecated.
+    DIMTS_CLOUD_VOICE_STT_MODEL: z.string().min(1).default("gemini-4-hydrogen"),
     DIMTS_CLOUD_VOICE_TTS_MODEL: z
       .string()
       .min(1)
-      .default("gemini-3.1-flash-tts-preview"),
+      .default("gemini-3.8-flash-lite-tts"),
     DIMTS_CLOUD_VOICE_CREDENTIAL_REF: z
       .string()
       .min(1)
@@ -491,6 +511,27 @@ const environmentSchema = z
         return channels as Array<"sms" | "telegram">;
       }),
     DIMTS_HOST_ORIGINS: z.string().default(""),
+    // Public HTTPS base URL of this API (no /v1), e.g.
+    // https://dimts-api.onrender.com. In Telegram webhook mode the API
+    // registers <url>/v1/telegram/webhook with Telegram on start.
+    DIMTS_PUBLIC_API_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .url()
+        .refine((value) => {
+          const url = new URL(value);
+          return (
+            (url.protocol === "https:" || isLocalHttpUrl(value)) &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+          );
+        }, "must use HTTPS without credentials, query or fragment")
+        .transform((value) => value.replace(/\/+$/u, "").replace(/\/v1$/u, ""))
+        .optional(),
+    ),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
     // Draft packs this host publishes as beta. Review-gated features stay off.
     DIMTS_PREVIEW_LANGS: z

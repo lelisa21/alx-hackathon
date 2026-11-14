@@ -77,7 +77,8 @@ describe("widget size gate", () => {
       writeFile(path.join(widgetDist, "dimts-helper-console.js"), "export {};"),
       writeFile(
         path.join(widgetDist, "dimts-faq-sizes.json"),
-        JSON.stringify({ en: 1024, am: 154 * 1024 }),
+        // Just over the 155 kB initial-load limit (scripts/size-gate.mjs).
+        JSON.stringify({ en: 1024, am: 156 * 1024 }),
       ),
       writeEnglishPack(),
     ]);

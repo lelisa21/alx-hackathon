@@ -76,7 +76,16 @@ function languageBase(lang: string): string {
   return lang.toLowerCase().split("-")[0] ?? lang.toLowerCase();
 }
 
-export function isAnswerInLanguage(text: string, lang: string): boolean {
+/**
+ * `factsOnly`: the answer quotes job-posting fact lines (title, employer,
+ * place), which are names with no function words. They still must use the
+ * language's script and contain no function words of the other language.
+ */
+export function isAnswerInLanguage(
+  text: string,
+  lang: string,
+  options: { factsOnly?: boolean } = {},
+): boolean {
   const letters = text.match(/\p{L}/gu) ?? [];
   if (letters.length === 0) return false;
 
@@ -93,13 +102,15 @@ export function isAnswerInLanguage(text: string, lang: string): boolean {
   if (base === "en")
     return (
       !answerTokens.some((token) => OROMO_STOPWORDS.has(token)) &&
-      (answerTokens.some((token) => ENGLISH_STOPWORDS.has(token)) ||
+      (Boolean(options.factsOnly) ||
+        answerTokens.some((token) => ENGLISH_STOPWORDS.has(token)) ||
         answerTokens.length <= 4)
     );
   if (base === "om")
     return (
       !answerTokens.some((token) => ENGLISH_STOPWORDS.has(token)) &&
-      (answerTokens.some((token) => OROMO_STOPWORDS.has(token)) ||
+      (Boolean(options.factsOnly) ||
+        answerTokens.some((token) => OROMO_STOPWORDS.has(token)) ||
         answerTokens.length <= 4)
     );
   return true;

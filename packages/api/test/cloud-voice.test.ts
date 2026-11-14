@@ -22,6 +22,7 @@ function app(voice?: Parameters<typeof createVoiceRouter>[0]["voice"]) {
 
 const fakeVoice = {
   languages: ["am", "om"],
+  speakLanguages: ["am", "om"],
   transcribe: vi.fn(async () => "ኮርስ ለማለፍ ምን ያህል ውጤት ያስፈልገኛል?"),
   synthesize: vi.fn(async () => ({
     audio: new Uint8Array([1, 2, 3]),
@@ -35,6 +36,7 @@ describe("cloud voice routes", () => {
     expect((await request(app()).get("/v1/voice/cloud")).body).toEqual({
       available: false,
       languages: [],
+      speakLanguages: [],
       consentVersion: "cloud-voice-v1",
       provider: null,
     });
@@ -101,41 +103,58 @@ describe("cloud voice routes", () => {
 });
 
 describe("Gemini voice adapter", () => {
-  it("asks for a native-script transcript and wraps speech as WAV", async () => {
-    const bodies: Record<string, unknown>[] = [];
+  it("uses the Interactions API: native-script transcript and WAV speech", async () => {
+    const calls: {
+      url: string;
+      headers: Headers;
+      body: Record<string, unknown>;
+    }[] = [];
     const fetcher = vi.fn(
-      async (_url: RequestInfo | URL, init?: RequestInit) => {
-        bodies.push(JSON.parse(String(init?.body)));
-        return new Response(
-          JSON.stringify({
-            candidates: [
-              {
-                content: {
-                  parts:
-                    bodies.length === 1
-                      ? [{ text: "“Akkam jirtu?”" }]
-                      : [
-                          {
-                            inlineData: {
-                              mimeType: "audio/l16; rate=24000; channels=1",
-                              data: Buffer.alloc(4).toString("base64"),
-                            },
-                          },
-                        ],
-                },
+      async (url: RequestInfo | URL, init?: RequestInit) => {
+        calls.push({
+          url: String(url),
+          headers: new Headers(init?.headers),
+          body: JSON.parse(String(init?.body)),
+        });
+        return Response.json(
+          calls.length === 1
+            ? {
+                status: "completed",
+                steps: [
+                  { type: "thought" },
+                  {
+                    type: "model_output",
+                    content: [{ type: "text", text: "“Akkam jirtu?”" }],
+                  },
+                ],
+              }
+            : {
+                status: "completed",
+                steps: [
+                  {
+                    type: "model_output",
+                    content: [
+                      {
+                        type: "audio",
+                        mime_type: "audio/l16; rate=24000",
+                        data: Buffer.alloc(4).toString("base64"),
+                      },
+                    ],
+                  },
+                ],
               },
-            ],
-          }),
         );
       },
     ) as unknown as typeof fetch;
     const voice = createGeminiVoice({
       apiKey: "key",
-      sttModel: "gemini-3.5-flash-lite",
-      ttsModel: "gemini-3.1-flash-tts-preview",
-      languages: ["om"],
+      sttModel: "gemini-4-hydrogen",
+      ttsModel: "gemini-3.8-flash-lite-tts",
+      languages: ["am", "om"],
+      speakLanguages: ["am"],
       fetch: fetcher,
     });
+    expect(voice.speakLanguages).toEqual(["am"]);
     const signal = new AbortController().signal;
     expect(
       await voice.transcribe({
@@ -145,14 +164,61 @@ describe("Gemini voice adapter", () => {
         signal,
       }),
     ).toBe("Akkam jirtu?");
-    expect(JSON.stringify(bodies[0])).toContain("Qubee");
-    const speech = await voice.synthesize({
-      text: "Akkam",
-      lang: "om",
-      signal,
+    const stt = calls[0]!;
+    expect(stt.url).toBe(
+      "https://generativelanguage.googleapis.com/v1beta/interactions",
+    );
+    expect(stt.headers.get("x-goog-api-key")).toBe("key");
+    expect(stt.headers.get("api-revision")).toBe("2026-05-20");
+    expect(stt.body).toMatchObject({
+      model: "gemini-4-hydrogen",
+      store: false,
+      generation_config: { thinking_level: "low" },
+      input: [
+        { type: "text" },
+        { type: "audio", mime_type: "audio/ogg", data: "AQ==" },
+      ],
+    });
+    expect(JSON.stringify(stt.body)).toContain("Qubee");
+    // Afaan Oromoo is not in Gemini TTS: read-aloud refuses before any call.
+    await expect(
+      voice.synthesize({ text: "Akkam", lang: "om", signal }),
+    ).rejects.toMatchObject({ reason: "language" });
+    const speech = await voice.synthesize({ text: "ሰላም", lang: "am", signal });
+    expect(calls[1]!.body).toMatchObject({
+      model: "gemini-3.8-flash-lite-tts",
+      response_format: { type: "audio" },
+      generation_config: { speech_config: [{ voice: "Kore" }] },
+      input: [{ type: "user_input", content: [{ type: "text", text: "ሰላም" }] }],
     });
     expect(speech.mimeType).toBe("audio/wav");
     expect(Buffer.from(speech.audio).subarray(0, 4).toString()).toBe("RIFF");
     expect(pcmToWav(new Uint8Array(4), 24000).byteLength).toBe(48);
+  });
+
+  it("reports the HTTP status and vendor message, never the audio", async () => {
+    const voice = createGeminiVoice({
+      apiKey: "bad",
+      sttModel: "gemini-4-hydrogen",
+      ttsModel: "gemini-3.8-flash-lite-tts",
+      languages: ["am"],
+      fetch: (async () =>
+        Response.json(
+          { error: { code: 400, message: "API key not valid." } },
+          { status: 400 },
+        )) as unknown as typeof fetch,
+    });
+    await expect(
+      voice.transcribe({
+        audio: new Uint8Array([9]),
+        mimeType: "audio/wav",
+        lang: "am",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({
+      reason: "status",
+      status: 400,
+      vendorMessage: "API key not valid.",
+    });
   });
 });

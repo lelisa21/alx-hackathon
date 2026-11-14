@@ -13,22 +13,29 @@ import type {
 export function createInsightsRepository(pool: Pool): InsightsRepository {
   return {
     async queryInsights(query: InsightQuery): Promise<RawInsightRow[]> {
-      // Build dynamic WHERE clause
+      // Build dynamic WHERE clause using COALESCE so filters apply to both
+      // sides of the FULL OUTER JOIN (not just the feedback_counter side).
       const conditions: string[] = [];
       const params: (string | Date)[] = [];
 
       if (query.startDate) {
-        conditions.push(`fc.period >= $${params.length + 1}`);
+        conditions.push(
+          `COALESCE(fc.period, ia.period) >= $${params.length + 1}`,
+        );
         params.push(query.startDate);
       }
 
       if (query.endDate) {
-        conditions.push(`fc.period <= $${params.length + 1}`);
+        conditions.push(
+          `COALESCE(fc.period, ia.period) <= $${params.length + 1}`,
+        );
         params.push(query.endDate);
       }
 
       if (query.lang) {
-        conditions.push(`fc.lang = $${params.length + 1}`);
+        conditions.push(
+          `COALESCE(fc.lang, ia.lang) = $${params.length + 1}`,
+        );
         params.push(query.lang);
       }
 
@@ -61,10 +68,24 @@ export function createInsightsRepository(pool: Pool): InsightsRepository {
       return result.rows;
     },
 
-    async topicLabel(): Promise<string | null> {
-      // TODO: resolve topic label from passage table when available
-      // For now, return null (topic_label will be null in response)
-      return null;
+    async topicLabel(topicId: string): Promise<string | null> {
+      // Resolve a human-readable label from the passage table using the
+      // passageId stored as topic_id. Falls back to null when not found.
+      if (!topicId || topicId === "uncategorized" || topicId === "Other") {
+        return null;
+      }
+      const result = await pool.query<{ lesson_title: string; section_title: string | null }>(
+        `SELECT lesson_title, section_title
+         FROM passage
+         WHERE id = $1
+         LIMIT 1`,
+        [topicId],
+      );
+      const row = result.rows[0];
+      if (!row) return null;
+      return row.section_title
+        ? `${row.lesson_title} — ${row.section_title}`
+        : row.lesson_title;
     },
   };
 }

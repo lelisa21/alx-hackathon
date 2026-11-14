@@ -2,6 +2,13 @@
  * Cloud speech through Google Gemini, for languages that browsers cannot
  * recognise or speak on the device (Amharic and Afaan Oromoo today).
  *
+ * Both directions use the Gemini Interactions API (POST /v1beta/interactions),
+ * as documented at https://aistudio.google.com/docs: transcription sends the
+ * recording as an `audio` input item to a multimodal model (default
+ * gemini-4-hydrogen); speech uses a TTS model (default
+ * gemini-3.8-flash-lite-tts) with `response_format: {type:"audio"}`, which
+ * returns a complete 24 kHz WAV file.
+ *
  * Privacy: audio and text are sent to Google only after the learner allows
  * cloud voice for the session (consent version `cloud-voice-v1`). Dimts never
  * logs or stores the audio, the transcript or the spoken text. Google's own
@@ -22,9 +29,14 @@ export const CLOUD_AUDIO_TYPES = [
   "audio/mpeg",
   "audio/mp4",
 ] as const;
+/** Interactions API revision the request and response shapes follow. */
+export const GEMINI_API_REVISION = "2026-05-20";
 
 export interface CloudVoice {
+  /** Languages cloud speech recognition serves. */
   readonly languages: string[];
+  /** Languages cloud read-aloud serves (a subset: TTS covers fewer). */
+  readonly speakLanguages: string[];
   transcribe(input: {
     audio: Uint8Array;
     mimeType: string;
@@ -36,6 +48,20 @@ export interface CloudVoice {
     lang: string;
     signal: AbortSignal;
   }): Promise<{ audio: Uint8Array; mimeType: string }>;
+}
+
+/** Content-free failure: HTTP status and the vendor's own error text. */
+export class CloudVoiceError extends Error {
+  readonly reason: string;
+  readonly status: number | undefined;
+  readonly vendorMessage: string | undefined;
+  constructor(reason: string, status?: number, vendorMessage?: string) {
+    super(`cloud_voice_${reason}`);
+    this.name = "CloudVoiceError";
+    this.reason = reason;
+    this.status = status;
+    this.vendorMessage = vendorMessage?.replace(/\s+/gu, " ").slice(0, 240);
+  }
 }
 
 const LANGUAGE_HINTS: Record<string, string> = {
@@ -63,9 +89,40 @@ export function pcmToWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
   return Buffer.concat([header, Buffer.from(pcm)]);
 }
 
-interface GeminiPart {
+interface ContentItem {
+  type?: string;
   text?: string;
-  inlineData?: { mimeType?: string; data?: string };
+  data?: string;
+  mime_type?: string;
+}
+interface InteractionResponse {
+  status?: string;
+  output_text?: string;
+  steps?: { type?: string; content?: ContentItem[] }[];
+}
+
+/** Output items of the final model turn, in order. */
+function modelOutput(response: InteractionResponse): ContentItem[] {
+  return (response.steps ?? [])
+    .filter((step) => step.type === "model_output")
+    .flatMap((step) => step.content ?? []);
+}
+
+// Gemini 3.x accepts thinking level "minimal"; Gemini 4 rejects it (400) and
+// "low" is its lowest level. Gemini 4 and 3.6+ also reject `temperature`.
+function generationConfig(model: string): Record<string, unknown> {
+  const match = /^(?:models\/)?gemini-(\d+)(?:\.(\d+))?/u.exec(model);
+  if (!match || /tts|transcribe/u.test(model)) return {};
+  const major = Number(match[1]);
+  const minor = Number(match[2] ?? "0");
+  return {
+    ...(major >= 4
+      ? { thinking_level: "low" }
+      : major === 3
+        ? { thinking_level: "minimal" }
+        : {}),
+    ...(major < 3 || (major === 3 && minor < 6) ? { temperature: 0 } : {}),
+  };
 }
 
 export function createGeminiVoice(options: {
@@ -73,6 +130,7 @@ export function createGeminiVoice(options: {
   sttModel: string;
   ttsModel: string;
   languages: string[];
+  speakLanguages?: string[];
   voiceName?: string;
   endpoint?: string;
   fetch?: typeof fetch;
@@ -81,99 +139,132 @@ export function createGeminiVoice(options: {
   const endpoint = (
     options.endpoint ?? "https://generativelanguage.googleapis.com/v1beta"
   ).replace(/\/$/u, "");
-  const call = async (
-    model: string,
-    body: unknown,
+  const speakLanguages = (options.speakLanguages ?? options.languages).filter(
+    (lang) => options.languages.includes(lang),
+  );
+  const interact = async (
+    body: Record<string, unknown>,
     signal: AbortSignal,
-  ): Promise<GeminiPart[]> => {
-    const response = await fetcher(
-      `${endpoint}/models/${encodeURIComponent(model)}:generateContent`,
-      {
+  ): Promise<InteractionResponse> => {
+    let response: Response;
+    try {
+      response = await fetcher(`${endpoint}/interactions`, {
         method: "POST",
         headers: {
           "content-type": "application/json",
           "x-goog-api-key": options.apiKey,
+          "api-revision": GEMINI_API_REVISION,
         },
-        body: JSON.stringify(body),
+        // Stateless: Google keeps no interaction history for these calls.
+        body: JSON.stringify({ ...body, store: false }),
         signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]),
         redirect: "error",
-      },
-    );
-    if (!response.ok) throw new Error(`cloud_voice_status_${response.status}`);
-    const json = (await response.json()) as {
-      candidates?: { content?: { parts?: GeminiPart[] } }[];
-    };
-    return json.candidates?.[0]?.content?.parts ?? [];
+      });
+    } catch (error) {
+      if (signal.aborted) throw error;
+      throw new CloudVoiceError("network");
+    }
+    if (!response.ok) {
+      let message: string | undefined;
+      try {
+        const error = (
+          JSON.parse((await response.text()).slice(0, 8_192)) as {
+            error?: { message?: unknown };
+          }
+        ).error;
+        if (typeof error?.message === "string") message = error.message;
+      } catch {
+        // Keep only the status.
+      }
+      throw new CloudVoiceError("status", response.status, message);
+    }
+    try {
+      return (await response.json()) as InteractionResponse;
+    } catch {
+      throw new CloudVoiceError("not_json", response.status);
+    }
   };
-  const thinking = (model: string) =>
-    /^gemini-3\./u.test(model)
-      ? { thinkingConfig: { thinkingLevel: "minimal" } }
-      : {};
-  const supported = (lang: string) => options.languages.includes(lang);
 
   return {
     languages: [...options.languages],
+    speakLanguages: [...speakLanguages],
     async transcribe({ audio, mimeType, lang, signal }) {
-      if (!supported(lang)) throw new Error("cloud_voice_language");
-      const parts = await call(
-        options.sttModel,
+      if (!options.languages.includes(lang))
+        throw new CloudVoiceError("language");
+      const result = await interact(
         {
-          contents: [
+          model: options.sttModel,
+          input: [
             {
-              parts: [
-                {
-                  inlineData: {
-                    mimeType,
-                    data: Buffer.from(audio).toString("base64"),
-                  },
-                },
-                {
-                  text: `Transcribe this recording of a learner asking a question in ${LANGUAGE_HINTS[lang] ?? lang}. Write exactly what is said in that language and script. Do not translate, answer, explain or add anything. Return only the transcript.`,
-                },
-              ],
+              type: "text",
+              text: `Transcribe this recording of a learner asking a question in ${LANGUAGE_HINTS[lang] ?? lang}. Write exactly what is said in that language and script. Do not translate, answer, explain or add anything. Return only the transcript.`,
+            },
+            {
+              type: "audio",
+              data: Buffer.from(audio).toString("base64"),
+              mime_type: mimeType,
             },
           ],
-          generationConfig: { temperature: 0, ...thinking(options.sttModel) },
+          generation_config: generationConfig(options.sttModel),
         },
         signal,
       );
-      return parts
-        .map((part) => part.text ?? "")
-        .join("")
+      const text =
+        result.output_text ??
+        modelOutput(result)
+          .filter((item) => item.type === "text")
+          .map((item) => item.text ?? "")
+          .join("");
+      return text
         .trim()
-        .replace(/^["“]|["”]$/gu, "");
+        .replace(/^["“]|["”]$/gu, "")
+        .trim();
     },
     async synthesize({ text, lang, signal }) {
-      if (!supported(lang)) throw new Error("cloud_voice_language");
-      const parts = await call(
-        options.ttsModel,
+      if (!speakLanguages.includes(lang)) throw new CloudVoiceError("language");
+      const result = await interact(
         {
-          contents: [
+          model: options.ttsModel,
+          input: [
             {
-              parts: [
+              type: "user_input",
+              content: [
                 {
-                  text: `Read this aloud clearly and warmly in ${LANGUAGE_HINTS[lang] ?? lang}, exactly as written:\n${text}`,
+                  type: "text",
+                  text,
+                  // Style goes in metadata so the instruction is not read aloud.
+                  annotations: [
+                    {
+                      type: "speech_metadata",
+                      style: `clear, warm and calm, at a steady learning pace, in ${LANGUAGE_HINTS[lang] ?? lang}`,
+                    },
+                  ],
                 },
               ],
             },
           ],
-          generationConfig: {
-            responseModalities: ["AUDIO"],
-            speechConfig: {
-              voiceConfig: {
-                prebuiltVoiceConfig: { voiceName: options.voiceName ?? "Kore" },
-              },
-            },
+          response_format: { type: "audio" },
+          generation_config: {
+            speech_config: [{ voice: options.voiceName ?? "Kore" }],
           },
         },
         signal,
       );
-      const inline = parts.find((part) => part.inlineData?.data)?.inlineData;
-      if (!inline?.data) throw new Error("cloud_voice_no_audio");
-      const pcm = Buffer.from(inline.data, "base64");
-      const rate = Number(/rate=(\d+)/u.exec(inline.mimeType ?? "")?.[1]);
+      const output = modelOutput(result)
+        .filter((item) => item.type === "audio" && item.data)
+        .at(-1);
+      if (!output?.data) throw new CloudVoiceError("no_audio");
+      const bytes = Buffer.from(output.data, "base64");
+      // Unary TTS returns a complete WAV by default; raw PCM (audio/l16) is
+      // wrapped so every browser can play it.
+      if (bytes.subarray(0, 4).toString("latin1") === "RIFF")
+        return { audio: bytes, mimeType: "audio/wav" };
+      const rate = Number(/rate=(\d+)/u.exec(output.mime_type ?? "")?.[1]);
       return {
-        audio: pcmToWav(pcm, Number.isFinite(rate) && rate > 0 ? rate : 24000),
+        audio: pcmToWav(
+          bytes,
+          Number.isFinite(rate) && rate > 0 ? rate : 24000,
+        ),
         mimeType: "audio/wav",
       };
     },

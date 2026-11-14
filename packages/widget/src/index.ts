@@ -205,6 +205,7 @@ export class DimtsAssistant extends LitElement {
   private cloudVoiceOk = false;
   private cloudVoiceAnswer: ((allowed: boolean) => void) | undefined;
   private cloudVoiceLangs: string[] = [];
+  private cloudSpeakLangs: string[] = [];
   /** Set by an explicit voice action; automatic speech never asks for consent. */
   private voiceIntent = false;
   declare private offline: boolean;
@@ -385,15 +386,22 @@ export class DimtsAssistant extends LitElement {
       .catch(() => null)) as {
       available?: boolean;
       languages?: unknown;
+      speakLanguages?: unknown;
     } | null;
-    this.cloudVoiceLangs =
-      cloud?.available === true && Array.isArray(cloud.languages)
-        ? cloud.languages.filter(
+    const known = (list: unknown): string[] =>
+      cloud?.available === true && Array.isArray(list)
+        ? list.filter(
             (code): code is string =>
               typeof code === "string" &&
               this.languages.some((language) => language.code === code),
           )
         : [];
+    this.cloudVoiceLangs = known(cloud?.languages);
+    // Older servers report one list for both directions.
+    this.cloudSpeakLangs =
+      cloud && "speakLanguages" in cloud
+        ? known(cloud.speakLanguages)
+        : this.cloudVoiceLangs;
     if (!deviceVoice && !this.cloudVoiceLangs.length) return;
     try {
       const runtime = await this.loadVoice();
@@ -413,6 +421,7 @@ export class DimtsAssistant extends LitElement {
       const remote = this.cloudVoiceLangs.length
         ? runtime.createCloudAdapters({
             languages: this.cloudVoiceLangs,
+            speakLanguages: this.cloudSpeakLangs,
             consent: () => this.allowCloudVoice(),
             transport: {
               transcribe: async (input) =>
@@ -753,6 +762,29 @@ export class DimtsAssistant extends LitElement {
       padding: 0.25rem;
       margin: -0.25rem;
       scrollbar-width: thin;
+    }
+
+    header > .header-actions {
+      align-items: center;
+      gap: 0.625rem;
+      justify-content: flex-start;
+      overscroll-behavior-inline: contain;
+      scrollbar-width: none;
+    }
+
+    header > .header-actions::-webkit-scrollbar {
+      display: none;
+    }
+
+    .career-launcher {
+      background: var(--dimts-primary-text);
+      border: 1px solid var(--dimts-primary-text);
+      color: var(--dimts-primary);
+      font-weight: 700;
+    }
+
+    .career-launcher:hover {
+      filter: brightness(0.94);
     }
 
     header > .header-actions > *,
@@ -1577,6 +1609,608 @@ export class DimtsAssistant extends LitElement {
       .composer-actions > .muted,
       .composer-actions > .voice-install {
         flex-basis: 100%;
+      }
+    }
+
+    /* ---- Visual refresh (2026-11): calm surfaces, one accent, clear
+       hierarchy. Keeps 48px targets, 8px spacing and theme tokens, so the
+       dark and high-contrast themes inherit it. ---- */
+    :host {
+      --dimts-accent-soft: color-mix(
+        in srgb,
+        var(--dimts-primary) 9%,
+        var(--dimts-surface)
+      );
+      --dimts-accent-line: color-mix(
+        in srgb,
+        var(--dimts-primary) 28%,
+        var(--dimts-surface)
+      );
+      --dimts-ink-soft: color-mix(
+        in srgb,
+        var(--dimts-text) 4%,
+        var(--dimts-surface)
+      );
+      --dimts-hairline: color-mix(
+        in srgb,
+        var(--dimts-border) 32%,
+        var(--dimts-surface)
+      );
+      --dimts-icon-copy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='11' height='11' rx='2'/%3E%3Cpath d='M5 15V6a2 2 0 0 1 2-2h9'/%3E%3C/svg%3E");
+      --dimts-icon-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10v11H4V10zM7 10l4-7a2 2 0 0 1 3 2l-1 5h6a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 21H7'/%3E%3C/svg%3E");
+      --dimts-icon-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9v6h4l5 4V5L8 9zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11'/%3E%3C/svg%3E");
+      --dimts-icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0M12 18v3'/%3E%3C/svg%3E");
+      --dimts-icon-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12 20 4l-6 16-2.5-6.5z'/%3E%3C/svg%3E");
+      --dimts-icon-person: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E");
+      --dimts-icon-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
+    }
+
+    button,
+    select {
+      border-width: 1px;
+      transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease,
+        box-shadow 0.15s ease,
+        color 0.15s ease;
+    }
+
+    main {
+      scrollbar-color: var(--dimts-hairline) transparent;
+      scrollbar-width: thin;
+    }
+
+    /* Header: one gradient band, brand on the first row, tools that scroll
+       on the second instead of being cut off. */
+    header {
+      background: linear-gradient(
+        135deg,
+        var(--dimts-primary) 0%,
+        color-mix(in srgb, var(--dimts-primary) 82%, var(--dimts-primary-text))
+          130%
+      );
+      border-block-end: 0;
+      box-shadow: 0 6px 18px rgb(0 0 0 / 12%);
+      gap: 0.625rem 0.5rem;
+      padding-block: 0.875rem 0.625rem;
+    }
+
+    header .avatar {
+      block-size: 2.5rem;
+      box-shadow: 0 0 0 3px
+        color-mix(in srgb, var(--dimts-primary-text) 22%, transparent);
+      inline-size: 2.5rem;
+    }
+
+    header strong {
+      font-size: 1.05em;
+      line-height: 1.25;
+    }
+
+    .tagline {
+      font-size: 0.78em;
+      line-height: 1.3;
+      opacity: 0.88;
+    }
+
+    header .a11y {
+      gap: 0.5rem;
+    }
+
+    /* Brand shrinks (tagline truncates) so the three accessibility buttons
+       stay on the first row from 375px phones to the desktop panel. */
+    header .brand {
+      flex: 1 1 6.5rem;
+      min-inline-size: 0;
+    }
+
+    header .brand-text {
+      min-inline-size: 0;
+    }
+
+    header .brand-text > * {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .voice-install button {
+      background: transparent;
+      border-color: var(--dimts-hairline);
+      color: var(--dimts-muted);
+      font-size: 0.8125em;
+      font-weight: 600;
+    }
+
+    header .a11y button {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 12%,
+        transparent
+      );
+      border-color: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 35%,
+        var(--dimts-primary)
+      );
+      border-radius: 50%;
+    }
+
+    header > .header-actions {
+      gap: 0.5rem;
+      mask-image: linear-gradient(
+        to right,
+        #000 0,
+        #000 calc(100% - 2.5rem),
+        transparent
+      );
+      scroll-padding-inline: 0.25rem;
+    }
+
+    main[dir="rtl"] header > .header-actions {
+      mask-image: linear-gradient(
+        to left,
+        #000 0,
+        #000 calc(100% - 2.5rem),
+        transparent
+      );
+    }
+
+    header .header-actions button {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 10%,
+        transparent
+      );
+      border-color: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 35%,
+        var(--dimts-primary)
+      );
+      font-size: 0.8125em;
+      font-weight: 600;
+      overflow-wrap: normal;
+      padding-inline: 1rem;
+      white-space: nowrap;
+    }
+
+    header .header-actions button:not(:disabled):hover {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 22%,
+        transparent
+      );
+    }
+
+    header .header-actions .career-launcher {
+      background: var(--dimts-primary-text);
+      border-color: var(--dimts-primary-text);
+      color: var(--dimts-primary);
+    }
+
+    header .header-actions .career-launcher:not(:disabled):hover {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary-text) 88%,
+        var(--dimts-primary)
+      );
+    }
+
+    /* Utility row on the welcome and loading screens. */
+    main > .header-actions button {
+      background: var(--dimts-ink-soft);
+      border-color: var(--dimts-hairline);
+      border-radius: 999px;
+      font-size: 0.8125em;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    main > .header-actions .a11y button {
+      border-radius: 50%;
+    }
+
+    /* Help: a clear but quiet pill with a person icon. */
+    .help {
+      align-items: center;
+      box-shadow: 0 6px 16px
+        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+      display: inline-flex;
+      font-size: 0.875em;
+      gap: 0.5rem;
+      margin: var(--dimts-help-margin, 0 1rem 1rem);
+    }
+
+    .help::before {
+      background: currentColor;
+      block-size: 1.15em;
+      content: "";
+      flex: none;
+      inline-size: 1.15em;
+      mask: var(--dimts-icon-person) center / contain no-repeat;
+    }
+
+    .consent {
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+      border-radius: 1rem;
+      padding: 0.125rem 0.875rem;
+    }
+
+    /* Consent is a 48px switch (the 24px checkbox failed the target-size
+       rule). Knob position and track colour both show the state; the row
+       carries the focus ring because the mask would hide an outline. */
+    .consent input[type="checkbox"] {
+      appearance: none;
+      background:
+        radial-gradient(
+          circle at 16px 50%,
+          var(--dimts-surface) 0 8px,
+          transparent 8.5px
+        ),
+        color-mix(in srgb, var(--dimts-muted) 72%, var(--dimts-surface));
+      block-size: 48px;
+      border: 0;
+      cursor: pointer;
+      flex: none;
+      inline-size: 48px;
+      margin: 0;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect x='4' y='12' width='40' height='24' rx='12'/%3E%3C/svg%3E")
+        center / 100% 100% no-repeat;
+      min-block-size: 48px;
+      min-inline-size: 48px;
+    }
+
+    .consent input[type="checkbox"]:checked {
+      background:
+        radial-gradient(
+          circle at 32px 50%,
+          var(--dimts-primary-text) 0 8px,
+          transparent 8.5px
+        ),
+        var(--dimts-primary);
+    }
+
+    main[dir="rtl"] .consent input[type="checkbox"] {
+      background:
+        radial-gradient(
+          circle at 32px 50%,
+          var(--dimts-surface) 0 8px,
+          transparent 8.5px
+        ),
+        color-mix(in srgb, var(--dimts-muted) 72%, var(--dimts-surface));
+    }
+
+    main[dir="rtl"] .consent input[type="checkbox"]:checked {
+      background:
+        radial-gradient(
+          circle at 16px 50%,
+          var(--dimts-primary-text) 0 8px,
+          transparent 8.5px
+        ),
+        var(--dimts-primary);
+    }
+
+    .consent input[type="checkbox"]:focus-visible {
+      box-shadow: none;
+      outline: 0;
+    }
+
+    .consent .setting-row:has(input:focus-visible) {
+      border-radius: 0.75rem;
+      outline: 3px solid var(--dimts-focus);
+      outline-offset: 2px;
+    }
+
+    @media (forced-colors: active) {
+      .consent input[type="checkbox"] {
+        appearance: auto;
+        mask: none;
+      }
+
+      .consent input[type="checkbox"]:focus-visible {
+        outline: 3px solid;
+      }
+    }
+
+    /* Conversation: tinted backdrop, white answer cards, accent questions. */
+    .chat {
+      background: var(--dimts-ink-soft);
+    }
+
+    .messages {
+      gap: 0.125rem;
+      padding: 1rem 1rem 0.5rem;
+    }
+
+    .avatar {
+      background: linear-gradient(
+        135deg,
+        var(--dimts-primary),
+        color-mix(in srgb, var(--dimts-primary) 78%, var(--dimts-primary-text))
+      );
+    }
+
+    header .avatar {
+      background: var(--dimts-primary-text);
+    }
+
+    article[data-role="assistant"] {
+      background: transparent;
+      max-inline-size: 100%;
+    }
+
+    article[data-role="assistant"] > .avatar {
+      block-size: 2rem;
+      font-size: 0.85em;
+      inline-size: 2rem;
+    }
+
+    article[data-role="assistant"] > p {
+      background: var(--dimts-surface);
+      border: 1px solid var(--dimts-hairline);
+      border-radius: 1.125rem;
+      border-start-start-radius: 0.375rem;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
+      padding: 0.75rem 0.95rem;
+    }
+
+    article[data-role="learner"] {
+      background: linear-gradient(
+        135deg,
+        var(--dimts-primary),
+        color-mix(in srgb, var(--dimts-primary) 85%, var(--dimts-primary-text))
+      );
+      border: 0;
+      border-radius: 1.125rem;
+      border-end-end-radius: 0.375rem;
+      box-shadow: 0 2px 8px
+        color-mix(in srgb, var(--dimts-primary) 22%, transparent);
+      padding: 0.625rem 0.95rem;
+    }
+
+    /* Focus moves to a new answer for screen readers; keep it visible but
+       lighter than the control focus ring. */
+    article:focus-visible {
+      border-radius: 1.25rem;
+      box-shadow: none;
+      outline: 2px solid color-mix(in srgb, var(--dimts-focus) 60%, transparent);
+      outline-offset: 4px;
+    }
+
+    .citation {
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+      border-radius: 0.875rem;
+      font-size: 0.8125em;
+      font-weight: 500;
+      line-height: 1.35;
+      padding: 0.375rem 0.875rem;
+      text-align: start;
+    }
+
+    .citation::before {
+      background: var(--dimts-primary);
+    }
+
+    .reply-actions {
+      gap: 0.5rem;
+      margin-block-start: 0.25rem;
+    }
+
+    .reply-actions button {
+      align-items: center;
+      background: transparent;
+      border-color: transparent;
+      color: var(--dimts-muted);
+      display: inline-flex;
+      font-size: 0.8125em;
+      font-weight: 600;
+      gap: 0.375rem;
+      padding-inline: 0.625rem;
+    }
+
+    .reply-actions button:not(:disabled):hover {
+      background: var(--dimts-surface);
+      border-color: var(--dimts-hairline);
+      color: var(--dimts-text);
+    }
+
+    .reply-actions button[aria-pressed="true"] {
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+      color: var(--dimts-text);
+    }
+
+    .reply-actions > button:nth-of-type(-n + 3)::before,
+    .reply-actions > .read-aloud::before {
+      background: currentColor;
+      block-size: 1.05em;
+      content: "";
+      flex: none;
+      inline-size: 1.05em;
+      mask: var(--dimts-icon-copy) center / contain no-repeat;
+    }
+
+    .reply-actions > button:nth-of-type(2)::before,
+    .reply-actions > button:nth-of-type(3)::before {
+      mask-image: var(--dimts-icon-thumb);
+    }
+
+    .reply-actions > button:nth-of-type(3)::before {
+      transform: rotate(180deg);
+    }
+
+    .reply-actions > .read-aloud::before {
+      mask-image: var(--dimts-icon-speaker);
+    }
+
+    .dots {
+      background: var(--dimts-surface);
+      border: 1px solid var(--dimts-hairline);
+      border-start-start-radius: 0.375rem;
+    }
+
+    /* Empty state and suggestions. */
+    .avatar-lg {
+      border-radius: 1.125rem;
+      box-shadow: 0 10px 24px
+        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+    }
+
+    .suggestion {
+      align-items: center;
+      background: var(--dimts-surface);
+      border-color: var(--dimts-hairline);
+      border-radius: 0.875rem;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+      color: var(--dimts-text);
+      display: flex;
+      font-size: 0.9em;
+      gap: 0.75rem;
+      justify-content: space-between;
+    }
+
+    .suggestion::after {
+      background: var(--dimts-primary);
+      block-size: 1em;
+      content: "";
+      flex: none;
+      inline-size: 1em;
+      mask: var(--dimts-icon-arrow) center / contain no-repeat;
+    }
+
+    main[dir="rtl"] .suggestion::after {
+      transform: scaleX(-1);
+    }
+
+    .suggestion:not(:disabled):hover {
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+    }
+
+    .welcome h1 {
+      font-size: 1.45em;
+      line-height: 1.25;
+      margin-block: 0.25rem 1rem;
+    }
+
+    .language-choice {
+      background: var(--dimts-surface);
+      border-color: var(--dimts-hairline);
+      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+      padding: 0.75rem 1rem;
+    }
+
+    .language-choice:not(:disabled):hover {
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-primary);
+    }
+
+    /* Composer: one rounded field, microphone and send as clear pills. */
+    .composer {
+      border-block-start: 1px solid var(--dimts-hairline);
+      box-shadow: 0 -8px 24px rgb(0 0 0 / 6%);
+      padding: 0.625rem 0.875rem 0.875rem;
+    }
+
+    .composer > label {
+      color: var(--dimts-muted);
+      font-size: 0.75em;
+      font-weight: 700;
+      letter-spacing: 0.02em;
+    }
+
+    textarea {
+      background: var(--dimts-ink-soft);
+      border-width: 1px;
+      border-radius: 1rem;
+      field-sizing: content;
+      max-block-size: 9rem;
+      min-block-size: 3.25rem;
+      padding: 0.75rem 0.9rem;
+      resize: none;
+      transition:
+        background-color 0.15s ease,
+        border-color 0.15s ease;
+    }
+
+    textarea:focus {
+      background: var(--dimts-surface);
+      border-color: var(--dimts-primary);
+    }
+
+    .composer-actions {
+      gap: 0.5rem;
+    }
+
+    .mic {
+      align-items: center;
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+      display: inline-flex;
+      font-size: 0.875em;
+      font-weight: 600;
+      gap: 0.5rem;
+      justify-content: center;
+      /* FR-VOICE: the microphone stays a large 64px target. */
+      min-block-size: 64px;
+      padding-inline: 1rem 1.25rem;
+    }
+
+    .mic::before {
+      background: currentColor;
+      block-size: 1.2em;
+      content: "";
+      flex: none;
+      inline-size: 1.2em;
+      mask: var(--dimts-icon-mic) center / contain no-repeat;
+    }
+
+    .mic[aria-pressed="true"]::after {
+      border-radius: 999px;
+    }
+
+    .send-action {
+      align-items: center;
+      box-shadow: 0 4px 12px
+        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+      display: inline-flex;
+      gap: 0.5rem;
+      justify-content: center;
+      min-inline-size: 6.5rem;
+    }
+
+    /* The original layout keeps 6px between the three a11y buttons; the
+       spacing rule needs at least 8px between targets. */
+    .a11y {
+      gap: 0.5rem;
+    }
+
+    .send-action::after {
+      background: currentColor;
+      block-size: 1.05em;
+      content: "";
+      flex: none;
+      inline-size: 1.05em;
+      mask: var(--dimts-icon-send) center / contain no-repeat;
+    }
+
+    main[dir="rtl"] .send-action::after {
+      transform: scaleX(-1);
+    }
+
+    @media (max-width: 30rem) {
+      header {
+        padding-block: 0.75rem 0.5rem;
+      }
+
+      .messages {
+        padding-inline: 0.75rem;
+      }
+
+      .composer {
+        padding-inline: 0.75rem;
       }
     }
 
@@ -3374,6 +4008,11 @@ export class DimtsAssistant extends LitElement {
       : nothing;
   }
 
+  /** Jobs and support is on unless the host opts out with data-jobs="off". */
+  private get jobsEnabled(): boolean {
+    return this.getAttribute("data-jobs") !== "off";
+  }
+
   private renderHelpButton(): unknown {
     return html`
       <button
@@ -3545,21 +4184,25 @@ export class DimtsAssistant extends LitElement {
             >
               ${this.t("language.button")}
             </button>
-            <button
-              class="career-launcher"
-              type="button"
-              lang=${this.uiLanguage}
-              dir=${this.uiDirection}
-              @click=${() => void this.openCareer()}
-            >
-              ${this.t("jobs.title")}
-            </button>
+            ${
+              this.jobsEnabled
+                ? html`<button
+                    class="career-launcher"
+                    type="button"
+                    lang=${this.uiLanguage}
+                    dir=${this.uiDirection}
+                    @click=${() => void this.openCareer()}
+                  >
+                    ${this.t("jobs.title")}
+                  </button>`
+                : nothing
+            }
             ${this.renderUtilities(false)}
           </div>
         </header>
         ${this.renderHelpButton()} ${this.renderHelpSession()}
         ${this.renderHelpPreview()}
-        ${this.careerModule?.render.call(this as unknown as CareerContext) ?? nothing}
+        ${this.jobsEnabled ? (this.careerModule?.render.call(this as unknown as CareerContext) ?? nothing) : nothing}
         ${
           this.panel === "language"
             ? html`

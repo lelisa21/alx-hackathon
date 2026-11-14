@@ -254,7 +254,7 @@ export function createLtiRouter(options: {
       // Create or resume session (pseudonymous, no account creation)
       const sessionId = randomBytes(16).toString("base64url");
 
-      // Generate session token (short-lived, httpOnly cookie)
+      // Generate the short-lived bearer token used by the browser session.
       const sessionToken = randomBytes(32).toString("hex");
 
       // Store session with LTI context
@@ -318,10 +318,16 @@ export function createLtiRouter(options: {
             `frame-ancestors ${new URL(platformConfig.issuer).origin}`,
           ].join("; "),
         );
+        res.setHeader("Cache-Control", "no-store, private");
+        res.setHeader("Referrer-Policy", "no-referrer");
+        const apiUrl = `${req.protocol}://${req.get("host")}/v1`;
+        const launchContent = insightsAccess
+          ? `<dimts-insights data-api="${escapeHtml(apiUrl)}" data-language="en" data-session-token="${escapeHtml(sessionToken)}"></dimts-insights>`
+          : `<dimts-assistant data-api="${escapeHtml(apiUrl)}" data-host-key="${escapeHtml(options.launchPage.hostKey)}"></dimts-assistant>`;
         res
           .type("html")
           .send(
-            `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dimts</title><style>body{margin:0;padding:1rem}</style></head><body><dimts-assistant data-api="${escapeHtml(`${req.protocol}://${req.get("host")}/v1`)}" data-host-key="${escapeHtml(options.launchPage.hostKey)}"></dimts-assistant><script type="module" src="${escapeHtml(widget.href)}"></script></body></html>`,
+            `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dimts</title><style>body{margin:0;padding:1rem}</style></head><body>${launchContent}<script type="module" src="${escapeHtml(widget.href)}"></script></body></html>`,
           );
       } else
         res.json(

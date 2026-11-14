@@ -135,6 +135,7 @@ export const requiredUiKeys: readonly string[] = [
   "insights.summary",
   "insights.filters",
   "insights.filter.language",
+  "insights.filter.allLanguages",
   "insights.filter.period",
   "insights.filter.startDate",
   "insights.filter.endDate",

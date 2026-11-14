@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createTelegramTransport,
   startTelegramPolling,
+  TelegramTransportError,
 } from "../src/transport.js";
 import { formatTelegramReply, splitTelegramText } from "../src/format.js";
 
@@ -540,7 +541,7 @@ describe("FR-TG-08 local polling", () => {
   it("reports polling failures instead of retrying silently", async () => {
     const onError = vi.fn();
     const getUpdates = vi.fn(async () => {
-      throw new Error("409 Conflict");
+      throw new Error("network down");
     });
     const polling = startTelegramPolling({
       transport: { getUpdates },
@@ -549,6 +550,29 @@ describe("FR-TG-08 local polling", () => {
       onError,
     });
     await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    expect(onError.mock.calls[0]![0]).toEqual({ failures: 1, retryMs: 1000 });
     await polling.stop();
+  });
+
+  it("backs off when another process polls the same token (409)", async () => {
+    const events: { code?: number; failures: number; retryMs: number }[] = [];
+    const getUpdates = vi.fn(async () => {
+      throw new TelegramTransportError(409);
+    });
+    const polling = startTelegramPolling({
+      transport: { getUpdates },
+      environment: "development",
+      handleUpdate: async () => undefined,
+      onError: (event) => events.push(event),
+      retryDelay: (code, failures) =>
+        code === 409 ? Math.min(40, 5 * 2 ** (failures - 1)) : 1,
+    });
+    await vi.waitFor(() => expect(events.length).toBeGreaterThanOrEqual(3));
+    await polling.stop();
+    expect(events.slice(0, 3)).toEqual([
+      { code: 409, failures: 1, retryMs: 5 },
+      { code: 409, failures: 2, retryMs: 10 },
+      { code: 409, failures: 3, retryMs: 20 },
+    ]);
   });
 });

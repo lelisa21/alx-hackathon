@@ -7,7 +7,7 @@ import {
   ProviderBase,
 } from "./http-provider.js";
 import type { HttpProviderOptions, ProviderInput } from "./http-provider.js";
-import { InvalidProviderResponseError } from "./provider.js";
+import { InvalidProviderResponseError, ProviderHttpError } from "./provider.js";
 import type { Interactions } from "@google/genai";
 
 type GeminiInteractionParams =
@@ -167,12 +167,25 @@ function causedBySyntaxError(error: unknown): boolean {
   return false;
 }
 
-function hasHttpStatus(error: unknown): error is Error & { status: number } {
-  return (
-    error instanceof Error &&
-    "status" in error &&
-    typeof error.status === "number"
-  );
+/** HTTP status of a @google/genai error (APIError.status or statusCode). */
+function httpStatus(error: unknown): number | undefined {
+  if (!(error instanceof Error)) return undefined;
+  const record = error as Error & { status?: unknown; statusCode?: unknown };
+  const status = record.status ?? record.statusCode;
+  return typeof status === "number" ? status : undefined;
+}
+
+function vendorError(error: unknown): { code?: string; message?: string } {
+  const body = (error as { error?: unknown }).error;
+  if (!body || typeof body !== "object") return {};
+  const record = body as Record<string, unknown>;
+  const code = record.status ?? record.code;
+  return {
+    ...(typeof code === "string" || typeof code === "number"
+      ? { code: String(code) }
+      : {}),
+    ...(typeof record.message === "string" ? { message: record.message } : {}),
+  };
 }
 
 /** Gemini's stateless Interactions API adapter. */
@@ -218,7 +231,9 @@ export class GeminiProvider extends ProviderBase {
         },
       );
       await response.body?.cancel();
-      return response.ok ? { ok: true } : { ok: false, reasonCode: "status" };
+      return response.ok
+        ? { ok: true }
+        : { ok: false, reasonCode: `status_${response.status}` };
     } catch {
       return { ok: false, reasonCode: "unreachable" };
     }
@@ -259,18 +274,27 @@ export class GeminiProvider extends ProviderBase {
       });
     } catch (error) {
       if (signal.aborted) throw error;
-      if (
-        causedBySyntaxError(error) ||
-        (hasHttpStatus(error) && error.status === 200)
-      )
-        throw new InvalidProviderResponseError();
+      const status = httpStatus(error);
+      if (causedBySyntaxError(error) || status === 200)
+        throw new InvalidProviderResponseError("not_json");
+      if (status !== undefined) {
+        const vendor = vendorError(error);
+        throw new ProviderHttpError(status, vendor.code, vendor.message, {
+          cause: error,
+        });
+      }
       throw new Error("Provider request failed.", { cause: error });
     }
     return this.responseText(response);
   }
   protected responseText(response: unknown): string {
     const parsed = interactionSchema.safeParse(response);
-    if (!parsed.success) throw new InvalidProviderResponseError();
+    if (!parsed.success) {
+      const status = (response as { status?: unknown } | null)?.status;
+      throw new InvalidProviderResponseError(
+        status === "incomplete" ? "truncated" : "schema_mismatch",
+      );
+    }
     return parsed.data.output_text;
   }
 }

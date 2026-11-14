@@ -66,7 +66,7 @@ function statefulRepository() {
   return { repository, states };
 }
 
-async function signedToken(nonce: string) {
+async function signedToken(nonce: string, role = "Learner") {
   const { privateKey, publicKey } = await generateKeyPair("RS256");
   const jwk = await exportJWK(publicKey);
   vi.stubGlobal(
@@ -86,7 +86,9 @@ async function signedToken(nonce: string) {
     "https://purl.imsglobal.org/spec/lti/claim/deployment_id":
       platform.deploymentId,
     "https://purl.imsglobal.org/spec/lti/claim/roles": [
-      "http://purl.imsglobal.org/vocab/lis/v2/membership#Learner",
+      role === "Instructor"
+        ? "http://purl.imsglobal.org/vocab/lis/v2/institution/person#Instructor"
+        : `http://purl.imsglobal.org/vocab/lis/v2/membership#${role}`,
     ],
   })
     .setProtectedHeader({ alg: "RS256", kid: "k1" })
@@ -186,6 +188,46 @@ describe("LTI 1.3 browser flow", () => {
       expect(repository.createSession).toHaveBeenCalledWith(
         expect.objectContaining({ cloudOk: false, consentVersion: null }),
       );
+    } finally {
+      await app.locals.close();
+    }
+  });
+
+  it("opens the insights page for an LTI instructor without exposing a host key", async () => {
+    const { repository } = statefulRepository();
+    const app = buildApp({ config: parseConfig(environment), repository });
+    try {
+      const login = await request(app).get("/v1/lti/login").query({
+        iss: platform.issuer,
+        login_hint: "hint-instructor",
+        target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+      });
+      const redirect = new URL(login.headers.location!);
+      const idToken = await signedToken(
+        redirect.searchParams.get("nonce")!,
+        "Instructor",
+      );
+
+      const launch = await request(app)
+        .post("/v1/lti/launch")
+        .set("Host", "dimts-api.example.org")
+        .set("X-Forwarded-Proto", "https")
+        .type("form")
+        .send({ id_token: idToken, state: redirect.searchParams.get("state") });
+
+      expect(launch.status).toBe(200);
+      expect(launch.text).toContain("<dimts-insights");
+      expect(launch.text).toContain(
+        'data-api="https://dimts-api.example.org/v1"',
+      );
+      expect(launch.text).not.toContain("<dimts-assistant");
+      expect(launch.text).not.toContain('data-host-key="lti-widget-public-id"');
+      const session = vi.mocked(repository.createSession).mock.calls[0]?.[0];
+      expect(session?.ltiContext?.insightsAccess).toBe(true);
+      expect(launch.text).toContain(`data-session-token="${session?.token}"`);
+      expect(launch.text).not.toContain(idToken);
+      expect(launch.headers["cache-control"]).toBe("no-store, private");
+      expect(launch.headers["referrer-policy"]).toBe("no-referrer");
     } finally {
       await app.locals.close();
     }

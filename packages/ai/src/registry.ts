@@ -18,6 +18,8 @@ export interface ProviderBinding {
   timeoutMs: number;
   allowedDataClasses: ProviderDataClass[];
   evaluatedLanguages?: string[] | undefined;
+  /** OpenRouter routing fallbacks (adapter "openrouter" only). */
+  fallbackModels?: string[] | undefined;
   capabilities: ProviderCapabilities;
 }
 

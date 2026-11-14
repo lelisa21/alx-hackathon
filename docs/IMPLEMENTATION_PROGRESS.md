@@ -1,6 +1,31 @@
 # Implementation progress
 
-Updated: 14 November 2026. Task 2 follow-up verified on branch `dev`.
+Updated: 15 November 2026.
+
+## P09 follow-up — instructor insights page and privacy hardening
+
+Requirements: FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01,
+FR-INT-05, and FR-INT-06 instructor role mapping.
+
+**Verified acceptance evidence:**
+
+- 33 focused API/service tests passed across six files; they cover secret-only
+  host-key lookup, LTI instructor/learner access, aggregate writes and replay
+  behavior, and the minimum suppression floor.
+- The service and API reject attempts to lower suppression below five
+  questions. A regression with many feedback votes but only one question
+  verifies that the topic remains grouped as Other.
+- `contract-docs.test.ts` verifies the generated OpenAPI entry, both
+  authentication options, CSV/JSON responses, and the minimum threshold.
+- `pnpm --filter @dimts/api build` passed and regenerated
+  `packages/api/openapi.yaml`.
+- `pnpm --filter @dimts/widget build` passed. The focused Playwright/axe test
+  passed for loading, data/table/summary, filters, empty, error/retry, and CSV
+  download; axe reported no violations in the tested state.
+
+**Acceptance remains open:** PostgreSQL-backed integration, real LMS and
+hosted deployment verification, co-designer/assistive-technology review, and
+criterion-level WCAG evidence.
 
 ## P02 — task 2 verification follow-up
 
@@ -155,9 +180,12 @@ implemented or verified. Do not claim production LTI support.
 **Known open items:**
 
 - Static `DIMTS_LTI_PLATFORMS` metadata now reaches the API router and login
-  initiation matches both issuer and client ID. Browser OIDC redirects,
-  tool JWKS signing, deep-link responses, and a real LMS launch remain
-  unimplemented or unverified. The LTI example is explicitly marked as a
+  initiation matches both issuer and client ID. Browser OIDC redirects and
+  platform-JWKS launch validation are implemented and locally tested; acceptance
+  against a real LMS remains open. The tool `/jwks` endpoint returns an empty
+  key set because current launches do not sign tool-originated deep-link or
+  grade-passback messages. Those capabilities remain unimplemented and require
+  tool key management if brought into scope. The LTI example is explicitly marked as a
   prototype, not an installable LMS integration.
 
 ## P10 — LTI 1.3 integration and OpenAPI (13 November 2026)

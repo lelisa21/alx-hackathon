@@ -43,7 +43,10 @@ import { createJobSourceSync } from "./job-sources.js";
 import { cloudVoiceFileAdapters, createGeminiVoice } from "./cloud-voice.js";
 import { createVoiceRouter } from "./routes/voice.js";
 import { createEngineDependencies } from "./engine.js";
-import { createApiProviderRuntime } from "./provider-runtime.js";
+import {
+  createApiProviderRuntime,
+  isPlaceholderCredential,
+} from "./provider-runtime.js";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository, HelpStore } from "./types.js";
 import { createPostgresAnswerCache } from "./db/answer-cache.js";
@@ -150,14 +153,28 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     throw new Error(
       `Cloud voice credential ${config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF} is unavailable.`,
     );
-  const cloudVoice = cloudVoiceKey
-    ? createGeminiVoice({
-        apiKey: cloudVoiceKey,
-        sttModel: config.DIMTS_CLOUD_VOICE_STT_MODEL,
-        ttsModel: config.DIMTS_CLOUD_VOICE_TTS_MODEL,
-        languages: config.DIMTS_CLOUD_VOICE_LANGS,
-      })
-    : undefined;
+  // A template key makes every voice request fail with 400; offer no cloud
+  // voice instead of a microphone that never works.
+  const cloudVoiceUsable =
+    Boolean(cloudVoiceKey) && !isPlaceholderCredential(cloudVoiceKey!);
+  if (cloudVoiceKey && !cloudVoiceUsable)
+    logger.warn(
+      {
+        event: "cloud_voice_disabled",
+        reason: `placeholder_credential:${config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF}`,
+      },
+      "Cloud voice disabled: its credential is a placeholder. Put the real key in the environment.",
+    );
+  const cloudVoice =
+    cloudVoiceUsable && cloudVoiceKey
+      ? createGeminiVoice({
+          apiKey: cloudVoiceKey,
+          sttModel: config.DIMTS_CLOUD_VOICE_STT_MODEL,
+          ttsModel: config.DIMTS_CLOUD_VOICE_TTS_MODEL,
+          languages: config.DIMTS_CLOUD_VOICE_LANGS,
+          speakLanguages: config.DIMTS_CLOUD_VOICE_SPEAK_LANGS,
+        })
+      : undefined;
   const packs = withPreviewLanguages(
     loadPacks(options.localesRoot ?? defaultLocalesRoot),
     config.DIMTS_PREVIEW_LANGS ?? [],
@@ -202,6 +219,17 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     packs,
     options.providerSecrets ?? process.env,
     grounding?.resolveFaqSource?.bind(grounding),
+    {
+      // Provider id, reason, HTTP status and the vendor's error text only;
+      // never the learner question, passages or answer.
+      onProviderFailure: (event) =>
+        logger.warn({ event: "ai_provider_failed", ...event }),
+      onWarning: (event) =>
+        logger.warn(
+          { event: "ai_provider_disabled", ...event },
+          "AI provider disabled: its credential is a placeholder. Put the real key in the environment.",
+        ),
+    },
   );
   const languageDetector = new FrancLanguageDetector(
     [...packs.values()]
@@ -265,7 +293,25 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
             ? { cloudVoice: cloudVoiceFileAdapters(cloudVoice) }
             : {}),
           socket: () => helpSocketRuntime,
-          onError: () => logger.error({ event: "telegram_setup_failed" }),
+          onError: (event) => {
+            // Log the first failure and then exponentially fewer, so a
+            // persistent conflict cannot flood the log.
+            const failures = event.failures ?? 1;
+            if (failures > 1 && (failures & (failures - 1)) !== 0) return;
+            const hint =
+              event.code === 409
+                ? event.stage === "polling"
+                  ? "Another process is polling this bot token (409 Conflict). Stop the other instance (another machine, container or deploy) or switch it to webhook mode."
+                  : "Telegram refused because a webhook or poller conflicts (409)."
+                : event.code === 401 || event.code === 404
+                  ? "Telegram rejected DIMTS_TELEGRAM_TOKEN. Copy the token again from @BotFather."
+                  : event.stage === "webhook"
+                    ? "Telegram did not accept the webhook. Check DIMTS_PUBLIC_API_URL is the public HTTPS address of this API."
+                    : "Telegram is unreachable from this server; retrying.";
+            logger.error({ event: "telegram_setup_failed", ...event }, hint);
+          },
+          onWebhookRegistered: (url) =>
+            logger.info({ event: "telegram_webhook_registered", url }),
         })
       : undefined;
   telegramService ??= telegramRuntime?.service;
@@ -452,7 +498,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     }),
   );
   // Recordings exceed the 100 KB JSON limit below; this router parses its own.
-  app.use("/v1", createVoiceRouter({ repository, voice: cloudVoice }));
+  app.use(
+    "/v1",
+    createVoiceRouter({
+      repository,
+      voice: cloudVoice,
+      onError: (event) =>
+        logger.warn({ event: "cloud_voice_failed", ...event }),
+    }),
+  );
   app.use(express.json({ limit: "100kb", strict: true }));
 
   app.use(

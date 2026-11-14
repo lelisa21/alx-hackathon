@@ -175,11 +175,11 @@ describe("GET /v1/insights", () => {
     expect(res.body.insights).toBeDefined();
   });
 
-  it("applies minCellSize suppression", async () => {
+  it("rejects a minCellSize below the privacy floor", async () => {
     const res = await request(app)
       .get("/v1/insights?minCellSize=1")
       .set("X-Dimts-Key", "valid-key");
-    expect(res.status).toBe(200);
+    expect(res.status).toBe(400);
   });
 
   it("does not expose session IDs or question text", async () => {

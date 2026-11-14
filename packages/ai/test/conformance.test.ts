@@ -277,17 +277,25 @@ describe.each(cases)(
       );
       await expect(create().health()).resolves.toEqual({
         ok: false,
-        reasonCode: "status",
+        reasonCode: "status_503",
       });
       const failure = create().answer(request, new AbortController().signal);
       if (name === "Gemini") {
         await expect(failure).rejects.toMatchObject({
           message: "Provider request failed.",
+          status: 503,
           cause: expect.anything(),
         });
       } else {
-        await expect(failure).rejects.toThrow("Provider request failed.");
+        await expect(failure).rejects.toMatchObject({
+          message: "Provider request failed.",
+          status: 503,
+        });
       }
+      // A non-JSON upstream body is never copied into the error.
+      await expect(
+        create().answer(request, new AbortController().signal),
+      ).rejects.not.toHaveProperty("vendorMessage", expect.any(String));
     });
 
     it("does not transmit disallowed data or follow redirects", async () => {
