@@ -52,30 +52,27 @@ describe("provider runtime configuration", () => {
         ]),
         TEST_LLM_CREDENTIAL: "test-only-native-key",
       });
-      const runtime = createApiProviderRuntime(
-        config,
-        loadPacks(resolve("locales")),
-        { TEST_LLM_CREDENTIAL: "test-only-native-key" },
-      );
       const response = {
         text: "Choose one learning goal.",
         usedPassageIds: ["goals"],
       };
       const network = vi.fn<typeof fetch>(
-        async (_url, init) =>
-          new Response(
-            JSON.stringify(
-              init?.method !== "POST"
+        async (input, init) =>
+          Response.json(
+            (input instanceof Request ? input.method : init?.method) !==
+              "POST"
                 ? {}
                 : adapter === "gemini"
                   ? {
-                      candidates: [
+                      object: "interaction",
+                      status: "completed",
+                      model: "model-name",
+                      steps: [
                         {
-                          finishReason: "STOP",
-                          content: {
-                            role: "model",
-                            parts: [{ text: JSON.stringify(response) }],
-                          },
+                          type: "model_output",
+                          content: [
+                            { type: "text", text: JSON.stringify(response) },
+                          ],
                         },
                       ],
                     }
@@ -94,11 +91,14 @@ describe("provider runtime configuration", () => {
                         },
                       ],
                     },
-            ),
-            { status: 200 },
           ),
       );
       vi.stubGlobal("fetch", network);
+      const runtime = createApiProviderRuntime(
+          config,
+          loadPacks(resolve("locales")),
+          { TEST_LLM_CREDENTIAL: "test-only-native-key" },
+      );
       const answerRequest = {
         question: "How do I choose a learning goal?",
         lang: "en",
@@ -122,9 +122,10 @@ describe("provider runtime configuration", () => {
           (await runtime.answer(answerRequest, { cloudOk: false })).provider,
         ).toBe("offline");
         expect(network).not.toHaveBeenCalled();
-        expect(
-          (await runtime.answer(answerRequest, { cloudOk: true })).provider,
-        ).toBe(adapter);
+        const remoteAnswer = await runtime.answer(answerRequest, {
+          cloudOk: true,
+        });
+        expect(remoteAnswer.provider).toBe(adapter);
         expect(network).toHaveBeenCalledTimes(2);
         expect(JSON.stringify(runtime)).not.toContain("test-only-native-key");
       } finally {
@@ -226,6 +227,107 @@ describe("provider runtime configuration", () => {
     expect(config.DIMTS_AI_PROVIDERS).toEqual([]);
     expect(config.DIMTS_AI_MAX_TOKENS).toBe(400);
     expect(config.DIMTS_AI_TEMPERATURE).toBe(0.1);
+  });
+
+  it("uses a local model without cloud consent and falls back offline on failure", async () => {
+    const config = parseConfig({
+      ...baseEnvironment,
+      DIMTS_AI_PROVIDER: "local-model",
+      DIMTS_AI_LADDER: "local-model,offline",
+      DIMTS_AI_PROVIDERS: JSON.stringify([
+        {
+          ...remoteProvider,
+          id: "local-model",
+          endpoint: "http://127.0.0.1:8080/v1",
+          credentialRef: undefined,
+          privacyClass: "local",
+          allowedDataClasses: ["question", "course-passage", "glossary"],
+          evaluatedLanguages: ["en"],
+          capabilities: {
+            languages: ["en"],
+            modes: ["extractive"],
+            modalities: ["text"],
+            structuredOutput: true,
+          },
+        },
+      ]),
+    });
+    const runtime = createApiProviderRuntime(
+      config,
+      loadPacks(resolve("locales")),
+      {},
+    );
+    const answerRequest = {
+      question: "How do I choose a learning goal?",
+      lang: "en",
+      simple: false,
+      mode: "extractive" as const,
+      systemPrompt: "Answer from supplied passages.",
+      glossary: [],
+      passages: [
+        {
+          id: "goals",
+          text: "Choose one learning goal.",
+          label: "Goals",
+          url: "https://course.example/goals",
+          lang: "en",
+          sourceType: "course" as const,
+        },
+      ],
+    };
+    const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/models")) {
+        return Response.json({ data: [{ id: "local-model" }] });
+      }
+      if (init?.method !== "POST") {
+        throw new Error("Unexpected local model request.");
+      }
+      return Response.json({
+        choices: [
+          {
+            message: {
+              content: JSON.stringify({
+                text: "Choose one learning goal.",
+                usedPassageIds: ["goals"],
+              }),
+            },
+          },
+        ],
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      const localAnswer = await runtime.answer(answerRequest, {
+        cloudOk: false,
+      });
+      expect(localAnswer.provider).toBe("local-model");
+      expect(fetchMock).toHaveBeenCalledTimes(2);
+      expect(fetchMock.mock.calls[0]?.[0]).toBe(
+        "http://127.0.0.1:8080/v1/models",
+      );
+      expect(fetchMock.mock.calls[1]?.[0]).toBe(
+        "http://127.0.0.1:8080/v1/chat/completions",
+      );
+      expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty(
+        "authorization",
+      );
+
+      fetchMock.mockImplementation(async (input) =>
+        String(input).endsWith("/models")
+          ? Response.json({ data: [{ id: "local-model" }] })
+          : new Response("local model unavailable", { status: 503 }),
+      );
+      const fallbackAnswer = await runtime.answer(answerRequest, {
+        cloudOk: false,
+      });
+      expect(fallbackAnswer.provider).toBe("offline");
+      expect(fallbackAnswer.usedPassageIds).toContain("goals");
+      expect(fallbackAnswer.text).toContain("Choose one learning goal.");
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it("rejects malformed bindings, unresolved credentials, and unsafe limits", () => {

@@ -1,6 +1,52 @@
 # Implementation progress
 
-Updated: 14 November 2026. Current branch: `main`.
+Updated: 14 November 2026. Task 2 follow-up verified on branch `dev`.
+
+## P02 — task 2 verification follow-up
+
+Scope: FR-CONV-05–09/13/14, FR-TUTOR-07–11/14, FR-AI-02–10, AR-01/06/08,
+NFR-MAINT-02, NFR-PRIV-03, and NFR-PERF-03. No reviewed locale data or
+provider credentials were invented.
+
+**Verified evidence:**
+
+- `pnpm test:core -- --maxWorkers=1`: **246 tests across 23 files passed**.
+  Engine, grounding, and AI each meet the 70% package coverage floors;
+  grounding branch coverage is **74.95%** (the prior 62.33% failure is fixed
+  without changing thresholds).
+- Added focused grounding regressions for multilingual search mapping,
+  source pagination/snapshot integrity, sitemap validation and limits,
+  cancellation, sync rollback failures, and manager lifecycle.
+- `packages/api/test/provider-config.test.ts`: **12 tests passed**, covering
+  local model configuration and offline fallback as well as native adapter
+  configuration. The API remote-provider consent regression passed: no
+  remote request is made before opt-in; configured local models do not require
+  cloud consent.
+- `pnpm eval`: **0 measured gate failures and 8 acceptance blockers**.
+  Offline in-process p95 is **1.73 ms**; repeat-answer p95 is **1.49 ms**.
+  These measurements do not include HTTP/PostgreSQL or a real model.
+- `pnpm typecheck`, `pnpm lint`, and Compose configuration with
+  `.env.example` passed. `pnpm size` passes at **139,951 / 153,600** initial
+  compressed bytes. Docker execution was not available.
+- `pnpm test -- --maxWorkers=1`: **836 passed, 57 skipped** across 85 passing
+  test files and 11 skipped files.
+
+**Acceptance remains blocked:**
+
+- Multilingual answer recall remains English **2/12 (16.7%)**, Amharic **0/16**,
+  Afaan Oromoo **0/18**. Reviewed packs, representative multilingual content,
+  and evaluation questions belong to task 1 and are required before final
+  P02 evaluation; draft FAQ adapter results are not a substitute.
+- No real local/cloud model was configured or evaluated, so local/cloud p95
+  and language quality are unverified. No provider credentials or network
+  requests were used.
+- Compose with the tracked example environment parses, but the local `.env`
+  currently contains an invalid entry at line 47 and Docker's Linux engine is
+  unavailable; full container/runtime deployment verification was not run.
+
+P02 is not release-complete. Keep providers offline by default and do not
+enable a language/provider profile until task 1 review and the real model
+evaluation are complete.
 
 ## P11 — implemented increment; acceptance blocked
 
@@ -37,8 +83,9 @@ FR-CONV-10/13, and G1–G13.
 
 - PostgreSQL suites requiring `DIMTS_TEST_DATABASE_URL` remain skipped;
   the isolated Compose lifecycle test passes separately.
-- `pnpm test:core` ran 230 tests but exits on grounding branch coverage of
-  62.33%, below its 70% threshold. The threshold was not weakened.
+- The grounding coverage failure recorded earlier in this P11 snapshot is
+  resolved by the P02 follow-up below: 74.95% branch coverage against the
+  unchanged 70% floor.
 - Repository-wide `pnpm format:check` still reports 307 baseline files;
   changed files pass targeted formatting checks.
 - The offline `pnpm eval` has eight acceptance blockers; Amharic and Afaan

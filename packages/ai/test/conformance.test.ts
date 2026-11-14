@@ -58,11 +58,12 @@ const cases = [
   {
     name: "Gemini",
     create: () => new GeminiProvider(options),
-    url: "https://generativelanguage.googleapis.com/v1beta/models/host-evaluated-model:generateContent",
+    url: "https://generativelanguage.googleapis.com/v1/interactions",
     envelope: (text: string) => ({
-      candidates: [
-        { finishReason: "STOP", content: { role: "model", parts: [{ text }] } },
-      ],
+      object: "interaction",
+      status: "completed",
+      model: "host-evaluated-model",
+      steps: [{ type: "model_output", content: [{ type: "text", text }] }],
     }),
   },
   {
@@ -159,34 +160,38 @@ describe.each(cases)(
       });
       expect(fetchMock).toHaveBeenCalledOnce();
       const [target, init] = fetchMock.mock.calls[0]!;
-      expect(target).toBe(url);
-      expect(init?.signal).toBe(signal);
-      const raw = String(init?.body);
+      const sentRequest =
+        target instanceof Request ? target : new Request(target, init);
+      expect(sentRequest.url).toBe(url);
+      if (name !== "Gemini") expect(init?.signal).toBe(signal);
+      const raw = await sentRequest.clone().text();
       expect(raw).not.toMatch(
         /private-session|private-transcript|private-phone|private glossary|Private source label|example\.test/,
       );
       const body = JSON.parse(raw);
       if (name === "Gemini") {
-        expect(init?.headers).toMatchObject({ "x-goog-api-key": "test-key" });
-        expect(body.systemInstruction.parts[0].text).toContain(
-          request.systemPrompt,
-        );
-        expect(body.systemInstruction.parts[0].text).toContain(
-          'Reply language: "en"',
-        );
-        expect(body.systemInstruction.parts[0].text).toContain(
-          "Mode: extractive",
-        );
-        expect(body.generationConfig).toMatchObject({
-          maxOutputTokens: 300,
-          temperature: 0.1,
-          responseMimeType: "application/json",
-          responseJsonSchema: {
-            type: "object",
-            required: ["text", "usedPassageIds"],
+        expect(sentRequest.headers.get("x-goog-api-key")).toBe("test-key");
+        expect(sentRequest.redirect).toBe("error");
+        expect(body).toMatchObject({
+          model: "host-evaluated-model",
+          store: false,
+          system_instruction: expect.stringContaining(request.systemPrompt),
+          response_format: {
+            type: "text",
+            mime_type: "application/json",
+            schema: {
+              type: "object",
+              required: ["text", "usedPassageIds"],
+            },
+          },
+          generation_config: {
+            max_output_tokens: 300,
+            temperature: 0.1,
           },
         });
-        expect(JSON.parse(body.contents[0].parts[0].text)).toEqual({
+        expect(body.system_instruction).toContain('Reply language: "en"');
+        expect(body.system_instruction).toContain("Mode: extractive");
+        expect(JSON.parse(body.input)).toEqual({
           question: request.question,
           passages: [{ id: "p1", text: answer.text }],
         });
@@ -250,9 +255,16 @@ describe.each(cases)(
             new Response("private upstream response", { status: 200 }),
         ),
       );
-      await expect(
-        create().answer(request, new AbortController().signal),
-      ).rejects.toThrow("Provider returned an invalid answer.");
+      const failure = create().answer(request, new AbortController().signal);
+      if (name === "Gemini") {
+        await expect(failure).rejects.toBeInstanceOf(
+          InvalidProviderResponseError,
+        );
+      } else {
+        await expect(failure).rejects.toThrow(
+          "Provider returned an invalid answer.",
+        );
+      }
     });
 
     it("reports failed health and HTTP responses without echoing upstream secrets", async () => {
@@ -292,14 +304,55 @@ describe.each(cases)(
         },
         new AbortController().signal,
       );
-      expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ redirect: "error" });
-      if (name !== "local compatible")
+      if (name === "Gemini") {
+        const [target, init] = fetchMock.mock.calls[0]!;
+        const sentRequest =
+          target instanceof Request ? target : new Request(target, init);
+        expect(sentRequest.redirect).toBe("error");
+        const body = await sentRequest.clone().json();
+        expect(JSON.stringify(body)).not.toContain("private-job");
+      } else {
+        expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({
+          redirect: "error",
+        });
+      }
+      if (name !== "local compatible" && name !== "Gemini") {
         expect(String(fetchMock.mock.calls[0]?.[1]?.body)).not.toContain(
           "private-job",
         );
+      }
     });
   },
 );
+
+describe("Gemini Interactions model controls", () => {
+  it("omits unsupported temperature for Gemini 4 while retaining output bounds", async () => {
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({
+        object: "interaction",
+        status: "completed",
+        model: "gemini-4-hydrogen",
+        steps: [
+          {
+            type: "model_output",
+            content: [{ type: "text", text: JSON.stringify(answer) }],
+          },
+        ],
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const provider = new GeminiProvider({
+      ...options,
+      model: "gemini-4-hydrogen",
+    });
+    await provider.answer(request, new AbortController().signal);
+    const [target, init] = fetchMock.mock.calls[0]!;
+    const sentRequest =
+      target instanceof Request ? target : new Request(target, init);
+    const body = await sentRequest.clone().json();
+    expect(body.generation_config).toEqual({ max_output_tokens: 300 });
+  });
+});
 
 describe("FR-AI-07 native configuration", () => {
   it.each([OpenAiProvider, GeminiProvider, XaiProvider])(
