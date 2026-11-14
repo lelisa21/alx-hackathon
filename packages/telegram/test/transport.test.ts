@@ -511,4 +511,44 @@ describe("FR-TG-08 local polling", () => {
     await polling.stop();
     expect(handleUpdate).toHaveBeenCalledTimes(1);
   });
+
+  it("removes a registered webhook before polling so getUpdates is not refused", async () => {
+    const order: string[] = [];
+    const getUpdates = vi.fn(
+      async (_offset: number | undefined, signal?: AbortSignal) => {
+        order.push("getUpdates");
+        return new Promise<unknown[]>((resolve) =>
+          signal?.addEventListener("abort", () => resolve([]), { once: true }),
+        );
+      },
+    );
+    const polling = startTelegramPolling({
+      transport: {
+        getUpdates,
+        deleteWebhook: async () => {
+          order.push("deleteWebhook");
+        },
+      },
+      environment: "development",
+      handleUpdate: async () => undefined,
+    });
+    await vi.waitFor(() => expect(getUpdates).toHaveBeenCalled());
+    await polling.stop();
+    expect(order.slice(0, 2)).toEqual(["deleteWebhook", "getUpdates"]);
+  });
+
+  it("reports polling failures instead of retrying silently", async () => {
+    const onError = vi.fn();
+    const getUpdates = vi.fn(async () => {
+      throw new Error("409 Conflict");
+    });
+    const polling = startTelegramPolling({
+      transport: { getUpdates },
+      environment: "development",
+      handleUpdate: async () => undefined,
+      onError,
+    });
+    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    await polling.stop();
+  });
 });

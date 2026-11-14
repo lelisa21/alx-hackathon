@@ -118,9 +118,9 @@ session persistence, and instructor insights authorization.
   live LTI session with `insightsAccess`; a caller-supplied session ID or
   arbitrary bearer token is not authorization.
 - `pnpm exec vitest run packages/api/test/p10-lti.test.ts
-  packages/api/test/p10-lti-config.test.ts
-  packages/api/test/p10-lti-persistence.test.ts
-  packages/api/test/p09-insights.test.ts` passes (33 tests).
+packages/api/test/p10-lti-config.test.ts
+packages/api/test/p10-lti-persistence.test.ts
+packages/api/test/p09-insights.test.ts` passes (33 tests).
 - `pnpm test -- --maxWorkers=1`, `pnpm typecheck`, and `pnpm lint` pass.
   Compose could not be rerun after migration 011 because Docker Desktop's
   daemon was unavailable; the earlier Compose pass predates these migration

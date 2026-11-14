@@ -264,6 +264,7 @@ describe.skipIf(!url)("P05 durable help media/privacy", () => {
   it("runs retention against an injected clock for sessions, images, subscriptions, and cache", async () => {
     const clock = new Date(Date.now() - 1000);
     const sessionId = `p11-retention-${randomUUID()}`;
+    const liveSessionId = `p11-retention-live-${randomUUID()}`;
     const requestId = `p11-retention-help-${randomUUID()}`;
     const imageId = `p11-retention-image-${randomUUID()}`;
     const subscriptionId = `p11-retention-sub-${randomUUID()}`;
@@ -273,9 +274,15 @@ describe.skipIf(!url)("P05 durable help media/privacy", () => {
       "INSERT INTO session(id,lang,channel,last_seen_at) VALUES($1,'en','web',$2)",
       [sessionId, new Date(clock.getTime() - 25 * 60 * 60 * 1000)],
     );
+    // Rows below belong to a still-live session, so each must expire by its
+    // own deadline rather than by the expired session's cascade.
     await pool.query(
-      "INSERT INTO help_request(id,session_id,lang,channel,status) VALUES($1,'s2','en','web','closed')",
-      [requestId],
+      "INSERT INTO session(id,lang,channel,last_seen_at) VALUES($1,'en','web',$2)",
+      [liveSessionId, clock],
+    );
+    await pool.query(
+      "INSERT INTO help_request(id,session_id,lang,channel,status) VALUES($1,$2,'en','web','closed')",
+      [requestId, liveSessionId],
     );
     await pool.query(
       "INSERT INTO help_image(id,help_request_id,mime,data,created_at) VALUES($1,$2,'image/png',$3,$4)",
@@ -287,8 +294,13 @@ describe.skipIf(!url)("P05 durable help media/privacy", () => {
       ],
     );
     await pool.query(
-      "INSERT INTO subscription(id,session_id,channel,lang,contact_enc,consent_expires_at) VALUES($1,'s2','sms','en',$2,$3)",
-      [subscriptionId, Buffer.from([1]), new Date(clock.getTime() - 1)],
+      "INSERT INTO subscription(id,session_id,channel,lang,contact_enc,consent_expires_at) VALUES($1,$4,'sms','en',$2,$3)",
+      [
+        subscriptionId,
+        Buffer.from([1]),
+        new Date(clock.getTime() - 1),
+        liveSessionId,
+      ],
     );
     await pool.query(
       "INSERT INTO answer_cache(cache_key,reply,created_at) VALUES($1,'{}'::jsonb,$2)",
@@ -299,13 +311,18 @@ describe.skipIf(!url)("P05 durable help media/privacy", () => {
     );
     await pool.query(
       `INSERT INTO sms_conversation(phone_hash,session_id,lang,day,private_enc,expires_at)
-       VALUES($1,'s2','en',CURRENT_DATE,$2,$3)`,
-      [smsHash, Buffer.from([1]), new Date(clock.getTime() - 1)],
+       VALUES($1,$4,'en',CURRENT_DATE,$2,$3)`,
+      [smsHash, Buffer.from([1]), new Date(clock.getTime() - 1), liveSessionId],
     );
     await pool.query(
       `INSERT INTO telegram_conversation(contact_hash,session_id,lang,last_update,replay_cutoff,window_at,window_count,private_enc,expires_at)
-       VALUES($1,'s2','en',1,-1,0,0,$2,$3)`,
-      [telegramHash, Buffer.from([1]), new Date(clock.getTime() - 1)],
+       VALUES($1,$4,'en',1,-1,0,0,$2,$3)`,
+      [
+        telegramHash,
+        Buffer.from([1]),
+        new Date(clock.getTime() - 1),
+        liveSessionId,
+      ],
     );
 
     await createPostgresRepository(pool, () => clock).runRetention(24);

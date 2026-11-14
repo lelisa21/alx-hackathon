@@ -2,8 +2,12 @@ FROM node:22-alpine AS workspace
 
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
+# Download packages from the lockfile alone so source edits reuse this layer
+# instead of re-fetching every dependency on each build.
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm fetch --frozen-lockfile
 COPY . .
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --offline
 RUN pnpm build
 
 FROM node:22-alpine AS api
@@ -11,6 +15,7 @@ FROM node:22-alpine AS api
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@10.12.1 --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml .npmrc ./
+RUN pnpm fetch --frozen-lockfile --prod
 COPY --from=workspace /app/packages/api/package.json packages/api/package.json
 COPY --from=workspace /app/packages/api/dist packages/api/dist
 COPY --from=workspace /app/packages/api/migrations packages/api/migrations
@@ -38,9 +43,11 @@ COPY --from=workspace /app/locales locales
 COPY --from=workspace /app/content content
 COPY --from=workspace /app/scripts/seed.mjs scripts/seed.mjs
 COPY --from=workspace /app/scripts/local-scheduler.mjs scripts/local-scheduler.mjs
-RUN pnpm install --prod --frozen-lockfile --filter @dimts/api...
+RUN pnpm install --prod --frozen-lockfile --offline --filter @dimts/api...
 
 ENV NODE_ENV=production
+# The API only reads its files; run it without root privileges.
+USER node
 EXPOSE 3000
 CMD ["node", "packages/api/dist/server.js"]
 

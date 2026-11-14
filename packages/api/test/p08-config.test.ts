@@ -104,3 +104,38 @@ describe("P08 Telegram configuration", () => {
     ).toThrow();
   });
 });
+
+describe("Telegram mode defaults", () => {
+  const base = {
+    DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
+    DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+    DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+    DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+    DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+  };
+  it("polls in development and uses webhooks elsewhere when unset or empty", () => {
+    expect(
+      parseConfig({ ...base, NODE_ENV: "development" }).DIMTS_TELEGRAM_MODE,
+    ).toBe("polling");
+    expect(
+      parseConfig({ ...base, NODE_ENV: "development", DIMTS_TELEGRAM_MODE: "" })
+        .DIMTS_TELEGRAM_MODE,
+    ).toBe("polling");
+    expect(
+      parseConfig({ ...base, NODE_ENV: "production" }).DIMTS_TELEGRAM_MODE,
+    ).toBe("webhook");
+    expect(parseConfig({ ...base, NODE_ENV: "test" }).DIMTS_TELEGRAM_MODE).toBe(
+      "webhook",
+    );
+  });
+
+  it("does not require a webhook secret for a development polling bot", () => {
+    expect(
+      parseConfig({
+        ...base,
+        NODE_ENV: "development",
+        DIMTS_TELEGRAM_TOKEN: "123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      }).DIMTS_TELEGRAM_MODE,
+    ).toBe("polling");
+  });
+});

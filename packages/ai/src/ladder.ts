@@ -3,6 +3,8 @@ import { InvalidProviderResponseError } from "./provider.js";
 import type { AiProvider, AnswerResult } from "./provider.js";
 
 const COOLDOWN_MS = 60_000;
+// A healthy probe is reused so each learner question costs one remote call.
+const HEALTHY_FOR_MS = 60_000;
 
 export interface AnswerPolicy {
   cloudOk: boolean;
@@ -10,6 +12,7 @@ export interface AnswerPolicy {
 
 export class Ladder {
   private readonly coolUntil = new Map<string, number>();
+  private readonly healthyUntil = new Map<string, number>();
   private readonly providers: AiProvider[];
   private readonly timeouts: Record<string, number>;
   private readonly now: () => number;
@@ -57,12 +60,15 @@ export class Ladder {
       const controller = new AbortController();
       const remaining = () => Math.max(0, deadline - Date.now());
       try {
-        const health = await this.withTimeout(
-          provider.health(controller.signal),
-          remaining(),
-          () => controller.abort(),
-        );
-        if (!health.ok) throw new Error("Provider health check failed.");
+        if ((this.healthyUntil.get(provider.name) ?? 0) <= this.now()) {
+          const health = await this.withTimeout(
+            provider.health(controller.signal),
+            remaining(),
+            () => controller.abort(),
+          );
+          if (!health.ok) throw new Error("Provider health check failed.");
+          this.healthyUntil.set(provider.name, this.now() + HEALTHY_FOR_MS);
+        }
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
           try {
@@ -76,6 +82,17 @@ export class Ladder {
             const passageIds = new Set(
               providerRequest.passages.map(({ id }) => id),
             );
+            // A well-formed decline is a judgement, not a failure: no cooldown
+            // and no fallback (another provider sees the same passages). The
+            // engine turns it into a not-found reply.
+            if (
+              typeof result?.text === "string" &&
+              Array.isArray(result.usedPassageIds) &&
+              result.usedPassageIds.length === 0
+            ) {
+              this.activeProviderId = provider.name;
+              return { ...result, providerId: provider.name };
+            }
             if (
               typeof result?.text === "string" &&
               result.text.trim() &&
@@ -95,6 +112,7 @@ export class Ladder {
           }
         }
       } catch {
+        this.healthyUntil.delete(provider.name);
         this.coolUntil.set(provider.name, this.now() + COOLDOWN_MS);
       } finally {
         controller.abort();

@@ -40,16 +40,42 @@ function isReviewed(pack: LangPack): boolean {
   );
 }
 
+const previewTags: Record<string, string> = {
+  en: "en-US",
+  am: "am-ET",
+  om: "om-ET",
+};
+
 /** Pack flags record human approval of the device protocol, never a computed score. */
 export function getVoiceCapabilities(
   pack: LangPack,
-  config: Pick<ApiConfig, "DIMTS_STT_ENGINE" | "DIMTS_TTS_ENGINE">,
+  config: Pick<ApiConfig, "DIMTS_STT_ENGINE" | "DIMTS_TTS_ENGINE"> &
+    Partial<Pick<ApiConfig, "DIMTS_VOICE_PREVIEW">>,
 ): VoiceCapabilities {
   const unavailable: VoiceCapabilities = {
     stt: false,
     tts: false,
     voice: null,
   };
+  if (config.DIMTS_VOICE_PREVIEW) {
+    // Development preview (config rejects it elsewhere): skip the review gate
+    // but keep engine selection and language/script matching. The widget still
+    // feature-detects browser support at runtime.
+    const configured = pack.voice.bcp_tag;
+    const tag =
+      typeof configured === "string" && configured
+        ? configured
+        : previewTags[pack.meta.code];
+    if (!tag || !isMatchingVoiceLanguage(pack.meta.code, tag))
+      return unavailable;
+    const stt = config.DIMTS_STT_ENGINE === "browser";
+    const tts = config.DIMTS_TTS_ENGINE === "browser";
+    return {
+      stt,
+      tts,
+      voice: stt || tts ? { engine: "browser", bcp_tag: tag } : null,
+    };
+  }
   const { engine, bcp_tag: tag } = pack.voice;
   if (
     !isReviewed(pack) ||

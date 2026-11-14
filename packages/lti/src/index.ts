@@ -70,9 +70,8 @@ export async function validateLtiToken(
     }
 
     // The claim must be present and match the configured deployment ID.
-    const deploymentId = claims[
-      "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
-    ];
+    const deploymentId =
+      claims["https://purl.imsglobal.org/spec/lti/claim/deployment_id"];
     if (
       typeof platform.deploymentId !== "string" ||
       !platform.deploymentId.trim() ||

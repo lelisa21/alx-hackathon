@@ -1,4 +1,4 @@
-import { Router, type Request, type Response } from "express";
+import express, { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import {
   validateLtiToken,
@@ -18,22 +18,36 @@ import { randomBytes } from "node:crypto";
  * P10 LTI 1.3 routes: login, launch, JWKS key distribution
  */
 
-const LtiLoginRequestSchema = z
-  .object({
-    iss: z.string().url(),
-    client_id: z.string().min(1).max(256),
-    login_hint: z.string().min(1).max(256),
-    target_link_uri: z.string().url(),
-    lti_message_hint: z.string().optional(),
-  })
-  .strict();
+// LMSs send further OIDC/LTI parameters (lti_deployment_id, ...); they are
+// ignored rather than rejected. client_id is optional in LTI 1.3 login.
+const LtiLoginRequestSchema = z.object({
+  iss: z.string().url(),
+  client_id: z.string().min(1).max(256).optional(),
+  login_hint: z.string().min(1).max(256),
+  target_link_uri: z.string().url(),
+  lti_message_hint: z.string().max(2048).optional(),
+});
 
-const LtiLaunchRequestSchema = z
-  .object({
-    id_token: z.string().min(100).max(10000),
-    state: z.string().min(1).max(1000),
-  })
-  .strict();
+const LtiLaunchRequestSchema = z.object({
+  id_token: z.string().min(100).max(10000),
+  state: z.string().min(1).max(1000),
+});
+
+const escapeHtml = (value: string) =>
+  value.replace(
+    /[&<>"']/gu,
+    (character) =>
+      ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[
+        character
+      ]!,
+  );
+
+/** Browser requests from an LMS are forms or GETs; API clients send JSON. */
+const isBrowserRequest = (req: Request) =>
+  req.method === "GET" || !req.is("application/json");
+
+const launchUrl = (req: Request) =>
+  `${req.protocol}://${req.get("host")}${req.baseUrl}/launch`;
 
 const LtiLaunchResponseSchema = z
   .object({
@@ -50,8 +64,11 @@ export function createLtiRouter(options: {
   logger?: pino.Logger;
   jwtSecret?: string;
   platformConfigs?: Map<string, LtiPlatformConfig>;
+  /** Widget served inside the LMS frame after a browser launch. */
+  launchPage?: { widgetUrl: string; hostKey: string };
 }): Router {
   const router = Router();
+  const form = express.urlencoded({ extended: false, limit: "16kb" });
   const logger = options.logger || pino();
   const platformConfigs = options.platformConfigs || new Map();
 
@@ -59,24 +76,22 @@ export function createLtiRouter(options: {
    * POST /v1/lti/login - OIDC login initiation
    * Platform calls this with login_hint, receives state/nonce to include in token request
    */
-  router.post("/login", async (req: Request, res: Response) => {
+  const login = async (req: Request, res: Response) => {
     try {
-      const payload = LtiLoginRequestSchema.parse(req.body);
+      const payload = LtiLoginRequestSchema.parse(
+        req.method === "GET" ? req.query : req.body,
+      );
 
-      // Match the exact registered OIDC client for this issuer.
-      let platformConfig: LtiPlatformConfig | undefined;
-      let platformId: string | undefined;
-
-      for (const [id, config] of platformConfigs) {
-        if (
+      // Match the registered OIDC client for this issuer. Without client_id,
+      // the issuer must identify exactly one registration.
+      const matches = [...platformConfigs].filter(
+        ([, config]) =>
           config.issuer === payload.iss &&
-          config.clientId === payload.client_id
-        ) {
-          platformConfig = config;
-          platformId = id;
-          break;
-        }
-      }
+          (payload.client_id === undefined ||
+            config.clientId === payload.client_id),
+      );
+      const [platformId, platformConfig] =
+        matches.length === 1 ? matches[0]! : [undefined, undefined];
 
       if (!platformConfig || !platformId) {
         return sendProblem(res, 404, "not_found", "lti.login.unregistered");
@@ -102,13 +117,36 @@ export function createLtiRouter(options: {
         expiresAt,
       );
 
-      // In production: redirect to platform's auth_login_url with state/client_id/redirect_uri
-      res.json({
-        state,
-        nonce,
-        authLoginUrl: platformConfig.authLoginUrl,
-        redirectUri: "https://api.example.com/v1/lti/launch",
-      });
+      // The launch URL is this deployment's own; `trust proxy` makes
+      // req.protocol honour the TLS-terminating proxy's X-Forwarded-Proto.
+      // The platform still only redirects to its registered redirect URIs.
+      const redirectUri = launchUrl(req);
+      if (isBrowserRequest(req)) {
+        const target = new URL(platformConfig.authLoginUrl);
+        for (const [key, value] of Object.entries({
+          scope: "openid",
+          response_type: "id_token",
+          response_mode: "form_post",
+          prompt: "none",
+          client_id: platformConfig.clientId,
+          redirect_uri: redirectUri,
+          login_hint: payload.login_hint,
+          state,
+          nonce,
+          ...(payload.lti_message_hint
+            ? { lti_message_hint: payload.lti_message_hint }
+            : {}),
+        }))
+          target.searchParams.set(key, value);
+        res.redirect(302, target.toString());
+      } else {
+        res.json({
+          state,
+          nonce,
+          authLoginUrl: platformConfig.authLoginUrl,
+          redirectUri,
+        });
+      }
 
       logger.info(
         { platformId, state: state.slice(0, 8) },
@@ -121,13 +159,15 @@ export function createLtiRouter(options: {
       logger.error(error, "LTI login failed");
       sendProblem(res, 500, "internal", "error.server");
     }
-  });
+  };
+  router.get("/login", login);
+  router.post("/login", form, login);
 
   /**
    * POST /v1/lti/launch - Receive and validate signed id_token
    * Creates or resumes session with LTI context stored for audit
    */
-  router.post("/launch", async (req: Request, res: Response) => {
+  router.post("/launch", form, async (req: Request, res: Response) => {
     try {
       const payload = LtiLaunchRequestSchema.parse(req.body);
 
@@ -254,16 +294,43 @@ export function createLtiRouter(options: {
       // Clean up state (database record will expire naturally after 5 minutes)
       await options.repository.deleteLtiState?.(payload.state);
 
-      res.json(
-        LtiLaunchResponseSchema.parse({
-          sessionId,
-          sessionToken,
-          roles,
-          insightsAccess,
-          contextId:
-            claims["https://purl.imsglobal.org/spec/lti/claim/context"]?.id,
-        }),
-      );
+      if (isBrowserRequest(req)) {
+        if (!options.launchPage) {
+          return sendProblem(res, 503, "internal", "lti.launch.unconfigured");
+        }
+        const widget = new URL(options.launchPage.widgetUrl);
+        // Only the registering platform may frame the tutor.
+        res.removeHeader("X-Frame-Options");
+        res.setHeader(
+          "Content-Security-Policy",
+          [
+            "default-src 'none'",
+            `script-src ${widget.origin}`,
+            `connect-src 'self' ${widget.origin}`,
+            `font-src ${widget.origin}`,
+            "img-src 'self' data:",
+            "style-src 'unsafe-inline'",
+            "base-uri 'none'",
+            "form-action 'none'",
+            `frame-ancestors ${new URL(platformConfig.issuer).origin}`,
+          ].join("; "),
+        );
+        res
+          .type("html")
+          .send(
+            `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dimts</title><style>body{margin:0;padding:1rem}</style></head><body><dimts-assistant data-api="${escapeHtml(`${req.protocol}://${req.get("host")}/v1`)}" data-host-key="${escapeHtml(options.launchPage.hostKey)}"></dimts-assistant><script type="module" src="${escapeHtml(widget.href)}"></script></body></html>`,
+          );
+      } else
+        res.json(
+          LtiLaunchResponseSchema.parse({
+            sessionId,
+            sessionToken,
+            roles,
+            insightsAccess,
+            contextId:
+              claims["https://purl.imsglobal.org/spec/lti/claim/context"]?.id,
+          }),
+        );
 
       logger.info(
         { sessionId: sessionId.slice(0, 12), platformId: stateData.platformId },

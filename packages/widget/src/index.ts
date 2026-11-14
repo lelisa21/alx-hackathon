@@ -143,6 +143,7 @@ export class DimtsAssistant extends LitElement {
     sessionId: { state: true },
     sessionToken: { state: true },
     loading: { state: true },
+    voiceInstall: { state: true },
     offline: { state: true },
     offlineSupportAvailable: { state: true },
     busy: { state: true },
@@ -196,6 +197,7 @@ export class DimtsAssistant extends LitElement {
   declare private sessionId: string;
   declare private sessionToken: string;
   declare private loading: boolean;
+  declare private voiceInstall: "idle" | "installing" | "failed";
   declare private offline: boolean;
   declare private offlineSupportAvailable: boolean;
   declare private busy: boolean;
@@ -438,6 +440,7 @@ export class DimtsAssistant extends LitElement {
     this.sessionId = "";
     this.sessionToken = "";
     this.loading = true;
+    this.voiceInstall = "idle";
     this.offline = typeof navigator !== "undefined" && !navigator.onLine;
     this.offlineSupportAvailable = false;
     this.busy = false;
@@ -575,17 +578,53 @@ export class DimtsAssistant extends LitElement {
       overflow-y: auto;
       scroll-padding-block: 1rem;
       overflow-wrap: anywhere;
-      padding-block-end: 1rem;
       position: relative;
+      box-shadow:
+        0 1px 2px rgb(0 0 0 / 8%),
+        0 8px 24px rgb(0 0 0 / 10%);
+      border-block-start: 4px solid var(--dimts-primary);
     }
 
+    /* Header and composer stay in view while the conversation scrolls. */
     header {
       align-items: center;
+      background: var(--dimts-surface);
       border-block-end: 1px solid var(--dimts-border);
       display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
+      inset-block-start: 0;
       justify-content: space-between;
-      padding: 0.75rem;
+      padding: 0.75rem 1rem;
+      position: sticky;
+      z-index: 2;
+    }
+
+    header strong {
+      color: var(--dimts-primary-strong, var(--dimts-text));
+      font-size: 1.25em;
+      letter-spacing: 0.01em;
+    }
+
+    .career-launcher {
+      margin: 0.75rem 1rem 0;
+    }
+
+    button:not(:disabled):hover {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 10%,
+        var(--dimts-surface)
+      );
+    }
+
+    .primary:not(:disabled):hover,
+    .help:not(:disabled):hover {
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 85%,
+        var(--dimts-text)
+      );
     }
 
     .header-actions,
@@ -606,7 +645,33 @@ export class DimtsAssistant extends LitElement {
     }
 
     .consent {
-      padding: 0.75rem;
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 6%,
+        var(--dimts-surface)
+      );
+      border: 1px solid var(--dimts-border);
+      border-radius: var(--dimts-radius, 0.75rem);
+      font-size: 0.9375em;
+      margin: 0.75rem 1rem 0;
+      padding: 0.25rem 0.75rem;
+    }
+
+    .consent p {
+      margin-block: 0.375rem;
+    }
+
+    .consent input[type="checkbox"] {
+      accent-color: var(--dimts-primary);
+      block-size: 1.5rem;
+      inline-size: 1.5rem;
+      min-block-size: 1.5rem;
+      min-inline-size: 1.5rem;
+    }
+
+    .consent .setting-row {
+      cursor: pointer;
+      min-block-size: 48px;
     }
 
     .action-icon {
@@ -707,21 +772,57 @@ export class DimtsAssistant extends LitElement {
     }
 
     .messages {
+      display: flex;
       flex: 1;
-      min-block-size: 12rem;
-      overflow-y: auto;
+      flex-direction: column;
+      min-block-size: 8rem;
       padding: 1rem;
     }
 
+    .empty-state {
+      align-self: center;
+      color: var(--dimts-muted);
+      margin-block: auto;
+      padding: 1.5rem 1rem;
+      text-align: center;
+    }
+
+    .empty-state strong {
+      color: var(--dimts-text);
+      display: block;
+      font-size: 1.2em;
+    }
+
     article {
-      border: 1px solid var(--dimts-border);
-      border-radius: 0.5rem;
+      background: color-mix(
+        in srgb,
+        var(--dimts-text) 4%,
+        var(--dimts-surface)
+      );
+      border: 1px solid
+        color-mix(in srgb, var(--dimts-border) 45%, var(--dimts-surface));
+      border-radius: 1rem;
+      border-end-start-radius: 0.25rem;
       margin-block: 0 0.75rem;
-      padding: 0.75rem;
+      max-inline-size: 92%;
+      padding: 0.75rem 1rem;
     }
 
     article[data-role="learner"] {
-      background: var(--dimts-surface);
+      align-self: flex-end;
+      background: color-mix(
+        in srgb,
+        var(--dimts-primary) 12%,
+        var(--dimts-surface)
+      );
+      border-color: color-mix(
+        in srgb,
+        var(--dimts-primary) 40%,
+        var(--dimts-surface)
+      );
+      border-end-end-radius: 0.25rem;
+      border-end-start-radius: 1rem;
+      max-inline-size: 85%;
     }
 
     article p {
@@ -745,14 +846,25 @@ export class DimtsAssistant extends LitElement {
     }
 
     .composer {
+      background: var(--dimts-surface);
       border-block-start: 1px solid var(--dimts-border);
-      padding: 0.75rem;
+      box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
+      inset-block-end: 0;
+      padding: 0.75rem 1rem 1rem;
+      position: sticky;
+      z-index: 2;
+    }
+
+    .composer > label {
+      display: block;
+      font-weight: 600;
+      margin-block-end: 0.375rem;
     }
 
     textarea {
       background: var(--dimts-surface);
       border: 2px solid var(--dimts-border);
-      border-radius: 0.5rem;
+      border-radius: var(--dimts-radius, 0.75rem);
       display: block;
       inline-size: 100%;
       min-block-size: 3rem;
@@ -783,13 +895,27 @@ export class DimtsAssistant extends LitElement {
       font-weight: 700;
     }
 
+    .send-action {
+      min-inline-size: 7rem;
+    }
+
+    .voice-install {
+      align-items: center;
+      display: inline-flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
     .help {
       align-self: flex-end;
-      inset-block-end: 0.75rem;
-      inset-inline-end: 0.75rem;
+      border-radius: 999px;
+      box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+      inset-block-end: 1rem;
+      inset-inline-end: 1rem;
       order: 1;
+      padding-inline: 1.25rem;
       position: fixed;
-      z-index: 1;
+      z-index: 3;
     }
 
     .help-backdrop {
@@ -2269,6 +2395,23 @@ export class DimtsAssistant extends LitElement {
     );
   }
 
+  /** On-device recognition exists for this language but needs a learner-approved download. */
+  private canInstallVoice(lang = this.selectedLang): boolean {
+    return Boolean(
+      this.languages.find((language) => language.code === lang)?.stt &&
+      this.speechToText?.installable?.(lang),
+    );
+  }
+
+  private async installVoice(): Promise<void> {
+    const lang = this.selectedLang;
+    if (!this.speechToText?.install || this.voiceInstall === "installing")
+      return;
+    this.voiceInstall = "installing";
+    const installed = await this.speechToText.install(lang).catch(() => false);
+    this.voiceInstall = installed ? "idle" : "failed";
+  }
+
   private canSpeak(lang: string): boolean {
     return Boolean(
       this.languages.find((language) => language.code === lang)?.tts &&
@@ -2825,6 +2968,7 @@ export class DimtsAssistant extends LitElement {
             aria-relevant="additions"
             aria-label=${this.t("chat.log")}
           >
+            ${this.messages.length === 0 ? html`<div class="empty-state"><strong>${this.t("welcome.ready")}</strong>${this.t("composer.placeholder")}</div>` : nothing}
             ${this.messages.map((message) =>
               message.role === "learner"
                 ? html`
@@ -3057,16 +3201,37 @@ export class DimtsAssistant extends LitElement {
             }
             <div class="composer-actions">
               ${
-                this.canRecord()
-                  ? nothing
-                  : html`<span
-                      class="muted"
-                      id="voice-input-unavailable"
-                      lang=${this.selectedLang}
-                      dir=${this.currentDirection}
-                    >
-                      ${this.t("voice.inputUnavailable")}
+                !this.canRecord() && this.canInstallVoice()
+                  ? html`<span class="voice-install">
+                      <button
+                        type="button"
+                        lang=${this.selectedLang}
+                        dir=${this.currentDirection}
+                        ?disabled=${this.voiceInstall === "installing"}
+                        @click=${() => void this.installVoice()}
+                      >
+                        ${this.t("voice.install")}
+                      </button>
+                      <span class="muted" role="status" aria-live="polite"
+                        >${
+                          this.voiceInstall === "installing"
+                            ? this.t("voice.installing")
+                            : this.voiceInstall === "failed"
+                              ? this.t("voice.installFailed")
+                              : ""
+                        }</span
+                      >
                     </span>`
+                  : this.canRecord()
+                    ? nothing
+                    : html`<span
+                        class="muted"
+                        id="voice-input-unavailable"
+                        lang=${this.selectedLang}
+                        dir=${this.currentDirection}
+                      >
+                        ${this.t("voice.inputUnavailable")}
+                      </span>`
               }
               ${
                 this.canRecord()

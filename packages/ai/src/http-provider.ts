@@ -39,8 +39,10 @@ export const answerJsonSchema = {
 };
 const answerSchema = z
   .object({
-    text: z.string().trim().min(1).max(20_000),
-    usedPassageIds: z.array(z.string().min(1)).min(1).max(5),
+    // May be empty only for a decline; see the citation check below.
+    text: z.string().trim().max(20_000),
+    // Empty means the model judged the passages irrelevant (a decline).
+    usedPassageIds: z.array(z.string().min(1)).max(5),
   })
   .strict();
 export function parseAnswer(content: string, request: AnswerRequest) {
@@ -54,6 +56,8 @@ export function parseAnswer(content: string, request: AnswerRequest) {
   const ids = new Set(request.passages.map(({ id }) => id));
   if (!parsed.success || !parsed.data.usedPassageIds.every((id) => ids.has(id)))
     throw new InvalidProviderResponseError();
+  if (parsed.data.usedPassageIds.length === 0) return parsed.data;
+  if (!parsed.data.text) throw new InvalidProviderResponseError();
   if (request.mode === "extractive") {
     const sentences = (value: string) =>
       (value.match(/[^.!?።፧。！？]+[.!?።፧。！？]?/gu) ?? [])

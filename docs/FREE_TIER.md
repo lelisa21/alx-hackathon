@@ -28,6 +28,9 @@ the core offline flow does not make an AI-provider request. A clean machine
 still needs Docker and an initial image/dependency download; offline operation
 has not been verified on this machine because Docker is unavailable.
 
-The [`render.yaml`](../render.yaml) is a starting point only. Hosted
-deployment, secrets, provider controls, retention delivery, and cost are not
-verified; do not infer them from the presence of the file.
+Follow [DEPLOY.md](DEPLOY.md) for the hosted Render/Neon steps. The
+[`render.yaml`](../render.yaml) build and start commands, migrations,
+provisioning and the production API flow were verified locally against
+PostgreSQL 17 in production mode. A real Render/Neon deployment, provider
+controls and actual free-tier usage still need to be measured on the hosted
+stack.

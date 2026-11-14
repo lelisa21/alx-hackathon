@@ -1,6 +1,7 @@
 import { createServer } from "node:http";
 import { buildApp } from "./app.js";
 import { parseConfig } from "./config.js";
+import { shutdown } from "./shutdown.js";
 
 const config = parseConfig(process.env);
 const app = buildApp({ config });
@@ -14,20 +15,17 @@ server.listen(config.PORT, () => {
   process.stdout.write(`Dimts API listening on port ${config.PORT}\n`);
 });
 
+let stopping = false;
 for (const signal of ["SIGTERM", "SIGINT"] as const) {
   process.on(signal, () => {
-    if (typeof app.locals.closeHelpWebSockets === "function") {
-      app.locals.closeHelpWebSockets();
-    }
-    server.close(() => {
-      void (
-        server as typeof server & {
-          app: { locals: { close?: () => Promise<void> } };
-        }
-      ).app.locals
-        .close?.()
-        .then(() => process.exit(0));
-    });
+    if (stopping) return;
+    stopping = true;
+    // Hard stop if draining hangs (for example a stuck database connection).
     setTimeout(() => process.exit(1), 8000).unref();
+    void shutdown({
+      server,
+      locals: app.locals,
+      exit: (code) => process.exit(code),
+    });
   });
 }

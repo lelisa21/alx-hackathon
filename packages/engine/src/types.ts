@@ -105,6 +105,11 @@ export interface AskDependencies {
   systemPrompt(lang: Lang): string;
   modeFor(lang: Lang): "generative" | "extractive";
   confidenceFloor(lang: Lang): number;
+  /**
+   * Lower retrieval floor used when an AI provider that can judge relevance is
+   * eligible for this request; undefined keeps the strict confidence floor.
+   */
+  recallFloor?(lang: Lang, policy: AnswerPolicy): number | undefined;
   translate(
     lang: Lang,
     key: string,

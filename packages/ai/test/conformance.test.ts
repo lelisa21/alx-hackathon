@@ -58,7 +58,7 @@ const cases = [
   {
     name: "Gemini",
     create: () => new GeminiProvider(options),
-    url: "https://generativelanguage.googleapis.com/v1/interactions",
+    url: "https://generativelanguage.googleapis.com/v1beta/interactions",
     envelope: (text: string) => ({
       object: "interaction",
       status: "completed",
@@ -356,7 +356,10 @@ describe("Gemini Interactions model controls", () => {
     const sentRequest =
       target instanceof Request ? target : new Request(target, init);
     const body = await sentRequest.clone().json();
-    expect(body.generation_config).toEqual({ max_output_tokens: 300 });
+    expect(body.generation_config).toEqual({
+      max_output_tokens: 300,
+      thinking_level: "minimal",
+    });
   });
 });
 

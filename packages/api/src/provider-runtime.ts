@@ -23,6 +23,8 @@ export interface ApiProviderRuntime {
     request: AnswerRequest,
     policy: { cloudOk: boolean },
   ): Promise<AnswerResult>;
+  /** True when a configured, enabled AI provider can serve this request. */
+  canJudge?(lang: string, policy: { cloudOk: boolean }): boolean;
 }
 
 function offlineFaqs(
@@ -184,8 +186,22 @@ export function createApiProviderRuntime(
   );
   const ladder = new Ladder(providers, timeouts);
 
+  const judges = configuredBindings.filter(
+    ({ enabled, capabilities }) =>
+      enabled &&
+      capabilities.structuredOutput &&
+      capabilities.modalities.includes("text"),
+  );
   return {
     providerOrder,
+    canJudge(lang, policy) {
+      return judges.some(
+        ({ privacyClass, capabilities }) =>
+          (privacyClass === "local" || policy.cloudOk) &&
+          (capabilities.languages.includes("*") ||
+            capabilities.languages.includes(lang)),
+      );
+    },
     get activeProvider() {
       return ladder.activeProvider;
     },

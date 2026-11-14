@@ -5,7 +5,12 @@ import type { JobsDelivery, JobsService } from "@dimts/jobs";
 import { JobsError } from "@dimts/jobs";
 import type { LangPack } from "@dimts/locales-tools";
 import { createSmsGateway, SmsError, SmsService } from "@dimts/sms";
-import type { SmsGateway, SmsLocale, SmsServiceOptions } from "@dimts/sms";
+import type {
+  SmsGateway,
+  SmsGatewayFactoryOptions,
+  SmsLocale,
+  SmsServiceOptions,
+} from "@dimts/sms";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository } from "./types.js";
 import { createConversationService } from "./conversation.js";
@@ -14,12 +19,34 @@ import { sha256 } from "./middleware/auth.js";
 export type SmsApiService = Pick<SmsService, "inbound" | "sendAlert">;
 export const SMS_CALLBACK_VERSION = "dimts.sms.callback.v1";
 
+export function smsGatewayOptions(
+  config: ApiConfig,
+): SmsGatewayFactoryOptions | undefined {
+  switch (config.DIMTS_SMS_MODE) {
+    case "simulator":
+      return { type: "simulator" };
+    case "smsethiopia":
+      if (!config.DIMTS_SMS_GATEWAY_TOKEN) return undefined;
+      return {
+        type: "smsethiopia",
+        token: config.DIMTS_SMS_GATEWAY_TOKEN,
+        ...(config.DIMTS_SMS_GATEWAY_URL
+          ? { url: config.DIMTS_SMS_GATEWAY_URL }
+          : {}),
+      };
+    case "gateway":
+      if (!config.DIMTS_SMS_GATEWAY_URL || !config.DIMTS_SMS_GATEWAY_TOKEN)
+        return undefined;
+      return {
+        type: "gateway",
+        url: config.DIMTS_SMS_GATEWAY_URL,
+        token: config.DIMTS_SMS_GATEWAY_TOKEN,
+      };
+  }
+}
+
 export function smsConfigured(config: ApiConfig): boolean {
-  return Boolean(
-    config.DIMTS_SMS_GATEWAY_SECRET &&
-    (config.DIMTS_SMS_MODE === "simulator" ||
-      (config.DIMTS_SMS_GATEWAY_URL && config.DIMTS_SMS_GATEWAY_TOKEN)),
-  );
+  return Boolean(config.DIMTS_SMS_GATEWAY_SECRET && smsGatewayOptions(config));
 }
 
 export function createSmsCallback(
@@ -133,17 +160,8 @@ export function createSmsRuntime(options: {
   const gateway =
     options.gateway ??
     (() => {
-      if (config.DIMTS_SMS_MODE === "simulator") {
-        return createSmsGateway({ type: "simulator" });
-      }
-      if (!config.DIMTS_SMS_GATEWAY_URL || !config.DIMTS_SMS_GATEWAY_TOKEN) {
-        return undefined;
-      }
-      return createSmsGateway({
-        type: "gateway",
-        url: config.DIMTS_SMS_GATEWAY_URL,
-        token: config.DIMTS_SMS_GATEWAY_TOKEN,
-      });
+      const gatewayOptions = smsGatewayOptions(config);
+      return gatewayOptions ? createSmsGateway(gatewayOptions) : undefined;
     })();
   if (!gateway) return undefined;
   const conversation = createConversationService({

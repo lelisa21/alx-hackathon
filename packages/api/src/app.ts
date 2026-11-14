@@ -198,6 +198,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
           ...(answerCache ? { answerCache } : {}),
           cacheEvent: ({ result }) =>
             logger.info({ event: "answer_cache", result }),
+          answerEvent: ({ provider, latencyMs, answered }) =>
+            logger.info({ event: "ai_answer", provider, latencyMs, answered }),
         })
       : undefined);
   const smsRuntime =
@@ -479,6 +481,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
           platform,
         ]),
       ),
+      ...(config.DIMTS_LTI_WIDGET_URL && config.DIMTS_LTI_WIDGET_KEY
+        ? {
+            launchPage: {
+              widgetUrl: config.DIMTS_LTI_WIDGET_URL,
+              hostKey: config.DIMTS_LTI_WIDGET_KEY,
+            },
+          }
+        : {}),
     }),
   );
   app.use(

@@ -44,6 +44,8 @@ reference pages.
 
 ## Operations and release readiness
 
+To deploy the hosted stack (Render + Neon), follow [docs/DEPLOY.md](./docs/DEPLOY.md).
+
 The [integration contract](./docs/INTEGRATION.md), [privacy policy](./docs/PRIVACY.md),
 [free-tier notes](./docs/FREE_TIER.md), [cost controls](./docs/COST.md),
 [accessibility evidence](./docs/WCAG_REPORT.md), [release gates](./docs/GATE_CHECKLIST.md),

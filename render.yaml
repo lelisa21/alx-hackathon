@@ -1,20 +1,26 @@
+# Hosted reference deployment (blueprint 2.6 and 14.1). See docs/DEPLOY.md.
 services:
   - type: web
     name: dimts-api
     runtime: node
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm --filter @dimts/api start
+    # The free plan has no pre-deploy hook; migrations are idempotent and run
+    # under an advisory lock before the server starts.
+    startCommand: pnpm --filter @dimts/api migrate && pnpm --filter @dimts/api start
     healthCheckPath: /v1/health
     envVars:
       - key: NODE_VERSION
         value: 22.18.0
       - key: NODE_ENV
         value: production
+      # Neon pooled connection string (runtime) and direct string (migrations).
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_DIRECT
         sync: false
+      # Distinct secrets: two 32-byte base64 keys, a 32+ character JWT secret
+      # and a 24+ character cron secret (blueprint 7.5).
       - key: DIMTS_ENC_KEY
         sync: false
       - key: DIMTS_HASH_KEY
@@ -23,12 +29,23 @@ services:
         sync: false
       - key: DIMTS_CRON_SECRET
         sync: false
+      # Comma-separated HTTPS origins of every page that embeds the widget.
       - key: DIMTS_HOST_ORIGINS
         sync: false
       - key: DIMTS_DEFAULT_LANG
         value: en
       - key: DIMTS_RETENTION_HOURS
         value: "24"
+      - key: DIMTS_PUBLIC_SOURCES
+        value: "[]"
+      - key: DIMTS_LTI_PLATFORMS
+        value: "[]"
+      - key: DIMTS_TELEGRAM_MODE
+        value: webhook
+      - key: DIMTS_SMS_MODE
+        value: simulator
+      - key: DIMTS_JOBS_ALERT_INTERVAL_MS
+        value: "0"
       - key: DIMTS_AI_PROVIDER
         value: offline
       - key: DIMTS_AI_LADDER
@@ -39,5 +56,17 @@ services:
   - type: web
     name: dimts-widget-assets
     runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
+    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @dimts/widget... build
     staticPublishPath: ./packages/widget/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+    headers:
+      # Host pages on other origins import the ES module and its lazy chunks
+      # and fonts; module scripts and fonts are always fetched with CORS.
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

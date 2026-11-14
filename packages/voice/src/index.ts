@@ -19,6 +19,9 @@ export class VoiceError extends Error {
 
 export interface SpeechToText {
   supported(lang: string): boolean;
+  /** An on-device pack exists but is not installed; install() needs a learner action. */
+  installable?(lang: string): boolean;
+  install?(lang: string): Promise<boolean>;
   start(lang: string): Promise<string>;
   stop(): void;
   cancel?(): void;

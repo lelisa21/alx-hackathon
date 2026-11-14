@@ -283,6 +283,7 @@ export function createTelegramRuntime(options: {
           transport,
           environment: config.NODE_ENV,
           handleUpdate: (update) => service.handleUpdate(update),
+          onError: () => options.onError?.(),
         })
       : undefined;
   void polling?.done.catch(() => options.onError?.());

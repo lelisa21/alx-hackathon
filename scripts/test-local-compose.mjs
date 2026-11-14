@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { createRequire } from "node:module";
-import { spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { createServer } from "node:net";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -33,21 +33,34 @@ async function availablePort() {
   }
 }
 
+// Asynchronous on purpose: spawnSync blocks the event loop for the length of
+// each Docker command, so fetch's keep-alive expiry timers cannot run and the
+// next request reuses a socket the API already closed (UND_ERR_SOCKET).
 function runDocker(args, timeout = 240_000) {
-  const result = spawnSync("docker", args, {
-    cwd: root,
-    env: environment,
-    encoding: "utf8",
-    timeout,
-    maxBuffer: 8 * 1024 * 1024,
+  return new Promise((resolve, reject) => {
+    const child = spawn("docker", args, { cwd: root, env: environment });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.setEncoding("utf8").on("data", (chunk) => (stdout += chunk));
+    child.stderr.setEncoding("utf8").on("data", (chunk) => (stderr += chunk));
+    const timer = setTimeout(() => child.kill("SIGTERM"), timeout);
+    child.once("error", (error) => {
+      clearTimeout(timer);
+      reject(error);
+    });
+    child.once("close", (status, signal) => {
+      clearTimeout(timer);
+      if (status !== 0) {
+        reject(
+          new Error(
+            `docker ${args.join(" ")} failed${signal ? ` (${signal})` : ""}:\n${stderr || stdout}`,
+          ),
+        );
+        return;
+      }
+      resolve(stdout.trim());
+    });
   });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(
-      `docker compose ${args.join(" ")} failed:\n${result.stderr || result.stdout}`,
-    );
-  }
-  return result.stdout.trim();
 }
 
 function runCompose(args, timeout) {
@@ -131,7 +144,7 @@ const origin = `http://127.0.0.1:${webPort}`;
 const startedAt = Date.now();
 
 try {
-  runCompose(["up", "--build", "--detach"]);
+  await runCompose(["up", "--build", "--detach"]);
   const web = await waitFor(origin, (response) =>
     response.headers.get("content-type")?.includes("text/html"),
   );
@@ -141,8 +154,14 @@ try {
   assert.match(html, /dimts-widget\.js/u);
 
   const apiOrigin = `http://127.0.0.1:${apiPort}`;
-  assert.equal(runCompose(["port", "api", "3000"]), `127.0.0.1:${apiPort}`);
-  assert.equal(runCompose(["port", "widget", "80"]), `127.0.0.1:${webPort}`);
+  assert.equal(
+    await runCompose(["port", "api", "3000"]),
+    `127.0.0.1:${apiPort}`,
+  );
+  assert.equal(
+    await runCompose(["port", "widget", "80"]),
+    `127.0.0.1:${webPort}`,
+  );
 
   const directHealth = await waitFor(`${apiOrigin}/v1/health`, (response) =>
     response.headers.get("content-type")?.includes("json"),
@@ -155,9 +174,9 @@ try {
   assert.equal(health.db, true);
   assert.equal(health.ok, true);
 
-  assert.match(runSeed(), /Sample job and helper records are ready\./u);
-  assert.match(runSeed(), /Sample job and helper records are ready\./u);
-  const seeded = runCompose([
+  assert.match(await runSeed(), /Sample job and helper records are ready\./u);
+  assert.match(await runSeed(), /Sample job and helper records are ready\./u);
+  const seeded = await runCompose([
     "exec",
     "-T",
     "db",
@@ -181,7 +200,7 @@ try {
     `INSERT INTO lti_token_replay(token_hash,platform_id) VALUES('${ltiTokenHash}','static-config-only-platform')`,
     `SELECT channel || '|' || (expires_at > now())::text || '|' || (lti_context->>'insightsAccess') FROM session WHERE id='${ltiSessionId}'`,
   ].join(";");
-  const ltiPersistence = runCompose([
+  const ltiPersistence = await runCompose([
     "exec",
     "-T",
     "db",
@@ -245,7 +264,7 @@ try {
     `INSERT INTO help_request(id,session_id,lang,channel,status,include_summary) VALUES('${helpRequestId}','${session.sessionId}','en','web','waiting',false)`,
     `INSERT INTO help_image(id,help_request_id,mime,data) VALUES('${helpImageId}','${helpRequestId}','image/png',decode('${image.toString("base64")}','base64'))`,
   ].join(";");
-  runCompose([
+  await runCompose([
     "exec",
     "-T",
     "db",
@@ -264,7 +283,7 @@ try {
   assert.equal(languagesResponse.status, 200);
   assert.ok(Array.isArray((await languagesResponse.json()).languages));
 
-  const backend = runDocker([
+  const backend = await runDocker([
     "network",
     "inspect",
     "--format",
@@ -272,7 +291,7 @@ try {
     `${project}_backend`,
   ]);
   assert.equal(backend, "true");
-  const edge = runDocker([
+  const edge = await runDocker([
     "network",
     "inspect",
     "--format",
@@ -281,8 +300,8 @@ try {
   ]);
   assert.equal(edge, "false");
 
-  runCompose(["down"]);
-  runCompose(["up", "--pull", "never", "--no-build", "--detach"]);
+  await runCompose(["down"]);
+  await runCompose(["up", "--pull", "never", "--no-build", "--detach"]);
   await waitFor(`${origin}/v1/health`, async (response) => {
     if (!response.headers.get("content-type")?.includes("json")) return false;
     return response.ok;
@@ -307,7 +326,7 @@ try {
   const replayedReply = await ask();
   assert.equal(replayedReply.status, 200);
   assert.deepEqual(await replayedReply.json(), replyBody);
-  const persisted = runCompose([
+  const persisted = await runCompose([
     "exec",
     "-T",
     "db",
@@ -322,7 +341,7 @@ try {
   assert.equal(persisted, "true|true");
   assert.ok(Date.now() - startedAt < 300_000);
 } finally {
-  runCompose(
+  await runCompose(
     ["down", "--volumes", "--remove-orphans", "--rmi", "local"],
     60_000,
   );

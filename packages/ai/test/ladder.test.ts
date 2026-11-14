@@ -197,3 +197,77 @@ describe("provider ladder", () => {
     expect(answer.mock.calls[0]?.[0].mode).toBe("extractive");
   });
 });
+
+describe("provider declines", () => {
+  it("returns a well-formed decline without cooldown or fallback", async () => {
+    const decline = vi.fn(async () => ({
+      text: "The course does not cover this.",
+      usedPassageIds: [],
+    }));
+    const backup = vi.fn(async () => ({
+      text: "Choose one learning goal.",
+      usedPassageIds: ["passage-1"],
+    }));
+    const ladder = new Ladder(
+      [provider("first", decline), provider("second", backup)],
+      {},
+    );
+
+    const first = await ladder.answer(request);
+    expect(first.usedPassageIds).toEqual([]);
+    expect(first.providerId).toBe("first");
+    expect(backup).not.toHaveBeenCalled();
+    expect(decline).toHaveBeenCalledTimes(1);
+
+    // Not cooled down: the next question goes to the same provider again.
+    await ladder.answer(request);
+    expect(decline).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("structured decline parsing", () => {
+  it("accepts an empty usedPassageIds decline in extractive mode", async () => {
+    const { parseAnswer } = await import("../src/http-provider.js");
+    expect(
+      parseAnswer(
+        JSON.stringify({ text: "Not in the course.", usedPassageIds: [] }),
+        request,
+      ),
+    ).toEqual({ text: "Not in the course.", usedPassageIds: [] });
+  });
+});
+
+describe("health probe caching", () => {
+  it("reuses a healthy result for a minute instead of probing every answer", async () => {
+    let clock = 1_000_000;
+    const health = vi.fn(async () => ({ ok: true }));
+    const answer = vi.fn(async () => ({
+      text: "Choose one learning goal.",
+      usedPassageIds: ["passage-1"],
+    }));
+    const ladder = new Ladder([provider("p", answer, health)], {}, () => clock);
+    await ladder.answer(request);
+    await ladder.answer(request);
+    expect(health).toHaveBeenCalledTimes(1);
+    clock += 61_000;
+    await ladder.answer(request);
+    expect(health).toHaveBeenCalledTimes(2);
+    expect(answer).toHaveBeenCalledTimes(3);
+  });
+});
+
+describe("terse declines", () => {
+  it("accepts an empty-text decline but still requires text when citing", async () => {
+    const { parseAnswer } = await import("../src/http-provider.js");
+    const { InvalidProviderResponseError } = await import("../src/provider.js");
+    expect(
+      parseAnswer(JSON.stringify({ text: "", usedPassageIds: [] }), request),
+    ).toEqual({ text: "", usedPassageIds: [] });
+    expect(() =>
+      parseAnswer(
+        JSON.stringify({ text: " ", usedPassageIds: ["passage-1"] }),
+        request,
+      ),
+    ).toThrow(InvalidProviderResponseError);
+  });
+});

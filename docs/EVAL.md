@@ -1,10 +1,10 @@
 # Evaluation results
 
 | Language | Questions | Retrieval hit rate | Citation validity | Not-found correctness | Answer-language correctness | Average sentence length (words) |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| am | 15 | 0% | n/a | 100% | n/a | n/a |
-| en | 13 | 100% | 100% | 100% | 100% | 8.0 |
-| om | 16 | 0% | n/a | 100% | n/a | n/a |
+| -------- | --------: | -----------------: | ----------------: | --------------------: | --------------------------: | ------------------------------: |
+| am       |        15 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
+| en       |        13 |               100% |              100% |                  100% |                        100% |                             8.0 |
+| om       |        16 |                 0% |               n/a |                  100% |                         n/a |                             n/a |
 
 Sentence-length target: average at most 15 words, or 12 words in Simple mode. Normal and Simple measurements are separate.
 A value of n/a means the fixture set contains no applicable observations; it is not a pass.

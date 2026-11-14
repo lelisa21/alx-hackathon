@@ -76,7 +76,8 @@ describe.skipIf(!databaseUrl)("P03 PostgreSQL reviewed FAQ publication", () => {
       await grounding.currentVersion(),
       grounding.resolveFaqCitations.bind(grounding),
     );
-    expect(before.items).toHaveLength(9);
+    // Every authored entry resolves against the ingested sample course.
+    expect(before.items).toHaveLength((pack.faq as unknown[]).length);
     expect(
       before.items.every((item) =>
         /^[a-f0-9]{64}$/u.test(item.citations[0]!.passageId),

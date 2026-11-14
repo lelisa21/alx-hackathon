@@ -56,48 +56,46 @@ describe("provider runtime configuration", () => {
         text: "Choose one learning goal.",
         usedPassageIds: ["goals"],
       };
-      const network = vi.fn<typeof fetch>(
-        async (input, init) =>
-          Response.json(
-            (input instanceof Request ? input.method : init?.method) !==
-              "POST"
-                ? {}
-                : adapter === "gemini"
-                  ? {
-                      object: "interaction",
-                      status: "completed",
-                      model: "model-name",
-                      steps: [
-                        {
-                          type: "model_output",
-                          content: [
-                            { type: "text", text: JSON.stringify(response) },
-                          ],
-                        },
+      const network = vi.fn<typeof fetch>(async (input, init) =>
+        Response.json(
+          (input instanceof Request ? input.method : init?.method) !== "POST"
+            ? {}
+            : adapter === "gemini"
+              ? {
+                  object: "interaction",
+                  status: "completed",
+                  model: "model-name",
+                  steps: [
+                    {
+                      type: "model_output",
+                      content: [
+                        { type: "text", text: JSON.stringify(response) },
                       ],
-                    }
-                  : {
-                      status: "completed",
-                      output: [
+                    },
+                  ],
+                }
+              : {
+                  status: "completed",
+                  output: [
+                    {
+                      type: "message",
+                      role: "assistant",
+                      content: [
                         {
-                          type: "message",
-                          role: "assistant",
-                          content: [
-                            {
-                              type: "output_text",
-                              text: JSON.stringify(response),
-                            },
-                          ],
+                          type: "output_text",
+                          text: JSON.stringify(response),
                         },
                       ],
                     },
-          ),
+                  ],
+                },
+        ),
       );
       vi.stubGlobal("fetch", network);
       const runtime = createApiProviderRuntime(
-          config,
-          loadPacks(resolve("locales")),
-          { TEST_LLM_CREDENTIAL: "test-only-native-key" },
+        config,
+        loadPacks(resolve("locales")),
+        { TEST_LLM_CREDENTIAL: "test-only-native-key" },
       );
       const answerRequest = {
         question: "How do I choose a learning goal?",

@@ -1205,3 +1205,36 @@ selection remain prerequisites for production voice.
   of platform metadata. LTI state and replay tables therefore do not require
   rows in the legacy `lti_platform` registration table; their platform IDs
   remain configuration identifiers, not foreign keys to learner data.
+
+## P11 — hosted deployment readiness (14 November 2026)
+
+- **Requirements:** NFR-SEC-12 (validated secrets), blueprint 3.3 (hashed host
+  keys and helper tokens), 3.4 (24-hour retention), 2.6 and 14.1 (hosted and
+  CI topologies), FR-INT-05/06 (LTI launch).
+- **Provisioning:** Hosted deployments had no supported way to create a
+  `host_key` or `helper` row, so every hosted widget session was refused.
+  Added `pnpm admin host-key|helper` (`packages/api/src/db/admin.ts`). It
+  stores only SHA-256 hashes, reads the secret from `DIMTS_PROVISION_SECRET`
+  (never argv), requires HTTPS origins except loopback, requires an origin for
+  public keys, requires 32+ characters for secret keys, and requires a 32-byte
+  base64url helper token. `DIMTS_PROVISION_SECRET` is an operator CLI input,
+  not API configuration.
+- **Migrations on Render:** The free plan has no pre-deploy hook, so the start
+  command runs `migrate` first. `applyMigrations` now holds a PostgreSQL
+  advisory lock so overlapping deploy instances cannot race.
+- **Scheduled jobs:** Added `cron.yml` (retention 06:00 UTC, alerts 07:30 UTC)
+  and the event-bounded `keepwarm.yml` from blueprint 14.1. Both skip when the
+  `DIMTS_API_URL`/`DIMTS_CRON_SECRET` repository secrets are absent.
+- **LTI redirect URI:** Derived from the request (`trust proxy` honours
+  `X-Forwarded-Proto`) instead of a fixed placeholder host. The platform still
+  redirects only to its registered URIs.
+- **Static assets:** The Render static site sends
+  `Access-Control-Allow-Origin: *` because host pages import the widget module,
+  its chunks and fonts cross-origin. The assets are public and credential-free.
+- **CI database:** Compose keeps PostgreSQL on an internal network with no host
+  port, so CI uses a PostgreSQL service container as blueprint 2.6 specifies.
+- **Container:** The API image runs as the unprivileged `node` user, and
+  dependency download is layered on the lockfile alone.
+- **Fixed defects:** SIGTERM crashed (`server.app` is undefined), skipping pool
+  and timer cleanup; nginx dropped WebSocket upgrade headers for
+  `/v1/help/ws`; two PostgreSQL integration tests had stale fixtures.

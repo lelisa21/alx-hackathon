@@ -25,6 +25,11 @@ services:
     profiles:
       - local
     restart: unless-stopped
+    # Provider credentials are referenced by name (DIMTS_AI_PROVIDERS[].credentialRef),
+    # so pass the local .env through; the explicit values below take precedence.
+    env_file:
+      - path: .env
+        required: false
     depends_on:
       db:
         condition: service_healthy
@@ -43,8 +48,9 @@ services:
       DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
       DIMTS_STT_ENGINE: ${DIMTS_STT_ENGINE:-none}
       DIMTS_TTS_ENGINE: ${DIMTS_TTS_ENGINE:-none}
+      DIMTS_VOICE_PREVIEW: ${DIMTS_VOICE_PREVIEW:-false}
       DIMTS_RETENTION_HOURS: ${DIMTS_RETENTION_HOURS:-24}
-      DIMTS_TELEGRAM_MODE: ${DIMTS_TELEGRAM_MODE:-webhook}
+      DIMTS_TELEGRAM_MODE: ${DIMTS_TELEGRAM_MODE:-}
       DIMTS_TELEGRAM_TOKEN: ${DIMTS_TELEGRAM_TOKEN:-}
       DIMTS_TELEGRAM_SECRET: ${DIMTS_TELEGRAM_SECRET:-}
       DIMTS_JOBS_RELAY_URL: ${DIMTS_JOBS_RELAY_URL:-}

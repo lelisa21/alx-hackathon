@@ -39,6 +39,8 @@ export interface TelegramTransport {
   answerCallback(callbackId: string): Promise<void>;
   cancelContact?(chatId: string): void;
   getUpdates(offset?: number, signal?: AbortSignal): Promise<unknown[]>;
+  /** Removes any registered webhook; Telegram refuses getUpdates while one is set. */
+  deleteWebhook?(): Promise<void>;
   downloadVoice(
     voice: TelegramVoiceFile,
   ): Promise<{ audio: Uint8Array; mimeType: string }>;
@@ -406,6 +408,16 @@ export function createTelegramTransport(options: {
         throw new TelegramTransportError();
       }
     },
+    async deleteWebhook() {
+      try {
+        await api.raw.deleteWebhook(
+          { drop_pending_updates: false },
+          sdkSignal(signals(8000)),
+        );
+      } catch {
+        throw new TelegramTransportError();
+      }
+    },
     async getUpdates(offset, signal) {
       try {
         return await api.raw.getUpdates(
@@ -534,15 +546,19 @@ export function createTelegramTransport(options: {
 }
 
 export function startTelegramPolling(options: {
-  transport: Pick<TelegramTransport, "getUpdates">;
+  transport: Pick<TelegramTransport, "getUpdates" | "deleteWebhook">;
   environment: "development" | "test" | "production";
   handleUpdate(update: unknown): Promise<unknown>;
+  /** Called on each failed poll; carries no update content. */
+  onError?(): void;
 }): { stop(): Promise<void>; done: Promise<void> } {
   if (options.environment === "production")
     throw new Error("telegram_polling_forbidden");
   const controller = new AbortController();
   const done = (async () => {
     let offset: number | undefined;
+    // A webhook left over from a hosted deploy makes getUpdates fail (409).
+    await options.transport.deleteWebhook?.().catch(() => options.onError?.());
     while (!controller.signal.aborted) {
       try {
         const updates = await options.transport.getUpdates(
@@ -563,8 +579,10 @@ export function startTelegramPolling(options: {
           offset = Number(update.update_id) + 1;
         }
       } catch {
-        if (!controller.signal.aborted)
+        if (!controller.signal.aborted) {
+          options.onError?.();
           await delay(1000, controller.signal).catch(() => {});
+        }
       }
     }
   })();

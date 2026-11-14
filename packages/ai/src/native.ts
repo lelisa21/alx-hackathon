@@ -137,6 +137,11 @@ function geminiEndpointRoot(endpoint?: string): string {
   return url.toString().replace(/\/$/u, "");
 }
 
+function isThinkingModel(model: string): boolean {
+  const match = /^(?:models\/)?gemini-(\d+)/u.exec(model);
+  return Boolean(match && Number(match[1]) >= 3);
+}
+
 function supportsTemperature(model: string): boolean {
   const match = /^(?:models\/)?gemini-(\d+)(?:\.(\d+))?/u.exec(model);
   if (!match) return true;
@@ -182,7 +187,9 @@ export class GeminiProvider extends ProviderBase {
       apiKey,
       httpOptions: {
         baseUrl: this.endpointRoot,
-        apiVersion: "v1",
+        // The Interactions API and current Gemini models are served on v1beta;
+        // v1 returns 404 for them (verified against the live API).
+        apiVersion: "v1beta",
         retryOptions: { attempts: 1 },
       },
     });
@@ -192,14 +199,17 @@ export class GeminiProvider extends ProviderBase {
   ): Promise<{ ok: boolean; reasonCode?: string }> {
     try {
       const model = encodeURIComponent(this.model.replace(/^models\//u, ""));
-      const response = await fetch(`${this.endpointRoot}/v1/models/${model}`, {
-        headers: {
-          "content-type": "application/json",
-          "x-goog-api-key": this.googleApiKey,
+      const response = await fetch(
+        `${this.endpointRoot}/v1beta/models/${model}`,
+        {
+          headers: {
+            "content-type": "application/json",
+            "x-goog-api-key": this.googleApiKey,
+          },
+          signal,
+          redirect: "error",
         },
-        signal,
-        redirect: "error",
-      });
+      );
       await response.body?.cancel();
       return response.ok ? { ok: true } : { ok: false, reasonCode: "status" };
     } catch {
@@ -223,6 +233,9 @@ export class GeminiProvider extends ProviderBase {
       store: false,
       generation_config: {
         max_output_tokens: this.maxTokens,
+        // Thinking tokens count against max_output_tokens; grounded extraction
+        // needs none, and without a limit replies end "incomplete".
+        ...(isThinkingModel(this.model) ? { thinking_level: "minimal" } : {}),
         ...(supportsTemperature(this.model)
           ? { temperature: this.temperature }
           : {}),
