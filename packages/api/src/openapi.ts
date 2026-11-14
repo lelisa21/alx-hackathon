@@ -940,5 +940,5 @@ export function generateOpenApiDocument(): object {
 }
 
 export function generateOpenApiYaml(): string {
-  return stringify(generateOpenApiDocument());
+  return stringify(generateOpenApiDocument()).replace(/\r?\n/g, "\r\n");
 }
