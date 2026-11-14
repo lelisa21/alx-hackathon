@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 import { countSms, normalizeForSms } from "./segments.js";
 
 export type SmsDeliveryStatus = "queued" | "sent" | "delivered" | "failed";
+export type SmsGatewayProvider = "simulator" | "gateway" | "afromessage";
 export type SmsInboundHandler = (
   from: string,
   text: string,
@@ -22,6 +23,59 @@ export class SmsGatewayError extends Error {
     this.name = "SmsGatewayError";
   }
 }
+
+export interface SmsGatewayFactoryOptions {
+  type?: SmsGatewayProvider;
+  url?: string;
+  token?: string;
+  from?: string;
+  sender?: string;
+  callback?: string;
+  transport?: typeof fetch;
+}
+
+export function createSmsGateway(
+  options: SmsGatewayFactoryOptions = {},
+): SmsGateway {
+  switch (options.type ?? "gateway") {
+    case "simulator":
+      return new SimulatedSmsGateway();
+    case "gateway": {
+      const url = options.url;
+      const token = options.token;
+      if (!url || !token) {
+        throw new SmsGatewayError();
+      }
+      const gatewayOptions: ConstructorParameters<typeof HttpSmsGateway>[0] = {
+        url,
+        token,
+      };
+      if (options.transport) gatewayOptions.transport = options.transport;
+      return new HttpSmsGateway(gatewayOptions);
+    }
+    case "afromessage": {
+      const url = options.url;
+      const token = options.token;
+      if (!url || !token) {
+        throw new SmsGatewayError();
+      }
+      const gatewayOptions: ConstructorParameters<
+        typeof AfromessageSmsGateway
+      >[0] = {
+        url,
+        token,
+      };
+      if (options.from) gatewayOptions.from = options.from;
+      if (options.sender) gatewayOptions.sender = options.sender;
+      if (options.callback) gatewayOptions.callback = options.callback;
+      if (options.transport) gatewayOptions.transport = options.transport;
+      return new AfromessageSmsGateway(gatewayOptions);
+    }
+    default:
+      throw new SmsGatewayError();
+  }
+}
+
 function status(value: unknown): value is SmsDeliveryStatus {
   return ["queued", "sent", "delivered", "failed"].includes(String(value));
 }
@@ -102,6 +156,116 @@ export class SimulatedSmsGateway implements SmsGateway {
 }
 export const SMS_GATEWAY_VERSION = "dimts.sms.gateway.v1";
 /** Operator bridge protocol, not an assertion that any operator is configured. */
+export class AfromessageSmsGateway implements SmsGateway {
+  private readonly url: string;
+  private readonly token: string;
+  private readonly from: string;
+  private readonly sender: string;
+  private readonly callback?: string;
+  private readonly transport: typeof fetch;
+  private readonly acknowledgements = new Map<string, SmsDeliveryStatus>();
+  private handler: SmsInboundHandler | undefined;
+
+  constructor(options: {
+    url: string;
+    token: string;
+    from?: string;
+    sender?: string;
+    callback?: string;
+    transport?: typeof fetch;
+  }) {
+    const url = new URL(options.url);
+    if (
+      url.protocol !== "https:" ||
+      url.username ||
+      url.password ||
+      url.search ||
+      url.hash ||
+      options.token.length < 24
+    )
+      throw new SmsGatewayError();
+    if (!options.from || !options.sender) {
+      throw new SmsGatewayError();
+    }
+    this.url = url.href;
+    this.token = options.token;
+    this.from = options.from;
+    this.sender = options.sender;
+    if (typeof options.callback === "string") this.callback = options.callback;
+    this.transport = options.transport ?? fetch;
+  }
+
+  onInbound(handler: SmsInboundHandler): void {
+    this.handler = handler;
+  }
+
+  async receive(input: {
+    id: string;
+    from: string;
+    text: string;
+  }): Promise<void> {
+    if (!this.handler) throw new SmsGatewayError();
+    await this.handler(input.from, input.text, { id: input.id });
+  }
+
+  async send(
+    to: string,
+    raw: string,
+    opts?: { lang: string; idempotencyKey?: string },
+  ): Promise<{ id: string; segments: number }> {
+    const text = normalizeForSms(raw);
+    const segments = countSms(text).segments;
+    const params = new URLSearchParams({
+      from: this.from,
+      sender: this.sender,
+      to,
+      message: text,
+    });
+    if (this.callback) params.set("callback", this.callback);
+    const response = await this.transport(`${this.url}?${params.toString()}`, {
+      method: "GET",
+      redirect: "error",
+      signal: AbortSignal.timeout(2500),
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        ...(opts?.idempotencyKey
+          ? { "Idempotency-Key": opts.idempotencyKey }
+          : {}),
+      },
+    });
+    if (!response.ok) throw new SmsGatewayError();
+    const result: unknown = await response.json();
+    const id =
+      typeof result === "object" &&
+      result &&
+      "id" in result &&
+      typeof result.id === "string"
+        ? result.id
+        : `afromessage-${createHash("sha256")
+            .update(`${to}:${text}:${opts?.idempotencyKey ?? ""}`)
+            .digest("hex")
+            .slice(0, 24)}`;
+    const outletStatus: SmsDeliveryStatus =
+      typeof result === "object" &&
+      result &&
+      "status" in result &&
+      status(result.status)
+        ? result.status
+        : "queued";
+    this.acknowledgements.set(id, outletStatus);
+    return { id, segments };
+  }
+
+  async status(id: string): Promise<SmsDeliveryStatus> {
+    const acknowledged = this.acknowledgements.get(id);
+    if (acknowledged) {
+      this.acknowledgements.delete(id);
+      return acknowledged;
+    }
+    return "queued";
+  }
+}
+
 export class HttpSmsGateway implements SmsGateway {
   private readonly acknowledgements = new Map<string, SmsDeliveryStatus>();
   private readonly url: string;

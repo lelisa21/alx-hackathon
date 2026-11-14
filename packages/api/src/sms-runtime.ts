@@ -4,12 +4,7 @@ import type { AskDependencies } from "@dimts/engine";
 import type { JobsDelivery, JobsService } from "@dimts/jobs";
 import { JobsError } from "@dimts/jobs";
 import type { LangPack } from "@dimts/locales-tools";
-import {
-  HttpSmsGateway,
-  SimulatedSmsGateway,
-  SmsError,
-  SmsService,
-} from "@dimts/sms";
+import { createSmsGateway, SmsError, SmsService } from "@dimts/sms";
 import type { SmsGateway, SmsLocale, SmsServiceOptions } from "@dimts/sms";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository } from "./types.js";
@@ -137,12 +132,11 @@ export function createSmsRuntime(options: {
   smsPool.on("error", () => undefined);
   const gateway =
     options.gateway ??
-    (config.DIMTS_SMS_MODE === "simulator"
-      ? new SimulatedSmsGateway()
-      : new HttpSmsGateway({
-          url: config.DIMTS_SMS_GATEWAY_URL!,
-          token: config.DIMTS_SMS_GATEWAY_TOKEN!,
-        }));
+    createSmsGateway({
+      type: config.DIMTS_SMS_MODE === "simulator" ? "simulator" : "gateway",
+      url: config.DIMTS_SMS_GATEWAY_URL,
+      token: config.DIMTS_SMS_GATEWAY_TOKEN,
+    });
   const conversation = createConversationService({
     config,
     repository,
