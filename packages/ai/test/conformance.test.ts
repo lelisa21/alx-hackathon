@@ -279,9 +279,15 @@ describe.each(cases)(
         ok: false,
         reasonCode: "status",
       });
-      await expect(
-        create().answer(request, new AbortController().signal),
-      ).rejects.toThrow("Provider request failed.");
+      const failure = create().answer(request, new AbortController().signal);
+      if (name === "Gemini") {
+        await expect(failure).rejects.toMatchObject({
+          message: "Provider request failed.",
+          cause: expect.anything(),
+        });
+      } else {
+        await expect(failure).rejects.toThrow("Provider request failed.");
+      }
     });
 
     it("does not transmit disallowed data or follow redirects", async () => {

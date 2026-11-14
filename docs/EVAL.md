@@ -33,15 +33,15 @@ Pairs use expected passages even when retrieval misses, plus actual citations; n
 
 ## Offline FAQ adapter
 
-- am: 9/9 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
-- en: 9/9 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
-- om: 9/9 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
+- am: 30/30 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
+- en: 30/30 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
+- om: 30/30 expected FAQ answers (100.0%); 0 misses; unreviewed draft set.
 
 FAQ matching is measured separately at the adapter boundary with each FAQ's actual source passage. This does not bypass the engine retrieval/confidence gate; no cross-language acceptance is inferred. The English target is at least 70% on a reviewed set, which remains unavailable.
 
 ## Latency conditions
 
-Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 3.13 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 2.66 ms (target <50 ms).
+Node v24.18.0; win32/x64; offline in-process ask service boundary, sample content and warm dependencies; no database or learner network. 88 uncached normal+Simple requests: p95 1.95 ms (target <=1000 ms). 40 repeated answers with zero additional provider calls: p95 1.11 ms (target <50 ms).
 
 Timings include retrieval, language/citation validation and reply construction. They do not establish deployed HTTP/PostgreSQL or real-model performance.
 

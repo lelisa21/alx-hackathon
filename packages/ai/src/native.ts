@@ -132,9 +132,7 @@ const interactionSchema = z.object({
 });
 
 function geminiEndpointRoot(endpoint?: string): string {
-  const url = new URL(
-    endpoint ?? "https://generativelanguage.googleapis.com",
-  );
+  const url = new URL(endpoint ?? "https://generativelanguage.googleapis.com");
   url.pathname = url.pathname.replace(/\/v1(?:beta)?\/?$/u, "");
   return url.toString().replace(/\/$/u, "");
 }
@@ -157,9 +155,7 @@ function causedBySyntaxError(error: unknown): boolean {
   return false;
 }
 
-function hasHttpStatus(
-  error: unknown,
-): error is Error & { status: number } {
+function hasHttpStatus(error: unknown): error is Error & { status: number } {
   return (
     error instanceof Error &&
     "status" in error &&
@@ -196,17 +192,14 @@ export class GeminiProvider extends ProviderBase {
   ): Promise<{ ok: boolean; reasonCode?: string }> {
     try {
       const model = encodeURIComponent(this.model.replace(/^models\//u, ""));
-      const response = await fetch(
-        `${this.endpointRoot}/v1/models/${model}`,
-        {
-          headers: {
-            "content-type": "application/json",
-            "x-goog-api-key": this.googleApiKey,
-          },
-          signal,
-          redirect: "error",
+      const response = await fetch(`${this.endpointRoot}/v1/models/${model}`, {
+        headers: {
+          "content-type": "application/json",
+          "x-goog-api-key": this.googleApiKey,
         },
-      );
+        signal,
+        redirect: "error",
+      });
       await response.body?.cancel();
       return response.ok ? { ok: true } : { ok: false, reasonCode: "status" };
     } catch {
@@ -249,7 +242,7 @@ export class GeminiProvider extends ProviderBase {
         (hasHttpStatus(error) && error.status === 200)
       )
         throw new InvalidProviderResponseError();
-      throw new Error("Provider request failed.");
+      throw new Error("Provider request failed.", { cause: error });
     }
     return this.responseText(response);
   }

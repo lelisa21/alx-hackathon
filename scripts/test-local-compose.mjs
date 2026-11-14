@@ -108,7 +108,7 @@ environment = {
   DIMTS_HOST_ORIGINS: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
   DIMTS_LOCAL_WIDGET_KEY: "local-widget-public-id",
   DIMTS_LTI_PLATFORMS: "[]",
-  DIMTS_TELEGRAM_MODE: "polling",
+  DIMTS_TELEGRAM_MODE: "webhook",
   DIMTS_TELEGRAM_TOKEN: "",
   DIMTS_TELEGRAM_SECRET: "",
   DIMTS_JOBS_RELAY_URL: "",

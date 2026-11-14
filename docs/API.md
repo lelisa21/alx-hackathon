@@ -26,9 +26,12 @@ or credentials to application logs.
    `DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`; the first two must decode to
    32 bytes. Keep `.env` private and untracked.
 
-3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` matches the
-   widget origin. The widget key is a public identifier for local development;
-   do not reuse it in production.
+3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` includes the
+   exact origin of each page that embeds the widget (scheme, host and port).
+   For the stock local widget shell, that origin is
+   `http://localhost:5173`; a separately served host page needs its own entry.
+   The widget key is a public identifier for local development; do not reuse it
+   in production.
 4. Start the local stack with `docker compose --profile local up --build -d --wait`.
    Compose starts PostgreSQL, runs migrations and local-host bootstrap before
    the API becomes healthy, and serves the widget shell at

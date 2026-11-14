@@ -137,6 +137,38 @@ Docker Desktop. To try the tracked, non-Savanna sample course after startup,
 run `pnpm content:ingest content/sample-course`. Do not treat that fixture as
 real course/job data.
 
+## Local Level 1 embed smoke test
+
+This tests the generic widget contract on a local HTTP host; it is not a
+Savanna connection. From the repository root:
+
+1. Build the widget with `pnpm --filter @dimts/widget build`.
+2. In `.env`, allow the page origin `http://localhost:5500` in
+   `DIMTS_HOST_ORIGINS`. Set `DIMTS_LOCAL_WIDGET_KEY` to a non-secret local
+   public identifier, then use that same value for `data-host-key` in
+   `examples/embed-level1.html`. Never use an AI provider credential as a host
+   key.
+3. Start the stack with `docker compose --profile local up --build -d --wait`.
+   If the sample course is needed, run `pnpm content:ingest content/sample-course`.
+4. In a separate terminal at the repository root, run
+   `python -m http.server 5500`, then open
+   `http://localhost:5500/examples/embed-level1.html`.
+5. Confirm the launcher loads and the browser can create a session through
+   `http://localhost:3000/v1`. The browser `Origin`, configured
+   `DIMTS_HOST_ORIGINS`, and public host identifier must match. This example
+   uses the offline provider unless a host explicitly configures a remote
+   provider and a learner grants consent.
+
+Serve the page over HTTP, not `file://`; the API rejects an unapproved or
+missing browser origin. For a real Savanna dev instance, use its actual HTTPS
+origin, serve the widget from a host-approved static location, and configure
+that exact origin and CSP with the host administrator. The frozen pages under
+`savanna_static_pages/` are reference captures and do not provide a running
+Savanna host, authenticated course access, or a connector. Level 2 REST is
+available through the API contract and [`examples/api-level2.http`](../examples/api-level2.http);
+LTI is not ready for platform registration. A private Savanna source still
+requires an authorized host-owned `ContentSource`/`HostAuth` adapter.
+
 ## Reproducible checks and limits
 
 Run `pnpm test:widget --workers=1` and `pnpm size` after building. The embed tests
