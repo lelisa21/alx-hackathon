@@ -23,6 +23,39 @@ export function looksTigrinya(text: string): boolean {
   return ti > am;
 }
 
+const OM_REGEX = /\b(?:akkam|maal|eessa|maaliif|yoom|akkamitti|galatoomaa|barnoota|sagalee|mallattoo|gaaffii|eeyyee|lakki)\b/i;
+
+export function looksOromo(text: string): boolean {
+  if (/'[a-zA-Z]/u.test(text)) return true;
+  if (OM_REGEX.test(text)) return true;
+  const doubleVowels = (text.match(/(?:aa|ee|ii|oo|uu)/gi) ?? []).length;
+  return doubleVowels >= 2;
+}
+
+export function detectLanguage(
+  text: string,
+  availableLanguages: readonly string[],
+  fallback = "en",
+): string {
+  const trimmed = text.trim();
+  if (!trimmed) return fallback;
+  const available = new Set(availableLanguages);
+
+  if (/\p{Script=Ethiopic}/u.test(trimmed)) {
+    const tiLikelier = looksTigrinya(trimmed);
+    if (tiLikelier && available.has("ti")) return "ti";
+    if (available.has("am")) return "am";
+    if (available.has("ti")) return "ti";
+  }
+
+  if (/\p{Script=Latin}/u.test(trimmed)) {
+    if (looksOromo(trimmed) && available.has("om")) return "om";
+    if (available.has("en")) return "en";
+  }
+
+  return available.has(fallback) ? fallback : (availableLanguages[0] ?? "en");
+}
+
 export function suggestLanguageOptions(
   text: string,
   languages: readonly LanguageOption[],

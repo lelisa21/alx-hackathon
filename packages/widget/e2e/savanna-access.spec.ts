@@ -59,6 +59,16 @@ test.describe("Savanna FR-SAV-ACCESS guide integration", () => {
     page,
   }) => {
     await page.addInitScript(() => {
+      class MockUtterance {
+        text: string;
+        lang = "";
+        onstart?: () => void;
+        onend?: () => void;
+        constructor(text: string) {
+          this.text = text;
+        }
+      }
+      let activeUtterance: MockUtterance | undefined;
       class MockRecognition {
         lang = "";
         continuous = false;
@@ -71,7 +81,36 @@ test.describe("Savanna FR-SAV-ACCESS guide integration", () => {
         }
         stop() {}
       }
-      Object.assign(window, { SpeechRecognition: MockRecognition });
+      Object.defineProperty(window, "SpeechSynthesisUtterance", {
+        value: MockUtterance,
+      });
+      Object.defineProperty(window, "speechSynthesis", {
+        value: {
+          speak(utterance: MockUtterance) {
+            const spoken =
+              (
+                window as Window & {
+                  __savannaSpoken?: Array<{ text: string; lang: string }>;
+                }
+              ).__savannaSpoken ?? [];
+            spoken.push({ text: utterance.text, lang: utterance.lang });
+            Object.assign(window, { __savannaSpoken: spoken });
+            activeUtterance = utterance;
+            utterance.onstart?.();
+          },
+          cancel() {
+            activeUtterance = undefined;
+          },
+        },
+      });
+      Object.assign(window, {
+        SpeechRecognition: MockRecognition,
+        __savannaFinishSpeech: () => {
+          const utterance = activeUtterance;
+          activeUtterance = undefined;
+          utterance?.onend?.();
+        },
+      });
     });
     await installCapture(page, ...captures[1]!);
     await page.goto(`${origin}${captures[1]![0]}`);
@@ -90,6 +129,23 @@ test.describe("Savanna FR-SAV-ACCESS guide integration", () => {
     await expect(page.getByRole("status")).toContainText(
       /opening.*page content/i,
     );
+    const spoken = await page.evaluate(
+      () =>
+        (
+          window as Window & {
+            __savannaSpoken?: Array<{ text: string; lang: string }>;
+          }
+        ).__savannaSpoken,
+    );
+    expect(spoken).toHaveLength(2);
+    expect(spoken?.[1]?.text).toBe(await page.getByRole("status").innerText());
+    expect(spoken?.[1]?.lang).toBe("en-US");
+    expect(await page.evaluate(() => window.scrollY)).toBe(0);
+    await page.evaluate(() => {
+      (
+        window as Window & { __savannaFinishSpeech?: () => void }
+      ).__savannaFinishSpeech?.();
+    });
     expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
   });
 

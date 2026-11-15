@@ -17,8 +17,11 @@ try {
   let indexHtml = await readFile(indexTemplatePath, "utf8");
   indexHtml = indexHtml
     .replaceAll("${LOCAL_WIDGET_KEY}", widgetKey)
+    .replaceAll("${DIMTS_LOCAL_WIDGET_KEY}", widgetKey)
     .replaceAll("${PUBLIC_API}", publicApi)
-    .replaceAll("${PUBLIC_TELEGRAM_BOT}", telegramBot);
+    .replaceAll("${DIMTS_PUBLIC_API}", publicApi)
+    .replaceAll("${PUBLIC_TELEGRAM_BOT}", telegramBot)
+    .replaceAll("${DIMTS_PUBLIC_TELEGRAM_BOT}", telegramBot);
   await writeFile(path.join(widgetDist, "index.html"), indexHtml, "utf8");
   process.stdout.write("Generated packages/widget/dist/index.html\n");
 } catch (err) {

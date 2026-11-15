@@ -8,14 +8,16 @@ store. No live bot token, webhook registration or real delivery is claimed.
 
 Apply migrations through `009_telegram_channel.sql`. Set `TELEGRAM_TOKEN`
 from BotFather and a distinct `TELEGRAM_SECRET` (24–256 characters from
-`A-Z`, `a-z`, `0-9`, `_`, `-`). `TELEGRAM_MODE=webhook` is the default.
-Without a token the adapter stays disabled. Production rejects polling mode.
+`A-Z`, `a-z`, `0-9`, `_`, `-`). `TELEGRAM_MODE=webhook` is the default outside
+local development. Without a token the adapter stays disabled. Production
+rejects polling mode.
 
-An operator must register the deployed HTTPS `/v1/telegram/webhook` URL using
-Telegram's `setWebhook`, with `secret_token` equal to the configured secret and
-`allowed_updates` containing `message` and `callback_query`. Keep credentials in
-the operator's secret store; never paste the token URL into logs or repository
-files. This repository does not register a webhook automatically.
+In webhook mode, the API registers
+`<PUBLIC_API_URL>/v1/telegram/webhook` with the configured `TELEGRAM_SECRET`
+when it starts, provided `PUBLIC_API_URL` is a public HTTPS base URL. Check for
+the `telegram_webhook_registered` event after startup. Keep credentials in the
+operator's secret store; never paste the token URL into logs or repository
+files.
 
 Telegram sends `X-Telegram-Bot-Api-Secret-Token`. The API compares it in constant
 time before parsing a maximum 64 KiB body. Missing/wrong credentials return 401;
@@ -27,9 +29,12 @@ private unsupported attachment receives a localized request for text.
 Success returns only `{"ok":true}`. Safe errors contain a localized message and
 `/help`, never an ID, token, transcript or upstream error. Responses are no-store.
 The same service handles webhook and polling updates. For local development,
-explicitly select `TELEGRAM_MODE=polling` and ensure that the bot has no
-active webhook. Polling stops with the application; production always uses the
-verified webhook boundary.
+select `TELEGRAM_MODE=polling` only when no other process or webhook uses that
+bot token. Polling removes any webhook before starting. A `409 Conflict` means
+another poller or webhook is active: stop the other instance or use a separate
+test bot token. The API backs off and retries, but retries cannot resolve that
+conflict. Polling stops with the application; production uses the webhook
+boundary.
 
 ## Learner and helper flows
 

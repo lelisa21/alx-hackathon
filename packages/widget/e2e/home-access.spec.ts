@@ -26,6 +26,51 @@ async function installRecognitionMock(page: Page) {
   });
 }
 
+async function installSpeechMock(page: Page) {
+  await page.addInitScript(() => {
+    class MockUtterance {
+      text: string;
+      lang = "";
+      onstart?: () => void;
+      onend?: () => void;
+      onerror?: () => void;
+      constructor(text: string) {
+        this.text = text;
+      }
+    }
+    let activeUtterance: MockUtterance | undefined;
+    Object.defineProperty(window, "SpeechSynthesisUtterance", {
+      value: MockUtterance,
+    });
+    Object.defineProperty(window, "speechSynthesis", {
+      value: {
+        speak(utterance: MockUtterance) {
+          const spoken =
+            (
+              window as Window & {
+                __dimtsSpoken?: Array<{ text: string; lang: string }>;
+              }
+            ).__dimtsSpoken ?? [];
+          spoken.push({ text: utterance.text, lang: utterance.lang });
+          Object.assign(window, { __dimtsSpoken: spoken });
+          activeUtterance = utterance;
+          utterance.onstart?.();
+        },
+        cancel() {
+          activeUtterance = undefined;
+        },
+      },
+    });
+    Object.assign(window, {
+      __dimtsFinishSpeech: () => {
+        const utterance = activeUtterance;
+        activeUtterance = undefined;
+        utterance?.onend?.();
+      },
+    });
+  });
+}
+
 async function deliverTranscript(page: Page, transcript: string) {
   await page.evaluate((recognizedText) => {
     const recognition = (
@@ -72,7 +117,7 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
     await expect(launcher).toHaveAttribute("aria-expanded", "true");
 
     const guide = page.getByRole("region", { name: /where do you want/i });
-    await expect(guide.getByText(/welcome to dimts/i)).toBeVisible();
+    await expect(guide.getByText(/welcome to (?:dimts|bridgely)/i)).toBeVisible();
     const panelBox = await guide.boundingBox();
     expect(panelBox).not.toBeNull();
     expect(panelBox!.y).toBeGreaterThanOrEqual(0);
@@ -157,7 +202,7 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
     await page.getByRole("button", { name: /access guide/i }).click();
 
     const guide = page.getByRole("region", { name: /where do you want/i });
-    await expect(guide.getByText(/welcome to dimts/i)).toBeVisible();
+    await expect(guide.getByText(/welcome to (?:dimts|bridgely)/i)).toBeVisible();
     await expect
       .poll(() =>
         page.evaluate(
@@ -274,8 +319,9 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
     await page.goto("http://127.0.0.1:4173/");
     await page.locator("#access-guide-toggle").click();
     await page.locator("#access-voice-language").selectOption("om-ET");
-    await page.locator("#access-voice-start").click();
-    await expect(page.getByRole("status")).toContainText("Dhaggeeffachaa");
+    const start = page.locator("#access-voice-start");
+    await expect(start).toBeEnabled();
+    await start.click();
     expect(
       await page.evaluate(
         () =>
@@ -283,6 +329,7 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
             .__dimtsRecognitionLang,
       ),
     ).toBe("om-ET");
+    await expect(page.getByRole("status")).toContainText("Dhaggeeffachaa");
     expect(
       await page.evaluate(
         () =>
@@ -329,9 +376,103 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
           const current = new URL(page.url());
           return destination.startsWith("#") ? current.hash : current.pathname;
         })
-        .toBe(destination === "/learn/" ? "/learn/en/" : destination);
+        .toBe(destination);
     });
   }
+
+  const spokenNavigationRequests = [
+    ["en-US", "Could you please take me to my courses?"],
+    ["am-ET", "ትምህርቶች"],
+    ["om-ET", "Koorsii naaf agarsiisi"],
+    ["ti-ET", "ትምህርቲ"],
+  ] as const;
+
+  for (const [languageTag, request] of spokenNavigationRequests) {
+    test(`speaks the ${languageTag} navigation response before opening its destination`, async ({
+      page,
+    }) => {
+      await installRecognitionMock(page);
+      await installSpeechMock(page);
+      await page.goto("http://127.0.0.1:4173/");
+      await page.locator("#access-guide-toggle").click();
+      await page.locator("#access-voice-language").selectOption(languageTag);
+      await page.locator("#access-voice-start").click();
+      await deliverTranscript(page, request);
+
+      const status = page.getByRole("status");
+      await expect(status).not.toHaveText("");
+      await expect
+        .poll(() =>
+          page.evaluate(
+            () =>
+              (
+                window as Window & {
+                  __dimtsSpoken?: Array<{ text: string; lang: string }>;
+                }
+              ).__dimtsSpoken?.length ?? 0,
+          ),
+        )
+        .toBe(2);
+      const spokenResponse = await page.evaluate(
+        () =>
+          (
+            window as Window & {
+              __dimtsSpoken?: Array<{ text: string; lang: string }>;
+            }
+          ).__dimtsSpoken?.[1],
+      );
+      expect(spokenResponse?.lang).toBe(languageTag);
+      expect(spokenResponse?.text).toBe(await status.innerText());
+      await expect(page).toHaveURL("http://127.0.0.1:4173/");
+
+      await page.evaluate(() => {
+        (
+          window as Window & { __dimtsFinishSpeech?: () => void }
+        ).__dimtsFinishSpeech?.();
+      });
+      await expect(page).toHaveURL(/\/learn\/$/);
+    });
+  }
+
+  test("speaks localized guidance when a spoken request has no destination", async ({
+    page,
+  }) => {
+    await installRecognitionMock(page);
+    await installSpeechMock(page);
+    await page.goto("http://127.0.0.1:4173/");
+    await page.locator("#access-guide-toggle").click();
+    await page.locator("#access-voice-language").selectOption("ti-ET");
+    await page.locator("#access-voice-start").click();
+    await deliverTranscript(page, "random unrelated words");
+
+    const status = page.getByRole("status");
+    await expect(status).not.toHaveText("");
+    const spoken = await page.evaluate(
+      () =>
+        (
+          window as Window & {
+            __dimtsSpoken?: Array<{ text: string; lang: string }>;
+          }
+        ).__dimtsSpoken,
+    );
+    expect(spoken).toHaveLength(2);
+    expect(spoken?.[1]?.lang).toBe("ti-ET");
+    expect(spoken?.[1]?.text).toBe(await status.innerText());
+    await expect(page).toHaveURL("http://127.0.0.1:4173/");
+  });
+
+  test("continues navigation if browser speech never finishes", async ({
+    page,
+  }) => {
+    await installRecognitionMock(page);
+    await installSpeechMock(page);
+    await page.goto("http://127.0.0.1:4173/");
+    await page.locator("#access-guide-toggle").click();
+    await page.locator("#access-voice-start").click();
+    await deliverTranscript(page, "lessons");
+
+    await expect(page).toHaveURL(/\/learn\/$/, { timeout: 5000 });
+  });
 
   test("uses a valid speech alternative and loads the real lessons page", async ({
     page,
@@ -341,7 +482,7 @@ test.describe("FR-HOME-ACCESS public homepage guide", () => {
     await page.locator("#access-guide-toggle").click();
     await page.locator("#access-voice-start").click();
     await deliverAlternatives(page, ["random unrelated words", "lessons"]);
-    await expect(page).toHaveURL(/\/learn\/en\/$/);
+    await expect(page).toHaveURL(/\/learn\/$/);
     await expect(page.locator("body")).toContainText(/courses|lessons/i);
   });
 

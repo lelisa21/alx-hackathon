@@ -12,6 +12,9 @@
         "tutor",
         "chat",
         "chat assistant",
+        "bridgely",
+        "ask bridgely",
+        "open bridgely",
         "ask dimts",
         "ask a question",
         "questions",
@@ -373,6 +376,7 @@
     var recognition;
     var recognitionTimer;
     var recognitionHandled = false;
+    var speechGeneration = 0;
     var Recognition =
       globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition;
     var speech = globalThis.speechSynthesis;
@@ -457,16 +461,54 @@
       status.textContent = copy["home.access.assistantUnavailable"];
     }
 
-    function navigateTo(destination) {
+    function cancelSpeech() {
+      speechGeneration += 1;
+      if (canSpeak) speech.cancel();
+      stopSpeaking.hidden = true;
+    }
+
+    function speakResponse(text, onEnd) {
+      if (!canSpeak) {
+        if (onEnd) onEnd();
+        return;
+      }
+      cancelSpeech();
+      var utterance = new Utterance(text);
+      var finished = false;
+      var responseTimer;
+      utterance.lang = language.value;
+      function finish() {
+        if (finished) return;
+        finished = true;
+        globalThis.clearTimeout(responseTimer);
+        stopSpeaking.hidden = true;
+        if (onEnd) onEnd();
+      }
+      utterance.onstart = function () {
+        stopSpeaking.hidden = false;
+      };
+      utterance.onend = finish;
+      utterance.onerror = finish;
+      try {
+        speech.speak(utterance);
+        if (onEnd) {
+          responseTimer = globalThis.setTimeout(function () {
+            if (finished) return;
+            speech.cancel();
+            finish();
+          }, 3500);
+        }
+      } catch {
+        finish();
+      }
+    }
+
+    function performNavigation(destination) {
       debug("navigation", {
         destination: destination.key,
         action: destination.action || "href",
         href: destination.href || null,
       });
-      status.textContent = copy["home.access.opening"].replace(
-        "{destination}",
-        copy["home.access." + destination.key],
-      );
       if (destination.action === "assistant") {
         openAssistant();
       } else if (destination.href === "#content") {
@@ -477,30 +519,50 @@
       }
     }
 
+    function navigateTo(destination) {
+      status.textContent = copy["home.access.opening"].replace(
+        "{destination}",
+        copy["home.access." + destination.key],
+      );
+      speakResponse(status.textContent, function () {
+        performNavigation(destination);
+      });
+    }
+
+    function respondWithStatus(message) {
+      status.textContent = message;
+      speakResponse(message);
+    }
+
     function speakDirections() {
       if (!canSpeak) {
         status.textContent = copy["home.access.speechUnavailable"];
         return;
       }
-      speech.cancel();
+      cancelSpeech();
+      var generation = speechGeneration;
       var utterance = new Utterance(welcome.textContent);
       utterance.lang = language.value;
       utterance.onstart = function () {
+        if (generation !== speechGeneration) return;
         stopSpeaking.hidden = false;
         status.textContent = copy["home.access.speaking"];
       };
       utterance.onend = function () {
+        if (generation !== speechGeneration) return;
         stopSpeaking.hidden = true;
         status.textContent = copy["home.access.speechFinished"];
       };
       utterance.onerror = function () {
+        if (generation !== speechGeneration) return;
         stopSpeaking.hidden = true;
         status.textContent = copy["home.access.speechUnavailable"];
       };
       try {
         speech.speak(utterance);
       } catch {
-        status.textContent = copy["home.access.speechUnavailable"];
+        if (generation === speechGeneration)
+          status.textContent = copy["home.access.speechUnavailable"];
       }
     }
 
@@ -514,23 +576,22 @@
       }
       if (!opening) {
         if (recognition) recognition.stop();
-        if (canSpeak) speech.cancel();
-        stopSpeaking.hidden = true;
+        cancelSpeech();
       }
     });
     language.addEventListener("change", function () {
+      cancelSpeech();
       setCopy(language.value.split("-")[0]);
     });
     readDirections.addEventListener("click", speakDirections);
     stopSpeaking.addEventListener("click", function () {
-      if (canSpeak) speech.cancel();
-      stopSpeaking.hidden = true;
+      cancelSpeech();
       status.textContent = copy["home.access.stoppedSpeaking"];
     });
     start.disabled = !Recognition;
     start.addEventListener("click", function () {
       if (!Recognition) return;
-      if (canSpeak) speech.cancel();
+      cancelSpeech();
       if (recognition) recognition.stop();
       recognition = new Recognition();
       recognition.lang = language.value;
@@ -584,7 +645,7 @@
         var heard = alternatives.length ? alternatives[0].transcript : "";
         if (!heard) {
           transcript.textContent = "";
-          status.textContent = copy["home.access.emptySpeech"];
+          respondWithStatus(copy["home.access.emptySpeech"]);
           return;
         }
         var labels = Object.fromEntries(
@@ -648,22 +709,22 @@
           heard,
         );
         if (match.kind === "empty") {
-          status.textContent = copy["home.access.emptySpeech"];
+          respondWithStatus(copy["home.access.emptySpeech"]);
           return;
         }
         if (match.kind === "ambiguous") {
-          status.textContent = copy["home.access.ambiguousDestination"];
+          respondWithStatus(copy["home.access.ambiguousDestination"]);
           return;
         }
         if (match.kind !== "match") {
-          status.textContent = copy["home.access.notRecognized"];
+          respondWithStatus(copy["home.access.notRecognized"]);
           return;
         }
         navigateTo(match.destination);
       };
       recognition.onnomatch = function () {
         recognitionHandled = true;
-        status.textContent = copy["home.access.notRecognized"];
+        respondWithStatus(copy["home.access.notRecognized"]);
       };
       recognition.onerror = function (event) {
         recognitionHandled = true;
@@ -673,17 +734,17 @@
           code: typeof error === "string" ? error : "unknown",
         });
         if (error === "not-allowed" || error === "service-not-allowed") {
-          status.textContent = copy["home.access.permissionDenied"];
+          respondWithStatus(copy["home.access.permissionDenied"]);
         } else if (error === "audio-capture") {
-          status.textContent = copy["home.access.microphoneUnavailable"];
+          respondWithStatus(copy["home.access.microphoneUnavailable"]);
         } else if (error === "network") {
-          status.textContent = copy["home.access.recognitionNetwork"];
+          respondWithStatus(copy["home.access.recognitionNetwork"]);
         } else if (error === "no-speech") {
-          status.textContent = copy["home.access.emptySpeech"];
+          respondWithStatus(copy["home.access.emptySpeech"]);
         } else if (error === "aborted") {
           status.textContent = copy["home.access.stopped"];
         } else {
-          status.textContent = copy["home.access.failed"];
+          respondWithStatus(copy["home.access.failed"]);
         }
       };
       recognition.onend = function () {
@@ -693,8 +754,9 @@
         if (
           !recognitionHandled &&
           status.textContent === copy["home.access.listening"]
-        )
-          status.textContent = copy["home.access.emptySpeech"];
+        ) {
+          respondWithStatus(copy["home.access.emptySpeech"]);
+        }
       };
       try {
         recognition.start();

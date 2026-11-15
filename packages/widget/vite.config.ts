@@ -48,19 +48,37 @@ export default defineConfig({
         const html = template
           .replaceAll(
             "${DIMTS_PUBLIC_API}",
-            htmlAttribute(process.env.DIMTS_PUBLIC_API || "/v1"),
+            htmlAttribute(process.env.DIMTS_PUBLIC_API || process.env.PUBLIC_API || "/v1"),
+          )
+          .replaceAll(
+            "${PUBLIC_API}",
+            htmlAttribute(process.env.PUBLIC_API || process.env.DIMTS_PUBLIC_API || "/v1"),
           )
           .replaceAll(
             "${DIMTS_LOCAL_WIDGET_KEY}",
             htmlAttribute(
               process.env.DIMTS_PUBLIC_WIDGET_KEY ||
                 process.env.DIMTS_LOCAL_WIDGET_KEY ||
+                process.env.LOCAL_WIDGET_KEY ||
+                "",
+            ),
+          )
+          .replaceAll(
+            "${LOCAL_WIDGET_KEY}",
+            htmlAttribute(
+              process.env.LOCAL_WIDGET_KEY ||
+                process.env.DIMTS_PUBLIC_WIDGET_KEY ||
+                process.env.DIMTS_LOCAL_WIDGET_KEY ||
                 "",
             ),
           )
           .replaceAll(
             "${DIMTS_PUBLIC_TELEGRAM_BOT}",
-            htmlAttribute(process.env.DIMTS_PUBLIC_TELEGRAM_BOT || ""),
+            htmlAttribute(process.env.DIMTS_PUBLIC_TELEGRAM_BOT || process.env.PUBLIC_TELEGRAM_BOT || ""),
+          )
+          .replaceAll(
+            "${PUBLIC_TELEGRAM_BOT}",
+            htmlAttribute(process.env.PUBLIC_TELEGRAM_BOT || process.env.DIMTS_PUBLIC_TELEGRAM_BOT || ""),
           );
         this.emitFile({ type: "asset", fileName: "index.html", source: html });
       },

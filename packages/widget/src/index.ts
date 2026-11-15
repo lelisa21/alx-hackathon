@@ -10,7 +10,7 @@ import type { HelpContext } from "./help-runtime.js";
 import type { CareerContext } from "./career-runtime.js";
 import { installDefaultApi } from "./public-api.js";
 import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
-import { suggestLanguageOptions } from "./language.js";
+import { detectLanguage, suggestLanguageOptions } from "./language.js";
 import {
   hasTransliteration,
   suggestTransliteration,
@@ -221,7 +221,10 @@ export class BridgelyAssistant extends LitElement {
   declare private offlineSupportAvailable: boolean;
   declare private busy: boolean;
   declare private retryAvailable: boolean;
-  declare private panel: "language" | "settings" | "faq" | null;
+  declare private panel: "language" | "settings" | "faq" | "sign" | null;
+  private signModule:
+    typeof import("./sign-runtime.js").signRuntime | undefined;
+  declare private visualAlertActive: boolean;
   declare private notice: string;
   declare private fallbackNotice: string;
   private fallbackAnnounced = false;
@@ -576,6 +579,39 @@ export class BridgelyAssistant extends LitElement {
     ).helpRuntime);
   }
 
+  private async loadSign() {
+    return (this.signModule ??= (
+      await import("./sign-runtime.js")
+    ).signRuntime);
+  }
+
+  private async openSign() {
+    await this.loadSign();
+    this.panel = this.panel === "sign" ? null : "sign";
+    this.requestUpdate();
+  }
+
+  private createSignContext(): import("./sign-runtime.js").SignContext {
+    return {
+      selectedLang: this.selectedLang,
+      uiLanguage: this.uiLanguage,
+      uiDirection: this.uiDirection,
+      currentDirection: this.currentDirection,
+      t: (key, val) => this.t(key, val),
+      askFromSign: async (text: string) => {
+        this.draft = text;
+        this.panel = null;
+        this.requestUpdate();
+        await this.updateComplete;
+        this.renderRoot.querySelector<HTMLFormElement>(".composer")?.requestSubmit();
+      },
+      closeSignSpace: () => {
+        this.panel = null;
+        this.requestUpdate();
+      },
+    };
+  }
+
   protected override createRenderRoot(): ShadowRoot {
     const root = this.shadowRoot ?? this.attachShadow({ mode: "open" });
     // A host nonce also supports browsers without constructable stylesheets.
@@ -775,35 +811,20 @@ export class BridgelyAssistant extends LitElement {
     }
 
     header > .header-actions {
+      align-items: center;
       flex-basis: 100%;
       flex-wrap: nowrap;
-      overflow-x: auto;
-      padding: 0.25rem;
-      margin: -0.25rem;
-      scrollbar-width: thin;
-    }
-
-    header > .header-actions {
-      align-items: center;
       gap: 0.625rem;
       justify-content: flex-start;
+      margin: -0.25rem;
+      overflow-x: auto;
       overscroll-behavior-inline: contain;
+      padding: 0.25rem;
       scrollbar-width: none;
     }
 
     header > .header-actions::-webkit-scrollbar {
       display: none;
-    }
-
-    .career-launcher {
-      background: var(--Bridgely-primary-text);
-      border: 1px solid var(--Bridgely-primary-text);
-      color: var(--Bridgely-primary);
-      font-weight: 700;
-    }
-
-    .career-launcher:hover {
-      filter: brightness(0.94);
     }
 
     header > .header-actions > *,
@@ -837,33 +858,6 @@ export class BridgelyAssistant extends LitElement {
       display: contents;
     }
 
-    header strong {
-      font-size: 1.15em;
-      letter-spacing: 0.01em;
-    }
-
-    header button {
-      background: transparent;
-      border-color: color-mix(
-        in srgb,
-        var(--Bridgely-primary-text) 55%,
-        var(--Bridgely-primary)
-      );
-      border-radius: 999px;
-      border-width: 1px;
-      color: var(--Bridgely-primary-text);
-      font-size: 0.8125em;
-      padding-inline: 0.75rem;
-    }
-
-    header button:not(:disabled):hover {
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-primary-text) 14%,
-        var(--Bridgely-primary)
-      );
-    }
-
     .brand {
       align-items: center;
       display: flex;
@@ -872,7 +866,7 @@ export class BridgelyAssistant extends LitElement {
 
     .a11y {
       display: flex;
-      gap: 0.375rem;
+      gap: 0.5rem;
     }
 
     header > .a11y {
@@ -965,17 +959,6 @@ export class BridgelyAssistant extends LitElement {
       text-transform: uppercase;
     }
 
-    .suggestion {
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-primary) 7%,
-        var(--Bridgely-surface)
-      );
-      border-radius: 999px;
-      padding-inline: 1.125rem;
-      text-align: start;
-    }
-
     .typing {
       align-items: center;
       display: flex;
@@ -987,11 +970,9 @@ export class BridgelyAssistant extends LitElement {
       gap: 0.3rem;
       padding: 0.875rem 1rem;
       border-radius: 1rem;
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-text) 6%,
-        var(--Bridgely-surface)
-      );
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-hairline);
+      border-start-start-radius: 0.375rem;
     }
 
     .dots i {
@@ -1058,19 +1039,6 @@ export class BridgelyAssistant extends LitElement {
       margin-block-start: 0.75rem;
     }
 
-    .consent {
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-primary) 6%,
-        var(--Bridgely-surface)
-      );
-      border: 1px solid var(--Bridgely-border);
-      border-radius: var(--Bridgely-radius, 0.75rem);
-      font-size: 0.8125em;
-      margin: 0.75rem 1rem 0;
-      padding: 0.125rem 0.75rem;
-    }
-
     .consent p {
       margin-block: 0.25rem;
     }
@@ -1082,14 +1050,6 @@ export class BridgelyAssistant extends LitElement {
     .empty-state .consent {
       margin: 1.25rem 0 0;
       text-align: start;
-    }
-
-    .consent input[type="checkbox"] {
-      accent-color: var(--Bridgely-primary);
-      block-size: 1.5rem;
-      inline-size: 1.5rem;
-      min-block-size: 1.5rem;
-      min-inline-size: 1.5rem;
     }
 
     .consent .setting-row {
@@ -1172,13 +1132,22 @@ export class BridgelyAssistant extends LitElement {
 
     .language-choice {
       align-items: center;
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-hairline);
       border-radius: 1rem;
+      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
       column-gap: 0.875rem;
       display: grid;
       grid-template-columns: 2.75rem minmax(0, 1fr);
       min-block-size: 72px;
-      text-align: start;
       min-inline-size: 0;
+      padding: 0.75rem 1rem;
+      text-align: start;
+    }
+
+    .language-choice:not(:disabled):hover {
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-primary);
     }
 
     .language-choice::before {
@@ -1235,6 +1204,7 @@ export class BridgelyAssistant extends LitElement {
     }
 
     .chat {
+      background: var(--Bridgely-ink-soft);
       display: flex;
       flex: 1;
       flex-direction: column;
@@ -1249,7 +1219,7 @@ export class BridgelyAssistant extends LitElement {
       overflow-x: hidden;
       overflow-y: auto;
       overscroll-behavior: contain;
-      padding: 1rem;
+      padding: 1rem 1rem 0.5rem;
       gap: 0.75rem;
     }
 
@@ -1288,41 +1258,21 @@ export class BridgelyAssistant extends LitElement {
     }
 
     article[data-role="assistant"] {
-      background: var(--Bridgely-surface);
+      background: transparent;
       border: 0;
       column-gap: 0.625rem;
       display: grid;
       grid-template-columns: auto minmax(0, 1fr);
       padding: 0;
+      max-inline-size: min(100%, 48rem);
     }
 
     article[data-role="assistant"] > :not(.avatar) {
       grid-column: 2;
     }
 
-    article[data-role="assistant"] > p {
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-text) 5%,
-        var(--Bridgely-surface)
-      );
-      border-radius: 1.125rem;
-      border-end-start-radius: 0.25rem;
-      padding: 0.75rem 1rem;
-    }
-
     article[data-role="assistant"] > .avatar {
       grid-row: 1 / span 3;
-    }
-
-    article[data-role="learner"] {
-      align-self: flex-end;
-      background: var(--Bridgely-primary);
-      border-color: var(--Bridgely-primary);
-      color: var(--Bridgely-primary-text);
-      border-end-end-radius: 0.25rem;
-      border-end-start-radius: 1rem;
-      max-inline-size: min(85%, 45ch);
     }
 
     article p {
@@ -1340,41 +1290,8 @@ export class BridgelyAssistant extends LitElement {
       margin-block-start: 0.5rem;
     }
 
-    .citation {
-      background: color-mix(
-        in srgb,
-        var(--Bridgely-primary) 8%,
-        var(--Bridgely-surface)
-      );
-      border: 1px solid var(--Bridgely-border);
-      border-radius: 999px;
-      font-size: 0.875em;
-      gap: 0.375rem;
-      padding: 0.25rem 0.875rem;
-      text-decoration: none;
-      word-break: break-word;
-      overflow-wrap: break-word;
-    }
-
-    .citation::before {
-      background: currentColor;
-      block-size: 1em;
-      content: "";
-      flex: none;
-      inline-size: 1em;
-      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath d='M4 4.5A2.5 2.5 0 0 1 6.5 2H20v16H6.5A2.5 2.5 0 0 0 4 20.5zM4 20.5A2.5 2.5 0 0 0 6.5 23H20v-5' fill='none' stroke='black' stroke-width='2'/%3E%3C/svg%3E")
-        center / contain no-repeat;
-    }
-
     .citation:hover {
       text-decoration: underline;
-    }
-
-    .reply-actions button {
-      border-radius: 999px;
-      border-width: 1px;
-      font-size: 0.875em;
-      padding-block: 0.375rem;
     }
 
     a {
@@ -1383,38 +1300,6 @@ export class BridgelyAssistant extends LitElement {
       display: inline-flex;
       overflow-wrap: anywhere;
       padding: 0.25rem;
-    }
-
-    .composer {
-      background: var(--Bridgely-surface);
-      border-block-start: 1px solid var(--Bridgely-border);
-      box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
-      inset-block-end: 0;
-      padding: 0.625rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
-      position: sticky;
-      z-index: 2;
-      /* Mobile keyboard support: keep composer visible when keyboard appears */
-      padding-block-end: max(0.75rem, env(safe-area-inset-bottom));
-    }
-
-    .composer > label {
-      display: block;
-      font-size: 0.875em;
-      font-weight: 600;
-      margin-block-end: 0.25rem;
-    }
-
-    textarea {
-      max-block-size: min(40vh, 12rem);
-      background: var(--Bridgely-surface);
-      border: 2px solid var(--Bridgely-border);
-      border-radius: var(--Bridgely-radius, 1rem);
-      display: block;
-      inline-size: 100%;
-      min-block-size: 3rem;
-      min-inline-size: 0;
-      padding: 0.75rem;
-      resize: vertical;
     }
 
     .composer-actions {
@@ -1440,22 +1325,12 @@ export class BridgelyAssistant extends LitElement {
       font-weight: 700;
     }
 
-    .send-action {
-      border-radius: 999px;
-      min-inline-size: 7rem;
-    }
-
     .voice-install {
       align-items: center;
       display: inline-flex;
       flex-wrap: wrap;
       gap: 0.5rem;
       font-size: 0.8125em;
-    }
-
-    .voice-install button {
-      border-radius: 999px;
-      border-width: 1px;
     }
 
     .voice-install .muted:empty {
@@ -1468,18 +1343,21 @@ export class BridgelyAssistant extends LitElement {
     }
 
     .help {
+      align-items: center;
       align-self: flex-end;
       border-radius: 999px;
-      box-shadow: 0 4px 14px rgb(0 0 0 / 22%);
+      box-shadow: 0 6px 16px
+        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
+      display: inline-flex;
+      font-size: 0.875em;
+      gap: 0.5rem;
       inset-block-end: 1rem;
       inset-inline-end: 1rem;
-      margin: 0 1rem 1rem;
-      /* In-flow layouts put it under the header, clear of the composer. */
+      margin: var(--Bridgely-help-margin, 0 1rem 1rem);
       order: var(--Bridgely-help-order, 1);
       padding-inline: 1.25rem;
-      /* Embedded panels keep it in flow so it never covers the composer. */
       position: var(--Bridgely-help-position, fixed);
-      z-index: 3;
+      z-index: var(--Bridgely-help-z, 3);
     }
 
     .help-backdrop {
@@ -1656,40 +1534,7 @@ export class BridgelyAssistant extends LitElement {
       }
     }
 
-    .mic {
-      border-radius: 999px;
-      min-block-size: 64px;
-      min-inline-size: 64px;
-    }
 
-    .mic[aria-pressed="true"] {
-      background: var(--Bridgely-primary);
-      color: var(--Bridgely-primary-text);
-      position: relative;
-    }
-
-    .mic[aria-pressed="true"]::after {
-      animation: recording-ring 1.2s ease-out infinite;
-      border: 2px solid var(--Bridgely-primary);
-      border-radius: 0.65rem;
-      content: "";
-      inset: -0.25rem;
-      opacity: 0;
-      pointer-events: none;
-      position: absolute;
-    }
-
-    @keyframes recording-ring {
-      0% {
-        opacity: 0.9;
-        transform: scale(0.88);
-      }
-
-      100% {
-        opacity: 0;
-        transform: scale(1.2);
-      }
-    }
 
     .offline-banner {
       align-items: center;
@@ -1761,54 +1606,26 @@ export class BridgelyAssistant extends LitElement {
       }
     }
 
-    @media (min-width: 20rem) and (max-width: 29.9rem) {
-      /* Small phones: 320px-479px */
+    @media (max-width: 30rem) {
       main {
         max-inline-size: 100%;
         margin-inline: 0;
         border-radius: 0;
       }
-
       header {
         padding-inline: 0.75rem;
       }
-
       .messages {
         padding: 0.75rem;
       }
-
       .composer {
         padding-inline: 0.75rem;
       }
-
       article {
         max-inline-size: min(92%, 40ch);
       }
-
       article[data-role="learner"] {
         max-inline-size: min(85%, 40ch);
-      }
-    }
-
-    @media (min-width: 30rem) and (max-width: 47.9rem) {
-      /* Tablets portrait: 480px-767px */
-      article {
-        max-inline-size: min(85%, 50ch);
-      }
-
-      article[data-role="learner"] {
-        max-inline-size: min(75%, 50ch);
-      }
-    }
-
-    @media (min-width: 48rem) {
-      /* Desktop and larger tablets: 768px+ */
-      article {
-        max-inline-size: min(80%, 65ch);
-      }
-
-      article[data-role="learner"] {
-        max-inline-size: min(70%, 65ch);
       }
     }
 
@@ -1912,10 +1729,6 @@ export class BridgelyAssistant extends LitElement {
       font-size: 0.78em;
       line-height: 1.3;
       opacity: 0.88;
-    }
-
-    header .a11y {
-      gap: 0.5rem;
     }
 
     /* Brand shrinks (tagline truncates) so the three accessibility buttons
@@ -2031,20 +1844,6 @@ export class BridgelyAssistant extends LitElement {
       border-radius: 50%;
     }
 
-    /* Help: a clear but quiet pill with a person icon. */
-    .help {
-      align-items: center;
-      box-shadow: 0 6px 16px
-        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
-      display: inline-flex;
-      font-size: 0.875em;
-      gap: 0.5rem;
-      margin: var(--Bridgely-help-margin, 0 1rem 1rem);
-      /* In the embedded panel the button scrolls with the content and must
-         pass under the sticky header, not over it. */
-      z-index: var(--Bridgely-help-z, 3);
-    }
-
     .career-mic {
       align-items: center;
       background: var(--Bridgely-accent-soft);
@@ -2078,8 +1877,10 @@ export class BridgelyAssistant extends LitElement {
 
     .consent {
       background: var(--Bridgely-accent-soft);
-      border-color: var(--Bridgely-accent-line);
+      border: 1px solid var(--Bridgely-accent-line);
       border-radius: 1rem;
+      font-size: 0.8125em;
+      margin: 0.75rem 1rem 0;
       padding: 0.125rem 0.875rem;
     }
 
@@ -2174,15 +1975,6 @@ export class BridgelyAssistant extends LitElement {
     }
 
     /* Conversation: tinted backdrop, white answer cards, accent questions. */
-    .chat {
-      background: var(--Bridgely-ink-soft);
-    }
-
-    .messages {
-      gap: 0.75rem;
-      padding: 1rem 1rem 0.5rem;
-    }
-
     .avatar {
       background: linear-gradient(
         135deg,
@@ -2193,11 +1985,6 @@ export class BridgelyAssistant extends LitElement {
 
     header .avatar {
       background: var(--Bridgely-primary-text);
-    }
-
-    article[data-role="assistant"] {
-      background: transparent;
-      max-inline-size: min(100%, 48rem);
     }
 
     article[data-role="assistant"] > .avatar {
@@ -2216,6 +2003,9 @@ export class BridgelyAssistant extends LitElement {
     }
 
     article[data-role="learner"] {
+      align-self: flex-end;
+      color: var(--Bridgely-primary-text);
+      max-inline-size: min(85%, 45ch);
       background: linear-gradient(
         135deg,
         var(--Bridgely-primary),
@@ -2305,12 +2095,6 @@ export class BridgelyAssistant extends LitElement {
       mask-image: var(--Bridgely-icon-speaker);
     }
 
-    .dots {
-      background: var(--Bridgely-surface);
-      border: 1px solid var(--Bridgely-hairline);
-      border-start-start-radius: 0.375rem;
-    }
-
     /* Empty state and suggestions. */
     .avatar-lg {
       border-radius: 1.125rem;
@@ -2355,35 +2139,32 @@ export class BridgelyAssistant extends LitElement {
       margin-block: 0.25rem 1rem;
     }
 
-    .language-choice {
-      background: var(--Bridgely-surface);
-      border-color: var(--Bridgely-hairline);
-      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-      padding: 0.75rem 1rem;
-    }
-
-    .language-choice:not(:disabled):hover {
-      background: var(--Bridgely-accent-soft);
-      border-color: var(--Bridgely-primary);
-    }
-
     /* Composer: one rounded field, microphone and send as clear pills. */
     .composer {
+      background: var(--Bridgely-surface);
       border-block-start: 1px solid var(--Bridgely-hairline);
       box-shadow: 0 -8px 24px rgb(0 0 0 / 6%);
-      padding: 0.625rem 0.875rem 0.875rem;
+      inset-block-end: 0;
+      position: sticky;
+      z-index: 2;
+      padding: 0.625rem 0.875rem max(0.875rem, calc(0.75rem + env(safe-area-inset-bottom)));
     }
 
     .composer > label {
+      display: block;
       color: var(--Bridgely-muted);
       font-size: 0.75em;
       font-weight: 700;
       letter-spacing: 0.02em;
+      margin-block-end: 0.25rem;
     }
 
     textarea {
+      display: block;
+      inline-size: 100%;
+      min-inline-size: 0;
       background: var(--Bridgely-ink-soft);
-      border-width: 1px;
+      border: 1px solid var(--Bridgely-border);
       border-radius: 1rem;
       field-sizing: content;
       max-block-size: 9rem;
@@ -2441,12 +2222,6 @@ export class BridgelyAssistant extends LitElement {
       min-inline-size: 6.5rem;
     }
 
-    /* The original layout keeps 6px between the three a11y buttons; the
-       spacing rule needs at least 8px between targets. */
-    .a11y {
-      gap: 0.5rem;
-    }
-
     .send-action::after {
       background: currentColor;
       block-size: 1.05em;
@@ -2482,6 +2257,32 @@ export class BridgelyAssistant extends LitElement {
         scroll-behavior: auto !important;
         transition: none !important;
       }
+    }
+
+    /* Sign Language Studio (EthSL) & Accessible Voice */
+    .sign-launcher-btn {
+      align-items: center;
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-hairline);
+      border-radius: 999px;
+      display: inline-flex;
+      font-size: 0.8125em;
+      font-weight: 600;
+      gap: 0.375rem;
+      padding: 0.375rem 0.75rem;
+    }
+    .sign-launcher-btn[aria-pressed="true"] {
+      background: var(--Bridgely-primary);
+      border-color: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
+    }
+    .visual-alert-halo {
+      animation: halo-pulse 1.2s ease-out;
+    }
+    @keyframes halo-pulse {
+      0% { box-shadow: 0 0 0 0 var(--Bridgely-primary); }
+      50% { box-shadow: 0 0 0 8px color-mix(in srgb, var(--Bridgely-primary) 40%, transparent); }
+      100% { box-shadow: 0 0 0 0 transparent; }
     }
 
     :host([stop-motion]) *,
@@ -4454,6 +4255,23 @@ export class BridgelyAssistant extends LitElement {
           </span>
           <div class="header-actions">
             <button
+              class="sign-launcher-btn"
+              type="button"
+              lang=${this.uiLanguage}
+              dir=${this.uiDirection}
+              aria-label=${this.t("sign.title")}
+              aria-pressed=${this.panel === "sign"}
+              @click=${() => void this.openSign()}
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true" style="inline-size: 1.15rem; block-size: 1.15rem;">
+                <path d="M18 11V6a2 2 0 0 0-4 0v5" />
+                <path d="M14 10V4a2 2 0 0 0-4 0v6" />
+                <path d="M10 10.5V6a2 2 0 0 0-4 0v8" />
+                <path d="M6 14v2a6 6 0 0 0 12 0v-5" />
+              </svg>
+              <span>${this.t("sign.title")}</span>
+            </button>
+            <button
               type="button"
               lang=${this.selectedLang}
               dir=${this.currentDirection}
@@ -4480,6 +4298,7 @@ export class BridgelyAssistant extends LitElement {
         ${this.renderHelpButton()} ${this.renderHelpSession()}
         ${this.renderHelpPreview()}
         ${this.jobsEnabled ? (this.careerModule?.render.call(this as unknown as CareerContext) ?? nothing) : nothing}
+        ${this.panel === "sign" ? (this.signModule?.render.call(this.signModule, this.createSignContext()) ?? nothing) : nothing}
         ${
           this.panel === "language"
             ? html`
@@ -4669,6 +4488,13 @@ export class BridgelyAssistant extends LitElement {
                 this.pendingQuestion = undefined;
                 this.draft = (event.currentTarget as HTMLTextAreaElement).value;
                 this.updateTransliteration();
+                if (this.draft.trim().length >= 4) {
+                  const available = this.languages.map((l) => l.code);
+                  const detected = detectLanguage(this.draft, available, this.selectedLang);
+                  if (detected !== this.selectedLang) {
+                    void this.chooseLanguage(detected);
+                  }
+                }
               }}
               @keydown=${(event: KeyboardEvent) => {
                 if (event.key === "Enter" && !event.shiftKey) {

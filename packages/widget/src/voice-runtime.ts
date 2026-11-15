@@ -8,11 +8,13 @@ import {
 } from "@bridgely/voice";
 import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
 import type { WidgetSettings } from "./index.js";
+import { detectLanguage } from "./language.js";
 
 export interface VoiceContext {
   speechToText: SpeechToText | undefined;
   textToSpeech: TextToSpeech | undefined;
   selectedLang: string;
+  languages?: { code: string }[];
   notice: string;
   draft: string;
   settings: WidgetSettings;
@@ -27,6 +29,8 @@ export interface VoiceContext {
   recordingCueActive: boolean;
   recordingTimer: number | undefined;
   audioContext: AudioContext | undefined;
+  continuousVoice?: boolean;
+  chooseLanguage?(code: string): Promise<void>;
   t(key: string, values?: Record<string, string | number>): string;
   canSpeak(lang: string): boolean;
   canRecord(lang?: string): boolean;
@@ -119,6 +123,14 @@ export const voiceRuntime = {
         }
       } else {
         this.draft = transcript;
+        const available = (this.languages ?? []).map((l) => l.code);
+        if (available.length > 0 && typeof this.chooseLanguage === "function") {
+          const detected = detectLanguage(transcript, available, lang);
+          if (detected !== lang) {
+            void this.chooseLanguage(detected);
+            lang = detected;
+          }
+        }
         if (this.canSpeak(lang)) void this.speak(transcript, lang, "review");
       }
     } catch (error) {

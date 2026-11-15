@@ -16,7 +16,9 @@ For local Compose, see [API.md](API.md#start-locally). Free-tier limits are in
 
 ## 1. Database (Neon)
 
-1. Create a project and copy both connection strings. Keep `sslmode=require`.
+1. Create a project and copy both connection strings. Use
+   `sslmode=verify-full` for both URLs to keep certificate and hostname
+   verification explicit with current and upcoming `pg` versions.
    - Pooled (host contains `-pooler`) becomes `DATABASE_URL`.
    - Direct becomes `DATABASE_URL_DIRECT`.
 2. Nothing else is needed here: the API start command applies migrations.
@@ -60,9 +62,10 @@ environment; the API validates each at start:
 
 - AI providers: `AI_PROVIDER`, `AI_LADDER`, `AI_PROVIDERS`
   plus the credential variable each binding names. See [LOCAL_AI.md](LOCAL_AI.md).
-- Telegram: `TELEGRAM_TOKEN` and a distinct `TELEGRAM_SECRET`;
-  register the webhook after every deploy as in [TELEGRAM.md](TELEGRAM.md).
-  Polling is rejected in production.
+- Telegram: `TELEGRAM_TOKEN` and a distinct `TELEGRAM_SECRET`.
+  Webhook mode registers the webhook on API startup when `PUBLIC_API_URL` is
+  the public HTTPS base URL. Polling is rejected in production; see
+  [TELEGRAM.md](TELEGRAM.md).
 - SMS gateway, job relay, TURN, helper hours: see `.env.example`.
 - LTI 1.3: `LTI_PLATFORMS`. Register
   `https://<api-host>/v1/lti/launch` as the tool's redirect URI.

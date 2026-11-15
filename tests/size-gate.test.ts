@@ -77,8 +77,8 @@ describe("widget size gate", () => {
       writeFile(path.join(widgetDist, "bridgely-helper-console.js"), "export {};"),
       writeFile(
         path.join(widgetDist, "Bridgely-faq-sizes.json"),
-        // Just over the 155 kB initial-load limit (scripts/size-gate.mjs).
-        JSON.stringify({ en: 1024, am: 156 * 1024 }),
+        // Just over the 160 kB initial-load limit (scripts/size-gate.mjs).
+        JSON.stringify({ en: 1024, am: 161 * 1024 }),
       ),
       writeEnglishPack(),
     ]);

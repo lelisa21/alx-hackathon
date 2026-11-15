@@ -624,6 +624,9 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     ),
   ].find((candidate) => existsSync(candidate));
   if (widgetDist) {
+    app.get(["/", "/index.html"], (_req, res) => {
+      res.sendFile(path.join(widgetDist, "index.html"));
+    });
     app.get(["/sim/sms", "/sim/sms/"], (_req, res) => {
       res.sendFile(path.join(widgetDist, "sim", "sms", "index.html"));
     });
