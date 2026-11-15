@@ -70,14 +70,19 @@ export function createInsightsRepository(pool: Pool): InsightsRepository {
 
     async topicLabel(topicId: string): Promise<string | null> {
       // Resolve a human-readable label from the passage table using the
-      // passageId stored as topic_id. Falls back to null when not found.
+      // passageId stored as topic_id. Since passage has composite key
+      // (content_version_id, id), select from the latest content version only
+      // to ensure we get current, not stale, labels.
       if (!topicId || topicId === "uncategorized" || topicId === "Other") {
         return null;
       }
       const result = await pool.query<{ lesson_title: string; section_title: string | null }>(
-        `SELECT lesson_title, section_title
-         FROM passage
-         WHERE id = $1
+        `SELECT p.lesson_title, p.section_title
+         FROM passage p
+         WHERE p.id = $1
+           AND p.content_version_id = (
+             SELECT id FROM content_version ORDER BY created_at DESC LIMIT 1
+           )
          LIMIT 1`,
         [topicId],
       );
