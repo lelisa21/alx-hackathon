@@ -3,6 +3,34 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## User-requested accessibility entry point (15 November 2026)
+
+- **Scope:** FR-HOME-ACCESS-01–04, NFR-HOME-A11Y-01, with the existing
+  FR-UI-01/06 and NFR-A11Y-01–04 accessibility principles. The user then
+  authorized the bounded Savanna follow-up FR-SAV-ACCESS-01–03 and
+  NFR-SAV-A11Y-01, using FR-INT-01/02/03/11.
+- **Decision:** The actual static deployment root will publish the Dimts public
+  homepage and its visible, text-labeled access guide. The guide offers normal
+  semantic destination links and optional browser speech navigation. Voice is
+  an alternate route, never a prerequisite.
+- **Language/capability boundary:** Requested recognition locales are en-US,
+  am-ET, om-ET and ti-ET. Recognition appears only when the browser exposes the
+  API. These language packs are currently beta/draft and do not declare STT;
+  browser availability and native-speaker intelligibility remain unverified.
+  Do not claim four-language voice acceptance until those reviews pass.
+- **Localized copy:** Added access-guide UI keys to the en/am/om/ti packs and
+  the ar-test fixture. The non-English entries remain draft and require
+  language-lead/native-speaker review; they do not change pack publication or
+  voice capability metadata.
+- **Privacy/accessibility:** Start recognition only on explicit activation
+  after disclosing possible browser speech-service processing. Dimts receives
+  and retains no audio or transcript. Show and announce listening, transcript,
+  result and error states. Every route remains visible, keyboard-operable and
+  screen-reader accessible with sound off.
+- **Out of scope:** No assistant behavior or API contract change and no
+  modification to the frozen Savanna capture files. Savanna receives the guide
+  through the existing one-script host-loader integration.
+
 ## P08 — local Telegram polling (14 November 2026)
 
 - **Requirements:** FR-TG-01–12 and NFR-SEC local-versus-production channel

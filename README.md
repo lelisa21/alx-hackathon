@@ -1,7 +1,7 @@
 # Dimts: multilingual learning assistant for ALX Savanna
 
 Dimts answers learners' course questions in **English, Amharic and Afaan
-Oromoo**, from the course content itself. Every answer links to the exact lesson
+Oromoo**,tigrinya from the course content itself. Every answer links to the exact lesson
 section it used. When there is no source, Dimts says so and offers a person.
 The same engine serves the Savanna web widget, browser voice, SMS and
 Telegram.

@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@google/genai':
+        specifier: ^3.3.0
+        version: 3.3.0
     devDependencies:
       '@axe-core/playwright':
         specifier: ^4.10.2

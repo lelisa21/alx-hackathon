@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm --recursive --if-present build",
-    "api:start": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api start",
+    "api:start": "pnpm --filter @dimts/api... build && pnpm --filter @dimts/api start",
     "migrate": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api migrate",
     "admin": "pnpm --filter @dimts/api build && node --env-file-if-exists=.env packages/api/dist/db/admin.js",
     "local:bootstrap": "pnpm --filter @dimts/api build && pnpm --filter @dimts/api bootstrap:local",
@@ -51,5 +51,8 @@
     "typescript": "^5.8.2",
     "typescript-eslint": "^8.26.0",
     "vitest": "^5.1.0"
+  },
+  "dependencies": {
+    "@google/genai": "^3.3.0"
   }
 }

@@ -921,6 +921,101 @@ disclosed to the learner are sent. Credentials remain server-side.
 
 Interfaces plus browser adapter (Web Speech). Engine decision protocol: same 10 sentences per language on a mid-range Android phone; a language gets voice only with at least 8 of 10 intelligible; result in `docs/VOICE_TEST.md`; `voice.yaml` matches. Tap to start and stop, 60 s cap, review before send (editable, spoken back), never record before tap, audio never stored. If the browser lacks a voice for a language, the mic or Read aloud control is hidden with a text reason. If a screen reader has no Ethiopic voice, Read aloud becomes the main audio route and the limitation is recorded (NFR-A11Y-07).
 
+### 10.3A Dimts public homepage access guide (user-requested package)
+
+The public homepage begins at the root of the deployed static site. It offers a
+visibly labeled access-guide control with a keyboard- and screen-reader-operable
+panel. The panel lists named links to the assistant, lessons, Savanna, human
+help, and service status; the icon never replaces its text label. Optional
+speech navigation starts only after an explicit user action and disclosure
+that the browser's speech service may process audio. It may request browser
+speech recognition in English (`en-US`), Amharic (`am-ET`), Afaan Oromoo
+(`om-ET`), or Tigrinya (`ti-ET`) when the browser exposes recognition. Browser
+support is not promised by language; the textual destination list remains
+available in every case. Dimts does not send or persist audio or recognized
+text; browser-service processing follows the browser provider's behavior.
+Listening, recognized text, unsupported recognition, and errors are shown on
+screen and exposed through a polite status announcement.
+
+Requirements:
+
+- **FR-HOME-ACCESS-01 (MUST):** A visible access-guide launcher appears on the
+  public homepage, has a visible text label, and opens/closes by keyboard and
+  pointer. Its state and focus are available to assistive technology.
+- **FR-HOME-ACCESS-02 (MUST):** The guide presents semantic, named links to the
+  assistant, lessons, Savanna, human help, and service status. Each destination
+  is usable without speech recognition.
+- **FR-HOME-ACCESS-03 (MUST):** Speech navigation is user-initiated and uses
+  the selected BCP 47 tag for en/am/om/ti. Normalize case, punctuation,
+  whitespace and Unicode before matching natural requests, synonyms and minor
+  speech-recognition errors against destinations available on the homepage.
+  Route a unique match; explain ambiguous, empty, unavailable and recognition
+  error states while keeping the textual guide usable. If Web Speech recognition
+  or that locale is unavailable, explain this. Dimts does not receive or persist
+  audio or recognized phrases; disclose possible browser speech-service
+  processing first.
+- **FR-HOME-ACCESS-04 (MUST):** Listening, recognized text, navigation result,
+  and failure state are visible and announced accessibly; no sound is the sole
+  feedback channel.
+- **FR-HOME-ACCESS-05 (MUST):** On first opening, the guide presents and speaks
+  a localized welcome that describes available destinations and asks where the
+  learner wants to go. Learners can replay or stop it. If browser speech output
+  is unavailable, the welcome and destinations remain visible with an announced
+  explanation.
+- **NFR-HOME-A11Y-01 (MUST):** The guide supports keyboard-only and
+  screen-reader use, sound-off operation, and 200 per cent zoom without hiding
+  destinations or clipping controls; semantic HTML is preferred over ARIA.
+
+Automated acceptance: Playwright verifies launcher semantics and keyboard
+operation, all required destination links, each configured recognition locale,
+the explicit start/stop boundary, spoken welcome/read-back, visible and announced
+states, speech-output fallback, and the
+unavailable-browser fallback. axe reports no critical or serious violations
+in the closed and open states at desktop and narrow viewport sizes. Manual
+acceptance still requires co-designer, NVDA/TalkBack, native-speaker voice
+intelligibility, and real-browser/device review before claiming the four
+languages as supported.
+
+### 10.3B Savanna access guide (user-authorized follow-up)
+
+The existing host loader adds the same access-guide runtime to every served
+Savanna capture. Keep `pages/` and `assets/` frozen; do not edit them to add
+controls. The guide lives in a shadow root so its styles do not alter Savanna.
+It offers links to the current page content, course library, human help, and
+service health, plus a direct `window.Dimts.open()` action. It uses the same
+locale JSON, browser speech disclosure, en/am/om/ti tags, explicit
+start/stop, visible transcript, and textual fallback as the public homepage.
+Speech is optional; browser/provider processing remains subject to the existing
+disclosure and real-device language review.
+
+- **FR-SAV-ACCESS-01 (MUST):** The asynchronous host loader installs the guide
+  on every served Savanna page without changing the frozen capture source. Guide
+  installation is independent of assistant embed installation; an existing host
+  embed must not prevent guide setup or be duplicated.
+- **FR-SAV-ACCESS-02 (MUST):** The guide exposes named, semantic links/actions
+  for page content, opening Dimts, the lesson library, human help, and service
+  health. Each works without voice recognition.
+- **FR-SAV-ACCESS-03 (MUST):** Optional, explicitly activated voice navigation
+  uses en-US/am-ET/om-ET/ti-ET. Normalize recognized text and match natural
+  requests, synonyms and minor recognition errors only to destinations available
+  on the current Savanna page; navigate or scroll to the selected destination.
+  Explain ambiguous, empty, unavailable and recognition error states while
+  leaving the visual/text guide usable.
+- **FR-SAV-ACCESS-04 (MUST):** On first opening, the guide presents and speaks
+  a localized welcome describing Savanna destinations and asks where the learner
+  wants to go. Learners can replay or stop it; unavailable speech output leaves
+  the welcome and destination list visible.
+- **NFR-SAV-A11Y-01 (MUST):** Keyboard-only, screen-reader, sound-off, and 200
+  per cent zoom use work; guide styling is isolated from the host page.
+
+Automated acceptance: Playwright covers host-loader installation on each
+Savanna capture, including a page with a pre-existing host embed (without adding
+a duplicate), all destinations, keyboard opening, localized spoken welcome and
+read-back, natural phrase and typo matching, current-page navigation, empty and
+ambiguous input, recognition errors, language choices, start/stop, fallback,
+and axe at open/closed states and narrow width. Manual
+co-designer, NVDA/TalkBack and native-speaker/device acceptance remains open.
+
 ### 10.4 Help service (C9)
 
 Server: queue, claim with 409, ws relay with role checks and replay, TURN credentials, image upload, retention, rate limit 5 requests per hour per session, helper hours from config. Learner client: summary switch (on by default), waiting state with tutor still usable, 5-minute fallback offer, consent dialog, banner, one-action stop, picture fallback. Sharing is view-only, no audio, no recording, 300 kbps, 5 fps. Handoff payload: language, channel, optional last three questions, chat; nothing else.

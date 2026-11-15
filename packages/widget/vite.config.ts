@@ -3,11 +3,68 @@ import { loadPacks } from "../locales-tools/src/index.js";
 import { fileURLToPath } from "node:url";
 import { gzipSync } from "node:zlib";
 import { createHash } from "node:crypto";
+import { readFileSync } from "node:fs";
 import { smsPagePlugin } from "./sms-page-plugin.js";
+
+const htmlAttribute = (value: string) =>
+  value
+    .replaceAll("&", "&amp;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("<", "&lt;");
 
 export default defineConfig({
   plugins: [
     smsPagePlugin(),
+    {
+      name: "dimts-public-homepage",
+      generateBundle() {
+        const template = readFileSync(
+          new URL("./public/templates/index.html.template", import.meta.url),
+          "utf8",
+        );
+        const packs = loadPacks(
+          fileURLToPath(new URL("../../locales", import.meta.url)),
+        );
+        const homeCopy = JSON.stringify(
+          Object.fromEntries(
+            [...packs].map(([code, pack]) => [
+              code,
+              {
+                nativeName: pack.meta.name_native,
+                ui: Object.fromEntries(
+                  Object.entries(pack.ui).filter(([key]) =>
+                    key.startsWith("home.access."),
+                  ),
+                ),
+              },
+            ]),
+          ),
+        ).replaceAll("<", "\\u003c");
+        this.emitFile({
+          type: "asset",
+          fileName: "dimts-home-access.json",
+          source: homeCopy,
+        });
+        const html = template
+          .replaceAll(
+            "${DIMTS_PUBLIC_API}",
+            htmlAttribute(process.env.DIMTS_PUBLIC_API || "/v1"),
+          )
+          .replaceAll(
+            "${DIMTS_LOCAL_WIDGET_KEY}",
+            htmlAttribute(
+              process.env.DIMTS_PUBLIC_WIDGET_KEY ||
+                process.env.DIMTS_LOCAL_WIDGET_KEY ||
+                "",
+            ),
+          )
+          .replaceAll(
+            "${DIMTS_PUBLIC_TELEGRAM_BOT}",
+            htmlAttribute(process.env.DIMTS_PUBLIC_TELEGRAM_BOT || ""),
+          );
+        this.emitFile({ type: "asset", fileName: "index.html", source: html });
+      },
+    },
     {
       name: "dimts-private-lit-metadata",
       enforce: "pre",
