@@ -591,6 +591,11 @@ export class BridgelyAssistant extends LitElement {
     this.requestUpdate();
   }
 
+  private openSettings() {
+    this.panel = this.panel === "settings" ? null : "settings";
+    this.requestUpdate();
+  }
+
   private createSignContext(): import("./sign-runtime.js").SignContext {
     return {
       selectedLang: this.selectedLang,
@@ -2208,8 +2213,55 @@ export class BridgelyAssistant extends LitElement {
       mask: var(--Bridgely-icon-mic) center / contain no-repeat;
     }
 
-    .mic[aria-pressed="true"]::after {
+    .mic[aria-pressed="true"] {
+      background: var(--Bridgely-primary);
+      border-color: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
+      animation: halo-pulse 1.4s infinite;
+    }
+
+    .voice-wave-container {
+      align-items: center;
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-accent-line);
+      border-radius: var(--Bridgely-radius, 0.75rem);
+      display: flex;
+      gap: 0.5rem;
+      margin-block: 0.375rem;
+      padding: 0.375rem 0.75rem;
+    }
+
+    .voice-wave-visualizer {
+      align-items: center;
+      display: inline-flex;
+      gap: 3px;
+    }
+
+    .wave-bar {
+      background: var(--Bridgely-primary);
       border-radius: 999px;
+      inline-size: 3px;
+      block-size: 10px;
+      animation: wave-bar-pulse 0.8s ease-in-out infinite alternate;
+    }
+
+    .wave-bar:nth-child(2n) {
+      animation-delay: 0.2s;
+      block-size: 16px;
+    }
+
+    .wave-bar:nth-child(3n) {
+      animation-delay: 0.4s;
+      block-size: 8px;
+    }
+
+    @keyframes wave-bar-pulse {
+      0% {
+        transform: scaleY(0.4);
+      }
+      100% {
+        transform: scaleY(1.4);
+      }
     }
 
     .send-action {
@@ -4507,7 +4559,18 @@ export class BridgelyAssistant extends LitElement {
             ></textarea>
             ${this.renderTransliteration()} ${this.renderCloudVoicePrompt()}
             ${this.currentLanguage?.status === "beta" && (this.canRecord() || this.canSpeak(this.selectedLang)) ? html`<p class="muted">${this.t("status.beta")}: ${this.t("voice.betaNote")}</p>` : nothing}
-            ${this.isRecording ? html`<p class="status" role="status" aria-live="polite">${this.t(this.recordingStopRequested ? "voice.processing" : "voice.listening")}</p>` : nothing}
+            ${this.isRecording ? html`
+              <div class="voice-wave-container" role="status" aria-live="polite">
+                <div class="voice-wave-visualizer" aria-hidden="true">
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                  <span class="wave-bar"></span>
+                </div>
+                <p class="status">${this.t(this.recordingStopRequested ? "voice.processing" : "voice.listening")}</p>
+              </div>
+            ` : nothing}
             ${
               this.speechReview
                 ? html`

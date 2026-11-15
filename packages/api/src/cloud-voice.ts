@@ -83,6 +83,10 @@ const LANGUAGE_HINTS: Record<string, string> = {
   am: "Amharic, written in Ethiopic (Ge'ez) script",
   om: "Afaan Oromoo, written in Latin script (Qubee)",
   ti: "Tigrinya, written in Ethiopic (Ge'ez) script, not Amharic",
+  so: "Somali, written in Latin script",
+  sw: "Swahili, written in Latin script",
+  ar: "Arabic, written in Arabic script",
+  fr: "French, written in Latin script",
 };
 
 // Gemini TTS language support differs per model: Tigrinya is listed only for

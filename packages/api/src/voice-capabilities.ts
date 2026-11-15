@@ -45,6 +45,10 @@ const previewTags: Record<string, string> = {
   am: "am-ET",
   om: "om-ET",
   ti: "ti-ET",
+  so: "so-SO",
+  sw: "sw-KE",
+  ar: "ar-SA",
+  fr: "fr-FR",
 };
 
 /** Pack flags record human approval of the device protocol, never a computed score. */

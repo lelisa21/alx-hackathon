@@ -8,7 +8,7 @@ import {
 } from "@bridgely/voice";
 import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
 import type { WidgetSettings } from "./index.js";
-import { detectLanguage } from "./language.js";
+import { detectLanguage, matchVoiceNavigationCommand } from "./language.js";
 
 export interface VoiceContext {
   speechToText: SpeechToText | undefined;
@@ -31,6 +31,8 @@ export interface VoiceContext {
   audioContext: AudioContext | undefined;
   continuousVoice?: boolean;
   chooseLanguage?(code: string): Promise<void>;
+  openSign?(): Promise<void>;
+  openSettings?(): void;
   t(key: string, values?: Record<string, string | number>): string;
   canSpeak(lang: string): boolean;
   canRecord(lang?: string): boolean;
@@ -122,6 +124,29 @@ export const voiceRuntime = {
           void this.speak(this.notice, lang, "voice-retry");
         }
       } else {
+        const command = matchVoiceNavigationCommand(transcript);
+        if (command) {
+          if (command.action === "sms") {
+            window.location.href = "/sim/sms";
+            return;
+          }
+          if (command.action === "helper") {
+            window.location.href = "/helper";
+            return;
+          }
+          if (command.action === "sign") {
+            void this.openSign?.();
+            return;
+          }
+          if (command.action === "settings") {
+            this.openSettings?.();
+            return;
+          }
+          if (command.action === "language" && typeof this.chooseLanguage === "function") {
+            void this.chooseLanguage(command.lang);
+            return;
+          }
+        }
         this.draft = transcript;
         const available = (this.languages ?? []).map((l) => l.code);
         if (available.length > 0 && typeof this.chooseLanguage === "function") {

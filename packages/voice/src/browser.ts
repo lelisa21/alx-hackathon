@@ -110,6 +110,16 @@ async function localRecognitionStatus(
   }
 }
 
+export function segmentTextForSpeech(text: string): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [];
+  const segments = trimmed
+    .split(/(?<=[።፧፤.!?؟\n])\s+/u)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  return segments.length > 0 ? segments : [trimmed];
+}
+
 /** Local browser speech only. Construction/probing never starts the microphone. */
 export async function createBrowserVoiceAdapters(options: {
   languages: readonly BrowserVoiceLanguage[];
@@ -328,25 +338,20 @@ export async function createBrowserVoiceAdapters(options: {
       ) {
         return Promise.reject(new VoiceError("unavailable"));
       }
-      if (!text.trim()) return Promise.resolve();
+      const segments = segmentTextForSpeech(text);
+      if (!segments.length) return Promise.resolve();
       return new Promise<void>((resolve, reject) => {
-        let utterance: SpeechSynthesisUtterance;
-        try {
-          utterance = new Utterance(text);
-          utterance.voice = voice;
-          utterance.lang = voice.lang;
-          utterance.rate = rate;
-        } catch (error) {
-          reject(new VoiceError(thrownError(error)));
-          return;
-        }
+        let currentUtterance: SpeechSynthesisUtterance | undefined;
+        let segmentIndex = 0;
         let settled = false;
         const finish = (code?: VoiceErrorCode) => {
           if (settled) return;
           settled = true;
           clearTimeout(timer);
-          utterance.onend = null;
-          utterance.onerror = null;
+          if (currentUtterance) {
+            currentUtterance.onend = null;
+            currentUtterance.onerror = null;
+          }
           cancelSynthesis = undefined;
           synthesisLanguage = undefined;
           if (code) quiet(() => synthesis.cancel());
@@ -359,13 +364,28 @@ export async function createBrowserVoiceAdapters(options: {
         const timer = setTimeout(() => finish("timeout"), SYNTHESIS_MS);
         cancelSynthesis = () => finish("cancelled");
         synthesisLanguage = lang;
-        utterance.onend = () => finish();
-        utterance.onerror = (event) => finish(nativeError(event.error));
-        try {
-          synthesis.speak(utterance);
-        } catch (error) {
-          finish(thrownError(error));
-        }
+
+        const speakNext = () => {
+          if (settled) return;
+          if (segmentIndex >= segments.length) {
+            finish();
+            return;
+          }
+          const part = segments[segmentIndex++]!;
+          try {
+            currentUtterance = new Utterance(part);
+            currentUtterance.voice = voice;
+            currentUtterance.lang = voice.lang;
+            currentUtterance.rate = rate;
+            currentUtterance.onend = () => speakNext();
+            currentUtterance.onerror = (event) => finish(nativeError(event.error));
+            synthesis.speak(currentUtterance);
+          } catch (error) {
+            finish(thrownError(error));
+          }
+        };
+
+        speakNext();
       });
     },
     pause: () => {
