@@ -332,6 +332,7 @@ export const requiredUiKeys: readonly string[] = [
   "smalltalk.thanks",
   "status.beta",
   "status.loading",
+  "status.preview",
   "status.working",
   "transliteration.applied",
   "transliteration.enable",

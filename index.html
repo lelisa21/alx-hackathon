@@ -27,10 +27,14 @@
           <div class="card-body">
             <h2 class="h5 card-title">Bridgely interactive MVP</h2>
             <p class="card-text">
-              This offline reference is separate from the API-backed learner widget. Follow the
-              <a href="docs/API.md">local setup instructions</a>, then open the interactive app.
+              Run the API server with <code>pnpm api:start</code> (or Docker Compose), then open the interactive learner app:
             </p>
-            <a class="btn btn-primary" href="http://localhost:5173/">Open the Bridgely learner app</a>
+            <div class="d-flex flex-wrap gap-2">
+              <a class="btn btn-primary" href="http://localhost:3000/">Open Learner App (Local API: Port 3000)</a>
+              <a class="btn btn-outline-primary" href="http://localhost:5173/">Open via Docker (Port 5173)</a>
+              <a class="btn btn-secondary" href="http://localhost:3000/sim/sms">SMS Simulator</a>
+              <a class="btn btn-outline-secondary" href="http://localhost:3000/helper">Helper Console</a>
+            </div>
           </div>
         </div>
 

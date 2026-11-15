@@ -3,7 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 import { provisionHelper } from "./admin.js";
-import { applyMigrations } from "./migrate.js";
+import { applyMigrations, resolveDirectConnectionString } from "./migrate.js";
 
 interface LocalHostKeyClient {
   query(text: string, values?: unknown[]): Promise<unknown>;
@@ -60,7 +60,7 @@ function requiredEnvironment(name: string): string {
 }
 
 async function main(): Promise<void> {
-  const connectionString = requiredEnvironment("DATABASE_URL_DIRECT");
+  const connectionString = resolveDirectConnectionString();
   const key = requiredEnvironment("LOCAL_WIDGET_KEY");
   const origins = requiredEnvironment("HOST_ORIGINS")
     .split(",")

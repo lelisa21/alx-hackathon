@@ -261,4 +261,18 @@ Run tasks in order. Tasks marked **P0** block a dependable local/hosted verifica
 
 ## Explicitly out of scope
 
-Do not add P12 expanded AAC/accessibility capabilities, P13 longitudinal analytics, P14 extra connectors/SDKs/plugins, deep-link content-item responses, grade passback, tool-originated LTI signing, a real SMS carrier integration, unsupported partner feeds, or new AI providers as part of this plan. Add any of these only after an explicit product requirement, contract/decision update, ownership, privacy review and budget approval.
+Do not add P13 longitudinal analytics, P14 extra connectors/SDKs/plugins, deep-link content-item responses, grade passback, tool-originated LTI signing, a real SMS carrier integration, unsupported partner feeds, or new AI providers as part of this plan. Add any of these only after an explicit product requirement, contract/decision update, ownership, privacy review and budget approval. The user has now authorized the following bounded P12 increment:
+
+### P12 — Dimts public homepage access guide (user-authorized)
+
+- **Requirements:** FR-HOME-ACCESS-01–04 and NFR-HOME-A11Y-01; use FR-UI-01/06 and NFR-A11Y-01–04 as existing accessibility principles.
+- **Scope:** Publish the Dimts homepage at the static deployment root, add a visible access-guide launcher and a visual destination list, and add optional browser speech navigation for en/am/om/ti with explicit activation and visible, announced feedback.
+- **Dependencies/limits:** Existing locale metadata marks en beta and am/om/ti draft with STT false. Browser speech recognition is runtime-dependent; language capability and intelligibility require separate real-device/native-speaker review. Do not label any language as verified until `docs/VOICE_TEST.md` evidence exists.
+- **Acceptance:** Automated browser checks cover keyboard operation, semantic names, destinations, explicit speech start/stop, all four locale tags, no-recognition fallback, sound-off visible states, narrow viewport and axe results. Human/device/language acceptance remains open until performed.
+
+### P12b — Savanna access-guide integration (user-authorized follow-up)
+
+- **Requirements:** FR-SAV-ACCESS-01–03 and NFR-SAV-A11Y-01, with FR-INT-01/02/03/11 and NFR-A11Y-01–04.
+- **Scope:** Reuse the access guide through the current asynchronous Savanna host loader. Keep the captured `pages/` and `assets/` source files frozen. The guide links to page content, opens the existing Dimts assistant, and routes to lessons, human help and service status.
+- **Dependencies/limits:** Reuse the homepage locale JSON and runtime. Browser voice remains opt-in/runtime-dependent; non-English copy is draft and real voice capability is unverified.
+- **Acceptance:** Browser tests load each frozen capture with the same injected host script, verify guide destinations and assistant open, exercise keyboard/voice fallback, and check axe plus host-style isolation at desktop/narrow sizes. Human co-designer, NVDA/TalkBack and native-speaker/device review remain open.

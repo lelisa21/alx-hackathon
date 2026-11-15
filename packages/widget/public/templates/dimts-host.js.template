@@ -5,14 +5,41 @@
 // would: one script tag with data attributes. Removing the tag uninstalls it.
 (function () {
   var current = document.currentScript;
-  if (document.querySelector("script[data-bridgely-embed]")) return;
+  var content = document.querySelector("main");
+  if (content && !content.id) content.id = "content";
+
+  // Access Guide installation is independent of the assistant embed. A host
+  // may install its embed itself and still need navigation assistance.
+  if (!document.querySelector("[data-dimts-access-guide='savanna']")) {
+    var guide = document.createElement("div");
+    guide.setAttribute("data-dimts-access-guide", "savanna");
+    document.body.appendChild(guide);
+  }
+  if (!document.querySelector("script[data-dimts-access-guide-runtime]")) {
+    var guideScript = document.createElement("script");
+    guideScript.async = true;
+    guideScript.setAttribute("data-dimts-access-guide-runtime", "");
+    guideScript.src = new URL(
+      "dimts-access-guide.js",
+      current ? current.src : location.href,
+    ).href;
+    document.body.appendChild(guideScript);
+  }
+
+  // Do not create a duplicate assistant embed, but only after installing the
+  // independent guide above.
+  if (document.querySelector("script[data-dimts-embed]")) return;
+
   var embed = document.createElement("script");
   embed.async = true;
   // Load the embed from the same place as this loader.
-  embed.src = new URL("bridgely-embed.js", current ? current.src : location.href).href;
-  embed.setAttribute("data-bridgely-embed", "");
-  embed.setAttribute("data-api", "${PUBLIC_API}");
-  embed.setAttribute("data-host-key", "${LOCAL_WIDGET_KEY}");
+  embed.src = new URL(
+    "dimts-embed.js",
+    current ? current.src : location.href,
+  ).href;
+  embed.setAttribute("data-dimts-embed", "");
+  embed.setAttribute("data-api", "${DIMTS_PUBLIC_API}");
+  embed.setAttribute("data-host-key", "${DIMTS_LOCAL_WIDGET_KEY}");
   var lang = current && current.getAttribute("data-lang");
   if (lang) embed.setAttribute("data-lang", lang);
   document.body.appendChild(embed);

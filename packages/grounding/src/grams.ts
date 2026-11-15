@@ -66,8 +66,6 @@ export function confidence(tokens: string[], passageNorm: string): number {
 
   const matchedWordShare = matched / tokens.length;
   const meanBestSimilarity = similaritySum / tokens.length;
-  return Math.max(
-    0,
-    Math.min(1, 0.6 * matchedWordShare + 0.4 * meanBestSimilarity),
-  );
+  const score = 0.6 * matchedWordShare + 0.4 * meanBestSimilarity;
+  return Math.max(0, Math.min(1, score * matchedWordShare));
 }

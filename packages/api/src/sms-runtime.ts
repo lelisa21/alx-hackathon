@@ -153,7 +153,7 @@ export function createSmsRuntime(options: {
   const smsPool = new pg.Pool({
     connectionString: config.DATABASE_URL,
     max: 4,
-    connectionTimeoutMillis: 500,
+    connectionTimeoutMillis: 15_000,
     idleTimeoutMillis: 30000,
   });
   smsPool.on("error", () => undefined);

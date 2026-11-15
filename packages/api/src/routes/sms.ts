@@ -93,6 +93,13 @@ export function createSmsRouter(options: {
       } catch (error) {
         if (!(error instanceof SmsError)) {
           // Do not serialize, log or echo transport errors that may include contact/text.
+          request.log?.error(
+            {
+              event: "sms_inbound_failed",
+              reason: error instanceof Error ? error.message : String(error),
+            },
+            "SMS inbound processing failed",
+          );
           problem(response, 500, "internal", "sms.error", "error");
           return;
         }

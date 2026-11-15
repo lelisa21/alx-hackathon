@@ -12,7 +12,7 @@ const root = path.resolve(
 describe("backend contract documentation", () => {
   it("keeps the blueprint reply replay schema aligned with migration 002", async () => {
     const blueprint = await readFile(
-      path.join(root, "Bridgely-System-Blueprint-v2.0.md"),
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
       "utf8",
     );
     const migration = await readFile(
@@ -38,7 +38,7 @@ describe("backend contract documentation", () => {
 
   it("documents the helper websocket authentication contract", async () => {
     const blueprint = await readFile(
-      path.join(root, "Bridgely-System-Blueprint-v2.0.md"),
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
       "utf8",
     );
 
@@ -75,7 +75,7 @@ describe("backend contract documentation", () => {
 
   it("freezes the WP07 confirmation and UTC availability contracts", async () => {
     const blueprint = await readFile(
-      path.join(root, "Bridgely-System-Blueprint-v2.0.md"),
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
       "utf8",
     );
 
@@ -91,16 +91,11 @@ describe("backend contract documentation", () => {
 
   it("documents all distinct API signing and data-protection secrets", async () => {
     const blueprint = await readFile(
-      path.join(root, "Bridgely-System-Blueprint-v2.0.md"),
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
       "utf8",
     );
 
-    for (const secret of [
-      "ENC_KEY",
-      "HASH_KEY",
-      "JWT_SECRET",
-      "CRON_SECRET",
-    ]) {
+    for (const secret of ["ENC_KEY", "HASH_KEY", "JWT_SECRET", "CRON_SECRET"]) {
       expect(blueprint).toContain(secret);
     }
     expect(blueprint).toMatch(/different from both/u);
@@ -108,7 +103,7 @@ describe("backend contract documentation", () => {
 
   it("assigns each blueprint decision ID only once", async () => {
     const blueprint = await readFile(
-      path.join(root, "Bridgely-System-Blueprint-v2.0.md"),
+      path.join(root, "Dimts-System-Blueprint-v2.0.md"),
       "utf8",
     );
     const decisionIds = Array.from(

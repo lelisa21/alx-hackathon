@@ -27,11 +27,11 @@ const validEnv = {
   NODE_ENV: "test",
   PORT: "3000",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
- ENC_KEY: secrets[0],
- HASH_KEY: secrets[1],
- JWT_SECRET: secrets[2],
- CRON_SECRET: "a-cron-secret-that-is-long-enough",
- HOST_ORIGINS: "https://learn.example, https://demo.example",
+  ENC_KEY: secrets[0],
+  HASH_KEY: secrets[1],
+  JWT_SECRET: secrets[2],
+  CRON_SECRET: "a-cron-secret-that-is-long-enough",
+  HOST_ORIGINS: "https://learn.example, https://demo.example",
 };
 
 function createRepository() {
@@ -327,7 +327,9 @@ describe("WP02 configuration and API contracts", () => {
   });
 
   it("discovers a new draft folder on restart and serves it only in language preview", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-api-language-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "Bridgely-api-language-"),
+    );
     try {
       await cp(localesRoot, directory, { recursive: true });
       scaffoldPack(directory, "so");
@@ -359,7 +361,9 @@ describe("WP02 configuration and API contracts", () => {
     }
   });
   it("resolves missing UI keys through the configured chain, exposes the fallback signal, and invalidates ETags", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-api-locales-"));
+    const directory = await mkdtemp(
+      path.join(tmpdir(), "Bridgely-api-locales-"),
+    );
     try {
       await cp(localesRoot, directory, { recursive: true });
       const file = path.join(directory, "om", "ui.yaml");
@@ -376,7 +380,7 @@ describe("WP02 configuration and API contracts", () => {
       expect(response.status).toBe(200);
       expect(response.body["help.button"]).toBe(am.body["help.button"]);
       expect(response.body).not.toHaveProperty("transliteration.word.selam");
-      expect(response.headers["x-Bridgely-locale-fallback"]).toBe("1");
+      expect(response.headers["x-bridgely-locale-fallback"]).toBe("1");
       expect(response.headers["access-control-expose-headers"]).toContain(
         "X-Bridgely-Locale-Fallback",
       );
@@ -385,25 +389,25 @@ describe("WP02 configuration and API contracts", () => {
         .get("/v1/locales/om/ui?lang_preview=1")
         .set("if-none-match", response.headers.etag as string);
       expect(cached.status).toBe(304);
-      expect(cached.headers["x-Bridgely-locale-fallback"]).toBe("1");
+      expect(cached.headers["x-bridgely-locale-fallback"]).toBe("1");
       expect((await request(app).get("/v1/locales/om/ui")).status).toBe(404);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
   });
   it("fails fast for missing, weak, or reused secrets", () => {
-    expect(() =>
-      parseConfig({ ...validEnv,HASH_KEY: undefined }),
-    ).toThrow(/HASH_KEY/u);
+    expect(() => parseConfig({ ...validEnv, HASH_KEY: undefined })).toThrow(
+      /HASH_KEY/u,
+    );
     expect(() =>
       parseConfig({
         ...validEnv,
-       ENC_KEY: Buffer.alloc(16).toString("base64"),
+        ENC_KEY: Buffer.alloc(16).toString("base64"),
       }),
     ).toThrow(/32 random bytes/u);
-    expect(() =>
-      parseConfig({ ...validEnv,HASH_KEY: secrets[0] }),
-    ).toThrow(/different/u);
+    expect(() => parseConfig({ ...validEnv, HASH_KEY: secrets[0] })).toThrow(
+      /different/u,
+    );
   });
 
   it("answers health even when the database is unavailable", async () => {
@@ -477,13 +481,11 @@ describe("WP02 configuration and API contracts", () => {
   });
 
   it("validates the per-question language detection threshold", () => {
-    expect(parseConfig(validEnv).LANGUAGE_DETECTION_CONFIDENCE).toBe(
-      0.25,
-    );
+    expect(parseConfig(validEnv).LANGUAGE_DETECTION_CONFIDENCE).toBe(0.25);
     expect(() =>
       parseConfig({
         ...validEnv,
-       LANGUAGE_DETECTION_CONFIDENCE: "1.01",
+        LANGUAGE_DETECTION_CONFIDENCE: "1.01",
       }),
     ).toThrow(/LANGUAGE_DETECTION_CONFIDENCE/u);
   });
@@ -543,7 +545,7 @@ describe("WP02 configuration and API contracts", () => {
     expect(normal.status).toBe(200);
     expect(
       normal.body.languages.map((language: { code: string }) => language.code),
-    ).toEqual(["en"]);
+    ).toEqual(["en", "ti"]);
     expect(
       preview.body.languages.map((language: { code: string }) => language.code),
     ).toEqual(["am", "ar-test", "en", "om", "ti"]);
@@ -635,9 +637,9 @@ describe("WP02 configuration and API contracts", () => {
   it("uses configured remote providers only for consenting sessions", async () => {
     const config = parseConfig({
       ...validEnv,
-     AI_PROVIDER: "remote-test",
-     AI_LADDER: "remote-test,offline",
-     AI_PROVIDERS: JSON.stringify([
+      AI_PROVIDER: "remote-test",
+      AI_LADDER: "remote-test,offline",
+      AI_PROVIDERS: JSON.stringify([
         {
           id: "remote-test",
           adapter: "openai-compatible",

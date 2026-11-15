@@ -17,7 +17,7 @@ export function createInsightsRouter(repository: ApiRepository): Router {
   router.get("/insights", async (req: Request, res: Response) => {
     try {
       // Authentication: X-Bridgely-Key (host) or LTI instructor (P10)
-      const hostKey = req.headers["x-Bridgely-key"] as string | undefined;
+      const hostKey = req.get("X-Bridgely-Key");
       const authHeader = req.headers.authorization as string | undefined;
 
       // Check authorization

@@ -25,6 +25,7 @@ import type {
   SourceSyncManagerOptions,
   SourceSyncStore,
 } from "@bridgely/grounding";
+import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseConfig, configuredOrigins } from "./config.js";
@@ -332,8 +333,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     careerCleanupRunning = true;
     try {
       await jobsService.cleanupExpired();
-    } catch {
-      logger.error({ event: "jobs_cleanup_failed" });
+    } catch (error) {
+      logger.error({
+        event: "jobs_cleanup_failed",
+        reason: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       careerCleanupRunning = false;
     }
@@ -365,8 +369,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     mediaCleanupRunning = true;
     try {
       await helpStore.deleteExpiredImages();
-    } catch {
-      logger.error({ event: "help_image_cleanup_failed" });
+    } catch (error) {
+      logger.error({
+        event: "help_image_cleanup_failed",
+        reason: error instanceof Error ? error.message : String(error),
+      });
     } finally {
       mediaCleanupRunning = false;
     }
@@ -464,7 +471,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       },
     }),
   );
-  app.use(helmet());
+  app.use(helmet({ contentSecurityPolicy: false }));
   app.use(compression());
   const origins = new Set(configuredOrigins(config));
   app.use(
@@ -599,6 +606,32 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   app.get("/v1/openapi.json", (req, res) => {
     res.json(generateOpenApiDocument());
   });
+
+  // Dedicated API 404 handler for unmatched /v1 requests
+  app.use("/v1", (_request, response) => {
+    sendProblem(response, 404, "not_found", "error.not_found");
+  });
+
+  // Serve static UI assets when available (local dev & production standalone)
+  const widgetDist = [
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../widget/dist",
+    ),
+    path.resolve(
+      path.dirname(fileURLToPath(import.meta.url)),
+      "../../../packages/widget/dist",
+    ),
+  ].find((candidate) => existsSync(candidate));
+  if (widgetDist) {
+    app.get(["/sim/sms", "/sim/sms/"], (_req, res) => {
+      res.sendFile(path.join(widgetDist, "sim", "sms", "index.html"));
+    });
+    app.get(["/helper", "/helper/"], (_req, res) => {
+      res.sendFile(path.join(widgetDist, "helper.html"));
+    });
+    app.use(express.static(widgetDist));
+  }
 
   app.use((_request, response) => {
     sendProblem(response, 404, "not_found", "error.not_found");

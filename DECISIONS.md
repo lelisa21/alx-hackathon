@@ -14,6 +14,34 @@ decision register is authoritative for architectural choices.
   language, citation, and Simple-mode evaluation remain required before live
   status or voice support.
 
+## User-requested accessibility entry point (15 November 2026)
+
+- **Scope:** FR-HOME-ACCESS-01–04, NFR-HOME-A11Y-01, with the existing
+  FR-UI-01/06 and NFR-A11Y-01–04 accessibility principles. The user then
+  authorized the bounded Savanna follow-up FR-SAV-ACCESS-01–03 and
+  NFR-SAV-A11Y-01, using FR-INT-01/02/03/11.
+- **Decision:** The actual static deployment root will publish the Dimts public
+  homepage and its visible, text-labeled access guide. The guide offers normal
+  semantic destination links and optional browser speech navigation. Voice is
+  an alternate route, never a prerequisite.
+- **Language/capability boundary:** Requested recognition locales are en-US,
+  am-ET, om-ET and ti-ET. Recognition appears only when the browser exposes the
+  API. These language packs are currently beta/draft and do not declare STT;
+  browser availability and native-speaker intelligibility remain unverified.
+  Do not claim four-language voice acceptance until those reviews pass.
+- **Localized copy:** Added access-guide UI keys to the en/am/om/ti packs and
+  the ar-test fixture. The non-English entries remain draft and require
+  language-lead/native-speaker review; they do not change pack publication or
+  voice capability metadata.
+- **Privacy/accessibility:** Start recognition only on explicit activation
+  after disclosing possible browser speech-service processing. Dimts receives
+  and retains no audio or transcript. Show and announce listening, transcript,
+  result and error states. Every route remains visible, keyboard-operable and
+  screen-reader accessible with sound off.
+- **Out of scope:** No assistant behavior or API contract change and no
+  modification to the frozen Savanna capture files. Savanna receives the guide
+  through the existing one-script host-loader integration.
+
 ## P08 — local Telegram polling (14 November 2026)
 
 - **Requirements:** FR-TG-01–12 and NFR-SEC local-versus-production channel
@@ -1478,3 +1506,22 @@ Telegram bot: 44/44 API checks and 18/18 browser checks (phone and desktop).
 - **Gemini control:** Gemini 3.8 Flash rejects `thinking_level: "minimal"`; send `low` for Gemini 3.8+ in text and cloud transcription requests. A live synthetic ask timed out on Gemini 3.8, then returned a cited answer through Gemini 3.6. Make Gemini 3.6 first for text and transcription, followed by 3.5 Flash-Lite and 3.1 Flash-Lite; keep OpenRouter/offline fallback and the consent boundary.
 - **Routes and deployment config:** Preserve the static `/sim/sms` and `/helper` entries; normalize their trailing-slash variants. Render environment entries must use valid YAML mapping syntax (`key: NAME`).
 - **Verified acceptance:** Docker rebuilt and started the API/widget images. `/sim/sms`, `/helper` and their JS bundles return 200; slash variants return 308. `/v1/languages` includes Tigrinya (`ti`, beta). Focused Gemini/voice, route, engine, SMS simulator, Tigrinya picker, helper, chat layout, 320px/200% text/RTL, and 17 widget axe cases pass. A consented synthetic ask returned a cited answer through the Gemini 3.6 fallback; its temporary session was deleted. After reconfiguration, a consented synthetic English ask returned a cited answer with `gemini` (Gemini 3.6) active; the temporary session was deleted. Multilingual quality and latency remain unverified.
+
+## Direct database fallback and standalone static UI serving (15 November 2026)
+
+- **Requirements:** FR-SMS-01/02, FR-UI-01–15, NFR-OPS-01/02, NFR-SEC-01.
+- **Direct database connection resolution:** In `migrate.ts` and `local-bootstrap.ts`, derive the direct migration connection string from `DATABASE_URL` (stripping `-pooler.` for Neon pooling compatibility) whenever `DATABASE_URL_DIRECT` is empty or left as the placeholder `replace-with-a-local-password`.
+- **Diagnostic logging:** Log the underlying error reason in `jobs_cleanup_failed` and `help_image_cleanup_failed` instead of swallowing the exception, preventing silent database failure states.
+- **Standalone UI serving:** When `packages/widget/dist` is present, the API server on port 3000 directly serves `/` (the live Bridgely learner interactive MVP with the mounted assistant), `/sim/sms` (SMS simulator), `/helper` (helper console), and built static bundles. Dedicated API 404 behavior is retained for `/v1/*` routes.
+- **Template generation:** `scripts/build-templates.mjs` generates `packages/widget/dist/index.html` and `Bridgely-host.js` from their respective templates with `LOCAL_WIDGET_KEY` interpolated, ensuring the live chat assistant is functional both inside Docker and standalone.
+
+## SMS Gateway Secret, Express 5 Route and UI Integration Fix (15 November 2026)
+
+- **Requirements:** FR-SMS-01/02, FR-UI-01–08, NFR-OPS-01, NFR-SEC-01.
+- **Express 5 path compatibility:** Replaced deprecated `app.all("/v1/*")` with `app.use("/v1", ...)` prefix middleware to fix `PathError: Missing parameter name at index 5: /v1/*` introduced by `path-to-regexp` v8 in Express 5.
+- **SMS simulator resilience:**
+  - Phone number normalization converts local Ethiopian formats (`09...`, `07...`, `251...`) to E.164 (`+251...`), preventing validation rejection before dispatch.
+  - Increased `smsPool` connection timeout from 500 ms to 15,000 ms in `sms-runtime.ts` to accommodate network latency to managed PostgreSQL instances (Neon).
+- **Static widget dist resolution:** Corrected `packages/api/src/app.ts` to resolve `../../widget/dist` relative to the compiled API server.
+- **URL hostname normalization:** Updated SMS simulator test expectations to match RFC 3986 / WHATWG lowercased origin format (`https://bridgely.test`).
+- **Verified acceptance:** Monorepo build, language pack check, SMS simulator tests, evaluation runner, and Express router tests pass. Live multi-turn SMS exchange verified.

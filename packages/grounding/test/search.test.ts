@@ -4,6 +4,7 @@ import {
   rankPassages,
   retrievalLanguages,
 } from "../src/search.js";
+import { normalise } from "../src/normalise.js";
 import type { SearchCandidate } from "../src/search.js";
 
 const candidate = (
@@ -79,6 +80,29 @@ describe("multilingual grounding search", () => {
     expect(
       rankPassages("?!", "en", [candidate({ id: "empty", lang: "en" })], []),
     ).toEqual([]);
+  });
+
+  it("does not pass a partial Tigrinya match for an unsupported duration", () => {
+    const text =
+      "ምስ ሰሙንኩም ዝሰማምዑ ቁሩባት ሓጸርቲ ናይ መጽናዕቲ ግዜታት ምረጹ። ነፍሲ ወከፍ ግዜ ኣብ ካሌንደርኩም ኣስፍሩ። ንምዕራፍን ንምድጋምን ኣብ መንጎ ክፍለ ግዜታት ክፍተት ግደፉ።";
+    const lessonTitle = "መደብ መጽናዕቲ ምድላው";
+    const sectionTitle = "ንእሽቶ ናይ መጽናዕቲ ሰዓታት ብኸመይ እዳሉ?";
+    const results = rankPassages(
+      "ነፍሲ ወከፍ ክፍለ ግዜ መጽናዕቲ ክንደይ ደቒቕ ክወስድ ኣለዎ?",
+      "ti",
+      [
+        candidate({
+          id: "study-plan-schedule",
+          lang: "ti",
+          text,
+          textNorm: normalise(`${lessonTitle} ${sectionTitle} ${text}`, "ti"),
+          label: `${lessonTitle} / ${sectionTitle}`,
+        }),
+      ],
+      [],
+    );
+
+    expect(results[0]?.score ?? 0).toBeLessThan(0.6);
   });
 
   it("uses deterministic language and ID tie-breaking and bounds result limits", () => {

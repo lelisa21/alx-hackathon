@@ -2,6 +2,113 @@
 
 Updated: 15 November 2026.
 
+## P12 — Dimts public homepage access guide; implemented increment, acceptance open
+
+Requirements quoted before implementation: FR-HOME-ACCESS-01–04 and
+NFR-HOME-A11Y-01; accessibility principles FR-UI-01/06 and NFR-A11Y-01–04.
+Savanna integration is recorded as the P12b follow-up below.
+
+**Implemented:**
+
+- Added a Vite hook to emit the existing homepage template as root `index.html`,
+  substitute configured public API/widget values, and emit guide labels from
+  en/am/om/ti locale packs. The production Vite build completed with the runner
+  config loader; generated assets include the root page, shared runtime,
+  stylesheet, and locale JSON. New non-English guide strings remain draft and
+  are not native-speaker approved.
+
+**Verified acceptance evidence:**
+
+- `packages/widget/e2e/home-access.spec.ts`: **17 tests passed** against the
+  generated homepage. Coverage includes keyboard opening, visible in-viewport
+  welcome, destination routes, localized spoken welcome/replay/stop for all four
+  selected speech tags, natural phrasing/synonyms/punctuation, a transposed word,
+  ambiguity, empty speech, permission errors, speech-output fallback, and axe in
+  closed and open states, 320px link bounds, four recognition locale choices,
+  unsupported-browser fallback, explicit start/stop, and a visible transcript.
+- Scoped ESLint, Stylelint, locale validation, `node scripts/no-literal-strings.mjs`,
+  and `git diff --check` passed. A full workspace `tsc -b` remains blocked by
+  API package contract errors listed below.
+
+**Acceptance remains open:**
+
+- The package-manager entrypoint could not start because pnpm could not open
+  its global lock. Direct Vite builds completed using `--configLoader runner`;
+  hosted Docker/nginx deployment has not been exercised end-to-end.
+- Browser speech recognition and synthesis availability and destination
+  intelligibility for en/am/om/ti require real-device and native-speaker testing.
+  Automated speech/navigation tests use mocked browser recognition. Locale packs
+  currently declare STT false; no four-language voice claim is made.
+- Co-designer, NVDA/TalkBack, hosted static deployment, and final WCAG review
+  remain outstanding.
+
+### Voice destination failure investigation (15 November 2026)
+
+Requirements: FR-HOME-ACCESS-03 and FR-SAV-ACCESS-03.
+
+- **Root cause:** the browser Web Speech API was configured without
+  `maxAlternatives` (default one), and the result handler always resolved only
+  `results[last][0]`. A recognition error in the top hypothesis therefore
+  discarded any lower-ranked hypothesis that correctly named an available
+  destination. The destination matcher is frontend-only; there is no backend
+  transcription API or server-side navigation request in this flow.
+- **Implemented:** request up to five ASR alternatives; normalize and resolve
+  every candidate against the active homepage/Savanna destination list; select
+  the best unique destination match; preserve ambiguity/empty/error feedback.
+  Added opt-in `DIMTS_ACCESS_DEBUG` stage diagnostics for locale, alternative
+  counts and lengths, resolution outcomes, route/action and safe browser error
+  codes. Diagnostics never contain recognized text.
+- **Verified:** 25/25 focused Playwright homepage and Savanna tests passed. This
+  includes a lower-ranked valid candidate successfully loading the generated
+  lessons index through `/learn/` and its real redirect to `/learn/en/`, plus
+  invalid, ambiguous, empty and microphone-denied cases. ESLint, Prettier and
+  widget TypeScript build checks passed. Real microphone/browser speech service
+  testing and hosted nginx/Docker verification remain outstanding.
+
+## P12b - Savanna access-guide integration; implemented increment, acceptance open
+
+Requirements quoted before initial implementation: FR-SAV-ACCESS-01-03 and
+NFR-SAV-A11Y-01, with existing FR-INT and NFR-A11Y requirements. The user's
+follow-up added FR-SAV-ACCESS-04 for the narrated welcome.
+
+**Implemented:**
+
+- Reused the homepage's localized, shadow-root access guide through the existing
+  asynchronous host loader. Savanna learners can navigate to page content,
+  open the Dimts assistant, browse lessons, get human help, and view service
+  status. Text destinations and fallback remain available without speech
+  recognition.
+- Fixed the guide panel opening above the top navigation and being obscured by
+  the inline assistant. It now opens below the launcher, stays inside the
+  viewport, and layers above page content so its controls receive clicks.
+- Added a localized first-open welcome that describes destinations and asks
+  where to go. Browser speech synthesis reads it aloud; visible read-aloud and
+  stop controls support replay, and the selected en/am/om/ti tag is used.
+- Fixed the loader's early-return bug: a pre-existing `data-dimts-embed` script
+  previously skipped Access Guide setup. Guide setup now runs independently,
+  with separate guards preventing duplicate guide scripts and duplicate embeds.
+- Frozen Savanna capture HTML and assets remain unchanged; the loader adds the
+  mount and shared script at runtime.
+
+**Verified acceptance evidence:**
+
+- `packages/widget/e2e/savanna-access.spec.ts` verifies the injected loader with
+  a pre-existing host embed and on Savanna landing plus all three frozen learner
+  captures. It checks the guide opens, destinations, assistant integration,
+  320px layout, and critical/serious axe findings. Combined with homepage
+  checks, all 25 homepage and Savanna tests passed.
+- Main Vite build and embed/helper/SMS Vite builds completed. `tsc -b` reports
+  existing `@dimts/ai` exports and Telegram transport contract errors in
+  `packages/api` (e.g. missing provider exports, `setWebhook`, and error `code`).
+- Scoped ESLint, Stylelint, locale and literal-string checks passed. The new
+  regression test failed before the loader fix and passed after it.
+
+**Acceptance remains open:**
+
+- Co-designer, NVDA/TalkBack, real-device speech-input/output and native-speaker
+  review are still needed. Current locale metadata does not assert speech recognition
+  support for the four languages. Hosted Docker/nginx deployment is unverified.
+
 ## UI Redesign — Modern ChatGPT-Inspired Layout (In Progress)
 
 **Scope:** FR-UI-01–05, NFR-A11Y-01–07, NFR-PERF-01–02, FR-LANG-05–08
@@ -10,12 +117,12 @@ Updated: 15 November 2026.
 
 1. **Core responsive CSS improvements** (Commits f9c9767, ec5ab01, 82ed7b7):
    - Mobile keyboard support: Added `env(safe-area-inset-*)` padding to composer and dialogs for notch/rounded-corner phones
-   - Text wrapping: Improved `word-break`, `overflow-wrap`, and `hyphens` for long messages and URLs  
+   - Text wrapping: Improved `word-break`, `overflow-wrap`, and `hyphens` for long messages and URLs
    - Message containers: Set `max-inline-size` with character limits (40-65ch) for readable line lengths
    - Responsive breakpoints: Added specific media queries for 320px, 375px, 480px, 768px, landscape widths
    - Dialog positioning: Enhanced help-backdrop with `env(safe-area-inset-*)` for stable fixed positioning
    - 200% zoom support: Ensured all containers use relative units and flexible sizing with `min()`
-   - Landscape mode: Added `@media (orientation: landscape)` for mobile landscape layouts  
+   - Landscape mode: Added `@media (orientation: landscape)` for mobile landscape layouts
    - Citation styling: Improved `word-break` for long URLs in citations
    - Main container: Used `min(100%, 42rem)` to respect viewport while maintaining max-width
    - Help dialog: Responsive max-height with `min(12rem, 50vh)` and `min(16rem, 40vh)`
@@ -42,14 +149,16 @@ Updated: 15 November 2026.
    - **Settings/Language UI:** 1 commit, proper grid overflow handling, small-screen stacking
 
 **Requirements addressed:**
+
 - ✅ FR-UI-01/02/04: Chat interface clarity and reachability at all widths
-- ✅ NFR-A11Y-01: Readable layout at 200% zoom with no horizontal overflow  
+- ✅ NFR-A11Y-01: Readable layout at 200% zoom with no horizontal overflow
 - ✅ NFR-PERF-01/02: Optimized responsive behavior, maintained bundle budgets
 - ✅ FR-LANG-05: Ethiopic font rendering with proper line lengths
 - ⏳ FR-UI-03/05: Loading/error states and language picker (existing implementation preserved)
 - ⏳ FR-HELP-01–03: Help flows (existing implementation, CSS enhancements applied)
 
 **Known limitations & blockers:**
+
 - Full accessibility testing requires assistive technology (NVDA, TalkBack) on real devices
 - Physical device testing needed for native mobile keyboard behavior
 - Native language review needed for Amharic/Oromo UI text
@@ -57,8 +166,9 @@ Updated: 15 November 2026.
 - SMS simulator and helper console responsive behavior needs manual testing on multiple devices
 
 **Git commit log:**
+
 - f9c9767: feat: improve responsive CSS layout for modern chat experience
-- ec5ab01: feat: enhance settings, language, and accessibility styling  
+- ec5ab01: feat: enhance settings, language, and accessibility styling
 - 82ed7b7: feat: improve help dialog and chat message styling
 
 ## P09 follow-up — instructor insights page and privacy hardening

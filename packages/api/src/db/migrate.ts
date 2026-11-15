@@ -55,11 +55,25 @@ async function applyPendingMigrations(
   return newlyApplied;
 }
 
-async function main(): Promise<void> {
-  const connectionString = process.env.DATABASE_URL_DIRECT;
-  if (!connectionString) {
-    throw new Error("DATABASE_URL_DIRECT is required to run migrations");
+export function resolveDirectConnectionString(): string {
+  let connectionString = process.env.DATABASE_URL_DIRECT?.trim();
+  if (
+    !connectionString ||
+    connectionString.includes("replace-with-a-local-password")
+  ) {
+    connectionString = process.env.DATABASE_URL?.trim();
   }
+  if (!connectionString) {
+    throw new Error(
+      "DATABASE_URL_DIRECT or DATABASE_URL is required to run migrations",
+    );
+  }
+  // If connecting to a Neon pooled host, direct connection is needed for advisory locks & DDL
+  return connectionString.replace("-pooler.", ".");
+}
+
+async function main(): Promise<void> {
+  const connectionString = resolveDirectConnectionString();
   const client = new pg.Client({ connectionString });
   await client.connect();
   try {

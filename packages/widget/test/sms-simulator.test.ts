@@ -6,13 +6,13 @@ import {
 
 describe("P07 FR-SMS-02: simulator transport boundary", () => {
   it("uses the same versioned inbound path for relative and configured API roots", () => {
-    expect(inboundEndpoint("/v1", "https://Bridgely.test/sim/sms")).toBe(
-      "https://Bridgely.test/v1/sms/inbound",
+    expect(inboundEndpoint("/v1", "https://bridgely.test/sim/sms")).toBe(
+      "https://bridgely.test/v1/sms/inbound",
     );
     expect(
-      inboundEndpoint("http://localhost:3000/", "https://Bridgely.test"),
+      inboundEndpoint("http://localhost:3000/", "https://bridgely.test"),
     ).toBe("http://localhost:3000/v1/sms/inbound");
-    expect(inboundEndpoint("https://api.test/v1/", "https://Bridgely.test")).toBe(
+    expect(inboundEndpoint("https://api.test/v1/", "https://bridgely.test")).toBe(
       "https://api.test/v1/sms/inbound",
     );
   });
@@ -26,7 +26,7 @@ describe("P07 FR-SMS-02: simulator transport boundary", () => {
     "https://api.test/other-path",
     "",
   ])("rejects an ambiguous or unsafe API destination: %s", (value) => {
-    expect(() => inboundEndpoint(value, "https://Bridgely.test")).toThrow();
+    expect(() => inboundEndpoint(value, "https://bridgely.test")).toThrow();
   });
 
   it("accepts delivered messages and a permanently stopped empty exchange", () => {

@@ -133,12 +133,20 @@ export class BridgelySmsSimulator extends LitElement {
     if (!this.pending) {
       if (!this.draft.trim()) return;
       try {
-        if (!/^\+[1-9]\d{7,14}$/u.test(this.phone) || !this.secret.trim())
+        let phone = this.phone.trim().replace(/[\s-]/gu, "");
+        if (/^0[79]\d{8}$/u.test(phone)) {
+          phone = `+251${phone.slice(1)}`;
+          this.phone = phone;
+        } else if (/^251[79]\d{8}$/u.test(phone)) {
+          phone = `+${phone}`;
+          this.phone = phone;
+        }
+        if (!/^\+[1-9]\d{7,14}$/u.test(phone) || !this.secret.trim())
           throw new Error("sms configuration");
         const text = normalizeForSms(this.draft);
         this.pending = {
           endpoint: inboundEndpoint(this.api, window.location.href),
-          body: { id: crypto.randomUUID(), from: this.phone, text },
+          body: { id: crypto.randomUUID(), from: phone, text },
         };
         this.messages = [
           ...this.messages,
