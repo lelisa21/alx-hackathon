@@ -11,12 +11,18 @@ describe("FR-SMS-02 exact standalone simulator route", () => {
       "/sim/sms/index.html?lang_preview=1&test=2",
     );
   });
+  it("normalizes the helper trailing-slash URL", () => {
+    expect(simulatorAssetPath("/helper/?lang=en", false)).toBe(
+      "/helper?lang=en",
+    );
+    expect(simulatorAssetPath("/helper/", true)).toBe("/helper");
+  });
   it("serves the same built document and its standalone assets in development", () => {
     expect(simulatorAssetPath("/sim/sms?lang_preview=1", true)).toBe(
       "/dist/sim/sms/index.html?lang_preview=1",
     );
-    expect(simulatorAssetPath("/dimts-sms-simulator.js", true)).toBe(
-      "/dist/dimts-sms-simulator.js",
+    expect(simulatorAssetPath("/bridgely-sms-simulator.js", true)).toBe(
+      "/dist/bridgely-sms-simulator.js",
     );
     expect(
       simulatorAssetPath("/NotoSansEthiopic-ethiopic-400-normal.woff2", true),
@@ -31,7 +37,7 @@ describe("FR-SMS-02 exact standalone simulator route", () => {
     "/v1/sms/inbound",
     "/sim/sms-other",
     "/sim/sms/private",
-    "/dimts-widget.js",
+    "/Bridgely-widget.js",
   ])("leaves unrelated paths unchanged: %s", (path) => {
     expect(simulatorAssetPath(path, false)).toBe(path);
     expect(simulatorAssetPath(path, true)).toBe(path);

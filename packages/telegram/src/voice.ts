@@ -1,5 +1,5 @@
-import { createFileVoiceAdapters, VoiceError } from "@dimts/voice";
-import type { FileVoiceAdapters } from "@dimts/voice";
+import { createFileVoiceAdapters, VoiceError } from "@bridgely/voice";
+import type { FileVoiceAdapters } from "@bridgely/voice";
 import type { TelegramVoiceFile } from "./transport.js";
 
 export interface TelegramVoice {

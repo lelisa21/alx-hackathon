@@ -1,7 +1,7 @@
 // P02 FR-TUTOR-07/08, AR-06: reviewed glossary authorization and whole-term matching.
 import { resolve } from "node:path";
 import { describe, expect, it, vi } from "vitest";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { createEngineDependencies } from "../src/engine.js";
 import type { ApiConfig } from "../src/config.js";
 
@@ -29,8 +29,8 @@ function fixture() {
       answer: vi.fn(),
     },
     config: {
-      DIMTS_CONFIDENCE_FLOOR: 0.6,
-      DIMTS_LANGUAGE_DETECTION_CONFIDENCE: 0.8,
+     CONFIDENCE_FLOOR: 0.6,
+     LANGUAGE_DETECTION_CONFIDENCE: 0.8,
     } as ApiConfig,
   });
   return { packs, pack, search, deps };

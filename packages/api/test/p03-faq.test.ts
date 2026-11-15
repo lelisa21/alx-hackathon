@@ -3,7 +3,7 @@ import { resolve } from "node:path";
 import express from "express";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { createCoreRouter } from "../src/routes/core.js";
 import { buildReviewedFaq } from "../src/faq.js";
 import { LocaleFaqSchema } from "../src/schemas.js";
@@ -130,10 +130,10 @@ describe("P03 reviewed offline FAQ contract", () => {
     const config = parseConfig({
       NODE_ENV: "test",
       DATABASE_URL: "postgres://test:test@localhost/test",
-      DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-      DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-      DIMTS_JWT_SECRET: "a-long-test-signing-secret-with-32-characters",
-      DIMTS_CRON_SECRET: "a-long-test-cron-secret-with-24-characters",
+     ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+     HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+     JWT_SECRET: "a-long-test-signing-secret-with-32-characters",
+     CRON_SECRET: "a-long-test-cron-secret-with-24-characters",
     });
     const app = express();
     app.use(

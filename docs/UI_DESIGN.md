@@ -1,4 +1,4 @@
-# UI Design: Modern, Accessible Chat-Inspired Dimts Interface
+# UI Design: Modern, Accessible Chat-Inspired Bridgely Interface
 
 **Date:** 15 November 2026  
 **Status:** Complete Design (Implementation Ready)  
@@ -11,7 +11,7 @@
 
 ### 1.1 Vision
 
-Transform Dimts from its current fragmented layout into a modern, ChatGPT-inspired interface that:
+Transform Bridgely from its current fragmented layout into a modern, ChatGPT-inspired interface that:
 
 - **Prioritizes clarity:** Clear visual distinction between learner and assistant messages with recognizable chat bubbles, readable line lengths, and consistent spacing
 - **Remains responsive:** Scales gracefully from 320px mobile to 1920px desktop, including landscape orientations, text zoom to 200%, and multiple language scripts
@@ -165,7 +165,7 @@ Define breakpoints as CSS queries, not just pixel widths:
 ```html
 <header role="banner" class="header">
   <div class="header-brand">
-    <svg aria-label="Dimts" class="brand-logo"></svg>
+    <svg aria-label="Bridgely" class="brand-logo"></svg>
     <h1 class="brand-tagline"><!-- locale key: header.tagline --></h1>
   </div>
 
@@ -1657,7 +1657,7 @@ This design refactor does not remove or hide any features:
 
 ## 17. Conclusion
 
-This design transforms Dimts into a modern, accessible chat interface while preserving all existing functionality. It addresses all identified problems through responsive CSS, semantic HTML, ARIA where needed, and comprehensive accessibility support. The design scales from 320px mobile to 1920px desktop, supports text zoom to 200%, and remains compatible with all languages (English, Amharic, Oromo, Arabic RTL test fixture).
+This design transforms Bridgely into a modern, accessible chat interface while preserving all existing functionality. It addresses all identified problems through responsive CSS, semantic HTML, ARIA where needed, and comprehensive accessibility support. The design scales from 320px mobile to 1920px desktop, supports text zoom to 200%, and remains compatible with all languages (English, Amharic, Oromo, Arabic RTL test fixture).
 
 Implementation should follow the phased approach outlined in section 13.3, with testing at each phase using the checklist in section 12.
 

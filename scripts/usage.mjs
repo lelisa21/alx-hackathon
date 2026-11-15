@@ -59,9 +59,9 @@ async function main() {
     throw new Error(
       "DATABASE_URL_DIRECT is required to report database usage.",
     );
-  const budgetMb = Number(process.env.DIMTS_DB_BUDGET_MB ?? "600");
+  const budgetMb = Number(process.env.DB_BUDGET_MB ?? "600");
   if (!Number.isFinite(budgetMb) || budgetMb <= 0)
-    throw new Error("DIMTS_DB_BUDGET_MB must be a positive number.");
+    throw new Error("DB_BUDGET_MB must be a positive number.");
 
   const client = new Client({ connectionString });
   await client.connect();

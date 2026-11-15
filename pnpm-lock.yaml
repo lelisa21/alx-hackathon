@@ -53,7 +53,7 @@ importers:
 
   packages/ai:
     dependencies:
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
       '@google/genai':
@@ -74,31 +74,31 @@ importers:
       '@asteasolutions/zod-to-openapi':
         specifier: ^9.1.0
         version: 9.1.0(zod@4.6.7)
-      '@dimts/ai':
+      '@bridgely/ai':
         specifier: workspace:*
         version: link:../ai
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
-      '@dimts/grounding':
+      '@bridgely/grounding':
         specifier: workspace:*
         version: link:../grounding
-      '@dimts/insights':
+      '@bridgely/insights':
         specifier: workspace:*
         version: link:../insights
-      '@dimts/jobs':
+      '@bridgely/jobs':
         specifier: workspace:*
         version: link:../jobs
-      '@dimts/locales-tools':
+      '@bridgely/locales-tools':
         specifier: workspace:*
         version: link:../locales-tools
-      '@dimts/lti':
+      '@bridgely/lti':
         specifier: workspace:*
         version: link:../lti
-      '@dimts/sms':
+      '@bridgely/sms':
         specifier: workspace:*
         version: link:../sms
-      '@dimts/telegram':
+      '@bridgely/telegram':
         specifier: workspace:*
         version: link:../telegram
       compression:
@@ -177,22 +177,22 @@ importers:
 
   packages/eval:
     dependencies:
-      '@dimts/ai':
+      '@bridgely/ai':
         specifier: workspace:*
         version: link:../ai
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
-      '@dimts/grounding':
+      '@bridgely/grounding':
         specifier: workspace:*
         version: link:../grounding
-      '@dimts/locales-tools':
+      '@bridgely/locales-tools':
         specifier: workspace:*
         version: link:../locales-tools
 
   packages/grounding:
     dependencies:
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
       linkedom:
@@ -211,7 +211,7 @@ importers:
 
   packages/help:
     dependencies:
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
       ws:
@@ -234,7 +234,7 @@ importers:
 
   packages/jobs:
     dependencies:
-      '@dimts/grounding':
+      '@bridgely/grounding':
         specifier: workspace:*
         version: link:../grounding
       pg:
@@ -262,7 +262,7 @@ importers:
 
   packages/sms:
     dependencies:
-      '@dimts/jobs':
+      '@bridgely/jobs':
         specifier: workspace:*
         version: link:../jobs
       pg:
@@ -275,13 +275,13 @@ importers:
 
   packages/telegram:
     dependencies:
-      '@dimts/engine':
+      '@bridgely/engine':
         specifier: workspace:*
         version: link:../engine
-      '@dimts/jobs':
+      '@bridgely/jobs':
         specifier: workspace:*
         version: link:../jobs
-      '@dimts/voice':
+      '@bridgely/voice':
         specifier: workspace:*
         version: link:../voice
       grammy:
@@ -302,13 +302,13 @@ importers:
 
   packages/widget:
     dependencies:
-      '@dimts/help':
+      '@bridgely/help':
         specifier: workspace:*
         version: link:../help
-      '@dimts/sms':
+      '@bridgely/sms':
         specifier: workspace:*
         version: link:../sms
-      '@dimts/voice':
+      '@bridgely/voice':
         specifier: workspace:*
         version: link:../voice
       intl-messageformat:

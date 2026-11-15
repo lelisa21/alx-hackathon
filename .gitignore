@@ -15,3 +15,6 @@ playwright-report/
 test-results/
 .turbo/
 .lti-demo-key.pem
+
+.pnpm-store/
+node_modules/

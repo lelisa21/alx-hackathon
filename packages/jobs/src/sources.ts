@@ -38,7 +38,7 @@ export interface JobSource {
 
 type Fetch = typeof fetch;
 
-const DEFAULT_USER_AGENT = "DimtsJobsBot/0.1";
+const DEFAULT_USER_AGENT = "BridgelyJobsBot/0.1";
 
 function isJobPosting(value: unknown): value is Record<string, unknown> {
   if (typeof value !== "object" || value === null || Array.isArray(value))

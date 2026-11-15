@@ -11,7 +11,7 @@ import { parseConfig } from "../src/config.js";
 const platform = {
   platformId: "savanna",
   issuer: "https://lms.example.org",
-  clientId: "dimts-client",
+  clientId: "Bridgely-client",
   authLoginUrl: "https://lms.example.org/oidc/login",
   authTokenUrl: "https://lms.example.org/oidc/token",
   jwksUri: "https://lms.example.org/.well-known/jwks.json",
@@ -21,13 +21,13 @@ const platform = {
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
-  DIMTS_LTI_PLATFORMS: JSON.stringify([platform]),
-  DIMTS_LTI_WIDGET_URL: "https://assets.example.org/dimts-widget.js",
-  DIMTS_LTI_WIDGET_KEY: "lti-widget-public-id",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ LTI_PLATFORMS: JSON.stringify([platform]),
+ LTI_WIDGET_URL: "https://assets.example.org/Bridgely-widget.js",
+ LTI_WIDGET_KEY: "lti-widget-public-id",
 };
 
 afterEach(() => vi.unstubAllGlobals());
@@ -107,14 +107,14 @@ describe("LTI 1.3 browser flow", () => {
     try {
       const response = await request(app)
         .post("/v1/lti/login")
-        .set("Host", "dimts-api.example.org")
+        .set("Host", "Bridgely-api.example.org")
         .set("X-Forwarded-Proto", "https")
         .type("form")
         .send({
           iss: platform.issuer,
           login_hint: "hint-1",
           lti_message_hint: "msg-1",
-          target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+          target_link_uri: "https://Bridgely-api.example.org/v1/lti/launch",
           lti_deployment_id: platform.deploymentId,
         });
       expect(response.status).toBe(302);
@@ -126,7 +126,7 @@ describe("LTI 1.3 browser flow", () => {
         response_mode: "form_post",
         prompt: "none",
         client_id: platform.clientId,
-        redirect_uri: "https://dimts-api.example.org/v1/lti/launch",
+        redirect_uri: "https://Bridgely-api.example.org/v1/lti/launch",
         login_hint: "hint-1",
         lti_message_hint: "msg-1",
       });
@@ -145,7 +145,7 @@ describe("LTI 1.3 browser flow", () => {
         iss: platform.issuer,
         client_id: platform.clientId,
         login_hint: "hint-1",
-        target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+        target_link_uri: "https://Bridgely-api.example.org/v1/lti/launch",
       });
       expect(response.status).toBe(302);
     } finally {
@@ -160,7 +160,7 @@ describe("LTI 1.3 browser flow", () => {
       const login = await request(app).get("/v1/lti/login").query({
         iss: platform.issuer,
         login_hint: "hint-1",
-        target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+        target_link_uri: "https://Bridgely-api.example.org/v1/lti/launch",
       });
       const redirect = new URL(login.headers.location!);
       const state = redirect.searchParams.get("state")!;
@@ -173,10 +173,10 @@ describe("LTI 1.3 browser flow", () => {
 
       expect(launch.status).toBe(200);
       expect(launch.headers["content-type"]).toMatch(/text\/html/u);
-      expect(launch.text).toContain("<dimts-assistant");
+      expect(launch.text).toContain("<bridgely-assistant");
       expect(launch.text).toContain('data-host-key="lti-widget-public-id"');
       expect(launch.text).toContain(
-        'src="https://assets.example.org/dimts-widget.js"',
+        'src="https://assets.example.org/Bridgely-widget.js"',
       );
       expect(launch.text).not.toContain(idToken);
       expect(launch.headers["x-frame-options"]).toBeUndefined();
@@ -200,7 +200,7 @@ describe("LTI 1.3 browser flow", () => {
       const login = await request(app).get("/v1/lti/login").query({
         iss: platform.issuer,
         login_hint: "hint-instructor",
-        target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+        target_link_uri: "https://Bridgely-api.example.org/v1/lti/launch",
       });
       const redirect = new URL(login.headers.location!);
       const idToken = await signedToken(
@@ -210,17 +210,17 @@ describe("LTI 1.3 browser flow", () => {
 
       const launch = await request(app)
         .post("/v1/lti/launch")
-        .set("Host", "dimts-api.example.org")
+        .set("Host", "Bridgely-api.example.org")
         .set("X-Forwarded-Proto", "https")
         .type("form")
         .send({ id_token: idToken, state: redirect.searchParams.get("state") });
 
       expect(launch.status).toBe(200);
-      expect(launch.text).toContain("<dimts-insights");
+      expect(launch.text).toContain("<bridgely-insights");
       expect(launch.text).toContain(
-        'data-api="https://dimts-api.example.org/v1"',
+        'data-api="https://Bridgely-api.example.org/v1"',
       );
-      expect(launch.text).not.toContain("<dimts-assistant");
+      expect(launch.text).not.toContain("<bridgely-assistant");
       expect(launch.text).not.toContain('data-host-key="lti-widget-public-id"');
       const session = vi.mocked(repository.createSession).mock.calls[0]?.[0];
       expect(session?.ltiContext?.insightsAccess).toBe(true);
@@ -241,7 +241,7 @@ describe("LTI 1.3 browser flow", () => {
         iss: platform.issuer,
         client_id: platform.clientId,
         login_hint: "hint-1",
-        target_link_uri: "https://dimts-api.example.org/v1/lti/launch",
+        target_link_uri: "https://Bridgely-api.example.org/v1/lti/launch",
       });
       expect(login.status).toBe(200);
       expect(login.body.state).toEqual(expect.any(String));
@@ -252,13 +252,13 @@ describe("LTI 1.3 browser flow", () => {
 
   it("requires both widget settings together", () => {
     expect(() =>
-      parseConfig({ ...environment, DIMTS_LTI_WIDGET_KEY: "" }),
-    ).toThrow(/DIMTS_LTI_WIDGET/u);
+      parseConfig({ ...environment,LTI_WIDGET_KEY: "" }),
+    ).toThrow(/LTI_WIDGET/u);
     expect(() =>
       parseConfig({
         ...environment,
-        DIMTS_LTI_WIDGET_URL: "http://assets.example.org/dimts-widget.js",
+       LTI_WIDGET_URL: "http://assets.example.org/Bridgely-widget.js",
       }),
-    ).toThrow(/DIMTS_LTI_WIDGET_URL/u);
+    ).toThrow(/LTI_WIDGET_URL/u);
   });
 });

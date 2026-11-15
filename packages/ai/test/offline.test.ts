@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { OfflineProvider } from "../src/offline.js";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 
 const request: AnswerRequest = {
   question: "How do I make a study plan?",

@@ -7,8 +7,8 @@ export default defineConfig({
     lib: {
       entry: "src/embed.ts",
       formats: ["iife"],
-      name: "DimtsEmbed",
-      fileName: () => "dimts-embed.js",
+      name: "BridgelyEmbed",
+      fileName: () => "bridgely-embed.js",
     },
   },
 });

@@ -13,9 +13,9 @@ export function nextUtcRun(hour, minute, now = new Date()) {
 }
 
 async function runJob(name, path) {
-  const baseUrl = process.env.DIMTS_SCHEDULER_API_URL ?? "http://api:3000";
-  const secret = process.env.DIMTS_CRON_SECRET;
-  if (!secret) throw new Error("DIMTS_CRON_SECRET is required.");
+  const baseUrl = process.env.SCHEDULER_API_URL ?? "http://api:3000";
+  const secret = process.env.CRON_SECRET;
+  if (!secret) throw new Error("CRON_SECRET is required.");
 
   const response = await fetch(new URL(path, baseUrl), {
     method: "POST",

@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
-import { parseTelegramUpdate } from "@dimts/telegram";
-import { loadPacks, type LangPack } from "@dimts/locales-tools";
+import { parseTelegramUpdate } from "@bridgely/telegram";
+import { loadPacks, type LangPack } from "@bridgely/locales-tools";
 import type { ApiConfig } from "../config.js";
 import { TelegramProblemSchema } from "../telegram-schemas.js";
 
@@ -36,9 +36,9 @@ export function createTelegramRouter(options: {
     const { config } = options;
     if (
       !options.service ||
-      !config.DIMTS_TELEGRAM_TOKEN ||
-      !config.DIMTS_TELEGRAM_SECRET ||
-      config.DIMTS_TELEGRAM_MODE !== "webhook"
+      !config.TELEGRAM_TOKEN ||
+      !config.TELEGRAM_SECRET ||
+      config.TELEGRAM_MODE !== "webhook"
     ) {
       problem(response, 503, "internal");
       return;
@@ -46,7 +46,7 @@ export function createTelegramRouter(options: {
     const supplied = Buffer.from(
       request.header("X-Telegram-Bot-Api-Secret-Token") ?? "",
     );
-    const expected = Buffer.from(config.DIMTS_TELEGRAM_SECRET);
+    const expected = Buffer.from(config.TELEGRAM_SECRET);
     if (
       supplied.length !== expected.length ||
       !timingSafeEqual(supplied, expected)

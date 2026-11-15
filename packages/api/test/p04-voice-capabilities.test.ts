@@ -5,8 +5,8 @@ import express from "express";
 import request from "supertest";
 import { describe, expect, it } from "vitest";
 import { parse } from "yaml";
-import { loadPacks } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import { parseConfig } from "../src/config.js";
 import { createCoreRouter } from "../src/routes/core.js";
 import { LanguageListSchema, LanguageSchema } from "../src/schemas.js";
@@ -17,14 +17,14 @@ const packs = loadPacks(resolve("locales"));
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "a-long-test-signing-secret-with-32-characters",
-  DIMTS_CRON_SECRET: "a-long-test-cron-secret-with-24-characters",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "a-long-test-signing-secret-with-32-characters",
+ CRON_SECRET: "a-long-test-cron-secret-with-24-characters",
 };
 const browserEngines = {
-  DIMTS_STT_ENGINE: "browser",
-  DIMTS_TTS_ENGINE: "browser",
+ STT_ENGINE: "browser",
+ TTS_ENGINE: "browser",
 };
 const unavailable = { stt: false, tts: false, voice: null };
 const browserVoice = { engine: "browser", bcp_tag: "en-US" };
@@ -69,15 +69,15 @@ async function language(pack = reviewed(), engines = browserEngines) {
 describe("P04 engine configuration", () => {
   it("defaults both directions to none and accepts only the supported browser adapter", () => {
     expect(parseConfig(environment)).toMatchObject({
-      DIMTS_STT_ENGINE: "none",
-      DIMTS_TTS_ENGINE: "none",
+     STT_ENGINE: "none",
+     TTS_ENGINE: "none",
     });
     expect(parseConfig({ ...environment, ...browserEngines })).toMatchObject(
       browserEngines,
     );
   });
 
-  it.each(["DIMTS_STT_ENGINE", "DIMTS_TTS_ENGINE"])(
+  it.each(["STT_ENGINE", "TTS_ENGINE"])(
     "rejects unsupported %s at startup without claiming server support",
     (key) => {
       for (const value of ["whisper", "piper", "cloud", "Browser", "", null])
@@ -122,8 +122,8 @@ describe("P04 language capability publication", () => {
     async (sttEngine, ttsEngine, stt, tts) => {
       expect(
         await language(reviewed(), {
-          DIMTS_STT_ENGINE: sttEngine,
-          DIMTS_TTS_ENGINE: ttsEngine,
+         STT_ENGINE: sttEngine,
+         TTS_ENGINE: ttsEngine,
         }),
       ).toMatchObject({ stt, tts, voice: stt || tts ? browserVoice : null });
     },

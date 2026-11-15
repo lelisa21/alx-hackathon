@@ -1,17 +1,17 @@
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { OfflineProvider } from "@dimts/ai";
-import type { AnswerRequest, AskDependencies, ReplyKind } from "@dimts/engine";
-import { ask, isAnswerInLanguage } from "@dimts/engine";
+import { OfflineProvider } from "@bridgely/ai";
+import type { AnswerRequest, AskDependencies, ReplyKind } from "@bridgely/engine";
+import { ask, isAnswerInLanguage } from "@bridgely/engine";
 import {
   parseJobPostingPassages,
   rankPassages,
   sourceHash,
   toPassages,
-} from "@dimts/grounding";
-import type { SearchCandidate } from "@dimts/grounding";
-import { loadPacks, translate, validatePacks } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+} from "@bridgely/grounding";
+import type { SearchCandidate } from "@bridgely/grounding";
+import { loadPacks, translate, validatePacks } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import {
   evaluateObservations,
   evaluateSourcePairs,

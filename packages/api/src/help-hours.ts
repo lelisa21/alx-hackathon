@@ -1,6 +1,6 @@
 import type { ApiConfig } from "./config.js";
 
-type HelperHours = NonNullable<ApiConfig["DIMTS_HELPER_HOURS"]>;
+type HelperHours = NonNullable<ApiConfig["HELPER_HOURS"]>;
 
 export function nextHelperOpening(
   hours: HelperHours | undefined,

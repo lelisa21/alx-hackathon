@@ -5,7 +5,7 @@ import {
   type SourcePage,
   type SourceResource,
   type SourceSyncStore,
-} from "@dimts/grounding";
+} from "@bridgely/grounding";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import type { ApiRepository } from "../src/types.js";
@@ -19,10 +19,10 @@ const secrets = [
 const validEnv = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: secrets[0],
-  DIMTS_HASH_KEY: secrets[1],
-  DIMTS_JWT_SECRET: secrets[2],
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ ENC_KEY: secrets[0],
+ HASH_KEY: secrets[1],
+ JWT_SECRET: secrets[2],
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
 };
 
 const repository: ApiRepository = {
@@ -74,7 +74,7 @@ function sourceDocument(sourceId: string): SourceDocument {
 function parseWithSources(sources: unknown) {
   return parseConfig({
     ...validEnv,
-    DIMTS_PUBLIC_SOURCES: JSON.stringify(sources),
+   PUBLIC_SOURCES: JSON.stringify(sources),
   });
 }
 
@@ -93,11 +93,11 @@ describe("API content-source runtime", () => {
       },
     ];
 
-    expect(parseWithSources(sources).DIMTS_PUBLIC_SOURCES).toEqual(sources);
-    expect(parseConfig(validEnv).DIMTS_PUBLIC_SOURCES).toEqual([]);
-    expect(parseConfig(validEnv).DIMTS_SOURCE_SYNC_INTERVAL_MS).toBe(300_000);
+    expect(parseWithSources(sources).PUBLIC_SOURCES).toEqual(sources);
+    expect(parseConfig(validEnv).PUBLIC_SOURCES).toEqual([]);
+    expect(parseConfig(validEnv).SOURCE_SYNC_INTERVAL_MS).toBe(300_000);
     expect(() => parseWithSources("{not-json")).toThrow(
-      /DIMTS_PUBLIC_SOURCES/u,
+      /PUBLIC_SOURCES/u,
     );
     expect(() =>
       parseWithSources([
@@ -106,19 +106,19 @@ describe("API content-source runtime", () => {
     ).toThrow(/HTTPS/u);
     expect(() =>
       parseWithSources([{ ...sources[0], sitemapUrl: "not-a-url" }]),
-    ).toThrow(/DIMTS_PUBLIC_SOURCES/u);
+    ).toThrow(/PUBLIC_SOURCES/u);
     expect(() => parseWithSources([{ ...sources[0], pageSize: 101 }])).toThrow(
       /pageSize/u,
     );
     expect(() =>
-      parseConfig({ ...validEnv, DIMTS_SOURCE_SYNC_INTERVAL_MS: "500" }),
-    ).toThrow(/DIMTS_SOURCE_SYNC_INTERVAL_MS/u);
+      parseConfig({ ...validEnv,SOURCE_SYNC_INTERVAL_MS: "500" }),
+    ).toThrow(/SOURCE_SYNC_INTERVAL_MS/u);
     expect(() =>
       parseConfig({
         ...validEnv,
-        DIMTS_SOURCE_SYNC_INTERVAL_MS: "86400001",
+       SOURCE_SYNC_INTERVAL_MS: "86400001",
       }),
-    ).toThrow(/DIMTS_SOURCE_SYNC_INTERVAL_MS/u);
+    ).toThrow(/SOURCE_SYNC_INTERVAL_MS/u);
     expect(() => parseWithSources([sources[0], sources[0]])).toThrow(/unique/u);
   });
 

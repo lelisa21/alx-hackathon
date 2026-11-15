@@ -164,7 +164,7 @@ export class SimulatedSmsGateway implements SmsGateway {
     return receipt.status;
   }
 }
-export const SMS_GATEWAY_VERSION = "dimts.sms.gateway.v1";
+export const SMS_GATEWAY_VERSION = "Bridgely.sms.gateway.v1";
 /** Operator bridge protocol, not an assertion that any operator is configured. */
 export class AfromessageSmsGateway implements SmsGateway {
   private readonly url: string;

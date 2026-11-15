@@ -1,10 +1,10 @@
-import { formatDate, resolveUi, translate } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+import { formatDate, resolveUi, translate } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type {
   AccommodationNeed,
   JobsServiceOptions,
   PublicJob,
-} from "@dimts/jobs";
+} from "@bridgely/jobs";
 
 const needLabels: Record<AccommodationNeed, string> = {
   sign_language_interpreter: "sign_language",

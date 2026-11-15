@@ -18,7 +18,7 @@ export function renderDocsPage(options: {
 }): string {
   const api = escapeHtml(options.apiBase);
   const widget = escapeHtml(
-    options.widgetUrl ?? "https://YOUR-WIDGET-ASSETS-HOST/dimts-widget.js",
+    options.widgetUrl ?? "https://YOUR-WIDGET-ASSETS-HOST/Bridgely-widget.js",
   );
   const code = (value: string) => `<pre><code>${value}</code></pre>`;
 
@@ -27,7 +27,7 @@ export function renderDocsPage(options: {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Dimts integration guide</title>
+<title>Bridgely integration guide</title>
 <link rel="icon" href="data:,">
 <style>
 :root{--bg:#f4f7f8;--surface:#fff;--text:#14232b;--muted:#4a5f69;--primary:#164e63;--accent:#e0f0f3;--border:#d3dee3;--code:#0f1b2d;--code-text:#e8f1f4}
@@ -75,7 +75,7 @@ footer{color:var(--muted);padding-block:1rem 3rem}
 </head>
 <body>
 <header><div class="wrap">
-<h1>Dimts integration guide</h1>
+<h1>Bridgely integration guide</h1>
 <p>Add the multilingual tutor to your learning platform. It answers in English, Amharic and Afaan Oromoo from your own course content, cites the lesson it used, and reaches learners on the web, by voice, SMS and Telegram. Every URL on this page already points at this deployment: <code>${api}</code>.</p>
 </div></header>
 <main class="wrap">
@@ -99,8 +99,8 @@ footer{color:var(--muted);padding-block:1rem 3rem}
 <div>
 <section aria-labelledby="before">
 <h2 id="before">Before you start</h2>
-<p>Ask the Dimts operator for a <strong>host key</strong>. A <em>public</em> key identifies your web page (it is not a secret, but it only works from the origins registered with it). A <em>secret</em> key is for server-to-server calls such as job import and insights; never put it in a browser.</p>
-<p>Operators create keys with <code>pnpm admin host-key</code> (see <code>docs/DEPLOY.md</code>). Each page origin must also be listed in <code>DIMTS_HOST_ORIGINS</code>.</p>
+<p>Ask the Bridgely operator for a <strong>host key</strong>. A <em>public</em> key identifies your web page (it is not a secret, but it only works from the origins registered with it). A <em>secret</em> key is for server-to-server calls such as job import and insights; never put it in a browser.</p>
+<p>Operators create keys with <code>pnpm admin host-key</code> (see <code>docs/DEPLOY.md</code>). Each page origin must also be listed in <code>HOST_ORIGINS</code>.</p>
 </section>
 
 <section aria-labelledby="embed">
@@ -109,19 +109,19 @@ footer{color:var(--muted);padding-block:1rem 3rem}
 <li>Send your page origin (for example <code>https://learn.example.org</code>) to the operator and receive a public host key.</li>
 <li>Paste this where the tutor should appear:
 ${code(`&lt;script type="module" src="${widget}"&gt;&lt;/script&gt;
-&lt;dimts-assistant
+&lt;bridgely-assistant
   data-api="${api}/v1"
   data-host-key="YOUR-PUBLIC-HOST-KEY"
-&gt;&lt;/dimts-assistant&gt;`)}</li>
+&gt;&lt;/bridgely-assistant&gt;`)}</li>
 <li>Open the page. Learners choose a language and start asking questions. Remote AI is used only when the learner allows it.</li>
 </ol>
-<p>Prefer a floating launcher? Use the single asynchronous tag instead. It adds an <q>Open Dimts</q> button and a panel without blocking your page; removing the tag uninstalls it:</p>
-${code(`&lt;script async src="${widget.replace(/dimts-widget\.js$/u, "dimts-embed.js")}"
+<p>Prefer a floating launcher? Use the single asynchronous tag instead. It adds an <q>Open Bridgely</q> button and a panel without blocking your page; removing the tag uninstalls it:</p>
+${code(`&lt;script async src="${widget.replace(/Bridgely-widget\.js$/u, "bridgely-embed.js")}"
   data-api="${api}/v1"
   data-host-key="YOUR-PUBLIC-HOST-KEY"
   data-lang="am"&gt;&lt;/script&gt;`)}
-<p>Your page can then call <code>window.Dimts.open()</code>, <code>close()</code>, <code>setLanguage("om")</code> or <code>escalate()</code>, and listen for <code>dimts:opened</code>, <code>dimts:closed</code>, <code>dimts:language</code> and <code>dimts:escalated</code>. <code>data-lang</code> is optional; without it the learner chooses, starting from their browser language.</p>
-<p class="note">Optional theming: set CSS custom properties such as <code>--dimts-primary</code> on the element. The widget renders in its own shadow root, so your page styles do not leak in.</p>
+<p>Your page can then call <code>window.Bridgely.open()</code>, <code>close()</code>, <code>setLanguage("om")</code> or <code>escalate()</code>, and listen for <code>Bridgely:opened</code>, <code>Bridgely:closed</code>, <code>Bridgely:language</code> and <code>Bridgely:escalated</code>. <code>data-lang</code> is optional; without it the learner chooses, starting from their browser language.</p>
+<p class="note">Optional theming: set CSS custom properties such as <code>--Bridgely-primary</code> on the element. The widget renders in its own shadow root, so your page styles do not leak in.</p>
 </section>
 
 <section aria-labelledby="rest">
@@ -131,7 +131,7 @@ ${code(`&lt;script async src="${widget.replace(/dimts-widget\.js$/u, "dimts-embe
 ${code(`curl -X POST ${api}/v1/sessions \\
   -H "content-type: application/json" \\
   -H "origin: https://learn.example.org" \\
-  -H "x-dimts-key: YOUR-HOST-KEY" \\
+  -H "x-Bridgely-key: YOUR-HOST-KEY" \\
   -d '{"lang":"en"}'`)}
 Keep the returned <code>sessionId</code> and <code>sessionToken</code>. To allow remote AI for this learner, add <code>"cloudOk":true,"consentVersion":"remote-ai-v1"</code> only after they agree.</li>
 <li><strong>Ask a question</strong>:
@@ -180,13 +180,13 @@ ${code(`{
 <section aria-labelledby="lti">
 <h2 id="lti">Level 3: LTI 1.3</h2>
 <ol class="steps">
-<li><strong>Register Dimts as a tool in your LMS</strong> with these values:
+<li><strong>Register Bridgely as a tool in your LMS</strong> with these values:
 <table><tbody>
 <tr><th scope="row">OIDC login / initiation URL</th><td><code>${api}/v1/lti/login</code></td></tr>
 <tr><th scope="row">Redirect URI and target link URI</th><td><code>${api}/v1/lti/launch</code></td></tr>
 <tr><th scope="row">Public keyset</th><td>Not needed for launches (no deep linking or grade passback yet)</td></tr>
 </tbody></table></li>
-<li><strong>Send the platform details to the Dimts operator</strong>, who adds them to <code>DIMTS_LTI_PLATFORMS</code>:
+<li><strong>Send the platform details to the Bridgely operator</strong>, who adds them to <code>LTI_PLATFORMS</code>:
 ${code(`[{
   "platformId": "my-lms",
   "issuer": "https://lms.example.org",
@@ -196,10 +196,10 @@ ${code(`[{
   "jwksUri": "https://lms.example.org/mod/lti/certs.php",
   "deploymentId": "DEPLOYMENT-ID-FROM-YOUR-LMS"
 }]`)}
-The operator also sets <code>DIMTS_LTI_WIDGET_URL</code> and <code>DIMTS_LTI_WIDGET_KEY</code> (a public key whose origins include <code>${api}</code>).</li>
-<li><strong>Add the tool to a course</strong> and open it. The LMS signs the launch; Dimts verifies the signature, issuer, audience, nonce and deployment, then shows the tutor inside the course. Instructors also get access to anonymous insights.</li>
+The operator also sets <code>LTI_WIDGET_URL</code> and <code>LTI_WIDGET_KEY</code> (a public key whose origins include <code>${api}</code>).</li>
+<li><strong>Add the tool to a course</strong> and open it. The LMS signs the launch; Bridgely verifies the signature, issuer, audience, nonce and deployment, then shows the tutor inside the course. Instructors also get access to anonymous insights.</li>
 </ol>
-<p class="note">Dimts never receives learner names or emails from the launch; it keeps only an opaque platform user ID for the session.</p>
+<p class="note">Bridgely never receives learner names or emails from the launch; it keeps only an opaque platform user ID for the session.</p>
 </section>
 
 <section aria-labelledby="channels">
@@ -211,7 +211,7 @@ The operator also sets <code>DIMTS_LTI_WIDGET_URL</code> and <code>DIMTS_LTI_WID
 <div><h3><span class="pill">SMS</span>Gateway or simulator</h3>
 <p>Your gateway posts each inbound text to <code>POST ${api}/v1/sms/inbound</code> with <code>authorization: Bearer GATEWAY-SECRET</code> and body <code>{"id","from","text"}</code>. Replies fit one message (GSM-7 or UCS-2 for Amharic) and paginate with <q>1 for more</q>. HELP, JOBS and STOP work in every language.</p></div>
 <div><h3><span class="pill">Telegram</span>Private bot</h3>
-<p>Register <code>${api}/v1/telegram/webhook</code> with Telegram and the secret in <code>DIMTS_TELEGRAM_SECRET</code>. Learners send <code>/start</code>, choose a language and ask normally. Local development can use polling instead of a public URL.</p></div>
+<p>Register <code>${api}/v1/telegram/webhook</code> with Telegram and the secret in <code>TELEGRAM_SECRET</code>. Learners send <code>/start</code>, choose a language and ask normally. Local development can use polling instead of a public URL.</p></div>
 <div><h3><span class="pill">Help</span>Human helpers</h3>
 <p><code>POST ${api}/v1/help</code> queues a request with the learner's language and, only if they agree, their last three questions. Helpers sign in to the helper console and chat in real time over <code>/v1/help/ws</code>.</p></div>
 </div>
@@ -232,14 +232,14 @@ ${code(`# Scores, progress and graduation
 
 You need a score of 70% or higher. This score earns your course badge.`)}
 Keep sentences short (12 words or fewer): Simple mode and SMS reject longer ones rather than cutting them.</li>
-<li>Ingest. Each passage cites <code>DIMTS_CONTENT_BASE_URL/&lt;lang&gt;/&lt;lesson&gt;#&lt;section&gt;</code>; the local stack renders those pages and re-ingests on start when the files change:
+<li>Ingest. Each passage cites <code>CONTENT_BASE_URL/&lt;lang&gt;/&lt;lesson&gt;#&lt;section&gt;</code>; the local stack renders those pages and re-ingests on start when the files change:
 ${code(`pnpm content:ingest content/savanna --if-changed`)}</li>
 </ol>
 </section>
 
 <section aria-labelledby="languages">
 <h2 id="languages">Language visibility</h2>
-<p>A language pack is <code>live</code>, <code>beta</code> or <code>draft</code>. Draft packs are hidden from learners unless the host lists them in <code>DIMTS_PREVIEW_LANGS</code> (for example <code>am,om,ti</code>), which publishes them as beta. Review-gated features, such as published FAQ answers, cross-language glossary retrieval and voice flags, stay off until a named reviewer is recorded in the pack.</p>
+<p>A language pack is <code>live</code>, <code>beta</code> or <code>draft</code>. Draft packs are hidden from learners unless the host lists them in <code>PREVIEW_LANGS</code> (for example <code>am,om,ti</code>), which publishes them as beta. Review-gated features, such as published FAQ answers, cross-language glossary retrieval and voice flags, stay off until a named reviewer is recorded in the pack.</p>
 </section>
 </div>
 </div>

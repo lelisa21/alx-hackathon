@@ -1,8 +1,8 @@
 import { randomBytes } from "node:crypto";
-import { ask, detectConversationRule } from "@dimts/engine";
-import type { AskDependencies } from "@dimts/engine";
-import { translate } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+import { ask, detectConversationRule } from "@bridgely/engine";
+import type { AskDependencies } from "@bridgely/engine";
+import { translate } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { z } from "zod";
 import type { ApiConfig } from "./config.js";
 import { AskRequestSchema, ReplySchema } from "./schemas.js";
@@ -114,7 +114,7 @@ export function createConversationService(options: {
               await ask(body, askDependencies, {
                 cloudOk: Boolean(
                   consent?.cloudOk &&
-                  consent.consentVersion === config.DIMTS_AI_CONSENT_VERSION,
+                  consent.consentVersion === config.AI_CONSENT_VERSION,
                 ),
               }),
             )

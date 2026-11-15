@@ -27,7 +27,7 @@ export function ownsWorkerRegistration(
         return (
           url.origin === expected.origin &&
           url.pathname === expected.pathname &&
-          url.searchParams.get("owner") === "dimts" &&
+          url.searchParams.get("owner") === "Bridgely" &&
           url.searchParams.get("api") === expected.searchParams.get("api") &&
           Boolean(asset && new URL(asset).origin === expected.origin)
         );

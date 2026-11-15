@@ -106,7 +106,7 @@ function page({ lang, title, description, body, head = "" }) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>${escape(title)} · Dimts</title>
+<title>${escape(title)} · Bridgely</title>
 <meta name="description" content="${escape(description)}">
 <link rel="stylesheet" href="/learn/learn.css">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23164e63'/%3E%3Cpath d='M9 8h7a8 8 0 0 1 0 16H9z' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
@@ -114,7 +114,7 @@ ${head}
 </head>
 <body>
 ${body}
-<script async src="/dimts-host.js" data-lang="${escape(lang)}"></script>
+<script async src="/Bridgely-host.js" data-lang="${escape(lang)}"></script>
 </body>
 </html>
 `;
@@ -122,7 +122,7 @@ ${body}
 
 function topBar(lang, site, switcher) {
   return `<header class="topbar">
-  <a class="brand" href="/" aria-label="${escape(site.home)}"><span class="mark" aria-hidden="true">D</span><span>Dimts</span></a>
+  <a class="brand" href="/" aria-label="${escape(site.home)}"><span class="mark" aria-hidden="true">D</span><span>Bridgely</span></a>
   <a class="crumb" href="/learn/${escape(lang)}/">${escape(site.library)}</a>
   <nav class="langs" aria-label="${escape(site.readIn)}">${switcher}</nav>
 </header>`;
@@ -189,25 +189,25 @@ async function main() {
   );
   // Static hosting (no nginx envsubst): emit the host loader next to the
   // widget when the public API URL and widget key are provided at build time.
-  const publicApi = process.env.DIMTS_PUBLIC_API?.trim();
-  const publicKey = process.env.DIMTS_PUBLIC_WIDGET_KEY?.trim();
+  const publicApi = process.env.PUBLIC_API?.trim();
+  const publicKey = process.env.PUBLIC_WIDGET_KEY?.trim();
   if (publicApi && publicKey) {
     const template = await readFile(
       path.join(
         root,
-        "packages/widget/public/templates/dimts-host.js.template",
+        "packages/widget/public/templates/Bridgely-host.js.template",
       ),
       "utf8",
     );
     await writeFile(
-      path.join(outDir, "..", "dimts-host.js"),
+      path.join(outDir, "..", "Bridgely-host.js"),
       template
         .replaceAll(
-          "${DIMTS_PUBLIC_API}",
+          "${PUBLIC_API}",
           JSON.stringify(publicApi).slice(1, -1),
         )
         .replaceAll(
-          "${DIMTS_LOCAL_WIDGET_KEY}",
+          "${LOCAL_WIDGET_KEY}",
           JSON.stringify(publicKey).slice(1, -1),
         ),
     );
@@ -239,7 +239,7 @@ async function main() {
     <a class="back" href="/learn/${escape(lang)}/">← ${escape(site.allLessons)}</a>
     <h1>${inline(lesson.title)}</h1>
     ${reviewNotice(lang, site)}
-    <button class="ask" type="button" data-dimts-open hidden>${escape(site.askAbout)}</button>
+    <button class="ask" type="button" data-Bridgely-open hidden>${escape(site.askAbout)}</button>
   </div>
   <nav class="toc" aria-labelledby="toc-heading">
     <h2 id="toc-heading">${escape(site.onThisPage)}</h2>
@@ -294,7 +294,7 @@ ${renderMarkdown(lesson.markdown, lesson.outline, site.cited)}
   const codes = JSON.stringify(languages);
   await writeFile(
     path.join(outDir, "index.html"),
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Dimts · Course library</title>
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Bridgely · Course library</title>
 <meta http-equiv="refresh" content="0; url=/learn/en/">
 <script>(()=>{const codes=${codes};const wanted=(navigator.languages||[]).map((l)=>l.toLowerCase().split("-")[0]);const lang=wanted.find((l)=>codes.includes(l))||"en";location.replace("/learn/"+lang+"/");})();</script>
 </head><body><a href="/learn/en/">Course library</a></body></html>

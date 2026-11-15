@@ -9,7 +9,7 @@ import request from "supertest";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import type { ApiRepository } from "../src/types.js";
-import type { InsightsRepository } from "@dimts/insights";
+import type { InsightsRepository } from "@bridgely/insights";
 import { sha256 } from "../src/middleware/auth.js";
 
 describe("GET /v1/insights", () => {
@@ -93,32 +93,32 @@ describe("GET /v1/insights", () => {
 
     const config = parseConfig({
       NODE_ENV: "test",
-      DATABASE_URL: "postgres://localhost/dimts",
-      DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-      DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-      DIMTS_JWT_SECRET: "j".repeat(32),
-      DIMTS_CRON_SECRET: "c".repeat(32),
+      DATABASE_URL: "postgres://localhost/Bridgely",
+     ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+     HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+     JWT_SECRET: "j".repeat(32),
+     CRON_SECRET: "c".repeat(32),
     });
 
     app = buildApp({ config, repository: mockRepository });
   });
 
-  it("requires X-Dimts-Key header", async () => {
+  it("requires X-Bridgely-Key header", async () => {
     const res = await request(app).get("/v1/insights");
     expect(res.status).toBe(401);
   });
 
-  it("rejects invalid X-Dimts-Key", async () => {
+  it("rejects invalid X-Bridgely-Key", async () => {
     const res = await request(app)
       .get("/v1/insights")
-      .set("X-Dimts-Key", "invalid-key");
+      .set("X-Bridgely-Key", "invalid-key");
     expect(res.status).toBe(401);
   });
 
   it("returns JSON with valid key", async () => {
     const res = await request(app)
       .get("/v1/insights")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toMatch(/json/);
     expect(res.body).toHaveProperty("insights");
@@ -153,7 +153,7 @@ describe("GET /v1/insights", () => {
   it("returns CSV when format=csv", async () => {
     const res = await request(app)
       .get("/v1/insights?format=csv")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(200);
     expect(res.headers["content-type"]).toMatch(/text\/csv/);
     expect(res.headers["content-disposition"]).toMatch(/attachment/);
@@ -162,7 +162,7 @@ describe("GET /v1/insights", () => {
   it("filters by language", async () => {
     const res = await request(app)
       .get("/v1/insights?lang=en")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(200);
     expect(res.body.insights).toBeDefined();
   });
@@ -170,7 +170,7 @@ describe("GET /v1/insights", () => {
   it("filters by date range", async () => {
     const res = await request(app)
       .get("/v1/insights?startDate=2026-11-01&endDate=2026-11-30")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(200);
     expect(res.body.insights).toBeDefined();
   });
@@ -178,14 +178,14 @@ describe("GET /v1/insights", () => {
   it("rejects a minCellSize below the privacy floor", async () => {
     const res = await request(app)
       .get("/v1/insights?minCellSize=1")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(400);
   });
 
   it("does not expose session IDs or question text", async () => {
     const res = await request(app)
       .get("/v1/insights")
-      .set("X-Dimts-Key", "valid-key");
+      .set("X-Bridgely-Key", "valid-key");
     expect(res.status).toBe(200);
     const csv = JSON.stringify(res.body);
     expect(csv).not.toMatch(/session/i);

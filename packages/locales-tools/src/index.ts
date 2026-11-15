@@ -12,6 +12,7 @@ export interface LangMeta {
   calendar: string;
   fallback: string | null;
   status: "live" | "beta" | "draft";
+  public_preview?: boolean;
   stt: boolean;
   tts: boolean;
   sms_encoding: "gsm7" | "ucs2";
@@ -183,7 +184,12 @@ export function getVisiblePacks(
   langPreview = false,
 ): LangPack[] {
   return [...packs.values()]
-    .filter((pack) => langPreview || pack.meta.status !== "draft")
+    .filter(
+      (pack) =>
+        langPreview ||
+        pack.meta.status !== "draft" ||
+        pack.meta.public_preview === true,
+    )
     .sort((left, right) => left.meta.code.localeCompare(right.meta.code));
 }
 

@@ -1,4 +1,4 @@
-import { sentenceWordCounts } from "@dimts/engine";
+import { sentenceWordCounts } from "@bridgely/engine";
 
 export interface EvalObservation {
   lang: string;

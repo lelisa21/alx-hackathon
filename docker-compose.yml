@@ -25,7 +25,7 @@ services:
     profiles:
       - local
     restart: unless-stopped
-    # Provider credentials are referenced by name (DIMTS_AI_PROVIDERS[].credentialRef),
+    # Provider credentials are referenced by name (AI_PROVIDERS[].credentialRef),
     # so pass the local .env through; the explicit values below take precedence.
     env_file:
       - path: .env
@@ -38,56 +38,56 @@ services:
       PORT: "3000"
       DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
-      DIMTS_ENC_KEY: ${DIMTS_ENC_KEY:?Set DIMTS_ENC_KEY in .env}
-      DIMTS_HASH_KEY: ${DIMTS_HASH_KEY:?Set DIMTS_HASH_KEY in .env}
-      DIMTS_JWT_SECRET: ${DIMTS_JWT_SECRET:?Set DIMTS_JWT_SECRET in .env}
-      DIMTS_CRON_SECRET: ${DIMTS_CRON_SECRET:?Set DIMTS_CRON_SECRET in .env}
-      DIMTS_HOST_ORIGINS: ${DIMTS_HOST_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
-      DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
-      DIMTS_LTI_PLATFORMS: "${DIMTS_LTI_PLATFORMS:-[]}"
-      DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
-      DIMTS_PREVIEW_LANGS: ${DIMTS_PREVIEW_LANGS:-}
-      DIMTS_STT_ENGINE: ${DIMTS_STT_ENGINE:-none}
-      DIMTS_TTS_ENGINE: ${DIMTS_TTS_ENGINE:-none}
-      DIMTS_VOICE_PREVIEW: ${DIMTS_VOICE_PREVIEW:-false}
-      DIMTS_RETENTION_HOURS: ${DIMTS_RETENTION_HOURS:-24}
-      DIMTS_TELEGRAM_MODE: ${DIMTS_TELEGRAM_MODE:-}
-      DIMTS_TELEGRAM_TOKEN: ${DIMTS_TELEGRAM_TOKEN:-}
-      DIMTS_TELEGRAM_SECRET: ${DIMTS_TELEGRAM_SECRET:-}
-      DIMTS_JOBS_RELAY_URL: ${DIMTS_JOBS_RELAY_URL:-}
-      DIMTS_JOBS_RELAY_SECRET: ${DIMTS_JOBS_RELAY_SECRET:-}
-      DIMTS_JOBS_RELAY_CHANNELS: ${DIMTS_JOBS_RELAY_CHANNELS:-}
-      DIMTS_JOBS_ALERT_INTERVAL_MS: ${DIMTS_JOBS_ALERT_INTERVAL_MS:-0}
-      DIMTS_SMS_MODE: ${DIMTS_SMS_MODE:-simulator}
-      DIMTS_SMS_GATEWAY_SECRET: ${DIMTS_SMS_GATEWAY_SECRET:-}
-      DIMTS_SMS_DAILY_LIMIT: ${DIMTS_SMS_DAILY_LIMIT:-20}
-      DIMTS_SMS_GATEWAY_URL: ${DIMTS_SMS_GATEWAY_URL:-}
-      DIMTS_SMS_GATEWAY_TOKEN: ${DIMTS_SMS_GATEWAY_TOKEN:-}
-      DIMTS_SMS_CALLBACK_URL: ${DIMTS_SMS_CALLBACK_URL:-}
-      DIMTS_SMS_CALLBACK_SECRET: ${DIMTS_SMS_CALLBACK_SECRET:-}
-      DIMTS_HELPER_HOURS: ${DIMTS_HELPER_HOURS:-}
-      DIMTS_HELP_WAIT_TIMEOUT_MS: ${DIMTS_HELP_WAIT_TIMEOUT_MS:-300000}
-      DIMTS_TURN_APP: ${DIMTS_TURN_APP:-}
-      DIMTS_TURN_API_KEY: ${DIMTS_TURN_API_KEY:-}
-      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-http://localhost:5173/learn/}
-      DIMTS_CONTENT_PATH: ${DIMTS_CONTENT_PATH:-content/savanna}
-      DIMTS_PUBLIC_SOURCES: ${DIMTS_PUBLIC_SOURCES:-[]}
-      DIMTS_SOURCE_SYNC_INTERVAL_MS: ${DIMTS_SOURCE_SYNC_INTERVAL_MS:-300000}
-      DIMTS_AI_PROVIDER: ${DIMTS_AI_PROVIDER:-offline}
-      DIMTS_AI_LADDER: ${DIMTS_AI_LADDER:-offline}
-      DIMTS_AI_PROVIDERS: ${DIMTS_AI_PROVIDERS:-[]}
-      DIMTS_AI_MAX_TOKENS: ${DIMTS_AI_MAX_TOKENS:-512}
-      DIMTS_AI_TEMPERATURE: ${DIMTS_AI_TEMPERATURE:-0.2}
-      DIMTS_AI_CONSENT_VERSION: ${DIMTS_AI_CONSENT_VERSION:-remote-ai-v1}
-      DIMTS_LANGUAGE_DETECTION_CONFIDENCE: ${DIMTS_LANGUAGE_DETECTION_CONFIDENCE:-0.25}
+      ENC_KEY: ${ENC_KEY:?Set ENC_KEY in .env}
+      HASH_KEY: ${HASH_KEY:?Set HASH_KEY in .env}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET in .env}
+      CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env}
+      HOST_ORIGINS: ${HOST_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      LOCAL_WIDGET_KEY: ${LOCAL_WIDGET_KEY:-local-widget-public-id}
+      LTI_PLATFORMS: "${LTI_PLATFORMS:-[]}"
+      DEFAULT_LANG: ${DEFAULT_LANG:-en}
+      PREVIEW_LANGS: ${PREVIEW_LANGS:-}
+      STT_ENGINE: ${STT_ENGINE:-none}
+      TTS_ENGINE: ${TTS_ENGINE:-none}
+      VOICE_PREVIEW: ${VOICE_PREVIEW:-false}
+      RETENTION_HOURS: ${RETENTION_HOURS:-24}
+      TELEGRAM_MODE: ${TELEGRAM_MODE:-}
+      TELEGRAM_TOKEN: ${TELEGRAM_TOKEN:-}
+      TELEGRAM_SECRET: ${TELEGRAM_SECRET:-}
+      JOBS_RELAY_URL: ${JOBS_RELAY_URL:-}
+      JOBS_RELAY_SECRET: ${JOBS_RELAY_SECRET:-}
+      JOBS_RELAY_CHANNELS: ${JOBS_RELAY_CHANNELS:-}
+      JOBS_ALERT_INTERVAL_MS: ${JOBS_ALERT_INTERVAL_MS:-0}
+      SMS_MODE: ${SMS_MODE:-simulator}
+      SMS_GATEWAY_SECRET: ${SMS_GATEWAY_SECRET:-}
+      SMS_DAILY_LIMIT: ${SMS_DAILY_LIMIT:-20}
+      SMS_GATEWAY_URL: ${SMS_GATEWAY_URL:-}
+      SMS_GATEWAY_TOKEN: ${SMS_GATEWAY_TOKEN:-}
+      SMS_CALLBACK_URL: ${SMS_CALLBACK_URL:-}
+      SMS_CALLBACK_SECRET: ${SMS_CALLBACK_SECRET:-}
+      HELPER_HOURS: ${HELPER_HOURS:-}
+      HELP_WAIT_TIMEOUT_MS: ${HELP_WAIT_TIMEOUT_MS:-300000}
+      TURN_APP: ${TURN_APP:-}
+      TURN_API_KEY: ${TURN_API_KEY:-}
+      CONTENT_BASE_URL: ${CONTENT_BASE_URL:-http://localhost:5173/learn/}
+      CONTENT_PATH: ${CONTENT_PATH:-content/savanna}
+      PUBLIC_SOURCES: ${PUBLIC_SOURCES:-[]}
+      SOURCE_SYNC_INTERVAL_MS: ${SOURCE_SYNC_INTERVAL_MS:-300000}
+      AI_PROVIDER: ${AI_PROVIDER:-offline}
+      AI_LADDER: ${AI_LADDER:-offline}
+      AI_PROVIDERS: ${AI_PROVIDERS:-[]}
+      AI_MAX_TOKENS: ${AI_MAX_TOKENS:-512}
+      AI_TEMPERATURE: ${AI_TEMPERATURE:-0.2}
+      AI_CONSENT_VERSION: ${AI_CONSENT_VERSION:-remote-ai-v1}
+      LANGUAGE_DETECTION_CONFIDENCE: ${LANGUAGE_DETECTION_CONFIDENCE:-0.25}
     ports:
-      - "127.0.0.1:${DIMTS_COMPOSE_API_PORT:-3000}:3000"
+      - "127.0.0.1:${COMPOSE_API_PORT:-3000}:3000"
     command:
       - sh
       - -c
       - >-
         node packages/api/dist/db/local-bootstrap.js &&
-        node packages/grounding/dist/cli.js "$$DIMTS_CONTENT_PATH" --if-changed &&
+        node packages/grounding/dist/cli.js "$$CONTENT_PATH" --if-changed &&
         exec node packages/api/dist/server.js
     healthcheck:
       test:
@@ -114,15 +114,15 @@ services:
       api:
         condition: service_healthy
     environment:
-      DIMTS_LOCAL_WIDGET_KEY: ${DIMTS_LOCAL_WIDGET_KEY:-local-widget-public-id}
+      LOCAL_WIDGET_KEY: ${LOCAL_WIDGET_KEY:-local-widget-public-id}
       # API base the injected host loader uses; nginx proxies /v1 locally.
-      DIMTS_PUBLIC_API: /v1
+      PUBLIC_API: /v1
       # Public bot username shown on the demo page; empty hides the Telegram card.
-      DIMTS_PUBLIC_TELEGRAM_BOT: ${DIMTS_PUBLIC_TELEGRAM_BOT:-}
+      PUBLIC_TELEGRAM_BOT: ${PUBLIC_TELEGRAM_BOT:-}
       NGINX_ENVSUBST_TEMPLATE_DIR: /usr/share/nginx/html/templates
       NGINX_ENVSUBST_OUTPUT_DIR: /usr/share/nginx/html
     ports:
-      - "127.0.0.1:${DIMTS_COMPOSE_WEB_PORT:-5173}:80"
+      - "127.0.0.1:${COMPOSE_WEB_PORT:-5173}:80"
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/ >/dev/null"]
       interval: 5s
@@ -143,9 +143,9 @@ services:
     environment:
       DATABASE_URL: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
       DATABASE_URL_DIRECT: postgres://dimts:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}@db:5432/dimts
-      DIMTS_SEED_HELPER_TOKEN: ${DIMTS_SEED_HELPER_TOKEN:?Set DIMTS_SEED_HELPER_TOKEN in .env}
-      DIMTS_DEFAULT_LANG: ${DIMTS_DEFAULT_LANG:-en}
-      DIMTS_CONTENT_BASE_URL: ${DIMTS_CONTENT_BASE_URL:-http://localhost:5173/learn/}
+      SEED_HELPER_TOKEN: ${SEED_HELPER_TOKEN:?Set SEED_HELPER_TOKEN in .env}
+      DEFAULT_LANG: ${DEFAULT_LANG:-en}
+      CONTENT_BASE_URL: ${CONTENT_BASE_URL:-http://localhost:5173/learn/}
     command:
       - sh
       - -c
@@ -163,8 +163,8 @@ services:
       api:
         condition: service_healthy
     environment:
-      DIMTS_SCHEDULER_API_URL: http://api:3000
-      DIMTS_CRON_SECRET: ${DIMTS_CRON_SECRET:?Set DIMTS_CRON_SECRET in .env}
+      SCHEDULER_API_URL: http://api:3000
+      CRON_SECRET: ${CRON_SECRET:?Set CRON_SECRET in .env}
     command: ["node", "scripts/local-scheduler.mjs"]
     networks:
       - backend
@@ -177,7 +177,7 @@ services:
     volumes:
       - ollama-models:/root/.ollama
     ports:
-      - "127.0.0.1:${DIMTS_OLLAMA_PORT:-11434}:11434"
+      - "127.0.0.1:${OLLAMA_PORT:-11434}:11434"
     healthcheck:
       test: ["CMD", "ollama", "list"]
       interval: 10s

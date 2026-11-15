@@ -1,21 +1,21 @@
 import { randomBytes } from "node:crypto";
 import pg from "pg";
-import type { AskDependencies } from "@dimts/engine";
-import { JobsError } from "@dimts/jobs";
-import type { JobsDelivery } from "@dimts/jobs";
-import type { LangPack } from "@dimts/locales-tools";
+import type { AskDependencies } from "@bridgely/engine";
+import { JobsError } from "@bridgely/jobs";
+import type { JobsDelivery } from "@bridgely/jobs";
+import type { LangPack } from "@bridgely/locales-tools";
 import {
   TelegramService,
   TelegramTransportError,
   createTelegramVoice,
   createTelegramTransport,
   startTelegramPolling,
-} from "@dimts/telegram";
+} from "@bridgely/telegram";
 import type {
   TelegramTransport,
   TelegramVoice,
   TelegramServiceOptions,
-} from "@dimts/telegram";
+} from "@bridgely/telegram";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository, HelpStore } from "./types.js";
 import type { HelpSocketRuntime, HelpSocketStore } from "./help-sockets.js";
@@ -48,7 +48,7 @@ export type TelegramApiService = Pick<
   "handleUpdate" | "sendAlert"
 >;
 export function telegramConfigured(config: ApiConfig) {
-  return Boolean(config.DIMTS_TELEGRAM_TOKEN);
+  return Boolean(config.TELEGRAM_TOKEN);
 }
 
 /** Content-free Telegram setup/polling failure for operators. */
@@ -196,8 +196,8 @@ export function createTelegramRuntime(options: {
   const transport =
     options.transport ??
     createTelegramTransport({
-      token: config.DIMTS_TELEGRAM_TOKEN!,
-      hashKey: config.DIMTS_HASH_KEY,
+      token: config.TELEGRAM_TOKEN!,
+      hashKey: config.HASH_KEY,
     });
   const conversation = createConversationService({
     config,
@@ -246,8 +246,8 @@ export function createTelegramRuntime(options: {
   const service: TelegramService = new TelegramService({
     pool: telegramPool,
     revocationPool: pool,
-    hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
-    encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
+    hashKey: Buffer.from(config.HASH_KEY, "base64"),
+    encryptionKey: Buffer.from(config.ENC_KEY, "base64"),
     transport,
     locales: (lang) => locale(packs, lang),
     languages: [...packs.values()]
@@ -311,21 +311,21 @@ export function createTelegramRuntime(options: {
     options.onError?.({ stage: "commands", ...errorCode(error) }),
   );
   // Webhook mode needs Telegram to know the public URL. With
-  // DIMTS_PUBLIC_API_URL set, register it on every start so a redeploy or a
+  //PUBLIC_API_URL set, register it on every start so a redeploy or a
   // changed secret never leaves the bot silent.
   const webhookUrl =
-    config.DIMTS_TELEGRAM_MODE === "webhook" &&
-    config.DIMTS_PUBLIC_API_URL &&
-    config.DIMTS_TELEGRAM_SECRET &&
-    config.DIMTS_PUBLIC_API_URL.startsWith("https://")
-      ? `${config.DIMTS_PUBLIC_API_URL}/v1/telegram/webhook`
+    config.TELEGRAM_MODE === "webhook" &&
+    config.PUBLIC_API_URL &&
+    config.TELEGRAM_SECRET &&
+    config.PUBLIC_API_URL.startsWith("https://")
+      ? `${config.PUBLIC_API_URL}/v1/telegram/webhook`
       : undefined;
   const webhook =
     webhookUrl && transport.setWebhook
       ? transport
           .setWebhook({
             url: webhookUrl,
-            secret: config.DIMTS_TELEGRAM_SECRET!,
+            secret: config.TELEGRAM_SECRET!,
           })
           .then(() => options.onWebhookRegistered?.(webhookUrl))
           .catch((error: unknown) =>
@@ -333,7 +333,7 @@ export function createTelegramRuntime(options: {
           )
       : Promise.resolve();
   const polling =
-    config.DIMTS_TELEGRAM_MODE === "polling"
+    config.TELEGRAM_MODE === "polling"
       ? startTelegramPolling({
           transport,
           environment: config.NODE_ENV,

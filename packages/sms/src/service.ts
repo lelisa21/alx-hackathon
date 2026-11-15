@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import { ContactCipher } from "@dimts/jobs";
+import { ContactCipher } from "@bridgely/jobs";
 import {
   countSms,
   normalizeForSms,

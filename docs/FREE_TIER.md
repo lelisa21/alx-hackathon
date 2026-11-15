@@ -22,7 +22,7 @@ limits are documented at
 ## Local offline fallback
 
 The app and PostgreSQL can run through Docker Compose without Render, Neon, or
-an AI account. `DIMTS_AI_PROVIDER=offline` is the default in the sample
+an AI account. `AI_PROVIDER=offline` is the default in the sample
 configuration. After the container images and dependencies are available,
 the core offline flow does not make an AI-provider request. A clean machine
 still needs Docker and an initial image/dependency download; offline operation

@@ -1,4 +1,4 @@
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 
 export type ProviderName = string;
 export type ProviderPrivacyClass = "local" | "remote";

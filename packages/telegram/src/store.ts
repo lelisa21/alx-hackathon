@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import type { Pool, PoolClient } from "pg";
-import { ContactCipher } from "@dimts/jobs";
+import { ContactCipher } from "@bridgely/jobs";
 import type { TelegramRecord, TelegramPrivateState } from "./types.js";
 export interface TelegramLockedStore {
   load(): Promise<TelegramRecord | null>;

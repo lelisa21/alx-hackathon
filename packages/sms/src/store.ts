@@ -1,5 +1,5 @@
 import type { Pool, PoolClient } from "pg";
-import { ContactCipher } from "@dimts/jobs";
+import { ContactCipher } from "@bridgely/jobs";
 import type { SmsOutbox, SmsPrivateState, SmsRecord } from "./types.js";
 
 export class SmsRevokedError extends Error {

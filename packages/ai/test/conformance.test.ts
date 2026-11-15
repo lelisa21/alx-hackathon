@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { OpenAiCompatible } from "../src/openai-compatible.js";
 import { OpenAiProvider, GeminiProvider, XaiProvider } from "../src/native.js";
 import { InvalidProviderResponseError } from "../src/provider.js";
@@ -345,7 +345,7 @@ describe("Gemini Interactions model controls", () => {
       Response.json({
         object: "interaction",
         status: "completed",
-        model: "gemini-4-hydrogen",
+        model: "gemini-3.8-flash",
         steps: [
           {
             type: "model_output",
@@ -357,7 +357,7 @@ describe("Gemini Interactions model controls", () => {
     vi.stubGlobal("fetch", fetchMock);
     const provider = new GeminiProvider({
       ...options,
-      model: "gemini-4-hydrogen",
+      model: "gemini-3.8-flash",
     });
     await provider.answer(request, new AbortController().signal);
     const [target, init] = fetchMock.mock.calls[0]!;

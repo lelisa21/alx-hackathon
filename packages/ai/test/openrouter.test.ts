@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { OpenRouterProvider } from "../src/openrouter.js";
 import { decodeAnswerJson } from "../src/http-provider.js";
 import { Ladder } from "../src/ladder.js";
@@ -48,7 +48,7 @@ function provider() {
     ],
     apiKey: "sk-or-test",
     capabilities,
-    referer: "https://dimts.example",
+    referer: "https://Bridgely.example",
   });
 }
 
@@ -82,8 +82,8 @@ describe("OpenRouter provider", () => {
     expect(body.reasoning).toEqual({ enabled: false });
     expect(init?.headers).toMatchObject({
       authorization: "Bearer sk-or-test",
-      "x-title": "Dimts",
-      "http-referer": "https://dimts.example",
+      "x-title": "Bridgely",
+      "http-referer": "https://Bridgely.example",
     });
   });
 
@@ -234,7 +234,7 @@ describe("quota-aware cooldown", () => {
     const { parseRetryDelay } = await import("../src/provider.js");
     expect(
       parseRetryDelay(
-        "Rate limit exceeded for model gemini-4-hydrogen (limit: 20 requests per day on Free Tier). Please retry in 7h49m58s or upgrade",
+        "Rate limit exceeded for model gemini-3.8-flash (limit: 20 requests per day on Free Tier). Please retry in 7h49m58s or upgrade",
       ),
     ).toBe((7 * 3600 + 49 * 60 + 58) * 1000);
     expect(parseRetryDelay("Please retry in 26.5s.")).toBe(26_500);

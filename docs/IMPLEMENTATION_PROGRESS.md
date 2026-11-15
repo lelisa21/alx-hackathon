@@ -23,13 +23,13 @@ Updated: 15 November 2026.
    - Live regions: Added `word-wrap` and `overflow-wrap` to status/alert ARIA regions
 
 2. **Verified by test suite:**
-   - Build: ✅ PASSED at all targets (dimts-widget.js 57.08 kB gzip, within budget)
+   - Build: ✅ PASSED at all targets (Bridgely-widget.js 57.08 kB gzip, within budget)
    - TypeScript: ✅ PASSED (pnpm typecheck)
    - Basic chat layout at 320px: ✅ PASSED (from NFR-A11Y-02 test suite)
    - 200% text zoom: ✅ PASSED (horizontal overflow prevented)
    - RTL support: ✅ PASSED (ar-test passes accessibility matrix)
    - No critical axe violations: ✅ PASSED
-   - All 4 widget builds: ✅ PASSED (dimts-widget.js, embed, helper-console, sms-simulator)
+   - All 4 widget builds: ✅ PASSED (Bridgely-widget.js, embed, helper-console, sms-simulator)
 
 3. **CSS changes by category:**
    - **Composer (sticky positioning):** 3 commits, fixed keyboard overlap, safe-area support
@@ -76,9 +76,9 @@ FR-INT-05, and FR-INT-06 instructor role mapping.
   verifies that the topic remains grouped as Other.
 - `contract-docs.test.ts` verifies the generated OpenAPI entry, both
   authentication options, CSV/JSON responses, and the minimum threshold.
-- `pnpm --filter @dimts/api build` passed and regenerated
+- `pnpm --filter @bridgely/api build` passed and regenerated
   `packages/api/openapi.yaml`.
-- `pnpm --filter @dimts/widget build` passed. The focused Playwright/axe test
+- `pnpm --filter @bridgely/widget build` passed. The focused Playwright/axe test
   passed for loading, data/table/summary, filters, empty, error/retry, and CSV
   download; axe reported no violations in the tested state.
 
@@ -165,7 +165,7 @@ FR-CONV-10/13, and G1–G13.
 
 **Acceptance remains blocked by:**
 
-- PostgreSQL suites requiring `DIMTS_TEST_DATABASE_URL` remain skipped;
+- PostgreSQL suites requiring `TEST_DATABASE_URL` remain skipped;
   the isolated Compose lifecycle test passes separately.
 - The grounding coverage failure recorded earlier in this P11 snapshot is
   resolved by the P02 follow-up below: 74.95% branch coverage against the
@@ -232,13 +232,13 @@ implemented or verified. Do not claim production LTI support.
 - ✓ All 29 focused P10 LTI tests pass, including the real-signature and required-deployment regressions (platform registration, JWT validation, learner/instructor flows, replay prevention, OpenAPI validation, insights access)
 - ✓ LTI context stored as JSONB in session for audit trail (FR-INT-07)
 - ✓ Nonce/state/token-hash persisted in database (no longer in-memory)
-- ✓ Learner sessions cannot access insights, instructor sessions can (with or without X-Dimts-Key)
+- ✓ Learner sessions cannot access insights, instructor sessions can (with or without X-Bridgely-Key)
 - ✓ OpenAPI validates all LTI routes and schemas match Zod validators
 - ✓ No sensitive data logged (nonce/token values redacted)
 
 **Known open items:**
 
-- Static `DIMTS_LTI_PLATFORMS` metadata now reaches the API router and login
+- Static `LTI_PLATFORMS` metadata now reaches the API router and login
   initiation matches both issuer and client ID. Browser OIDC redirects and
   platform-JWKS launch validation are implemented and locally tested; acceptance
   against a real LMS remains open. The tool `/jwks` endpoint returns an empty
@@ -274,7 +274,7 @@ Requirements quoted before implementation: FR-INT-05/06/07/10, FR-INSIGHT instru
   - Documented errors (401/403/404/500)
 
 - **Insights access control:** GET /v1/insights updated:
-  - Accepts both X-Dimts-Key (host) and Bearer token (LTI instructor)
+  - Accepts both X-Bridgely-Key (host) and Bearer token (LTI instructor)
   - Same response format for both auth paths
   - Privacy rules enforced (small-cell suppression, CSV formula-injection defense)
 
@@ -346,7 +346,7 @@ Requirements quoted before implementation: FR-INT-05/06/07/10, FR-INSIGHT instru
 
 **Deferred to future phases:**
 
-- P11: Secret management (DIMTS_LTI_PLATFORM_SECRETS environment configuration)
+- P11: Secret management (LTI_PLATFORM_SECRETS environment configuration)
 - P12: Redis state store for multi-instance deployments
 - P13: OIDC authorization code flow (if needed for private APIs)
 - Future: Role discovery and dynamic platform registration via .well-known/lti-platform
@@ -359,7 +359,7 @@ continued directly in main session. No commit/push authorized.
 
 Requirements quoted before implementation: FR-CONV-12, FR-INSIGHT-01–04,
 FR-UI-20, NFR-PRIV-03. Read P09 prompt, investigation report (docs/P09_INVESTIGATION.md),
-and authoritative Dimts-System-Blueprint-v2.0.md.
+and authoritative Bridgely-System-Blueprint-v2.0.md.
 
 **Implementation status:**
 
@@ -372,7 +372,7 @@ and authoritative Dimts-System-Blueprint-v2.0.md.
 - **Repository adapter:** PostgreSQL insights-repository.ts joins feedback_counter
   and insight_aggregate with FULL OUTER JOIN. topicLabel stub returns null
   (passage mapping deferred). Accepts all query filters.
-- **API route:** GET /v1/insights route created with X-Dimts-Key authentication,
+- **API route:** GET /v1/insights route created with X-Bridgely-Key authentication,
   query validation, small-cell suppression, JSON/CSV response, formula-injection
   defense on export.
 - **Locale keys:** insights.* keys added to en/am/om ui.yaml with native
@@ -403,7 +403,7 @@ continued directly in main session. No commit/push authorized.
 
 Requirements quoted before implementation: FR-CONV-12, FR-INSIGHT-01–04,
 FR-UI-20, NFR-PRIV-03. Read P09 prompt, investigation report (docs/P09_INVESTIGATION.md),
-and authoritative Dimts-System-Blueprint-v2.0.md.
+and authoritative Bridgely-System-Blueprint-v2.0.md.
 
 **Implementation status:**
 
@@ -416,7 +416,7 @@ and authoritative Dimts-System-Blueprint-v2.0.md.
 - **Repository adapter:** PostgreSQL insights-repository.ts joins feedback_counter
   and insight_aggregate with FULL OUTER JOIN. topicLabel stub returns null
   (passage mapping deferred). Accepts all query filters.
-- **API route:** GET /v1/insights route created with X-Dimts-Key authentication,
+- **API route:** GET /v1/insights route created with X-Bridgely-Key authentication,
   query validation, small-cell suppression, JSON/CSV response, formula-injection
   defense on export.
 - **Locale keys:** insights.* keys added to en/am/om ui.yaml with native
@@ -1059,7 +1059,7 @@ failed; no remaining P05 feature was added.
   the isolated smoke-test folder was removed afterward.
 - **Automated suite:** `pnpm exec vitest run --maxWorkers=2` passed 226
   tests. Ten PostgreSQL tests were skipped because
-  `DIMTS_TEST_DATABASE_URL` is unset; no database integration pass is claimed.
+  `TEST_DATABASE_URL` is unset; no database integration pass is claimed.
 - **Locale coverage:** `pnpm test:lang --maxWorkers=2` passed 60 tests;
   statements/lines 96.67%, branches 88.51%, functions 100%. The CI gate
   enforces 70% for all four metrics. CLI wrappers are excluded from that

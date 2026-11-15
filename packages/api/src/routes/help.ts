@@ -71,7 +71,7 @@ function helpRequestId(value: unknown): string | null {
 
 export function createHelpRouter(options: HelpRouteOptions): express.Router {
   const router = express.Router();
-  const key = new TextEncoder().encode(options.config.DIMTS_JWT_SECRET);
+  const key = new TextEncoder().encode(options.config.JWT_SECRET);
   const requireSession = createSessionAuth(options.repository);
   const now = options.now ?? (() => new Date());
   const ice = createHelpIceProvider(options.config, options.fetch, now);
@@ -185,17 +185,17 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
   router.get("/help/availability", requireSession, (request, response) => {
     HelpAvailabilityQuerySchema.parse(request.query);
     const available = isHelperAvailable(
-      options.config.DIMTS_HELPER_HOURS,
+      options.config.HELPER_HOURS,
       now(),
     );
     const nextOpenAt = available
       ? undefined
-      : nextHelperOpening(options.config.DIMTS_HELPER_HOURS, now());
+      : nextHelperOpening(options.config.HELPER_HOURS, now());
     response.set("Cache-Control", "no-store").json(
       HelpAvailabilityResponseSchema.parse({
         available,
         ...(nextOpenAt ? { nextOpenAt } : {}),
-        waitTimeoutMs: options.config.DIMTS_HELP_WAIT_TIMEOUT_MS,
+        waitTimeoutMs: options.config.HELP_WAIT_TIMEOUT_MS,
       }),
     );
   });
@@ -390,7 +390,7 @@ export function createHelpRouter(options: HelpRouteOptions): express.Router {
         return;
       }
 
-      if (!isHelperAvailable(options.config.DIMTS_HELPER_HOURS, now())) {
+      if (!isHelperAvailable(options.config.HELPER_HOURS, now())) {
         sendProblem(response, 409, "conflict", "error.generic");
         return;
       }

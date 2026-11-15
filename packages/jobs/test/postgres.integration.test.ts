@@ -10,7 +10,7 @@ import {
   toPassages,
 } from "../../grounding/src/index.js";
 
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 const schema = `jobs_${randomUUID().replaceAll("-", "")}`;
 const posting = {
   "@type": "JobPosting",

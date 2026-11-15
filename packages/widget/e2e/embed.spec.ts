@@ -32,7 +32,7 @@ async function openEmbed(
               "default-src 'none'; script-src 'self' 'nonce-test-nonce'; style-src 'nonce-test-nonce'; connect-src 'self'; font-src 'self'; worker-src 'self'; img-src 'self' data:; base-uri 'none'; object-src 'none'",
           }
         : {},
-      body: `<!doctype html><html lang="en"><head><title>Embed test</title><style nonce="test-nonce">${options.hostCss ?? ""}</style></head><body><main><h1>Host page</h1><button id="host-button">Host action</button></main><script id="dimts-script" async nonce="test-nonce" src="/dimts-embed.js" data-host-key="public-test-host" data-api="${origin}/v1" data-lang="${options.lang ?? "en"}" data-theme="${options.theme ?? "light"}" data-position="start" data-simple="true"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Embed test</title><style nonce="test-nonce">${options.hostCss ?? ""}</style></head><body><main><h1>Host page</h1><button id="host-button">Host action</button></main><script id="Bridgely-script" async nonce="test-nonce" src="/bridgely-embed.js" data-host-key="public-test-host" data-api="${origin}/v1" data-lang="${options.lang ?? "en"}" data-theme="${options.theme ?? "light"}" data-position="start" data-simple="true"></script></body></html>`,
     }),
   );
   await page.context().route(`${origin}/v1/**`, async (route) => {
@@ -94,10 +94,10 @@ test("FR-INT-01/02/03 Level 1 installs from one async script, keeps host styling
     );
     Reflect.set(window, "__embedEvents", []);
     for (const type of [
-      "dimts:opened",
-      "dimts:closed",
-      "dimts:language",
-      "dimts:escalated",
+      "Bridgely:opened",
+      "Bridgely:closed",
+      "Bridgely:language",
+      "Bridgely:escalated",
     ])
       document.addEventListener(type, (event) => {
         (Reflect.get(window, "__embedEvents") as unknown[]).push({
@@ -108,27 +108,27 @@ test("FR-INT-01/02/03 Level 1 installs from one async script, keeps host styling
       });
   });
   await openEmbed(page);
-  const host = page.locator("dimts-embed");
-  await expect(host.locator("#dimts-launcher")).toBeVisible();
+  const host = page.locator("bridgely-embed");
+  await expect(host.locator("#Bridgely-launcher")).toBeVisible();
   expect(
-    await page.evaluate(() => Object.keys(window.Dimts ?? {}).sort()),
+    await page.evaluate(() => Object.keys(window.Bridgely ?? {}).sort()),
   ).toEqual(["close", "escalate", "open", "setLanguage"]);
-  await host.locator("#dimts-launcher").click();
+  await host.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeVisible();
-  await expect(page.locator("dimts-assistant")).toHaveAttribute(
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute(
     "data-simple",
     "true",
   );
-  await page.evaluate(() => window.Dimts?.close());
-  await expect(page.locator("dimts-assistant")).toBeHidden();
-  await page.evaluate(() => window.Dimts?.open());
+  await page.evaluate(() => window.Bridgely?.close());
+  await expect(page.locator("bridgely-assistant")).toBeHidden();
+  await page.evaluate(() => window.Bridgely?.open());
   await expect(page.locator("#message")).toBeVisible();
-  await page.evaluate(() => window.Dimts?.setLanguage("om"));
-  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "om");
+  await page.evaluate(() => window.Bridgely?.setLanguage("om"));
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute("lang", "om");
   // The element's language changes before the asynchronous UI pack arrives.
   // Wait for the localized launcher/event boundary, not the intermediate attribute.
   await expect(host).toHaveAttribute("lang", "om");
-  await page.evaluate(() => window.Dimts?.escalate());
+  await page.evaluate(() => window.Bridgely?.escalate());
   const events = await page.evaluate(
     () =>
       Reflect.get(window, "__embedEvents") as {
@@ -137,21 +137,21 @@ test("FR-INT-01/02/03 Level 1 installs from one async script, keeps host styling
         target: string;
       }[],
   );
-  expect(events.filter((event) => event.type === "dimts:opened")).toHaveLength(
+  expect(events.filter((event) => event.type === "Bridgely:opened")).toHaveLength(
     2,
   );
-  expect(events.filter((event) => event.type === "dimts:closed")).toHaveLength(
+  expect(events.filter((event) => event.type === "Bridgely:closed")).toHaveLength(
     1,
   );
   expect(
     events.find(
       (event) =>
-        event.type === "dimts:language" &&
+        event.type === "Bridgely:language" &&
         (event.detail as { lang: string }).lang === "om",
     ),
   ).toBeTruthy();
   expect(
-    events.find((event) => event.type === "dimts:escalated")?.detail,
+    events.find((event) => event.type === "Bridgely:escalated")?.detail,
   ).toEqual({ lang: "om" });
   expect(
     await page.evaluate(() =>
@@ -164,8 +164,8 @@ test("FR-INT-01/02/03 Level 1 installs from one async script, keeps host styling
             "__embedWindowBaseline",
             "__embedEvents",
             "host-button",
-            "dimts-script",
-            "Dimts",
+            "Bridgely-script",
+            "Bridgely",
           ].includes(key),
       ),
     ),
@@ -182,17 +182,17 @@ test("FR-UI-19 accessible host custom properties apply to an initially dark embe
   await openEmbed(page, {
     theme: "dark",
     hostCss:
-      "dimts-embed{--dimts-surface:#ffffff;--dimts-text:#000000;--dimts-muted:#000000;--dimts-primary:#000000;--dimts-primary-text:#ffffff;--dimts-border:#000000;--dimts-focus:#000000;--dimts-font-family:serif;--dimts-radius:1rem}",
+      "bridgely-embed{--Bridgely-surface:#ffffff;--Bridgely-text:#000000;--Bridgely-muted:#000000;--Bridgely-primary:#000000;--Bridgely-primary-text:#ffffff;--Bridgely-border:#000000;--Bridgely-focus:#000000;--Bridgely-font-family:serif;--Bridgely-radius:1rem}",
   });
-  await page.locator("#dimts-launcher").click();
+  await page.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeEnabled();
-  const values = await page.locator("dimts-assistant").evaluate((el) => {
+  const values = await page.locator("bridgely-assistant").evaluate((el) => {
     const style = getComputedStyle(el);
     return [
-      "--dimts-surface",
-      "--dimts-text",
-      "--dimts-radius",
-      "--dimts-font-family",
+      "--Bridgely-surface",
+      "--Bridgely-text",
+      "--Bridgely-radius",
+      "--Bridgely-font-family",
     ].map((property) => style.getPropertyValue(property).trim());
   });
   expect(values).toEqual(["#ffffff", "#000000", "1rem", "serif"]);
@@ -209,17 +209,17 @@ for (const lang of ["en", "am", "om", "ar-test"])
       page.on("request", (request) => requests.push(request.url()));
       await openEmbed(page, { lang, theme });
       const { AxeBuilder } = await import("@axe-core/playwright");
-      await expect(page.locator("#dimts-launcher")).toBeVisible();
+      await expect(page.locator("#Bridgely-launcher")).toBeVisible();
       let results = await new AxeBuilder({ page }).analyze();
       expect(
         results.violations.filter((item) =>
           ["serious", "critical"].includes(item.impact ?? ""),
         ),
       ).toEqual([]);
-      await page.locator("#dimts-launcher").focus();
+      await page.locator("#Bridgely-launcher").focus();
       await page.keyboard.press("Enter");
       await expect(page.locator("#message")).toBeEnabled();
-      await expect(page.locator("dimts-embed")).toHaveAttribute(
+      await expect(page.locator("bridgely-embed")).toHaveAttribute(
         "dir",
         packs.get(lang)!.meta.dir,
       );
@@ -234,7 +234,7 @@ for (const lang of ["en", "am", "om", "ar-test"])
         await expect
           .poll(() =>
             page
-              .locator("#dimts-panel")
+              .locator("#Bridgely-panel")
               .evaluate((el) => el.getBoundingClientRect().width),
           )
           .toBeLessThanOrEqual(640);
@@ -250,7 +250,7 @@ for (const lang of ["en", "am", "om", "ar-test"])
           .click();
       }
       const layout = await page
-        .locator("#dimts-panel")
+        .locator("#Bridgely-panel")
         .evaluate((el) => ({ client: el.clientWidth, scroll: el.scrollWidth }));
       expect(layout.scroll).toBeLessThanOrEqual(layout.client);
       results = await new AxeBuilder({ page }).analyze();
@@ -287,7 +287,7 @@ test("FR-INT-04 strict CSP works with a nonce and storage disabled", async ({
     }),
   );
   await openEmbed(page, { csp: true, storageDisabled: true });
-  await page.locator("#dimts-launcher").click();
+  await page.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeEnabled();
   expect(violations).toEqual([]);
   expect(
@@ -297,16 +297,16 @@ test("FR-INT-04 strict CSP works with a nonce and storage disabled", async ({
         Map<string, { type: StringConstructor }>
       >;
       if (metadata !== Reflect.get(window, "__hostLitMetadata")) return false;
-      const Base = customElements.get("dimts-assistant")!;
+      const Base = customElements.get("bridgely-assistant")!;
       class HostDecoratedAssistant extends Base {}
       const key = {};
       metadata.set(key, new Map([["hostProperty", { type: String }]]));
       Reflect.set(HostDecoratedAssistant, Reflect.get(Symbol, "metadata"), key);
       customElements.define(
-        "dimts-host-metadata-check",
+        "Bridgely-host-metadata-check",
         HostDecoratedAssistant,
       );
-      const instance = document.createElement("dimts-host-metadata-check");
+      const instance = document.createElement("Bridgely-host-metadata-check");
       instance.setAttribute("hostproperty", "compatible");
       return Reflect.get(instance, "hostProperty") === "compatible";
     }),
@@ -361,10 +361,10 @@ test("FR-INT-11 removing the script uninstalls owned UI, timers, listeners and s
     Reflect.set(window, "__ownedTimerCount", () => timers.size);
   });
   await openEmbed(page);
-  await page.locator("#dimts-launcher").click();
+  await page.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeVisible();
-  await page.evaluate(() => window.Dimts?.setLanguage("am"));
-  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "am");
+  await page.evaluate(() => window.Bridgely?.setLanguage("am"));
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute("lang", "am");
   await expect
     .poll(() =>
       page.evaluate(() =>
@@ -374,15 +374,15 @@ test("FR-INT-11 removing the script uninstalls owned UI, timers, listeners and s
     .toBe(4);
   await page.evaluate(() => {
     localStorage.setItem("host.setting", "keep");
-    localStorage.setItem("dimts.settings", "{}");
-    document.querySelector("#dimts-script")?.remove();
+    localStorage.setItem("Bridgely.settings", "{}");
+    document.querySelector("#Bridgely-script")?.remove();
   });
-  await expect(page.locator("dimts-embed")).toHaveCount(0);
+  await expect(page.locator("bridgely-embed")).toHaveCount(0);
   expect(
     await page.evaluate(() => ({
-      api: typeof window.Dimts,
+      api: typeof window.Bridgely,
       host: localStorage.getItem("host.setting"),
-      settings: localStorage.getItem("dimts.settings"),
+      settings: localStorage.getItem("Bridgely.settings"),
     })),
   ).toEqual({ api: "undefined", host: "keep", settings: null });
   await expect
@@ -411,24 +411,24 @@ test("FR-INT-11 removing the script uninstalls owned UI, timers, listeners and s
   // are gone. A fresh subclass forces Lit's property-finalization path again.
   await page.evaluate(() => {
     const script = document.createElement("script");
-    script.id = "dimts-script";
-    script.src = "/dimts-embed.js";
+    script.id = "Bridgely-script";
+    script.src = "/bridgely-embed.js";
     script.async = true;
     script.dataset.api = "/v1";
     script.dataset.hostKey = "public-test-host";
     script.dataset.lang = "en";
     document.body.append(script);
   });
-  await page.locator("#dimts-launcher").click();
+  await page.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeEnabled();
   expect(
     await page.evaluate(() => {
-      const Base = customElements.get("dimts-assistant")!;
+      const Base = customElements.get("bridgely-assistant")!;
       class ReinstalledAssistant extends Base {
         static properties = { checkValue: { type: String } };
       }
-      customElements.define("dimts-reinstall-check", ReinstalledAssistant);
-      const instance = document.createElement("dimts-reinstall-check");
+      customElements.define("Bridgely-reinstall-check", ReinstalledAssistant);
+      const instance = document.createElement("Bridgely-reinstall-check");
       instance.setAttribute("checkvalue", "preserved");
       return Reflect.get(instance, "checkValue");
     }),
@@ -442,17 +442,17 @@ test("FR-UI-19 rejects low-contrast host colors and permits accessible themes", 
   page,
 }) => {
   await openEmbed(page, { theme: "dark" });
-  await page.locator("#dimts-launcher").click();
-  const widget = page.locator("dimts-assistant");
+  await page.locator("#Bridgely-launcher").click();
+  const widget = page.locator("bridgely-assistant");
   await expect(widget).toHaveAttribute("data-theme", "dark");
   await widget.evaluate((el) => {
-    el.style.setProperty("--dimts-text", "#eeeeee");
-    el.style.setProperty("--dimts-surface", "#ffffff");
+    el.style.setProperty("--Bridgely-text", "#eeeeee");
+    el.style.setProperty("--Bridgely-surface", "#ffffff");
   });
   await expect
     .poll(() =>
       widget.evaluate((el) =>
-        getComputedStyle(el).getPropertyValue("--dimts-surface").trim(),
+        getComputedStyle(el).getPropertyValue("--Bridgely-surface").trim(),
       ),
     )
     .toBe("#0f1b2d");

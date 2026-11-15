@@ -171,7 +171,7 @@ describe("reviewed FAQ browser data cache", () => {
     await loadFaq("/v1", "en");
     expect(cache.put).toHaveBeenCalled();
     await clearFaqCache();
-    expect(remove).toHaveBeenCalledWith("dimts-faq-v1");
+    expect(remove).toHaveBeenCalledWith("Bridgely-faq-v1");
     const controller = new AbortController();
     controller.abort();
     await expect(

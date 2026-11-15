@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import {
   InvalidProviderResponseError,
   permittedPassages,

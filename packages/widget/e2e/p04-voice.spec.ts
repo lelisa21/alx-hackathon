@@ -165,7 +165,7 @@ async function openVoiceWidget(
   await page.route("http://127.0.0.1:4173/", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Voice fixture</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      body: '<!doctype html><html lang="en"><head><title>Voice fixture</title></head><body><bridgely-assistant data-api="http://api.test/v1" data-host-key="test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
     }),
   );
   await page.context().route("http://api.test/v1/**", async (route) => {
@@ -378,7 +378,7 @@ test("P04 cancels recording on language changes and disconnect without stale rev
     .click();
   await page.getByRole("button", { name: "English" }).click();
   await page.getByRole("button", { name: "Start talking" }).click();
-  await page.locator("dimts-assistant").evaluate((element) => element.remove());
+  await page.locator("bridgely-assistant").evaluate((element) => element.remove());
   await finish(page, "Detached transcript.");
   await expect.poll(() => voiceState(page)).toMatchObject({ aborts: 2 });
 });
@@ -516,10 +516,10 @@ test("P04 closing the widget cancels recording and playback before reopening", a
 }) => {
   await openVoiceWidget(page);
   await page.getByRole("button", { name: "Start talking" }).click();
-  await page.evaluate(() => window.Dimts?.close());
+  await page.evaluate(() => window.Bridgely?.close());
   await expect.poll(() => voiceState(page)).toMatchObject({ aborts: 1 });
   await finish(page, "A hidden transcript.");
-  await page.evaluate(() => window.Dimts?.open());
+  await page.evaluate(() => window.Bridgely?.open());
   await expect(page.locator("#message")).toHaveValue("");
   await expect(
     page.getByRole("button", { name: "Start talking" }),
@@ -528,11 +528,11 @@ test("P04 closing the widget cancels recording and playback before reopening", a
   await page.getByRole("button", { name: "Send", exact: true }).click();
   await page.getByRole("button", { name: "Read reply aloud" }).click();
   const cancels = (await voiceState(page)).cancels as number;
-  await page.evaluate(() => window.Dimts?.close());
+  await page.evaluate(() => window.Bridgely?.close());
   await expect
     .poll(async () => (await voiceState(page)).cancels)
     .toBeGreaterThan(cancels);
-  await page.evaluate(() => window.Dimts?.open());
+  await page.evaluate(() => window.Bridgely?.open());
   await expect(page.getByRole("button", { name: "Stop reading" })).toHaveCount(
     0,
   );

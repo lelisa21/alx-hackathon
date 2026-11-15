@@ -2,7 +2,7 @@
 // serve this language under the learner's consent (privacy-first default).
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { parseConfig } from "../src/config.js";
 import { createEngineDependencies } from "../src/engine.js";
 import { createApiProviderRuntime } from "../src/provider-runtime.js";
@@ -32,11 +32,11 @@ function deps(bindings: unknown[], extra: Record<string, string> = {}) {
   const env = {
     NODE_ENV: "test",
     DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-    DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-    DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-    DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-    DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
-    DIMTS_AI_PROVIDERS: JSON.stringify(bindings),
+   ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+   HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+   JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+   CRON_SECRET: "a-cron-secret-that-is-long-enough",
+   AI_PROVIDERS: JSON.stringify(bindings),
     CLOUD_KEY: "secret-value",
     ...extra,
   };
@@ -70,14 +70,14 @@ describe("recall floor wiring", () => {
     ).toBeUndefined();
   });
 
-  it("ignores disabled providers and honours DIMTS_AI_RECALL_FLOOR", () => {
+  it("ignores disabled providers and honoursAI_RECALL_FLOOR", () => {
     expect(
       deps([binding({ enabled: false })]).recallFloor?.("en", {
         cloudOk: true,
       }),
     ).toBeUndefined();
     expect(
-      deps([binding()], { DIMTS_AI_RECALL_FLOOR: "0.4" }).recallFloor?.("en", {
+      deps([binding()], {AI_RECALL_FLOOR: "0.4" }).recallFloor?.("en", {
         cloudOk: true,
       }),
     ).toBe(0.4);

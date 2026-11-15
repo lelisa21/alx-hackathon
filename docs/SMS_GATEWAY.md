@@ -8,8 +8,8 @@ operator agreement is bundled or claimed.
 ## Run the simulator
 
 1. Apply the API migrations and configure the existing database, hash and
-   encryption keys. Set `DIMTS_SMS_MODE=simulator` and a distinct
-   `DIMTS_SMS_GATEWAY_SECRET` of at least 24 non-whitespace characters.
+   encryption keys. Set `SMS_MODE=simulator` and a distinct
+   `SMS_GATEWAY_SECRET` of at least 24 non-whitespace characters.
 2. Build and serve the widget and API. Open `/sim/sms` on the widget server.
    In local Compose this is normally `http://localhost:5173/sim/sms`.
 3. Enter the API address (`/v1` on Compose, or a full test API address ending
@@ -48,11 +48,11 @@ create another subscription store. `JOBS`, then `2`, stops job alerts while
 leaving tutoring available. STOP revokes all SMS subscriptions for that
 contact, clears private conversation state, confirms once, and is permanent.
 The default API composition ignores any legacy `sms` advertisement in
-`DIMTS_JOBS_RELAY_CHANNELS`; all SMS digests use this native service, and SMS
+`JOBS_RELAY_CHANNELS`; all SMS digests use this native service, and SMS
 is unavailable when its configuration is missing. Host Telegram and
 accommodation delivery continue through their existing ports.
 
-`DIMTS_SMS_DAILY_LIMIT` defaults to 20 outbound messages per number/day
+`SMS_DAILY_LIMIT` defaults to 20 outbound messages per number/day
 (UTC). Replies and digests share that cap; STOP confirmation remains
 available. New inbound IDs are limited to 30 per minute per number. STOP
 and exact replays bypass the new-message burst counter. GSM-7 uses 160
@@ -62,7 +62,7 @@ segments including the localized continuation cue. Reply 1 continues only
 the same pseudonymous session, with bounded content and expiry.
 
 Phone numbers are HMAC identities outside consented P06 subscriptions.
-Subscription contacts are encrypted using `DIMTS_ENC_KEY`; continuation and
+Subscription contacts are encrypted using `ENC_KEY`; continuation and
 replay payloads are also encrypted. The authenticated
 `POST /v1/internal/retention` job clears expired `sms_conversation.private_enc`
 and delivery records older than 24 hours. Session erasure also clears its
@@ -87,10 +87,10 @@ operator's webhook signature before forwarding. Retain stable operator
 message IDs; do not derive IDs from plaintext phone numbers or message text.
 
 The optional `HttpSmsGateway` connects to a host-managed HTTPS bridge.
-Set `DIMTS_SMS_MODE=gateway`, `DIMTS_SMS_GATEWAY_URL`, and
-`DIMTS_SMS_GATEWAY_TOKEN`. The URL must have no embedded credentials,
+Set `SMS_MODE=gateway`, `SMS_GATEWAY_URL`, and
+`SMS_GATEWAY_TOKEN`. The URL must have no embedded credentials,
 query or fragment; URL and token are configured together. The outbound
-token differs from `DIMTS_SMS_GATEWAY_SECRET`, which authenticates inbound
+token differs from `SMS_GATEWAY_SECRET`, which authenticates inbound
 requests. Each call rejects redirects and has a 2.5-second timeout, keeping
 the initial send and two retries within the bounded delivery operation.
 
@@ -99,7 +99,7 @@ Sending also includes `Idempotency-Key: <stable key>`:
 
 ```json
 {
-  "version": "dimts.sms.gateway.v1",
+  "version": "Bridgely.sms.gateway.v1",
   "action": "send",
   "to": "+251900000001",
   "text": "Synthetic test message.",
@@ -124,14 +124,14 @@ operator acceptance/delivery accurately, and must not acknowledge a no-op.
 
 ## Optional callback host
 
-Configure `DIMTS_SMS_CALLBACK_URL` and `DIMTS_SMS_CALLBACK_SECRET` together.
+Configure `SMS_CALLBACK_URL` and `SMS_CALLBACK_SECRET` together.
 The callback uses HTTPS, rejects redirects, and times out after five seconds.
 After separate Y consent,
 the host receives `Authorization: Bearer <callback secret>`,
 `Idempotency-Key`, and JSON
-`{version:"dimts.sms.callback.v1",from,sessionId,lang,idempotencyKey}`.
+`{version:"Bridgely.sms.callback.v1",from,sessionId,lang,idempotencyKey}`.
 It must durably deduplicate before accepting the callback and return
-`{version:"dimts.sms.callback.v1",accepted:true,idempotencyKey}`. This is
+`{version:"Bridgely.sms.callback.v1",accepted:true,idempotencyKey}`. This is
 a host callback port, not an assertion that a helper is available or that a
 call will occur. The API keeps no durable callback phone store.
 
@@ -143,5 +143,5 @@ the API boundary and localized failures. `p07-sms.spec.ts` covers the real
 simulator page with API doubles, including keyboard operation, narrow/RTL
 layouts and accessibility. `p07-live.spec.ts` uses the built page, real HTTP
 API, isolated PostgreSQL and simulated transport through production wiring;
-it requires `DIMTS_TEST_DATABASE_URL`. No test result constitutes native
+it requires `TEST_DATABASE_URL`. No test result constitutes native
 translation review or proves a real operator agreement.

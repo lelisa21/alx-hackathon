@@ -2,15 +2,15 @@
 
 Scope: P05, FR-HELP-04–19 with FR-HELP-01–03 regression coverage and the
 help-related security, reliability and privacy requirements. The
-[system blueprint](../Dimts-System-Blueprint-v2.0.md) supersedes conflicting
-parts of the [SRS](../Dimts-SRS-v1.2-complete.md). The agreed contracts and
+[system blueprint](../Bridgely-System-Blueprint-v2.0.md) supersedes conflicting
+parts of the [SRS](../Bridgely-SRS-v1.2-complete.md). The agreed contracts and
 fallback choice are in [DECISIONS.md](../DECISIONS.md). Current test results
 and outstanding gates belong in [implementation progress](IMPLEMENTATION_PROGRESS.md).
 This protocol does not itself certify acceptance.
 
 ## Configure and operate
 
-`DIMTS_HELPER_HOURS` is a JSON array of UTC intervals: `day` is ISO weekday
+`HELPER_HOURS` is a JSON array of UTC intervals: `day` is ISO weekday
 1–7, `start` and `end` are `HH:mm`, and start must precede end. Intervals on
 the same day cannot overlap. For example,
 `[{"day":1,"start":"08:00","end":"17:00"}]` opens Monday 08:00–17:00 UTC;
@@ -19,7 +19,7 @@ restriction; `[]` means no open intervals. Availability describes the
 configured schedule, not live staffing. Claims are restricted by that
 schedule, while learners can still create a waiting request and leave a message.
 
-`DIMTS_HELP_WAIT_TIMEOUT_MS` defaults to `300000` (five minutes); accepted
+`HELP_WAIT_TIMEOUT_MS` defaults to `300000` (five minutes); accepted
 values are 1000–3600000. The learner receives a fallback offer without a
 countdown. The user-approved fallback is **Leave a message in this existing
 request**. It uses the same authenticated chat and retention rules. It does
@@ -43,7 +43,7 @@ Alt+Shift+S where shortcuts are enabled. Media also stops on disconnect,
 hidden surfaces or session cleanup. A picture or description remains an
 alternative when capture or connection fails.
 
-Configure `DIMTS_TURN_APP` and `DIMTS_TURN_API_KEY` together for Metered.
+Configure `TURN_APP` and `TURN_API_KEY` together for Metered.
 The API requests expiring credentials; application secrets stay server-side.
 Without that configuration, or if credential retrieval fails, the response
 uses public STUN. STUN alone cannot guarantee connectivity across restrictive

@@ -7,7 +7,7 @@ import { createPostgresHelpAuthStore } from "../src/db/help-auth-store.js";
 import { createPostgresRepository } from "../src/db/repository.js";
 import { createPostgresRepository } from "../src/db/repository.js";
 
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 describe.skipIf(!url)("P05 durable help media/privacy", () => {
   let admin: pg.Client;
   let pool: pg.Pool;

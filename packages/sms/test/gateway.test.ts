@@ -50,7 +50,7 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       .fn<typeof fetch>()
       .mockResolvedValueOnce(
         Response.json({
-          version: "dimts.sms.gateway.v1",
+          version: "Bridgely.sms.gateway.v1",
           id: "receipt",
           idempotencyKey: "stable",
           segments: 1,
@@ -59,7 +59,7 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       )
       .mockResolvedValueOnce(
         Response.json({
-          version: "dimts.sms.gateway.v1",
+          version: "Bridgely.sms.gateway.v1",
           id: "receipt",
           status: "delivered",
         }),
@@ -87,7 +87,7 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       idempotencyKey: "stable",
     });
     expect(JSON.parse(String(transport.mock.calls[1]![1]?.body))).toEqual({
-      version: "dimts.sms.gateway.v1",
+      version: "Bridgely.sms.gateway.v1",
       action: "status",
       id: "receipt",
     });
@@ -101,21 +101,21 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       status: "sent",
     },
     {
-      version: "dimts.sms.gateway.v1",
+      version: "Bridgely.sms.gateway.v1",
       id: "id",
       idempotencyKey: "other",
       segments: 1,
       status: "sent",
     },
     {
-      version: "dimts.sms.gateway.v1",
+      version: "Bridgely.sms.gateway.v1",
       id: "id",
       idempotencyKey: "stable",
       segments: 2,
       status: "sent",
     },
     {
-      version: "dimts.sms.gateway.v1",
+      version: "Bridgely.sms.gateway.v1",
       id: "id",
       idempotencyKey: "stable",
       segments: 1,
@@ -147,7 +147,7 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       type: "afromessage",
       url: "https://api.afromessage.com/api/send",
       token: "afromessage-token-at-least-24-characters",
-      sender: "Dimts",
+      sender: "Bridgely",
       from: "identifier-123",
       callback: "https://example.com/sms/callback",
     });

@@ -1,5 +1,5 @@
 {
-  "name": "@dimts/eval",
+  "name": "@bridgely/eval",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -15,9 +15,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@dimts/ai": "workspace:*",
-    "@dimts/engine": "workspace:*",
-    "@dimts/grounding": "workspace:*",
-    "@dimts/locales-tools": "workspace:*"
+    "@bridgely/ai": "workspace:*",
+    "@bridgely/engine": "workspace:*",
+    "@bridgely/grounding": "workspace:*",
+    "@bridgely/locales-tools": "workspace:*"
   }
 }

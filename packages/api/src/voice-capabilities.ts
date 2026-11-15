@@ -1,4 +1,4 @@
-import type { LangPack } from "@dimts/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { ApiConfig } from "./config.js";
 
 export interface VoiceCapabilities {
@@ -50,15 +50,15 @@ const previewTags: Record<string, string> = {
 /** Pack flags record human approval of the device protocol, never a computed score. */
 export function getVoiceCapabilities(
   pack: LangPack,
-  config: Pick<ApiConfig, "DIMTS_STT_ENGINE" | "DIMTS_TTS_ENGINE"> &
-    Partial<Pick<ApiConfig, "DIMTS_VOICE_PREVIEW">>,
+  config: Pick<ApiConfig, "STT_ENGINE" | "TTS_ENGINE"> &
+    Partial<Pick<ApiConfig, "VOICE_PREVIEW">>,
 ): VoiceCapabilities {
   const unavailable: VoiceCapabilities = {
     stt: false,
     tts: false,
     voice: null,
   };
-  if (config.DIMTS_VOICE_PREVIEW) {
+  if (config.VOICE_PREVIEW) {
     // Development preview (config rejects it elsewhere): skip the review gate
     // but keep engine selection and language/script matching. The widget still
     // feature-detects browser support at runtime.
@@ -69,8 +69,8 @@ export function getVoiceCapabilities(
         : previewTags[pack.meta.code];
     if (!tag || !isMatchingVoiceLanguage(pack.meta.code, tag))
       return unavailable;
-    const stt = config.DIMTS_STT_ENGINE === "browser";
-    const tts = config.DIMTS_TTS_ENGINE === "browser";
+    const stt = config.STT_ENGINE === "browser";
+    const tts = config.TTS_ENGINE === "browser";
     return {
       stt,
       tts,
@@ -87,8 +87,8 @@ export function getVoiceCapabilities(
     !isMatchingVoiceLanguage(pack.meta.code, tag)
   )
     return unavailable;
-  const stt = config.DIMTS_STT_ENGINE === "browser" && pack.meta.stt === true;
-  const tts = config.DIMTS_TTS_ENGINE === "browser" && pack.meta.tts === true;
+  const stt = config.STT_ENGINE === "browser" && pack.meta.stt === true;
+  const tts = config.TTS_ENGINE === "browser" && pack.meta.tts === true;
   return {
     stt,
     tts,

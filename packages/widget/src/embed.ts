@@ -16,11 +16,11 @@
     for (const name of diagnostics)
       if (!existing.has(name)) Reflect.deleteProperty(window, name);
   };
-  const moduleUrl = new URL("./dimts-widget.js", script.src);
+  const moduleUrl = new URL("./Bridgely-widget.js", script.src);
   void import(/* @vite-ignore */ moduleUrl.href).then(
     (module: { installEmbed(script: HTMLScriptElement): void }) => {
       // Lit publishes optional version diagnostics. Keep host-owned diagnostics,
-      // but the embedding contract adds only the documented Dimts API global.
+      // but the embedding contract adds only the documented Bridgely API global.
       removeOwnedDiagnostics();
       if (script.isConnected) module.installEmbed(script);
     },

@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { ProviderBinding } from "@dimts/ai";
+import type { ProviderBinding } from "@bridgely/ai";
 
 const publicSourceSchema = z
   .object({
@@ -357,10 +357,10 @@ const environmentSchema = z
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
     DATABASE_URL: z.string().min(1),
     DATABASE_URL_DIRECT: z.string().optional(),
-    DIMTS_PUBLIC_SOURCES: publicSourcesSchema,
-    DIMTS_LTI_PLATFORMS: ltiPlatformsSchema,
+   PUBLIC_SOURCES: publicSourcesSchema,
+   LTI_PLATFORMS: ltiPlatformsSchema,
     // LTI launch page: the widget module URL and its public host key.
-    DIMTS_LTI_WIDGET_URL: z.preprocess(
+   LTI_WIDGET_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
@@ -372,21 +372,21 @@ const environmentSchema = z
         )
         .optional(),
     ),
-    DIMTS_LTI_WIDGET_KEY: z.preprocess(
+   LTI_WIDGET_KEY: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(1).max(256).optional(),
     ),
-    DIMTS_SOURCE_SYNC_INTERVAL_MS: z.coerce
+   SOURCE_SYNC_INTERVAL_MS: z.coerce
       .number()
       .int()
       .min(1_000)
       .max(86_400_000)
       .default(300_000),
-    DIMTS_ENC_KEY: base64Key(32),
-    DIMTS_HASH_KEY: base64Key(32),
-    DIMTS_JWT_SECRET: z.string().min(32),
-    DIMTS_CRON_SECRET: z.string().min(24),
-    DIMTS_JOBS_RELAY_URL: z.preprocess(
+   ENC_KEY: base64Key(32),
+   HASH_KEY: base64Key(32),
+   JWT_SECRET: z.string().min(32),
+   CRON_SECRET: z.string().min(24),
+   JOBS_RELAY_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
@@ -403,15 +403,15 @@ const environmentSchema = z
         }, "must use HTTPS without credentials, query or fragment")
         .optional(),
     ),
-    DIMTS_JOBS_RELAY_SECRET: z.preprocess(
+   JOBS_RELAY_SECRET: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(24).optional(),
     ),
     // Cloud speech for languages the browser cannot recognise or speak. Runs
     // only after the learner allows cloud voice for the session.
-    DIMTS_CLOUD_VOICE: z.enum(["off", "gemini"]).default("off"),
+   CLOUD_VOICE: z.enum(["off", "gemini"]).default("off"),
     // Languages cloud speech recognition serves.
-    DIMTS_CLOUD_VOICE_LANGS: z
+   CLOUD_VOICE_LANGS: z
       .string()
       .default("en,am,om,ti")
       .transform((value) =>
@@ -423,7 +423,7 @@ const environmentSchema = z
     // Languages cloud read-aloud serves. Gemini TTS speaks Amharic and
     // Tigrinya but not Afaan Oromoo
     // (https://aistudio.google.com/docs/speech-generation).
-    DIMTS_CLOUD_VOICE_SPEAK_LANGS: z
+   CLOUD_VOICE_SPEAK_LANGS: z
       .string()
       .default("en,am,ti")
       .transform((value) =>
@@ -432,24 +432,21 @@ const environmentSchema = z
           .map((code) => code.trim())
           .filter(Boolean),
       ),
-    // Comma lists, tried in order: each Gemini model has its own free-tier
-    // quota (gemini-4-hydrogen: 20 requests a day), so later models serve
-    // once earlier ones are exhausted. gemini-2.0-flash-lite is shut down and
-    // gemini-2.5-flash(-lite) is closed to new users.
-    DIMTS_CLOUD_VOICE_STT_MODEL: z
+    // Comma-separated current Gemini audio-input models, tried in order.
+   CLOUD_VOICE_STT_MODEL: z
       .string()
       .min(1)
-      .default("gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite"),
-    DIMTS_CLOUD_VOICE_TTS_MODEL: z
+      .default("gemini-3.6-flash,gemini-3.5-flash-lite,gemini-3.1-flash-lite"),
+   CLOUD_VOICE_TTS_MODEL: z
       .string()
       .min(1)
       .default("gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"),
-    DIMTS_CLOUD_VOICE_CREDENTIAL_REF: z
+   CLOUD_VOICE_CREDENTIAL_REF: z
       .string()
       .min(1)
       .default("GEMINI_API_KEY"),
     // Job platforms to import from: ethiojobs, hahujobs, afriwork.
-    DIMTS_JOB_SOURCES: z
+   JOB_SOURCES: z
       .string()
       .default("")
       .transform((value) =>
@@ -459,32 +456,32 @@ const environmentSchema = z
           .filter(Boolean),
       )
       .pipe(z.array(z.enum(["ethiojobs", "hahujobs", "afriwork"]))),
-    DIMTS_JOB_SYNC_INTERVAL_MS: z.coerce
+   JOB_SYNC_INTERVAL_MS: z.coerce
       .number()
       .int()
       .min(0)
       .max(604800000)
       .default(21600000),
-    DIMTS_JOB_SYNC_LIMIT: z.coerce.number().int().min(1).max(200).default(40),
-    DIMTS_JOB_USER_AGENT: z.string().max(200).default("DimtsJobsBot/0.1"),
+   JOB_SYNC_LIMIT: z.coerce.number().int().min(1).max(200).default(40),
+   JOB_USER_AGENT: z.string().max(200).default("BridgelyJobsBot/0.1"),
     // Partner feeds: HahuJobs and Afriwork publish no public API or feed.
-    DIMTS_HAHUJOBS_FEED_URL: z.preprocess(
+   HAHUJOBS_FEED_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().url().optional(),
     ),
-    DIMTS_HAHUJOBS_FEED_TOKEN: z.preprocess(
+   HAHUJOBS_FEED_TOKEN: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(8).max(512).optional(),
     ),
-    DIMTS_AFRIWORK_FEED_URL: z.preprocess(
+   AFRIWORK_FEED_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().url().optional(),
     ),
-    DIMTS_AFRIWORK_FEED_TOKEN: z.preprocess(
+   AFRIWORK_FEED_TOKEN: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(8).max(512).optional(),
     ),
-    DIMTS_JOBS_ALERT_INTERVAL_MS: z.coerce
+   JOBS_ALERT_INTERVAL_MS: z.coerce
       .number()
       .int()
       .min(0)
@@ -494,7 +491,7 @@ const environmentSchema = z
         (value) => value === 0 || value >= 60000,
         "must be zero or at least 60000",
       ),
-    DIMTS_JOBS_RELAY_CHANNELS: z
+   JOBS_RELAY_CHANNELS: z
       .string()
       .default("")
       .transform((value, context) => {
@@ -516,11 +513,11 @@ const environmentSchema = z
         }
         return channels as Array<"sms" | "telegram">;
       }),
-    DIMTS_HOST_ORIGINS: z.string().default(""),
+   HOST_ORIGINS: z.string().default(""),
     // Public HTTPS base URL of this API (no /v1), e.g.
-    // https://dimts-api.onrender.com. In Telegram webhook mode the API
+    // https://Bridgely-api.onrender.com. In Telegram webhook mode the API
     // registers <url>/v1/telegram/webhook with Telegram on start.
-    DIMTS_PUBLIC_API_URL: z.preprocess(
+   PUBLIC_API_URL: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
@@ -538,9 +535,9 @@ const environmentSchema = z
         .transform((value) => value.replace(/\/+$/u, "").replace(/\/v1$/u, ""))
         .optional(),
     ),
-    DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
+   DEFAULT_LANG: z.string().min(2).default("en"),
     // Draft packs this host publishes as beta. Review-gated features stay off.
-    DIMTS_PREVIEW_LANGS: z
+   PREVIEW_LANGS: z
       .string()
       .default("")
       .transform((value) =>
@@ -559,29 +556,29 @@ const environmentSchema = z
             ),
         ),
       ),
-    DIMTS_STT_ENGINE: z.enum(["none", "browser"]).default("none"),
-    DIMTS_TTS_ENGINE: z.enum(["none", "browser"]).default("none"),
+   STT_ENGINE: z.enum(["none", "browser"]).default("none"),
+   TTS_ENGINE: z.enum(["none", "browser"]).default("none"),
     // Development only: try browser voice before the device review protocol.
-    DIMTS_VOICE_PREVIEW: z
+   VOICE_PREVIEW: z
       .enum(["true", "false", ""])
       .default("false")
       .transform((value) => value === "true"),
-    DIMTS_LANGUAGE_DETECTION_CONFIDENCE: z.coerce
+   LANGUAGE_DETECTION_CONFIDENCE: z.coerce
       .number()
       .min(0)
       .max(1)
       .default(0.25),
-    DIMTS_AI_PROVIDER: z.string().min(1).default("offline"),
-    DIMTS_AI_LADDER: z.string().default("cloud,local,offline"),
-    DIMTS_AI_PROVIDERS: providerBindingsSchema,
-    DIMTS_AI_MAX_TOKENS: z.coerce.number().int().min(16).max(8192).default(400),
-    DIMTS_AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
-    DIMTS_AI_CONSENT_VERSION: z.string().min(1).max(64).default("remote-ai-v1"),
-    DIMTS_CONFIDENCE_FLOOR: z.coerce.number().min(0).max(1).default(0.35),
+   AI_PROVIDER: z.string().min(1).default("offline"),
+   AI_LADDER: z.string().default("cloud,local,offline"),
+   AI_PROVIDERS: providerBindingsSchema,
+   AI_MAX_TOKENS: z.coerce.number().int().min(16).max(8192).default(400),
+   AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
+   AI_CONSENT_VERSION: z.string().min(1).max(64).default("remote-ai-v1"),
+   CONFIDENCE_FLOOR: z.coerce.number().min(0).max(1).default(0.35),
     // Retrieval floor when a consented AI provider judges passage relevance.
-    DIMTS_AI_RECALL_FLOOR: z.coerce.number().min(0).max(1).default(0.2),
-    DIMTS_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
-    DIMTS_TELEGRAM_TOKEN: z.preprocess(
+   AI_RECALL_FLOOR: z.coerce.number().min(0).max(1).default(0.2),
+   RETENTION_HOURS: z.coerce.number().int().positive().default(24),
+   TELEGRAM_TOKEN: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
@@ -589,7 +586,7 @@ const environmentSchema = z
         .regex(/^\d{1,20}:[A-Za-z0-9_-]{20,}$/u)
         .optional(),
     ),
-    DIMTS_TELEGRAM_SECRET: z.preprocess(
+   TELEGRAM_SECRET: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
@@ -600,51 +597,51 @@ const environmentSchema = z
     ),
     // Unset or empty: polling in development, webhook otherwise (see
     // telegramMode). Production always rejects polling.
-    DIMTS_TELEGRAM_MODE: z.preprocess(
+   TELEGRAM_MODE: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.enum(["webhook", "polling"]).optional(),
     ),
-    DIMTS_SMS_MODE: z
+   SMS_MODE: z
       .enum(["simulator", "gateway", "smsethiopia"])
       .default("simulator"),
-    DIMTS_SMS_GATEWAY_SECRET: optionalSmsSecret,
-    DIMTS_SMS_GATEWAY_URL: optionalSmsUrl,
-    DIMTS_SMS_GATEWAY_TOKEN: optionalSmsSecret,
-    DIMTS_SMS_CALLBACK_URL: optionalSmsUrl,
-    DIMTS_SMS_CALLBACK_SECRET: optionalSmsSecret,
-    DIMTS_SMS_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(20),
-    DIMTS_TURN_API_KEY: z.string().optional(),
-    DIMTS_TURN_APP: z.preprocess(
+   SMS_GATEWAY_SECRET: optionalSmsSecret,
+   SMS_GATEWAY_URL: optionalSmsUrl,
+   SMS_GATEWAY_TOKEN: optionalSmsSecret,
+   SMS_CALLBACK_URL: optionalSmsUrl,
+   SMS_CALLBACK_SECRET: optionalSmsSecret,
+   SMS_DAILY_LIMIT: z.coerce.number().int().min(1).max(1000).default(20),
+   TURN_API_KEY: z.string().optional(),
+   TURN_APP: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z
         .string()
         .regex(/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/u)
         .optional(),
     ),
-    DIMTS_HELPER_HOURS: helperHoursSchema,
-    DIMTS_HELP_WAIT_TIMEOUT_MS: z.coerce
+   HELPER_HOURS: helperHoursSchema,
+   HELP_WAIT_TIMEOUT_MS: z.coerce
       .number()
       .int()
       .min(1000)
       .max(3600000)
       .default(300000),
-    DIMTS_DB_BUDGET_MB: z.coerce.number().positive().default(600),
+   DB_BUDGET_MB: z.coerce.number().positive().default(600),
   })
   .superRefine((config, context) => {
     if (
-      Boolean(config.DIMTS_LTI_WIDGET_URL) !==
-      Boolean(config.DIMTS_LTI_WIDGET_KEY)
+      Boolean(config.LTI_WIDGET_URL) !==
+      Boolean(config.LTI_WIDGET_KEY)
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_LTI_WIDGET_URL"],
+        path: ["LTI_WIDGET_URL"],
         message:
-          "DIMTS_LTI_WIDGET_URL and DIMTS_LTI_WIDGET_KEY must be configured together",
+          "LTI_WIDGET_URL andLTI_WIDGET_KEY must be configured together",
       });
     if (config.NODE_ENV !== "development") {
       const localHttp = [
-        config.DIMTS_LTI_WIDGET_URL ?? "",
-        ...config.DIMTS_LTI_PLATFORMS.flatMap((platform) => [
+        config.LTI_WIDGET_URL ?? "",
+        ...config.LTI_PLATFORMS.flatMap((platform) => [
           platform.issuer,
           platform.authLoginUrl,
           platform.authTokenUrl,
@@ -654,108 +651,108 @@ const environmentSchema = z
       if (localHttp)
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          path: ["DIMTS_LTI_PLATFORMS"],
+          path: ["LTI_PLATFORMS"],
           message:
             "Plain-HTTP LTI URLs are allowed only with NODE_ENV=development",
         });
     }
-    if (config.DIMTS_VOICE_PREVIEW && config.NODE_ENV !== "development")
+    if (config.VOICE_PREVIEW && config.NODE_ENV !== "development")
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_VOICE_PREVIEW"],
+        path: ["VOICE_PREVIEW"],
         message:
           "Unreviewed voice preview is allowed only with NODE_ENV=development",
       });
     if (telegramMode(config) === "polling" && config.NODE_ENV === "production")
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_TELEGRAM_MODE"],
+        path: ["TELEGRAM_MODE"],
         message:
           "Telegram polling is allowed only locally; production requires webhook mode",
       });
     if (
-      config.DIMTS_TELEGRAM_TOKEN &&
+      config.TELEGRAM_TOKEN &&
       telegramMode(config) === "webhook" &&
-      !config.DIMTS_TELEGRAM_SECRET
+      !config.TELEGRAM_SECRET
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_TELEGRAM_SECRET"],
+        path: ["TELEGRAM_SECRET"],
         message: "Enabled Telegram webhooks require a separate secret",
       });
     if (
-      config.DIMTS_TELEGRAM_SECRET &&
+      config.TELEGRAM_SECRET &&
       [
-        config.DIMTS_ENC_KEY,
-        config.DIMTS_HASH_KEY,
-        config.DIMTS_JWT_SECRET,
-        config.DIMTS_CRON_SECRET,
-        config.DIMTS_SMS_GATEWAY_SECRET,
-        config.DIMTS_SMS_GATEWAY_TOKEN,
-        config.DIMTS_SMS_CALLBACK_SECRET,
-        config.DIMTS_JOBS_RELAY_SECRET,
-      ].includes(config.DIMTS_TELEGRAM_SECRET)
+        config.ENC_KEY,
+        config.HASH_KEY,
+        config.JWT_SECRET,
+        config.CRON_SECRET,
+        config.SMS_GATEWAY_SECRET,
+        config.SMS_GATEWAY_TOKEN,
+        config.SMS_CALLBACK_SECRET,
+        config.JOBS_RELAY_SECRET,
+      ].includes(config.TELEGRAM_SECRET)
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_TELEGRAM_SECRET"],
+        path: ["TELEGRAM_SECRET"],
         message:
           "Telegram webhook secret must differ from other configured credentials",
       });
     if (
-      config.DIMTS_SMS_MODE === "smsethiopia" &&
-      !config.DIMTS_SMS_GATEWAY_TOKEN
+      config.SMS_MODE === "smsethiopia" &&
+      !config.SMS_GATEWAY_TOKEN
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_SMS_GATEWAY_TOKEN"],
+        path: ["SMS_GATEWAY_TOKEN"],
         message: "SMS Ethiopia mode requires the campaign API key",
       });
     if (
-      config.DIMTS_SMS_MODE !== "smsethiopia" &&
-      (Boolean(config.DIMTS_SMS_GATEWAY_URL) !==
-        Boolean(config.DIMTS_SMS_GATEWAY_TOKEN) ||
-        (config.DIMTS_SMS_MODE === "gateway" && !config.DIMTS_SMS_GATEWAY_URL))
+      config.SMS_MODE !== "smsethiopia" &&
+      (Boolean(config.SMS_GATEWAY_URL) !==
+        Boolean(config.SMS_GATEWAY_TOKEN) ||
+        (config.SMS_MODE === "gateway" && !config.SMS_GATEWAY_URL))
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_SMS_GATEWAY_URL"],
+        path: ["SMS_GATEWAY_URL"],
         message:
           "SMS gateway URL and token must be configured together; gateway mode requires both",
       });
     if (
-      Boolean(config.DIMTS_SMS_CALLBACK_URL) !==
-      Boolean(config.DIMTS_SMS_CALLBACK_SECRET)
+      Boolean(config.SMS_CALLBACK_URL) !==
+      Boolean(config.SMS_CALLBACK_SECRET)
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_SMS_CALLBACK_URL"],
+        path: ["SMS_CALLBACK_URL"],
         message: "SMS callback URL and secret must be configured together",
       });
     if (
-      config.DIMTS_SMS_GATEWAY_SECRET &&
+      config.SMS_GATEWAY_SECRET &&
       [
-        config.DIMTS_ENC_KEY,
-        config.DIMTS_HASH_KEY,
-        config.DIMTS_JWT_SECRET,
-        config.DIMTS_CRON_SECRET,
-        config.DIMTS_JOBS_RELAY_SECRET,
-        config.DIMTS_SMS_GATEWAY_TOKEN,
-        config.DIMTS_SMS_CALLBACK_SECRET,
-        config.DIMTS_TELEGRAM_SECRET,
-      ].includes(config.DIMTS_SMS_GATEWAY_SECRET)
+        config.ENC_KEY,
+        config.HASH_KEY,
+        config.JWT_SECRET,
+        config.CRON_SECRET,
+        config.JOBS_RELAY_SECRET,
+        config.SMS_GATEWAY_TOKEN,
+        config.SMS_CALLBACK_SECRET,
+        config.TELEGRAM_SECRET,
+      ].includes(config.SMS_GATEWAY_SECRET)
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
-        path: ["DIMTS_SMS_GATEWAY_SECRET"],
+        path: ["SMS_GATEWAY_SECRET"],
         message:
           "SMS inbound secret must differ from other configured credentials",
       });
     if (
-      Boolean(config.DIMTS_JOBS_RELAY_URL) !==
-        Boolean(config.DIMTS_JOBS_RELAY_SECRET) ||
-      (config.DIMTS_JOBS_RELAY_CHANNELS.length > 0 &&
-        !config.DIMTS_JOBS_RELAY_URL)
+      Boolean(config.JOBS_RELAY_URL) !==
+        Boolean(config.JOBS_RELAY_SECRET) ||
+      (config.JOBS_RELAY_CHANNELS.length > 0 &&
+        !config.JOBS_RELAY_URL)
     ) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -763,34 +760,34 @@ const environmentSchema = z
           "Job relay URL and secret must be configured together; relay channels require both",
       });
     }
-    if (Boolean(config.DIMTS_TURN_API_KEY) !== Boolean(config.DIMTS_TURN_APP)) {
+    if (Boolean(config.TURN_API_KEY) !== Boolean(config.TURN_APP)) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "DIMTS_TURN_API_KEY and DIMTS_TURN_APP must be configured together",
+          "TURN_API_KEY andTURN_APP must be configured together",
       });
     }
     const secrets = [
-      config.DIMTS_ENC_KEY,
-      config.DIMTS_HASH_KEY,
-      config.DIMTS_JWT_SECRET,
+      config.ENC_KEY,
+      config.HASH_KEY,
+      config.JWT_SECRET,
     ];
     if (new Set(secrets).size !== secrets.length) {
       context.addIssue({
         code: z.ZodIssueCode.custom,
         message:
-          "DIMTS_ENC_KEY, DIMTS_HASH_KEY, and DIMTS_JWT_SECRET must be different",
+          "ENC_KEY,HASH_KEY, andJWT_SECRET must be different",
       });
     }
     const ids = new Set<string>();
-    const bindings = Array.isArray(config.DIMTS_AI_PROVIDERS)
-      ? config.DIMTS_AI_PROVIDERS
+    const bindings = Array.isArray(config.AI_PROVIDERS)
+      ? config.AI_PROVIDERS
       : [];
     for (const [index, binding] of bindings.entries()) {
       if (binding.id === "offline" || ids.has(binding.id)) {
         context.addIssue({
           code: z.ZodIssueCode.custom,
-          message: `DIMTS_AI_PROVIDERS[${index}].id must be unique and cannot be "offline"`,
+          message: `AI_PROVIDERS[${index}].id must be unique and cannot be "offline"`,
         });
       }
       ids.add(binding.id);
@@ -798,16 +795,16 @@ const environmentSchema = z
   });
 
 type ParsedConfig = z.infer<typeof environmentSchema>;
-export type ApiConfig = Omit<ParsedConfig, "DIMTS_TELEGRAM_MODE"> & {
-  DIMTS_TELEGRAM_MODE: "webhook" | "polling";
+export type ApiConfig = Omit<ParsedConfig, "TELEGRAM_MODE"> & {
+ TELEGRAM_MODE: "webhook" | "polling";
 };
 
 function telegramMode(config: {
   NODE_ENV: string;
-  DIMTS_TELEGRAM_MODE?: "webhook" | "polling" | undefined;
+ TELEGRAM_MODE?: "webhook" | "polling" | undefined;
 }): "webhook" | "polling" {
   return (
-    config.DIMTS_TELEGRAM_MODE ??
+    config.TELEGRAM_MODE ??
     (config.NODE_ENV === "development" ? "polling" : "webhook")
   );
 }
@@ -826,7 +823,7 @@ export function parseConfig(
     throw new Error(`Invalid API configuration: ${details}`);
   }
   const values = environment as Record<string, unknown>;
-  for (const binding of parsed.data.DIMTS_AI_PROVIDERS) {
+  for (const binding of parsed.data.AI_PROVIDERS) {
     if (
       binding.enabled &&
       binding.credentialRef &&
@@ -839,23 +836,23 @@ export function parseConfig(
     }
   }
   if (
-    parsed.data.DIMTS_AI_PROVIDER !== "offline" &&
-    !parsed.data.DIMTS_AI_PROVIDERS.some(
-      ({ id, enabled }) => id === parsed.data.DIMTS_AI_PROVIDER && enabled,
+    parsed.data.AI_PROVIDER !== "offline" &&
+    !parsed.data.AI_PROVIDERS.some(
+      ({ id, enabled }) => id === parsed.data.AI_PROVIDER && enabled,
     )
   ) {
     throw new Error(
-      `Invalid API configuration: DIMTS_AI_PROVIDER ${parsed.data.DIMTS_AI_PROVIDER} is not an enabled provider`,
+      `Invalid API configuration:AI_PROVIDER ${parsed.data.AI_PROVIDER} is not an enabled provider`,
     );
   }
   return {
     ...parsed.data,
-    DIMTS_TELEGRAM_MODE: telegramMode(parsed.data),
+   TELEGRAM_MODE: telegramMode(parsed.data),
   } as ApiConfig;
 }
 
 export function configuredOrigins(config: ApiConfig): string[] {
-  return config.DIMTS_HOST_ORIGINS.split(",")
+  return config.HOST_ORIGINS.split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
 }

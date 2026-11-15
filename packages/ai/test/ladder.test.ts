@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { Ladder } from "../src/ladder.js";
 import type {
   AiProvider,

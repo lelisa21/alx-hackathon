@@ -1,5 +1,5 @@
 {
-  "name": "@dimts/telegram",
+  "name": "@bridgely/telegram",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,9 +14,9 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@dimts/engine": "workspace:*",
-    "@dimts/jobs": "workspace:*",
-    "@dimts/voice": "workspace:*",
+    "@bridgely/engine": "workspace:*",
+    "@bridgely/jobs": "workspace:*",
+    "@bridgely/voice": "workspace:*",
     "grammy": "^1.35.0",
     "pg": "^8.13.3",
     "zod": "^4.6.7"

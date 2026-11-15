@@ -148,7 +148,7 @@ describe("Gemini voice adapter", () => {
     ) as unknown as typeof fetch;
     const voice = createGeminiVoice({
       apiKey: "key",
-      sttModel: "gemini-4-hydrogen",
+      sttModel: "gemini-3.8-flash",
       ttsModel: "gemini-3.8-flash-lite-tts",
       languages: ["am", "om"],
       speakLanguages: ["am"],
@@ -171,7 +171,7 @@ describe("Gemini voice adapter", () => {
     expect(stt.headers.get("x-goog-api-key")).toBe("key");
     expect(stt.headers.get("api-revision")).toBe("2026-05-20");
     expect(stt.body).toMatchObject({
-      model: "gemini-4-hydrogen",
+      model: "gemini-3.8-flash",
       store: false,
       generation_config: { thinking_level: "low" },
       input: [
@@ -199,7 +199,7 @@ describe("Gemini voice adapter", () => {
   it("reports the HTTP status and vendor message, never the audio", async () => {
     const voice = createGeminiVoice({
       apiKey: "bad",
-      sttModel: "gemini-4-hydrogen",
+      sttModel: "gemini-3.8-flash",
       ttsModel: "gemini-3.8-flash-lite-tts",
       languages: ["am"],
       fetch: (async () =>
@@ -235,7 +235,7 @@ describe("Gemini voice model chain", () => {
         error: {
           code: 429,
           message:
-            "Rate limit exceeded for model gemini-4-hydrogen (limit: 20 requests per day on Free Tier). Please retry in 1h0m0s",
+            "Rate limit exceeded for model gemini-3.8-flash (limit: 20 requests per day on Free Tier). Please retry in 1h0m0s",
         },
       },
       { status: 429 },
@@ -248,12 +248,12 @@ describe("Gemini voice model chain", () => {
       async (_url: RequestInfo | URL, init?: RequestInit) => {
         const model = JSON.parse(String(init?.body)).model as string;
         models.push(model);
-        return model === "gemini-4-hydrogen" ? quota() : ok("ሰላም");
+        return model === "gemini-3.8-flash" ? quota() : ok("ሰላም");
       },
     ) as unknown as typeof fetch;
     const voice = createGeminiVoice({
       apiKey: "key",
-      sttModel: "gemini-4-hydrogen, gemini-3.5-flash-lite",
+      sttModel: "gemini-3.8-flash, gemini-3.5-flash-lite",
       ttsModel: "gemini-3.8-flash-lite-tts",
       languages: ["am"],
       fetch: fetcher,
@@ -266,13 +266,13 @@ describe("Gemini voice model chain", () => {
       signal: new AbortController().signal,
     };
     expect(await voice.transcribe(input)).toBe("ሰላም");
-    expect(models).toEqual(["gemini-4-hydrogen", "gemini-3.5-flash-lite"]);
+    expect(models).toEqual(["gemini-3.8-flash", "gemini-3.5-flash-lite"]);
     await voice.transcribe(input);
     expect(models.slice(2)).toEqual(["gemini-3.5-flash-lite"]);
     now = 3_600_000;
     await voice.transcribe(input);
     expect(models.slice(3)).toEqual([
-      "gemini-4-hydrogen",
+      "gemini-3.8-flash",
       "gemini-3.5-flash-lite",
     ]);
   });
@@ -286,7 +286,7 @@ describe("Gemini voice model chain", () => {
     ) as unknown as typeof fetch;
     const voice = createGeminiVoice({
       apiKey: "bad",
-      sttModel: ["gemini-4-hydrogen", "gemini-3.5-flash-lite"],
+      sttModel: ["gemini-3.8-flash", "gemini-3.5-flash-lite"],
       ttsModel: "gemini-3.8-flash-lite-tts",
       languages: ["am"],
       fetch: fetcher,
@@ -298,7 +298,7 @@ describe("Gemini voice model chain", () => {
         lang: "am",
         signal: new AbortController().signal,
       }),
-    ).rejects.toMatchObject({ status: 400, model: "gemini-4-hydrogen" });
+    ).rejects.toMatchObject({ status: 400, model: "gemini-3.8-flash" });
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 });

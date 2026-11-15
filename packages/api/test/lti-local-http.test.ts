@@ -4,17 +4,17 @@ import { parseConfig } from "../src/config.js";
 
 const base = {
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
 };
 const platform = (host: string) =>
   JSON.stringify([
     {
       platformId: "demo-lms",
       issuer: `http://${host}:5180`,
-      clientId: "dimts-demo-client",
+      clientId: "Bridgely-demo-client",
       authLoginUrl: `http://${host}:5180/auth`,
       authTokenUrl: `http://${host}:5180/token`,
       jwksUri: "http://host.docker.internal:5180/jwks",
@@ -28,10 +28,10 @@ describe("local HTTP LTI platforms", () => {
       parseConfig({
         ...base,
         NODE_ENV: "development",
-        DIMTS_LTI_PLATFORMS: platform("localhost"),
-        DIMTS_LTI_WIDGET_URL: "http://localhost:5173/dimts-widget.js",
-        DIMTS_LTI_WIDGET_KEY: "local-widget-public-id",
-      }).DIMTS_LTI_PLATFORMS,
+       LTI_PLATFORMS: platform("localhost"),
+       LTI_WIDGET_URL: "http://localhost:5173/Bridgely-widget.js",
+       LTI_WIDGET_KEY: "local-widget-public-id",
+      }).LTI_PLATFORMS,
     ).toHaveLength(1);
   });
 
@@ -40,14 +40,14 @@ describe("local HTTP LTI platforms", () => {
       parseConfig({
         ...base,
         NODE_ENV: "production",
-        DIMTS_LTI_PLATFORMS: platform("localhost"),
+       LTI_PLATFORMS: platform("localhost"),
       }),
     ).toThrow(/Plain-HTTP LTI URLs/u);
     expect(() =>
       parseConfig({
         ...base,
         NODE_ENV: "development",
-        DIMTS_LTI_PLATFORMS: platform("lms.example.org"),
+       LTI_PLATFORMS: platform("lms.example.org"),
       }),
     ).toThrow();
   });

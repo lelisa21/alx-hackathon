@@ -6,23 +6,23 @@ import { parseConfig } from "../src/config.js";
 
 const environment = {
   NODE_ENV: "test",
-  DATABASE_URL: "postgres://localhost/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "secret-that-is-longer-than-thirty-two",
-  DIMTS_CRON_SECRET: "cron-secret-that-is-longer-than-twenty-four",
-  DIMTS_TURN_APP: "example",
-  DIMTS_TURN_API_KEY: "private-metered-secret",
+  DATABASE_URL: "postgres://localhost/Bridgely",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "secret-that-is-longer-than-thirty-two",
+ CRON_SECRET: "cron-secret-that-is-longer-than-twenty-four",
+ TURN_APP: "example",
+ TURN_API_KEY: "private-metered-secret",
 };
 const config = parseConfig(environment);
 describe("P05 media validation and server credentials", () => {
   it("accepts Compose's empty TURN settings as STUN-only defaults", () => {
     const disabled = parseConfig({
       ...environment,
-      DIMTS_TURN_APP: "",
-      DIMTS_TURN_API_KEY: "",
+     TURN_APP: "",
+     TURN_API_KEY: "",
     });
-    expect(disabled.DIMTS_TURN_APP).toBeUndefined();
+    expect(disabled.TURN_APP).toBeUndefined();
   });
   it.each(["jpeg", "png", "webp"] as const)(
     "fully decodes %s and strips metadata",
@@ -81,7 +81,7 @@ describe("P05 media validation and server credentials", () => {
     expect(url.pathname).toBe("/api/v1/turn/credential");
     expect(JSON.parse(String(init.body))).toEqual({ expiryInSeconds: 3600 });
     expect(first.expiresAt).toBe("2026-11-13T11:00:00.000Z");
-    expect(JSON.stringify(first)).not.toContain(config.DIMTS_TURN_API_KEY);
+    expect(JSON.stringify(first)).not.toContain(config.TURN_API_KEY);
     expect(JSON.stringify(first)).not.toContain("temporary-key");
     instant = new Date("2026-11-13T11:01:00.000Z");
     await ice();

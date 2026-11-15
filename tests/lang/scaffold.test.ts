@@ -18,7 +18,7 @@ import { scaffoldPack } from "../../packages/locales-tools/src/scaffold.js";
 
 const roots: string[] = [];
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), "dimts-scaffold-"));
+  const root = mkdtempSync(path.join(tmpdir(), "Bridgely-scaffold-"));
   roots.push(root);
   cpSync(fileURLToPath(new URL("../../locales", import.meta.url)), root, {
     recursive: true,

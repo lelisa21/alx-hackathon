@@ -1,7 +1,7 @@
-# Dimts deep implementation and release analysis
+# Bridgely deep implementation and release analysis
 
 Reviewed: 15 November 2026  
-Authority: `Dimts-System-Blueprint-v2.0.md`, then the SRS acceptance text.  
+Authority: `Bridgely-System-Blueprint-v2.0.md`, then the SRS acceptance text.  
 Evidence reviewed: `AGENTS.md`, `DECISIONS.md`, `IMPLEMENTATION_PROGRESS.md`,
 `REMAINING_WORK_PLAN.md`, `GATE_CHECKLIST.md`, `WCAG_REPORT.md`, `EVAL.md`,
 the repository worktree status, and the current package/work-package map.

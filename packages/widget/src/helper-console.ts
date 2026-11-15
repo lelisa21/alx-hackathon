@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { messageFor } from "./messages.js";
-import { createScreenShareController, type ShareState } from "@dimts/help";
+import { createScreenShareController, type ShareState } from "@bridgely/help";
 import regularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
 import boldFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-700-normal.woff2?url&no-inline";
 
@@ -111,7 +111,7 @@ function queueRequest(value: unknown): HelpRequest | null {
   };
 }
 
-export class DimtsHelperConsole extends LitElement {
+export class BridgelyHelperConsole extends LitElement {
   static override properties = {
     api: { attribute: "data-api" },
     language: { attribute: "data-language", reflect: true },
@@ -569,7 +569,7 @@ export class DimtsHelperConsole extends LitElement {
     } catch {
       this.initialized = true;
       this.dispatchEvent(
-        new CustomEvent("dimts:helper-error", {
+        new CustomEvent("Bridgely:helper-error", {
           bubbles: true,
           composed: true,
           detail: { code: "locale_unavailable" },
@@ -1756,12 +1756,12 @@ export class DimtsHelperConsole extends LitElement {
   }
 }
 
-if (!customElements.get("dimts-helper-console")) {
-  customElements.define("dimts-helper-console", DimtsHelperConsole);
+if (!customElements.get("bridgely-helper-console")) {
+  customElements.define("bridgely-helper-console", BridgelyHelperConsole);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    "dimts-helper-console": DimtsHelperConsole;
+    "bridgely-helper-console": BridgelyHelperConsole;
   }
 }

@@ -1,5 +1,5 @@
-import type { AnswerRequest } from "@dimts/engine";
-import { hasInstructionInjection, isAnswerLengthAllowed } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
+import { hasInstructionInjection, isAnswerLengthAllowed } from "@bridgely/engine";
 import type {
   AiProvider,
   AnswerResult,

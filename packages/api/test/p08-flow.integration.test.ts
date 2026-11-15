@@ -6,16 +6,16 @@ import pg from "pg";
 import request from "supertest";
 import WebSocket from "ws";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { createTelegramTransport, createTelegramVoice } from "@dimts/telegram";
-import type { AskDependencies } from "@dimts/engine";
+import { createTelegramTransport, createTelegramVoice } from "@bridgely/telegram";
+import type { AskDependencies } from "@bridgely/engine";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { sha256 } from "../src/middleware/auth.js";
 import { applyMigrations } from "../src/db/migrate.js";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { careerDate } from "../src/jobs-format.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)(
   "P08 Telegram PostgreSQL/HTTP/helper WebSocket",
   () => {
@@ -206,12 +206,12 @@ describe.skipIf(!databaseUrl)(
       config = parseConfig({
         NODE_ENV: "test",
         DATABASE_URL: connectionString,
-        DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-        DIMTS_HASH_KEY: hashKey.toString("base64"),
-        DIMTS_JWT_SECRET: "synthetic-jwt-secret-long-enough-for-test",
-        DIMTS_CRON_SECRET: cron,
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_SECRET: secret,
+       ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+       HASH_KEY: hashKey.toString("base64"),
+       JWT_SECRET: "synthetic-jwt-secret-long-enough-for-test",
+       CRON_SECRET: cron,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_SECRET: secret,
       });
       await pool.query(
         "INSERT INTO helper(id,display_name,token_hash,langs) VALUES('helper-p08','Private staff name',$1,ARRAY['en'])",
@@ -414,7 +414,7 @@ describe.skipIf(!databaseUrl)(
       const id = 900003;
       await request(app)
         .post("/v1/jobs/import")
-        .set("X-Dimts-Key", "synthetic-host-secret")
+        .set("X-Bridgely-Key", "synthetic-host-secret")
         .send({
           lang: "en",
           postings: {

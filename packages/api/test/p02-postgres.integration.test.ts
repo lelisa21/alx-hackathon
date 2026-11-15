@@ -4,14 +4,14 @@ import { readFile } from "node:fs/promises";
 import pg from "pg";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import {
   PostgresGrounding,
   sourceHash,
   toPassages,
   replaceContent,
-} from "@dimts/grounding";
-import { createAnswerCacheKey } from "@dimts/engine";
+} from "@bridgely/grounding";
+import { createAnswerCacheKey } from "@bridgely/engine";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { applyMigrations } from "../src/db/migrate.js";
@@ -20,7 +20,7 @@ import { createPostgresAnswerCache } from "../src/db/answer-cache.js";
 import { createEngineDependencies } from "../src/engine.js";
 import { createApiProviderRuntime } from "../src/provider-runtime.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)(
   "P02 PostgreSQL session, cache and privacy integration",
   () => {
@@ -54,7 +54,7 @@ describe.skipIf(!databaseUrl)(
     const newSession = async () => {
       const result = await request(app)
         .post("/v1/sessions")
-        .set("x-dimts-key", "p02-host-key")
+        .set("x-Bridgely-key", "p02-host-key")
         .send({ lang: "en" });
       expect(result.status).toBe(201);
       return result.body as { sessionId: string; sessionToken: string };
@@ -101,10 +101,10 @@ describe.skipIf(!databaseUrl)(
       config = parseConfig({
         NODE_ENV: "development",
         DATABASE_URL: url.toString(),
-        DIMTS_ENC_KEY: Buffer.alloc(32, 11).toString("base64"),
-        DIMTS_HASH_KEY: Buffer.alloc(32, 12).toString("base64"),
-        DIMTS_JWT_SECRET: "p02-test-signing-secret-long-enough",
-        DIMTS_CRON_SECRET: "p02-test-cron-secret-long-enough",
+       ENC_KEY: Buffer.alloc(32, 11).toString("base64"),
+       HASH_KEY: Buffer.alloc(32, 12).toString("base64"),
+       JWT_SECRET: "p02-test-signing-secret-long-enough",
+       CRON_SECRET: "p02-test-cron-secret-long-enough",
       });
       app = makeApp();
     }, 30_000);

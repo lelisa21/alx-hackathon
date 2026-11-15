@@ -3,7 +3,7 @@ import {
   parseJobPostingPassages,
   type PassageRecord,
   type JobPostingParseError,
-} from "@dimts/grounding";
+} from "@bridgely/grounding";
 import type { PublicJob } from "./types.js";
 
 function object(value: unknown): Record<string, unknown> {

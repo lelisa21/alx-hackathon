@@ -36,7 +36,7 @@ async function fixture(page: Page, channel: "web" | "telegram" = "web") {
   await page.route("http://127.0.0.1:4173/p05-helper", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${api}"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><bridgely-helper-console data-api="${api}"></bridgely-helper-console><script type="module" src="/bridgely-helper-console.js"></script></body></html>`,
     }),
   );
   await page.route(`${api}/**`, (route) => {
@@ -203,7 +203,7 @@ test("P08 FR-TG-07 helper claims Telegram text relay, keeps media unavailable an
   ).toEqual([]);
   expect(
     await page
-      .locator("dimts-helper-console")
+      .locator("bridgely-helper-console")
       .evaluate((element) => element.scrollWidth <= element.clientWidth),
   ).toBe(true);
   await page.getByLabel("Was this resolved?").selectOption("yes");
@@ -308,7 +308,7 @@ test("FR-HELP-06/14/16 queue wait order, visual announcement, opt-in sound/name 
       ["critical", "serious"].includes(v.impact ?? ""),
     ),
   ).toEqual([]);
-  const host = page.locator("dimts-helper-console");
+  const host = page.locator("bridgely-helper-console");
   expect(
     await host.evaluate(
       (element) => element.scrollWidth <= element.clientWidth,
@@ -508,7 +508,7 @@ test("FR-HELP-09/10/14 helper viewer is muted with a persistent keyboard stop", 
     peer.ontrack?.(event);
     peer.dispatchEvent(event);
   });
-  const video = page.locator("dimts-helper-console video");
+  const video = page.locator("bridgely-helper-console video");
   await expect(video).toBeVisible();
   expect(
     await video.evaluate(

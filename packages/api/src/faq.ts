@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { LangPack } from "@dimts/locales-tools";
-import type { PostgresGrounding } from "@dimts/grounding";
+import type { LangPack } from "@bridgely/locales-tools";
+import type { PostgresGrounding } from "@bridgely/grounding";
 import { z } from "zod";
 import { LocaleFaqCitationSchema, LocaleFaqSchema } from "./schemas.js";
 

@@ -5,8 +5,8 @@ import {
   createCloudVoiceAdapters,
   MAX_RECORDING_MS,
   VoiceError,
-} from "@dimts/voice";
-import type { SpeechToText, TextToSpeech } from "@dimts/voice";
+} from "@bridgely/voice";
+import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
 import type { WidgetSettings } from "./index.js";
 
 export interface VoiceContext {

@@ -1,6 +1,6 @@
 import { LitElement, css, html, nothing } from "lit";
 import { messageFor } from "./messages.js";
-import bootstrapUi from "virtual:dimts-bootstrap-ui";
+import bootstrapUi from "virtual:Bridgely-bootstrap-ui";
 import { applyThemeGuard } from "./theme.js";
 import { clearFaqCache, loadFaq } from "./faq.js";
 import { ownsWorkerRegistration } from "./worker-ownership.js";
@@ -9,7 +9,7 @@ import type { VoiceContext } from "./voice-runtime.js";
 import type { HelpContext } from "./help-runtime.js";
 import type { CareerContext } from "./career-runtime.js";
 import { installDefaultApi } from "./public-api.js";
-import type { SpeechToText, TextToSpeech } from "@dimts/voice";
+import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
 import { suggestLanguageOptions } from "./language.js";
 import {
   hasTransliteration,
@@ -20,7 +20,7 @@ import ethiopicRegularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethio
 const ETHIOPIC_LANGS = new Set(["am", "ti"]);
 let ethiopicFont: FontFace | undefined;
 const ethiopicFontUsers = new Set<HTMLElement>();
-const activeWidgets = new Set<DimtsAssistant>();
+const activeWidgets = new Set<BridgelyAssistant>();
 
 function registerEthiopicFonts(widget: HTMLElement): void {
   ethiopicFontUsers.add(widget);
@@ -114,7 +114,14 @@ const defaultSettings: WidgetSettings = {
 const storage = {
   get(key: string): string | null {
     try {
-      return globalThis.localStorage?.getItem(key) ?? null;
+      const local = globalThis.localStorage;
+      const current = local?.getItem(key);
+      if (current != null) return current;
+      const previousKey = key.replace(/^Bridgely\./u, "dimts.");
+      if (previousKey === key) return null;
+      const previous = local?.getItem(previousKey) ?? null;
+      if (previous !== null) local?.setItem(key, previous);
+      return previous;
     } catch {
       return null;
     }
@@ -128,7 +135,7 @@ const storage = {
   },
 };
 
-export class DimtsAssistant extends LitElement {
+export class BridgelyAssistant extends LitElement {
   static override get observedAttributes(): string[] {
     return [...super.observedAttributes, "hidden"];
   }
@@ -247,7 +254,7 @@ export class DimtsAssistant extends LitElement {
   private browserVoiceRun = 0;
   private browserVoice:
     | Awaited<
-        ReturnType<typeof import("@dimts/voice").createBrowserVoiceAdapters>
+        ReturnType<typeof import("@bridgely/voice").createBrowserVoiceAdapters>
       >
     | undefined;
   private audioContext: AudioContext | undefined;
@@ -329,12 +336,19 @@ export class DimtsAssistant extends LitElement {
   private careerContinuity = false;
 
   private get careerSessionKey(): string {
+    return `Bridgely.career-session.${this.apiRoot}.${this.hostKey}`;
+  }
+
+  private get previousCareerSessionKey(): string {
     return `dimts.career-session.${this.apiRoot}.${this.hostKey}`;
   }
 
   private rememberCareerSession(clear = false): void {
     try {
-      if (clear) sessionStorage.removeItem(this.careerSessionKey);
+      if (clear) {
+        sessionStorage.removeItem(this.careerSessionKey);
+        sessionStorage.removeItem(this.previousCareerSessionKey);
+      }
       else if (this.careerContinuity && this.sessionId && this.resumeToken)
         sessionStorage.setItem(
           this.careerSessionKey,
@@ -567,7 +581,7 @@ export class DimtsAssistant extends LitElement {
     // A host nonce also supports browsers without constructable stylesheets.
     const style = document.createElement("style");
     if (this.nonce) style.nonce = this.nonce;
-    style.textContent = DimtsAssistant.styles.cssText;
+    style.textContent = BridgelyAssistant.styles.cssText;
     root.append(style);
     this.renderOptions.renderBefore = root.firstChild;
     return root;
@@ -629,15 +643,15 @@ export class DimtsAssistant extends LitElement {
 
   static override styles = css`
     :host {
-      color: var(--dimts-text);
+      color: var(--Bridgely-text);
       display: block;
       font-family:
-        var(--dimts-font-family, system-ui),
+        var(--Bridgely-font-family, system-ui),
         -apple-system,
         BlinkMacSystemFont,
         "Segoe UI",
         sans-serif;
-      font-size: calc(1rem * var(--dimts-scale, 1));
+      font-size: calc(1rem * var(--Bridgely-scale, 1));
       line-height: 1.5;
     }
 
@@ -656,7 +670,7 @@ export class DimtsAssistant extends LitElement {
     [lang="am"],
     [lang="ti"] {
       font-family:
-        "Noto Sans Ethiopic", var(--dimts-font-family, system-ui), sans-serif;
+        "Noto Sans Ethiopic", var(--Bridgely-font-family, system-ui), sans-serif;
       line-height: 1.65;
     }
 
@@ -686,9 +700,9 @@ export class DimtsAssistant extends LitElement {
 
     button,
     select {
-      border: 2px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 0.5rem);
-      background: var(--dimts-surface);
+      border: 2px solid var(--Bridgely-border);
+      border-radius: var(--Bridgely-radius, 0.5rem);
+      background: var(--Bridgely-surface);
       padding: 0.625rem 0.875rem;
     }
 
@@ -705,33 +719,33 @@ export class DimtsAssistant extends LitElement {
     }
 
     :focus-visible {
-      outline: 3px solid var(--dimts-focus);
+      outline: 3px solid var(--Bridgely-focus);
       outline-offset: 2px;
-      box-shadow: 0 0 0 2px var(--dimts-surface);
+      box-shadow: 0 0 0 2px var(--Bridgely-surface);
     }
 
     main {
-      --dimts-available-height: var(
-        --dimts-embed-height,
-        max(6rem, calc(100dvh - var(--dimts-help-reserve, 5em) - 2rem))
+      --Bridgely-available-height: var(
+        --bridgely-embed-height,
+        max(6rem, calc(100dvh - var(--Bridgely-help-reserve, 5em) - 2rem))
       );
-      background: var(--dimts-surface);
-      border: var(--dimts-frame-border, 1px) solid
-        color-mix(in srgb, var(--dimts-border) 40%, var(--dimts-surface));
-      border-radius: var(--dimts-frame-radius, var(--dimts-radius, 1rem));
+      background: var(--Bridgely-surface);
+      border: var(--Bridgely-frame-border, 1px) solid
+        color-mix(in srgb, var(--Bridgely-border) 40%, var(--Bridgely-surface));
+      border-radius: var(--Bridgely-frame-radius, var(--Bridgely-radius, 1rem));
       display: flex;
       flex-direction: column;
-      block-size: var(--dimts-available-height);
+      block-size: var(--Bridgely-available-height);
       margin-inline: auto;
       max-inline-size: min(100%, 42rem);
-      min-block-size: min(32rem, var(--dimts-available-height));
-      max-block-size: var(--dimts-available-height);
+      min-block-size: min(32rem, var(--Bridgely-available-height));
+      max-block-size: var(--Bridgely-available-height);
       overflow-y: auto;
       scroll-padding-block: 1rem;
       overflow-wrap: anywhere;
       position: relative;
       box-shadow: var(
-        --dimts-frame-shadow,
+        --Bridgely-frame-shadow,
         0 1px 2px rgb(0 0 0 / 8%),
         0 12px 32px rgb(0 0 0 / 14%)
       );
@@ -740,22 +754,22 @@ export class DimtsAssistant extends LitElement {
     /* Room for the embed's close button in the top row. */
     main > .header-actions {
       padding-block-start: 0.75rem;
-      padding-inline: 1rem calc(1rem + var(--dimts-close-space, 0px));
+      padding-inline: 1rem calc(1rem + var(--Bridgely-close-space, 0px));
     }
 
     /* Header and composer stay in view while the conversation scrolls. */
     header {
       align-items: center;
-      background: var(--dimts-primary);
-      color: var(--dimts-primary-text);
-      border-block-end: 1px solid var(--dimts-border);
+      background: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
+      border-block-end: 1px solid var(--Bridgely-border);
       display: flex;
       flex-wrap: wrap;
       gap: 0.5rem;
       inset-block-start: 0;
       justify-content: space-between;
       padding-block: 0.625rem;
-      padding-inline: 1rem calc(1rem + var(--dimts-close-space, 0px));
+      padding-inline: 1rem calc(1rem + var(--Bridgely-close-space, 0px));
       position: sticky;
       z-index: 2;
     }
@@ -782,9 +796,9 @@ export class DimtsAssistant extends LitElement {
     }
 
     .career-launcher {
-      background: var(--dimts-primary-text);
-      border: 1px solid var(--dimts-primary-text);
-      color: var(--dimts-primary);
+      background: var(--Bridgely-primary-text);
+      border: 1px solid var(--Bridgely-primary-text);
+      color: var(--Bridgely-primary);
       font-weight: 700;
     }
 
@@ -832,12 +846,12 @@ export class DimtsAssistant extends LitElement {
       background: transparent;
       border-color: color-mix(
         in srgb,
-        var(--dimts-primary-text) 55%,
-        var(--dimts-primary)
+        var(--Bridgely-primary-text) 55%,
+        var(--Bridgely-primary)
       );
       border-radius: 999px;
       border-width: 1px;
-      color: var(--dimts-primary-text);
+      color: var(--Bridgely-primary-text);
       font-size: 0.8125em;
       padding-inline: 0.75rem;
     }
@@ -845,8 +859,8 @@ export class DimtsAssistant extends LitElement {
     header button:not(:disabled):hover {
       background: color-mix(
         in srgb,
-        var(--dimts-primary-text) 14%,
-        var(--dimts-primary)
+        var(--Bridgely-primary-text) 14%,
+        var(--Bridgely-primary)
       );
     }
 
@@ -872,13 +886,13 @@ export class DimtsAssistant extends LitElement {
     }
 
     .a11y button[aria-pressed="true"] {
-      background: var(--dimts-primary-text);
-      color: var(--dimts-primary);
+      background: var(--Bridgely-primary-text);
+      color: var(--Bridgely-primary);
     }
 
     main > .header-actions .a11y button[aria-pressed="true"] {
-      background: var(--dimts-primary);
-      color: var(--dimts-primary-text);
+      background: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
     }
 
     .a11y-size::before {
@@ -912,9 +926,9 @@ export class DimtsAssistant extends LitElement {
 
     .avatar {
       align-items: center;
-      background: var(--dimts-primary);
+      background: var(--Bridgely-primary);
       border-radius: 50%;
-      color: var(--dimts-primary-text);
+      color: var(--Bridgely-primary-text);
       display: inline-flex;
       flex: none;
       font-weight: 800;
@@ -924,8 +938,8 @@ export class DimtsAssistant extends LitElement {
     }
 
     header .avatar {
-      background: var(--dimts-primary-text);
-      color: var(--dimts-primary);
+      background: var(--Bridgely-primary-text);
+      color: var(--Bridgely-primary);
     }
 
     .avatar-lg {
@@ -944,7 +958,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .suggest-title {
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
       font-size: 0.8em;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -954,8 +968,8 @@ export class DimtsAssistant extends LitElement {
     .suggestion {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 7%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 7%,
+        var(--Bridgely-surface)
       );
       border-radius: 999px;
       padding-inline: 1.125rem;
@@ -975,14 +989,14 @@ export class DimtsAssistant extends LitElement {
       border-radius: 1rem;
       background: color-mix(
         in srgb,
-        var(--dimts-text) 6%,
-        var(--dimts-surface)
+        var(--Bridgely-text) 6%,
+        var(--Bridgely-surface)
       );
     }
 
     .dots i {
-      animation: dimts-dot 1.2s infinite ease-in-out;
-      background: var(--dimts-muted);
+      animation: Bridgely-dot 1.2s infinite ease-in-out;
+      background: var(--Bridgely-muted);
       block-size: 0.5rem;
       border-radius: 50%;
       inline-size: 0.5rem;
@@ -996,7 +1010,7 @@ export class DimtsAssistant extends LitElement {
       animation-delay: 0.3s;
     }
 
-    @keyframes dimts-dot {
+    @keyframes Bridgely-dot {
       0%,
       80%,
       100% {
@@ -1013,8 +1027,8 @@ export class DimtsAssistant extends LitElement {
     button:not(:disabled):hover {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 10%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 10%,
+        var(--Bridgely-surface)
       );
     }
 
@@ -1022,8 +1036,8 @@ export class DimtsAssistant extends LitElement {
     .help:not(:disabled):hover {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 85%,
-        var(--dimts-text)
+        var(--Bridgely-primary) 85%,
+        var(--Bridgely-text)
       );
     }
 
@@ -1047,11 +1061,11 @@ export class DimtsAssistant extends LitElement {
     .consent {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 6%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 6%,
+        var(--Bridgely-surface)
       );
-      border: 1px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 0.75rem);
+      border: 1px solid var(--Bridgely-border);
+      border-radius: var(--Bridgely-radius, 0.75rem);
       font-size: 0.8125em;
       margin: 0.75rem 1rem 0;
       padding: 0.125rem 0.75rem;
@@ -1071,7 +1085,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .consent input[type="checkbox"] {
-      accent-color: var(--dimts-primary);
+      accent-color: var(--Bridgely-primary);
       block-size: 1.5rem;
       inline-size: 1.5rem;
       min-block-size: 1.5rem;
@@ -1105,9 +1119,9 @@ export class DimtsAssistant extends LitElement {
       min-inline-size: 0;
       min-block-size: 48px;
       padding: 0.5rem;
-      border: 2px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 0.5rem);
-      background: var(--dimts-surface);
+      border: 2px solid var(--Bridgely-border);
+      border-radius: var(--Bridgely-radius, 0.5rem);
+      background: var(--Bridgely-surface);
     }
 
     .career-actions {
@@ -1133,7 +1147,7 @@ export class DimtsAssistant extends LitElement {
       min-block-size: 24px;
     }
     .career article {
-      border-block-end: 1px solid var(--dimts-border);
+      border-block-end: 1px solid var(--Bridgely-border);
     }
     .career dd {
       margin-inline-start: 1rem;
@@ -1171,12 +1185,12 @@ export class DimtsAssistant extends LitElement {
       align-items: center;
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 12%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 12%,
+        var(--Bridgely-surface)
       );
       block-size: 2.75rem;
       border-radius: 0.75rem;
-      color: var(--dimts-text);
+      color: var(--Bridgely-text);
       content: "EN" / "";
       display: flex;
       font-weight: 800;
@@ -1216,7 +1230,7 @@ export class DimtsAssistant extends LitElement {
 
     .language-meta,
     .muted {
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
       font-size: 0.875em;
     }
 
@@ -1241,7 +1255,7 @@ export class DimtsAssistant extends LitElement {
 
     .empty-state {
       align-self: center;
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
       gap: 0.25rem;
       inline-size: min(100%, 26rem);
       margin-block: auto;
@@ -1251,7 +1265,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .empty-state strong {
-      color: var(--dimts-text);
+      color: var(--Bridgely-text);
       display: block;
       font-size: 1.2em;
     }
@@ -1259,11 +1273,11 @@ export class DimtsAssistant extends LitElement {
     article {
       background: color-mix(
         in srgb,
-        var(--dimts-text) 4%,
-        var(--dimts-surface)
+        var(--Bridgely-text) 4%,
+        var(--Bridgely-surface)
       );
       border: 1px solid
-        color-mix(in srgb, var(--dimts-border) 45%, var(--dimts-surface));
+        color-mix(in srgb, var(--Bridgely-border) 45%, var(--Bridgely-surface));
       border-radius: 1.125rem;
       border-end-start-radius: 0.25rem;
       margin-block: 0 0.875rem;
@@ -1274,7 +1288,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     article[data-role="assistant"] {
-      background: var(--dimts-surface);
+      background: var(--Bridgely-surface);
       border: 0;
       column-gap: 0.625rem;
       display: grid;
@@ -1289,8 +1303,8 @@ export class DimtsAssistant extends LitElement {
     article[data-role="assistant"] > p {
       background: color-mix(
         in srgb,
-        var(--dimts-text) 5%,
-        var(--dimts-surface)
+        var(--Bridgely-text) 5%,
+        var(--Bridgely-surface)
       );
       border-radius: 1.125rem;
       border-end-start-radius: 0.25rem;
@@ -1303,9 +1317,9 @@ export class DimtsAssistant extends LitElement {
 
     article[data-role="learner"] {
       align-self: flex-end;
-      background: var(--dimts-primary);
-      border-color: var(--dimts-primary);
-      color: var(--dimts-primary-text);
+      background: var(--Bridgely-primary);
+      border-color: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
       border-end-end-radius: 0.25rem;
       border-end-start-radius: 1rem;
       max-inline-size: min(85%, 45ch);
@@ -1329,10 +1343,10 @@ export class DimtsAssistant extends LitElement {
     .citation {
       background: color-mix(
         in srgb,
-        var(--dimts-primary) 8%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 8%,
+        var(--Bridgely-surface)
       );
-      border: 1px solid var(--dimts-border);
+      border: 1px solid var(--Bridgely-border);
       border-radius: 999px;
       font-size: 0.875em;
       gap: 0.375rem;
@@ -1365,15 +1379,15 @@ export class DimtsAssistant extends LitElement {
 
     a {
       align-items: center;
-      color: var(--dimts-text);
+      color: var(--Bridgely-text);
       display: inline-flex;
       overflow-wrap: anywhere;
       padding: 0.25rem;
     }
 
     .composer {
-      background: var(--dimts-surface);
-      border-block-start: 1px solid var(--dimts-border);
+      background: var(--Bridgely-surface);
+      border-block-start: 1px solid var(--Bridgely-border);
       box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
       inset-block-end: 0;
       padding: 0.625rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
@@ -1392,9 +1406,9 @@ export class DimtsAssistant extends LitElement {
 
     textarea {
       max-block-size: min(40vh, 12rem);
-      background: var(--dimts-surface);
-      border: 2px solid var(--dimts-border);
-      border-radius: var(--dimts-radius, 1rem);
+      background: var(--Bridgely-surface);
+      border: 2px solid var(--Bridgely-border);
+      border-radius: var(--Bridgely-radius, 1rem);
       display: block;
       inline-size: 100%;
       min-block-size: 3rem;
@@ -1421,8 +1435,8 @@ export class DimtsAssistant extends LitElement {
 
     .primary,
     .help {
-      background: var(--dimts-primary);
-      color: var(--dimts-primary-text);
+      background: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
       font-weight: 700;
     }
 
@@ -1461,10 +1475,10 @@ export class DimtsAssistant extends LitElement {
       inset-inline-end: 1rem;
       margin: 0 1rem 1rem;
       /* In-flow layouts put it under the header, clear of the composer. */
-      order: var(--dimts-help-order, 1);
+      order: var(--Bridgely-help-order, 1);
       padding-inline: 1.25rem;
       /* Embedded panels keep it in flow so it never covers the composer. */
-      position: var(--dimts-help-position, fixed);
+      position: var(--Bridgely-help-position, fixed);
       z-index: 3;
     }
 
@@ -1486,8 +1500,8 @@ export class DimtsAssistant extends LitElement {
     }
 
     .help-dialog {
-      background: var(--dimts-surface);
-      border: 2px solid var(--dimts-border);
+      background: var(--Bridgely-surface);
+      border: 2px solid var(--Bridgely-border);
       border-radius: 0.75rem;
       margin-inline: auto;
       max-block-size: min(100vh, 90dvh);
@@ -1499,7 +1513,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .help-summary {
-      border: 1px solid var(--dimts-border);
+      border: 1px solid var(--Bridgely-border);
       margin-block: 0.75rem;
       max-block-size: min(12rem, 50vh);
       overflow-y: auto;
@@ -1519,9 +1533,9 @@ export class DimtsAssistant extends LitElement {
       align-items: center;
       justify-content: space-between;
       gap: 0.5rem;
-      background: var(--dimts-surface);
-      color: var(--dimts-text);
-      border: 2px solid var(--dimts-border);
+      background: var(--Bridgely-surface);
+      color: var(--Bridgely-text);
+      border: 2px solid var(--Bridgely-border);
       padding: 0.5rem;
     }
 
@@ -1556,7 +1570,7 @@ export class DimtsAssistant extends LitElement {
       min-block-size: 1.5em;
       padding-inline: 0.75rem;
       font-size: 0.8125em;
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
     }
 
     [role="status"],
@@ -1568,7 +1582,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .panel {
-      border-block-end: 1px solid var(--dimts-border);
+      border-block-end: 1px solid var(--Bridgely-border);
     }
 
     .settings-list {
@@ -1615,7 +1629,7 @@ export class DimtsAssistant extends LitElement {
 
     .setting-toggles input[type="checkbox"] {
       appearance: none;
-      background-color: var(--dimts-surface);
+      background-color: var(--Bridgely-surface);
       background-clip: padding-box;
       border: 12px solid transparent;
       border-radius: 0;
@@ -1624,12 +1638,12 @@ export class DimtsAssistant extends LitElement {
       min-block-size: 48px;
       min-inline-size: 48px;
       margin: 0;
-      outline: 2px solid var(--dimts-border);
+      outline: 2px solid var(--Bridgely-border);
       outline-offset: -12px;
     }
 
     .setting-toggles input[type="checkbox"]:checked {
-      background-color: var(--dimts-primary);
+      background-color: var(--Bridgely-primary);
       background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m4 10 4 4 8-9' fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5'/%3E%3C/svg%3E");
       background-position: center;
       background-repeat: no-repeat;
@@ -1649,14 +1663,14 @@ export class DimtsAssistant extends LitElement {
     }
 
     .mic[aria-pressed="true"] {
-      background: var(--dimts-primary);
-      color: var(--dimts-primary-text);
+      background: var(--Bridgely-primary);
+      color: var(--Bridgely-primary-text);
       position: relative;
     }
 
     .mic[aria-pressed="true"]::after {
       animation: recording-ring 1.2s ease-out infinite;
-      border: 2px solid var(--dimts-primary);
+      border: 2px solid var(--Bridgely-primary);
       border-radius: 0.65rem;
       content: "";
       inset: -0.25rem;
@@ -1679,7 +1693,7 @@ export class DimtsAssistant extends LitElement {
 
     .offline-banner {
       align-items: center;
-      border: 2px solid var(--dimts-border);
+      border: 2px solid var(--Bridgely-border);
       display: flex;
       gap: 0.5rem;
       margin: 0.75rem;
@@ -1705,7 +1719,7 @@ export class DimtsAssistant extends LitElement {
         max-inline-size: 100%;
         border-radius: 0;
         margin-inline: 0;
-        min-block-size: min(16rem, var(--dimts-available-height));
+        min-block-size: min(16rem, var(--Bridgely-available-height));
       }
 
       header {
@@ -1823,33 +1837,33 @@ export class DimtsAssistant extends LitElement {
        hierarchy. Keeps 48px targets, 8px spacing and theme tokens, so the
        dark and high-contrast themes inherit it. ---- */
     :host {
-      --dimts-accent-soft: color-mix(
+      --Bridgely-accent-soft: color-mix(
         in srgb,
-        var(--dimts-primary) 9%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 9%,
+        var(--Bridgely-surface)
       );
-      --dimts-accent-line: color-mix(
+      --Bridgely-accent-line: color-mix(
         in srgb,
-        var(--dimts-primary) 28%,
-        var(--dimts-surface)
+        var(--Bridgely-primary) 28%,
+        var(--Bridgely-surface)
       );
-      --dimts-ink-soft: color-mix(
+      --Bridgely-ink-soft: color-mix(
         in srgb,
-        var(--dimts-text) 4%,
-        var(--dimts-surface)
+        var(--Bridgely-text) 4%,
+        var(--Bridgely-surface)
       );
-      --dimts-hairline: color-mix(
+      --Bridgely-hairline: color-mix(
         in srgb,
-        var(--dimts-border) 32%,
-        var(--dimts-surface)
+        var(--Bridgely-border) 32%,
+        var(--Bridgely-surface)
       );
-      --dimts-icon-copy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='11' height='11' rx='2'/%3E%3Cpath d='M5 15V6a2 2 0 0 1 2-2h9'/%3E%3C/svg%3E");
-      --dimts-icon-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10v11H4V10zM7 10l4-7a2 2 0 0 1 3 2l-1 5h6a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 21H7'/%3E%3C/svg%3E");
-      --dimts-icon-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9v6h4l5 4V5L8 9zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11'/%3E%3C/svg%3E");
-      --dimts-icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0M12 18v3'/%3E%3C/svg%3E");
-      --dimts-icon-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12 20 4l-6 16-2.5-6.5z'/%3E%3C/svg%3E");
-      --dimts-icon-person: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E");
-      --dimts-icon-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
+      --Bridgely-icon-copy: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='9' width='11' height='11' rx='2'/%3E%3Cpath d='M5 15V6a2 2 0 0 1 2-2h9'/%3E%3C/svg%3E");
+      --Bridgely-icon-thumb: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M7 10v11H4V10zM7 10l4-7a2 2 0 0 1 3 2l-1 5h6a2 2 0 0 1 2 2.3l-1.4 7A2 2 0 0 1 17.6 21H7'/%3E%3C/svg%3E");
+      --Bridgely-icon-speaker: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9v6h4l5 4V5L8 9zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11'/%3E%3C/svg%3E");
+      --Bridgely-icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='3' width='6' height='11' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0M12 18v3'/%3E%3C/svg%3E");
+      --Bridgely-icon-send: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12 20 4l-6 16-2.5-6.5z'/%3E%3C/svg%3E");
+      --Bridgely-icon-person: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 21a8 8 0 0 1 16 0'/%3E%3C/svg%3E");
+      --Bridgely-icon-arrow: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12h14M13 6l6 6-6 6'/%3E%3C/svg%3E");
     }
 
     button,
@@ -1863,7 +1877,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     main {
-      scrollbar-color: var(--dimts-hairline) transparent;
+      scrollbar-color: var(--Bridgely-hairline) transparent;
       scrollbar-width: thin;
     }
 
@@ -1872,8 +1886,8 @@ export class DimtsAssistant extends LitElement {
     header {
       background: linear-gradient(
         135deg,
-        var(--dimts-primary) 0%,
-        color-mix(in srgb, var(--dimts-primary) 82%, var(--dimts-primary-text))
+        var(--Bridgely-primary) 0%,
+        color-mix(in srgb, var(--Bridgely-primary) 82%, var(--Bridgely-primary-text))
           130%
       );
       border-block-end: 0;
@@ -1885,7 +1899,7 @@ export class DimtsAssistant extends LitElement {
     header .avatar {
       block-size: 2.5rem;
       box-shadow: 0 0 0 3px
-        color-mix(in srgb, var(--dimts-primary-text) 22%, transparent);
+        color-mix(in srgb, var(--Bridgely-primary-text) 22%, transparent);
       inline-size: 2.5rem;
     }
 
@@ -1923,8 +1937,8 @@ export class DimtsAssistant extends LitElement {
 
     .voice-install button {
       background: transparent;
-      border-color: var(--dimts-hairline);
-      color: var(--dimts-muted);
+      border-color: var(--Bridgely-hairline);
+      color: var(--Bridgely-muted);
       font-size: 0.8125em;
       font-weight: 600;
     }
@@ -1932,13 +1946,13 @@ export class DimtsAssistant extends LitElement {
     header .a11y button {
       background: color-mix(
         in srgb,
-        var(--dimts-primary-text) 12%,
+        var(--Bridgely-primary-text) 12%,
         transparent
       );
       border-color: color-mix(
         in srgb,
-        var(--dimts-primary-text) 35%,
-        var(--dimts-primary)
+        var(--Bridgely-primary-text) 35%,
+        var(--Bridgely-primary)
       );
       border-radius: 50%;
     }
@@ -1966,13 +1980,13 @@ export class DimtsAssistant extends LitElement {
     header .header-actions button {
       background: color-mix(
         in srgb,
-        var(--dimts-primary-text) 10%,
+        var(--Bridgely-primary-text) 10%,
         transparent
       );
       border-color: color-mix(
         in srgb,
-        var(--dimts-primary-text) 35%,
-        var(--dimts-primary)
+        var(--Bridgely-primary-text) 35%,
+        var(--Bridgely-primary)
       );
       font-size: 0.8125em;
       font-weight: 600;
@@ -1984,29 +1998,29 @@ export class DimtsAssistant extends LitElement {
     header .header-actions button:not(:disabled):hover {
       background: color-mix(
         in srgb,
-        var(--dimts-primary-text) 22%,
+        var(--Bridgely-primary-text) 22%,
         transparent
       );
     }
 
     header .header-actions .career-launcher {
-      background: var(--dimts-primary-text);
-      border-color: var(--dimts-primary-text);
-      color: var(--dimts-primary);
+      background: var(--Bridgely-primary-text);
+      border-color: var(--Bridgely-primary-text);
+      color: var(--Bridgely-primary);
     }
 
     header .header-actions .career-launcher:not(:disabled):hover {
       background: color-mix(
         in srgb,
-        var(--dimts-primary-text) 88%,
-        var(--dimts-primary)
+        var(--Bridgely-primary-text) 88%,
+        var(--Bridgely-primary)
       );
     }
 
     /* Utility row on the welcome and loading screens. */
     main > .header-actions button {
-      background: var(--dimts-ink-soft);
-      border-color: var(--dimts-hairline);
+      background: var(--Bridgely-ink-soft);
+      border-color: var(--Bridgely-hairline);
       border-radius: 999px;
       font-size: 0.8125em;
       font-weight: 600;
@@ -2021,20 +2035,20 @@ export class DimtsAssistant extends LitElement {
     .help {
       align-items: center;
       box-shadow: 0 6px 16px
-        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
       display: inline-flex;
       font-size: 0.875em;
       gap: 0.5rem;
-      margin: var(--dimts-help-margin, 0 1rem 1rem);
+      margin: var(--Bridgely-help-margin, 0 1rem 1rem);
       /* In the embedded panel the button scrolls with the content and must
          pass under the sticky header, not over it. */
-      z-index: var(--dimts-help-z, 3);
+      z-index: var(--Bridgely-help-z, 3);
     }
 
     .career-mic {
       align-items: center;
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
       border-radius: 999px;
       display: inline-flex;
       font-size: 0.8125em;
@@ -2050,7 +2064,7 @@ export class DimtsAssistant extends LitElement {
       content: "";
       flex: none;
       inline-size: 1.15em;
-      mask: var(--dimts-icon-mic) center / contain no-repeat;
+      mask: var(--Bridgely-icon-mic) center / contain no-repeat;
     }
 
     .help::before {
@@ -2059,12 +2073,12 @@ export class DimtsAssistant extends LitElement {
       content: "";
       flex: none;
       inline-size: 1.15em;
-      mask: var(--dimts-icon-person) center / contain no-repeat;
+      mask: var(--Bridgely-icon-person) center / contain no-repeat;
     }
 
     .consent {
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
       border-radius: 1rem;
       padding: 0.125rem 0.875rem;
     }
@@ -2078,10 +2092,10 @@ export class DimtsAssistant extends LitElement {
       background:
         radial-gradient(
           circle at 16px 50%,
-          var(--dimts-surface) 0 8px,
+          var(--Bridgely-surface) 0 8px,
           transparent 8.5px
         ),
-        color-mix(in srgb, var(--dimts-muted) 72%, var(--dimts-surface));
+        color-mix(in srgb, var(--Bridgely-muted) 72%, var(--Bridgely-surface));
       block-size: 48px;
       border: 0;
       cursor: pointer;
@@ -2099,10 +2113,10 @@ export class DimtsAssistant extends LitElement {
       background:
         radial-gradient(
           circle at 32px 50%,
-          var(--dimts-primary-text) 0 8px,
+          var(--Bridgely-primary-text) 0 8px,
           transparent 8.5px
         ),
-        var(--dimts-primary);
+        var(--Bridgely-primary);
     }
 
     main[dir="rtl"] .consent input[type="checkbox"],
@@ -2110,10 +2124,10 @@ export class DimtsAssistant extends LitElement {
       background:
         radial-gradient(
           circle at 32px 50%,
-          var(--dimts-surface) 0 8px,
+          var(--Bridgely-surface) 0 8px,
           transparent 8.5px
         ),
-        color-mix(in srgb, var(--dimts-muted) 72%, var(--dimts-surface));
+        color-mix(in srgb, var(--Bridgely-muted) 72%, var(--Bridgely-surface));
     }
 
     main[dir="rtl"] .consent input[type="checkbox"],
@@ -2121,10 +2135,10 @@ export class DimtsAssistant extends LitElement {
       background:
         radial-gradient(
           circle at 16px 50%,
-          var(--dimts-primary-text) 0 8px,
+          var(--Bridgely-primary-text) 0 8px,
           transparent 8.5px
         ),
-        var(--dimts-primary);
+        var(--Bridgely-primary);
     }
 
     .consent input[type="checkbox"],
@@ -2136,7 +2150,7 @@ export class DimtsAssistant extends LitElement {
     .consent .setting-row:has(input:focus-visible),
     .transliteration .setting-row:has(input:focus-visible) {
       border-radius: 0.75rem;
-      outline: 3px solid var(--dimts-focus);
+      outline: 3px solid var(--Bridgely-focus);
       outline-offset: 2px;
     }
 
@@ -2161,7 +2175,7 @@ export class DimtsAssistant extends LitElement {
 
     /* Conversation: tinted backdrop, white answer cards, accent questions. */
     .chat {
-      background: var(--dimts-ink-soft);
+      background: var(--Bridgely-ink-soft);
     }
 
     .messages {
@@ -2172,13 +2186,13 @@ export class DimtsAssistant extends LitElement {
     .avatar {
       background: linear-gradient(
         135deg,
-        var(--dimts-primary),
-        color-mix(in srgb, var(--dimts-primary) 78%, var(--dimts-primary-text))
+        var(--Bridgely-primary),
+        color-mix(in srgb, var(--Bridgely-primary) 78%, var(--Bridgely-primary-text))
       );
     }
 
     header .avatar {
-      background: var(--dimts-primary-text);
+      background: var(--Bridgely-primary-text);
     }
 
     article[data-role="assistant"] {
@@ -2193,8 +2207,8 @@ export class DimtsAssistant extends LitElement {
     }
 
     article[data-role="assistant"] > p {
-      background: var(--dimts-surface);
-      border: 1px solid var(--dimts-hairline);
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-hairline);
       border-radius: 1.125rem;
       border-start-start-radius: 0.375rem;
       box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
@@ -2204,14 +2218,14 @@ export class DimtsAssistant extends LitElement {
     article[data-role="learner"] {
       background: linear-gradient(
         135deg,
-        var(--dimts-primary),
-        color-mix(in srgb, var(--dimts-primary) 85%, var(--dimts-primary-text))
+        var(--Bridgely-primary),
+        color-mix(in srgb, var(--Bridgely-primary) 85%, var(--Bridgely-primary-text))
       );
       border: 0;
       border-radius: 1.125rem;
       border-end-end-radius: 0.375rem;
       box-shadow: 0 2px 8px
-        color-mix(in srgb, var(--dimts-primary) 22%, transparent);
+        color-mix(in srgb, var(--Bridgely-primary) 22%, transparent);
       padding: 0.625rem 0.95rem;
     }
 
@@ -2220,13 +2234,13 @@ export class DimtsAssistant extends LitElement {
     article:focus-visible {
       border-radius: 1.25rem;
       box-shadow: none;
-      outline: 2px solid color-mix(in srgb, var(--dimts-focus) 60%, transparent);
+      outline: 2px solid color-mix(in srgb, var(--Bridgely-focus) 60%, transparent);
       outline-offset: 4px;
     }
 
     .citation {
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
       border-radius: 0.875rem;
       font-size: 0.8125em;
       font-weight: 500;
@@ -2236,7 +2250,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .citation::before {
-      background: var(--dimts-primary);
+      background: var(--Bridgely-primary);
     }
 
     .reply-actions {
@@ -2248,7 +2262,7 @@ export class DimtsAssistant extends LitElement {
       align-items: center;
       background: transparent;
       border-color: transparent;
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
       display: inline-flex;
       font-size: 0.8125em;
       font-weight: 600;
@@ -2257,15 +2271,15 @@ export class DimtsAssistant extends LitElement {
     }
 
     .reply-actions button:not(:disabled):hover {
-      background: var(--dimts-surface);
-      border-color: var(--dimts-hairline);
-      color: var(--dimts-text);
+      background: var(--Bridgely-surface);
+      border-color: var(--Bridgely-hairline);
+      color: var(--Bridgely-text);
     }
 
     .reply-actions button[aria-pressed="true"] {
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
-      color: var(--dimts-text);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
+      color: var(--Bridgely-text);
     }
 
     .reply-actions > button:nth-of-type(-n + 3)::before,
@@ -2275,12 +2289,12 @@ export class DimtsAssistant extends LitElement {
       content: "";
       flex: none;
       inline-size: 1.05em;
-      mask: var(--dimts-icon-copy) center / contain no-repeat;
+      mask: var(--Bridgely-icon-copy) center / contain no-repeat;
     }
 
     .reply-actions > button:nth-of-type(2)::before,
     .reply-actions > button:nth-of-type(3)::before {
-      mask-image: var(--dimts-icon-thumb);
+      mask-image: var(--Bridgely-icon-thumb);
     }
 
     .reply-actions > button:nth-of-type(3)::before {
@@ -2288,12 +2302,12 @@ export class DimtsAssistant extends LitElement {
     }
 
     .reply-actions > .read-aloud::before {
-      mask-image: var(--dimts-icon-speaker);
+      mask-image: var(--Bridgely-icon-speaker);
     }
 
     .dots {
-      background: var(--dimts-surface);
-      border: 1px solid var(--dimts-hairline);
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-hairline);
       border-start-start-radius: 0.375rem;
     }
 
@@ -2301,16 +2315,16 @@ export class DimtsAssistant extends LitElement {
     .avatar-lg {
       border-radius: 1.125rem;
       box-shadow: 0 10px 24px
-        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
     }
 
     .suggestion {
       align-items: center;
-      background: var(--dimts-surface);
-      border-color: var(--dimts-hairline);
+      background: var(--Bridgely-surface);
+      border-color: var(--Bridgely-hairline);
       border-radius: 0.875rem;
       box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
-      color: var(--dimts-text);
+      color: var(--Bridgely-text);
       display: flex;
       font-size: 0.9em;
       gap: 0.75rem;
@@ -2318,12 +2332,12 @@ export class DimtsAssistant extends LitElement {
     }
 
     .suggestion::after {
-      background: var(--dimts-primary);
+      background: var(--Bridgely-primary);
       block-size: 1em;
       content: "";
       flex: none;
       inline-size: 1em;
-      mask: var(--dimts-icon-arrow) center / contain no-repeat;
+      mask: var(--Bridgely-icon-arrow) center / contain no-repeat;
     }
 
     main[dir="rtl"] .suggestion::after {
@@ -2331,8 +2345,8 @@ export class DimtsAssistant extends LitElement {
     }
 
     .suggestion:not(:disabled):hover {
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
     }
 
     .welcome h1 {
@@ -2342,33 +2356,33 @@ export class DimtsAssistant extends LitElement {
     }
 
     .language-choice {
-      background: var(--dimts-surface);
-      border-color: var(--dimts-hairline);
+      background: var(--Bridgely-surface);
+      border-color: var(--Bridgely-hairline);
       box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
       padding: 0.75rem 1rem;
     }
 
     .language-choice:not(:disabled):hover {
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-primary);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-primary);
     }
 
     /* Composer: one rounded field, microphone and send as clear pills. */
     .composer {
-      border-block-start: 1px solid var(--dimts-hairline);
+      border-block-start: 1px solid var(--Bridgely-hairline);
       box-shadow: 0 -8px 24px rgb(0 0 0 / 6%);
       padding: 0.625rem 0.875rem 0.875rem;
     }
 
     .composer > label {
-      color: var(--dimts-muted);
+      color: var(--Bridgely-muted);
       font-size: 0.75em;
       font-weight: 700;
       letter-spacing: 0.02em;
     }
 
     textarea {
-      background: var(--dimts-ink-soft);
+      background: var(--Bridgely-ink-soft);
       border-width: 1px;
       border-radius: 1rem;
       field-sizing: content;
@@ -2382,8 +2396,8 @@ export class DimtsAssistant extends LitElement {
     }
 
     textarea:focus {
-      background: var(--dimts-surface);
-      border-color: var(--dimts-primary);
+      background: var(--Bridgely-surface);
+      border-color: var(--Bridgely-primary);
     }
 
     .composer-actions {
@@ -2392,8 +2406,8 @@ export class DimtsAssistant extends LitElement {
 
     .mic {
       align-items: center;
-      background: var(--dimts-accent-soft);
-      border-color: var(--dimts-accent-line);
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-accent-line);
       display: inline-flex;
       font-size: 0.875em;
       font-weight: 600;
@@ -2410,7 +2424,7 @@ export class DimtsAssistant extends LitElement {
       content: "";
       flex: none;
       inline-size: 1.2em;
-      mask: var(--dimts-icon-mic) center / contain no-repeat;
+      mask: var(--Bridgely-icon-mic) center / contain no-repeat;
     }
 
     .mic[aria-pressed="true"]::after {
@@ -2420,7 +2434,7 @@ export class DimtsAssistant extends LitElement {
     .send-action {
       align-items: center;
       box-shadow: 0 4px 12px
-        color-mix(in srgb, var(--dimts-primary) 28%, transparent);
+        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
       display: inline-flex;
       gap: 0.5rem;
       justify-content: center;
@@ -2439,7 +2453,7 @@ export class DimtsAssistant extends LitElement {
       content: "";
       flex: none;
       inline-size: 1.05em;
-      mask: var(--dimts-icon-send) center / contain no-repeat;
+      mask: var(--Bridgely-icon-send) center / contain no-repeat;
     }
 
     main[dir="rtl"] .send-action::after {
@@ -2497,7 +2511,7 @@ export class DimtsAssistant extends LitElement {
     this.toggleAttribute("high-contrast", this.settings.highContrast);
     this.toggleAttribute("stop-motion", this.settings.stopMotion);
     this.style.setProperty(
-      "--dimts-scale",
+      "--Bridgely-scale",
       String(this.settings.textScale / 100),
     );
     this.disposeTheme = applyThemeGuard(this);
@@ -2531,7 +2545,7 @@ export class DimtsAssistant extends LitElement {
       this.helpSizeObserver = new ResizeObserver(() => {
         if (this.isConnected)
           this.style.setProperty(
-            "--dimts-help-reserve",
+            "--Bridgely-help-reserve",
             `${Math.ceil(help.getBoundingClientRect().height) + 24}px`,
           );
       });
@@ -2646,7 +2660,11 @@ export class DimtsAssistant extends LitElement {
     this.careerModule?.dispose.call(this as unknown as CareerContext, true);
     this.rememberCareerSession(true);
     try {
+      globalThis.localStorage?.removeItem("Bridgely.settings");
       globalThis.localStorage?.removeItem("dimts.settings");
+      globalThis.localStorage?.removeItem(
+        `Bridgely.career.${this.apiRoot}.${this.hostKey}`,
+      );
       globalThis.localStorage?.removeItem(
         `dimts.career.${this.apiRoot}.${this.hostKey}`,
       );
@@ -2670,19 +2688,19 @@ export class DimtsAssistant extends LitElement {
     void Promise.resolve()
       .then(async () => {
         for (const name of await caches.keys()) {
-          if (!others.length && /^dimts-shell-v\d+$/u.test(name)) {
+          if (!others.length && /^Bridgely-shell-v\d+$/u.test(name)) {
             await caches.delete(name);
             continue;
           }
-          if (name !== "dimts-static-v1" && name !== "dimts-public-v1")
+          if (name !== "Bridgely-static-v1" && name !== "Bridgely-public-v1")
             continue;
           const cache = await caches.open(name);
           for (const request of await cache.keys()) {
             const url = new URL(request.url);
             const matches =
-              name === "dimts-static-v1"
+              name === "Bridgely-static-v1"
                 ? url.searchParams.get("apiOrigin") === base.origin &&
-                  url.pathname.startsWith(`/__dimts_cache${base.pathname}/`)
+                  url.pathname.startsWith(`/__cache${base.pathname}/`)
                 : url.origin === base.origin &&
                   url.pathname.startsWith(`${base.pathname}/`);
             if (matches) await cache.delete(request);
@@ -2696,7 +2714,7 @@ export class DimtsAssistant extends LitElement {
   private get workerUrl(): URL {
     const workerUrl = new URL("/service-worker.js", location.origin);
     workerUrl.searchParams.set("asset", import.meta.url);
-    workerUrl.searchParams.set("owner", "dimts");
+    workerUrl.searchParams.set("owner", "Bridgely");
     workerUrl.searchParams.set(
       "api",
       new URL(this.apiRoot, location.origin).href,
@@ -2737,7 +2755,7 @@ export class DimtsAssistant extends LitElement {
   private async fetchStatic(url: string): Promise<Response> {
     const remoteUrl = new URL(url, location.origin);
     const cacheUrl = new URL(
-      `/__dimts_cache${remoteUrl.pathname}`,
+      `/__cache${remoteUrl.pathname}`,
       location.origin,
     );
     remoteUrl.searchParams.forEach((value, key) =>
@@ -2748,7 +2766,7 @@ export class DimtsAssistant extends LitElement {
     let cache: Cache | undefined;
 
     try {
-      cache = await caches.open("dimts-static-v1");
+      cache = await caches.open("Bridgely-static-v1");
     } catch {
       cache = undefined;
     }
@@ -2852,7 +2870,7 @@ export class DimtsAssistant extends LitElement {
       void this.configureBrowserVoice();
       if (this.languages.length === 0) throw new Error("languages");
       const stored =
-        this.getAttribute("data-lang") || storage.get("dimts.lang");
+        this.getAttribute("data-lang") || storage.get("Bridgely.lang");
       const remembered = this.languages.find(({ code }) => code === stored);
       if (remembered) {
         await this.chooseLanguage(remembered.code, false);
@@ -2871,7 +2889,7 @@ export class DimtsAssistant extends LitElement {
       clearTimeout(this.startupTimer);
       this.loading = false;
       if (this.isConnected && !lifecycle.aborted)
-        this.dispatchEvent(new Event("dimts:ready"));
+        this.dispatchEvent(new Event("Bridgely:ready"));
     }
   }
 
@@ -2888,7 +2906,7 @@ export class DimtsAssistant extends LitElement {
         void this.refreshFaq();
         if (
           code !== lang ||
-          response.headers.get("X-Dimts-Locale-Fallback") === "1"
+          response.headers.get("X-Bridgely-Locale-Fallback") === "1"
         ) {
           this.fallbackPending = true;
         }
@@ -2934,9 +2952,9 @@ export class DimtsAssistant extends LitElement {
     await this.loadUi(selected.code);
     if (lifecycle.aborted || !this.isConnected) return;
     if (persist) {
-      storage.set("dimts.lang", selected.code);
+      storage.set("Bridgely.lang", selected.code);
       this.dispatchEvent(
-        new CustomEvent("dimts:language", {
+        new CustomEvent("Bridgely:language", {
           bubbles: true,
           composed: true,
           detail: { lang: selected.code },
@@ -2960,7 +2978,7 @@ export class DimtsAssistant extends LitElement {
 
   escalate(): void {
     this.dispatchEvent(
-      new CustomEvent("dimts:escalated", {
+      new CustomEvent("Bridgely:escalated", {
         bubbles: true,
         composed: true,
         detail: { lang: this.selectedLang },
@@ -3060,8 +3078,11 @@ export class DimtsAssistant extends LitElement {
     try {
       let careerResume: { sessionId: string; resumeToken: string } | undefined;
       try {
-        const raw = sessionStorage.getItem(this.careerSessionKey);
+        const raw =
+          sessionStorage.getItem(this.careerSessionKey) ??
+          sessionStorage.getItem(this.previousCareerSessionKey);
         if (raw) {
+          sessionStorage.setItem(this.careerSessionKey, raw);
           const parsed = JSON.parse(raw) as Record<string, unknown>;
           if (
             typeof parsed.sessionId === "string" &&
@@ -3081,7 +3102,7 @@ export class DimtsAssistant extends LitElement {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-dimts-key": this.hostKey,
+          "x-Bridgely-key": this.hostKey,
         },
         body: JSON.stringify(
           careerResume ?? { lang: this.selectedLang, channel: "web" },
@@ -3154,7 +3175,7 @@ export class DimtsAssistant extends LitElement {
         method: "POST",
         headers: {
           "content-type": "application/json",
-          "x-dimts-key": this.hostKey,
+          "x-Bridgely-key": this.hostKey,
         },
         body: JSON.stringify({
           sessionId: this.sessionId,
@@ -3199,7 +3220,7 @@ export class DimtsAssistant extends LitElement {
     this.careerModule?.dispose.call(this as unknown as CareerContext, true);
     this.rememberCareerSession(true);
     try {
-      localStorage.removeItem(`dimts.career.${this.apiRoot}.${this.hostKey}`);
+      localStorage.removeItem(`Bridgely.career.${this.apiRoot}.${this.hostKey}`);
     } catch {
       /* Storage can be disabled. */
     }
@@ -3926,7 +3947,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private readSettings(): WidgetSettings {
-    const stored = storage.get("dimts.settings");
+    const stored = storage.get("Bridgely.settings");
     if (!stored) return { ...defaultSettings };
     try {
       const parsed = JSON.parse(stored) as Partial<WidgetSettings>;
@@ -3960,9 +3981,9 @@ export class DimtsAssistant extends LitElement {
       this.settings.textScale = this.settings.textScale === 200 ? 200 : 150;
       this.settings.readAloud = "always";
     }
-    storage.set("dimts.settings", JSON.stringify(this.settings));
+    storage.set("Bridgely.settings", JSON.stringify(this.settings));
     this.style.setProperty(
-      "--dimts-scale",
+      "--Bridgely-scale",
       String(this.settings.textScale / 100),
     );
     this.toggleAttribute("high-contrast", this.settings.highContrast);
@@ -4002,7 +4023,7 @@ export class DimtsAssistant extends LitElement {
           <span class="language-name">${language.nameNative}</span>
           <span class="language-meta">
             ${language.nameEn}
-            ${language.status === "beta" ? ` · ${this.t("status.beta")}` : ""}
+            ${language.status === "beta" ? ` · ${this.t("status.beta")}` : language.status === "draft" ? ` · ${this.t("status.preview")}` : ""}
           </span>
         </button>
       `,
@@ -4431,7 +4452,6 @@ export class DimtsAssistant extends LitElement {
               ><span class="tagline">${this.t("app.tagline")}</span></span
             >
           </span>
-          ${this.renderA11y()}
           <div class="header-actions">
             <button
               type="button"
@@ -4503,7 +4523,7 @@ export class DimtsAssistant extends LitElement {
                       tabindex="-1"
                       lang=${message.lang}
                       dir=${message.dir}
-                      aria-label=${this.t("chat.dimts")}
+                      aria-label=${this.t("chat.Bridgely")}
                     >
                       <span class="avatar" aria-hidden="true"
                         >${this.avatarLetter}</span
@@ -4799,13 +4819,13 @@ export class DimtsAssistant extends LitElement {
   }
 }
 
-if (!customElements.get("dimts-assistant")) {
-  customElements.define("dimts-assistant", DimtsAssistant);
+if (!customElements.get("bridgely-assistant")) {
+  customElements.define("bridgely-assistant", BridgelyAssistant);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    "dimts-assistant": DimtsAssistant;
+    "bridgely-assistant": BridgelyAssistant;
   }
 }
 

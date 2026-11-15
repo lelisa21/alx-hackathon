@@ -1,4 +1,4 @@
-# Dimts privacy policy (English source)
+# Bridgely privacy policy (English source)
 
 Last reviewed for implementation accuracy: 13 November 2026. This is the
 English source policy for the MVP; it is not legal advice or evidence of
@@ -6,9 +6,9 @@ production deployment. Amharic and Afaan Oromoo policy translations and the
 required native-speaker review remain outstanding. Do not present those
 translations as reviewed or the language gates as passed.
 
-## What Dimts stores and why
+## What Bridgely stores and why
 
-Dimts uses pseudonymous sessions rather than learner accounts. To answer a
+Bridgely uses pseudonymous sessions rather than learner accounts. To answer a
 question and resume an authorized flow, the API stores a random session
 identifier, channel, language, timestamps, consent state, and hashes of
 session/resume credentials. The API stores only credential hashes, not the
@@ -35,7 +35,7 @@ Consent to remote AI is separate and per-session. Remote providers are used
 only when enabled by the host and allowed by the learner; otherwise the
 configured local/offline path is used. A remote provider receives the
 question and only the relevant course passages allowed by the provider
-policy. Dimts does not include advertising or analytics.
+policy. Bridgely does not include advertising or analytics.
 
 ## Retention and deletion
 
@@ -97,7 +97,7 @@ been configured securely.
 
 These technical notes cover human help. See [HELP.md](HELP.md),
 [DECISIONS.md](../DECISIONS.md), the
-[system blueprint](../Dimts-System-Blueprint-v2.0.md), and
+[system blueprint](../Bridgely-System-Blueprint-v2.0.md), and
 [implementation progress](IMPLEMENTATION_PROGRESS.md) for contracts and
 verification status.
 
@@ -129,7 +129,7 @@ It does not send chat or picture content as part of STUN discovery. This is
 not a claim that the service receives no learner data.
 
 When Metered TURN is configured, the server requests temporary credentials
-from `https://<DIMTS_TURN_APP>.metered.live/api/v1/turn/credential`.
+from `https://<TURN_APP>.metered.live/api/v1/turn/credential`.
 The application API secret stays server-side. The browser receives the
 temporary TURN username/password and relay addresses, not that API secret.
 The configured relay endpoints use `global.relay.metered.ca` over UDP/TCP

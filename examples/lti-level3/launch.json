@@ -4,7 +4,7 @@
     "endpoint": "POST /v1/lti/login",
     "body": {
       "iss": "https://lms.example.com",
-      "client_id": "dimts-client-prod-123",
+      "client_id": "Bridgely-client-prod-123",
       "login_hint": "learner-456@lms.example.com",
       "target_link_uri": "https://app.example.com/lti/launch",
       "lti_message_hint": "course-789-lesson-012"
@@ -29,7 +29,7 @@
   "id_token_payload": {
     "description": "JWT payload (unsigned example; production must be signed)",
     "iss": "https://lms.example.com",
-    "aud": "dimts-client-prod-123",
+    "aud": "Bridgely-client-prod-123",
     "sub": "learner-456",
     "exp": 1730950200,
     "iat": 1730949900,
@@ -47,7 +47,7 @@
   "id_token_payload_instructor": {
     "description": "Same as above but with Instructor role for insights access",
     "iss": "https://lms.example.com",
-    "aud": "dimts-client-prod-123",
+    "aud": "Bridgely-client-prod-123",
     "sub": "instructor-789",
     "exp": 1730950200,
     "iat": 1730949900,
@@ -100,8 +100,8 @@
   },
   "next_steps": {
     "learner": [
-      "Store sessionToken in httpOnly cookie (Dimts widget handles this)",
-      "Display Dimts widget or chat interface",
+      "Store sessionToken in httpOnly cookie (Bridgely widget handles this)",
+      "Display Bridgely widget or chat interface",
       "Learner can ask questions, get help, see alerts"
     ],
     "instructor": [

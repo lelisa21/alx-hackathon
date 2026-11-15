@@ -143,6 +143,12 @@ function validateMeta(
     if (typeof meta[key] !== "boolean")
       issues.push(`${file}: ${key} must be a boolean`);
   if (
+    "public_preview" in meta &&
+    (typeof meta.public_preview !== "boolean" ||
+      (meta.public_preview && meta.status !== "draft"))
+  )
+    issues.push(`${file}: public_preview must be true only for a draft pack`);
+  if (
     typeof meta.sms_max_chars !== "number" ||
     !Number.isInteger(meta.sms_max_chars) ||
     meta.sms_max_chars < 1

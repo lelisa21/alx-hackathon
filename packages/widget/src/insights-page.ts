@@ -28,7 +28,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export class DimtsInsightsPage extends LitElement {
+export class BridgelyInsightsPage extends LitElement {
   static override properties = {
     api: { attribute: "data-api" },
     language: { attribute: "data-language" },
@@ -434,12 +434,12 @@ export class DimtsInsightsPage extends LitElement {
   }
 }
 
-if (!customElements.get("dimts-insights")) {
-  customElements.define("dimts-insights", DimtsInsightsPage);
+if (!customElements.get("bridgely-insights")) {
+  customElements.define("bridgely-insights", BridgelyInsightsPage);
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    "dimts-insights": DimtsInsightsPage;
+    "bridgely-insights": BridgelyInsightsPage;
   }
 }

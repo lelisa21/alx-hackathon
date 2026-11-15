@@ -9,15 +9,15 @@ export default defineConfig({
   plugins: [
     smsPagePlugin(),
     {
-      name: "dimts-private-lit-metadata",
+      name: "Bridgely-private-lit-metadata",
       enforce: "pre",
       resolveId(id) {
-        return id === "virtual:dimts-lit-metadata"
-          ? "\0dimts-lit-metadata"
+        return id === "virtual:Bridgely-lit-metadata"
+          ? "\0Bridgely-lit-metadata"
           : null;
       },
       load(id) {
-        if (id !== "\0dimts-lit-metadata") return null;
+        if (id !== "\0Bridgely-lit-metadata") return null;
         // Reuse an existing host map for decorator interoperability, but never
         // create a property on window. All bundled Lit modules share this cell.
         return "const existing = globalThis.litPropertyMetadata; export const state = { value: existing instanceof WeakMap ? existing : new WeakMap() };";
@@ -33,30 +33,30 @@ export default defineConfig({
         // after class registration. This also covers the bundled decorators.
         const isolated = code.replace(
           /\b(?:[\w$]+\.)?litPropertyMetadata\b/gu,
-          "dimtsLitMetadata.value",
+          "BridgelyLitMetadata.value",
         );
         return {
-          code: `import { state as dimtsLitMetadata } from "virtual:dimts-lit-metadata";\n${isolated}`,
+          code: `import { state as BridgelyLitMetadata } from "virtual:Bridgely-lit-metadata";\n${isolated}`,
           map: null,
         };
       },
     },
     {
-      name: "dimts-bootstrap-ui",
+      name: "Bridgely-bootstrap-ui",
       resolveId(id) {
-        return id === "virtual:dimts-bootstrap-ui"
-          ? "\0dimts-bootstrap-ui"
+        return id === "virtual:Bridgely-bootstrap-ui"
+          ? "\0Bridgely-bootstrap-ui"
           : null;
       },
       load(id) {
-        if (id !== "\0dimts-bootstrap-ui") return null;
+        if (id !== "\0Bridgely-bootstrap-ui") return null;
         const packs = loadPacks(
           fileURLToPath(new URL("../../locales", import.meta.url)),
         );
         return `export default ${JSON.stringify(packs.get("en")!.ui)};`;
       },
       generateBundle(_options, bundle) {
-        const assets = new Set<string>(["dimts-embed.js"]);
+        const assets = new Set<string>(["bridgely-embed.js"]);
         const visit = (file: string) => {
           if (assets.has(file)) return;
           assets.add(file);
@@ -64,10 +64,10 @@ export default defineConfig({
           if (item?.type === "chunk")
             for (const imported of item.imports) visit(imported);
         };
-        visit("dimts-widget.js");
+        visit("Bridgely-widget.js");
         this.emitFile({
           type: "asset",
-          fileName: "dimts-assets.json",
+          fileName: "Bridgely-assets.json",
           source: JSON.stringify({ assets: [...assets] }),
         });
         const packs = loadPacks(
@@ -75,7 +75,7 @@ export default defineConfig({
         );
         this.emitFile({
           type: "asset",
-          fileName: "dimts-locale-ui-sizes.json",
+          fileName: "Bridgely-locale-ui-sizes.json",
           source: JSON.stringify(
             Object.fromEntries(
               [...packs].map(([code, pack]) => [
@@ -87,7 +87,7 @@ export default defineConfig({
         });
         this.emitFile({
           type: "asset",
-          fileName: "dimts-faq-sizes.json",
+          fileName: "Bridgely-faq-sizes.json",
           source: JSON.stringify(
             Object.fromEntries(
               [...packs].map(([code, pack]) => {
@@ -142,13 +142,13 @@ export default defineConfig({
     lib: {
       entry: "src/loader.ts",
       formats: ["es"],
-      fileName: () => "dimts-widget.js",
+      fileName: () => "Bridgely-widget.js",
     },
     rollupOptions: {
       // Lazy help shares Lit with the entry. Permit internal exports instead
       // of creating a facade module and another serial download round trip.
       preserveEntrySignatures: "allow-extension",
-      output: { chunkFileNames: "dimts-[name]-[hash].js" },
+      output: { chunkFileNames: "Bridgely-[name]-[hash].js" },
     },
   },
 });

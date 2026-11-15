@@ -11,7 +11,7 @@ describe("P11 operations", () => {
       query: vi
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ name: "dimts", bytes: "629145600" }],
+          rows: [{ name: "Bridgely", bytes: "629145600" }],
         })
         .mockResolvedValueOnce({
           rows: [{ schema: "public", name: "session", bytes: "1024" }],
@@ -23,7 +23,7 @@ describe("P11 operations", () => {
 
     const usage = await collectUsage(client);
     expect(usage).toEqual({
-      name: "dimts",
+      name: "Bridgely",
       bytes: 629145600,
       tables: [{ schema: "public", name: "session", bytes: 1024 }],
       sessions: 3,

@@ -1,5 +1,5 @@
-const shellCache = "dimts-shell-v3";
-const publicCache = "dimts-public-v1";
+const shellCache = "Bridgely-shell-v3";
+const publicCache = "Bridgely-public-v1";
 const configuration = new URL(globalThis.location.href).searchParams;
 const asset = configuration.get("asset");
 const api = new URL(
@@ -14,7 +14,7 @@ function isShell(url) {
   return (
     url.href === assetUrl?.href ||
     (url.pathname.startsWith(directory) &&
-      /\/(?:dimts-[\w-]+\.(?:js|css)|NotoSansEthiopic-ethiopic-(?:400|700)-normal(?:-[\w-]+)?\.woff2)$/u.test(
+      /\/(?:Bridgely-[\w-]+\.(?:js|css)|NotoSansEthiopic-ethiopic-(?:400|700)-normal(?:-[\w-]+)?\.woff2)$/u.test(
         url.pathname,
       ))
   );
@@ -39,7 +39,7 @@ globalThis.addEventListener("install", (event) => {
         // Vite emits the static import graph only. Voice and help stay on demand.
         try {
           const response = await globalThis.fetch(
-            new URL("dimts-assets.json", assetUrl),
+            new URL("Bridgely-assets.json", assetUrl),
           );
           const manifest = response.ok ? await response.json() : null;
           if (Array.isArray(manifest?.assets)) {
@@ -48,7 +48,7 @@ globalThis.addEventListener("install", (event) => {
                 .filter(
                   (name) =>
                     typeof name === "string" &&
-                    /^dimts-[\w-]+\.(?:js|css)$/u.test(name),
+                    /^Bridgely-[\w-]+\.(?:js|css)$/u.test(name),
                 )
                 .map((name) => cache.add(new URL(name, assetUrl).href)),
             );
@@ -69,7 +69,7 @@ globalThis.addEventListener("activate", (event) => {
       await Promise.all(
         names
           .filter(
-            (name) => name.startsWith("dimts-shell-") && name !== shellCache,
+            (name) => name.startsWith("Bridgely-shell-") && name !== shellCache,
           )
           .map((name) => globalThis.caches.delete(name)),
       );
@@ -94,7 +94,7 @@ globalThis.addEventListener("fetch", (event) => {
           isShell(url) ? shellCache : publicCache,
         );
         // Cache.add() and a module script can differ only in their Origin
-        // request header. These same-origin, Dimts-owned build files are public
+        // request header. These same-origin, Bridgely-owned build files are public
         // and identical; API representations retain their normal Vary checks.
         cached = await cache.match(request, { ignoreVary: isShell(url) });
       } catch {
@@ -121,7 +121,7 @@ globalThis.addEventListener("fetch", (event) => {
       } catch (error) {
         if (cached) {
           const headers = new Headers(cached.headers);
-          headers.set("X-Dimts-Offline", "1");
+          headers.set("X-Bridgely-Offline", "1");
           return new Response(cached.body, { status: cached.status, headers });
         }
         throw error;

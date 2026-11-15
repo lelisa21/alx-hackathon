@@ -1,5 +1,5 @@
 {
-  "name": "@dimts/ai",
+  "name": "@bridgely/ai",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@dimts/engine": "workspace:*",
+    "@bridgely/engine": "workspace:*",
     "@google/genai": "^3.3.0",
     "franc": "^6.2.0",
     "iso-639-3": "^3.0.1",

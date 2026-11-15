@@ -5,8 +5,8 @@ import { resolve } from "node:path";
 import pg from "pg";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { JobsService } from "@dimts/jobs";
-import { loadPacks } from "@dimts/locales-tools";
+import { JobsService } from "@bridgely/jobs";
+import { loadPacks } from "@bridgely/locales-tools";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import {
@@ -18,7 +18,7 @@ import { applyMigrations } from "../src/db/migrate.js";
 import { createPostgresRepository } from "../src/db/repository.js";
 import { sha256 } from "../src/middleware/auth.js";
 
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 describe.skipIf(!url)(
   "P06 real PostgreSQL, authenticated REST and synthetic HTTP host delivery",
   () => {
@@ -121,13 +121,13 @@ describe.skipIf(!url)(
       const config = parseConfig({
         NODE_ENV: "test",
         DATABASE_URL: scoped.toString(),
-        DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-        DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-        DIMTS_JWT_SECRET: "synthetic-jwt-secret-long-enough-characters",
-        DIMTS_CRON_SECRET: cron,
-        DIMTS_JOBS_RELAY_URL: "https://synthetic-host.example/delivery",
-        DIMTS_JOBS_RELAY_SECRET: secret,
-        DIMTS_JOBS_RELAY_CHANNELS: "sms,telegram",
+       ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+       HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+       JWT_SECRET: "synthetic-jwt-secret-long-enough-characters",
+       CRON_SECRET: cron,
+       JOBS_RELAY_URL: "https://synthetic-host.example/delivery",
+       JOBS_RELAY_SECRET: secret,
+       JOBS_RELAY_CHANNELS: "sms,telegram",
       });
       // Only this injected test transport rewrites the configured HTTPS URL to loopback.
       const delivery = createHostJobsDelivery(config, (_input, init) =>
@@ -135,8 +135,8 @@ describe.skipIf(!url)(
       );
       jobs = new JobsService({
         pool,
-        encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
-        hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
+        encryptionKey: Buffer.from(config.ENC_KEY, "base64"),
+        hashKey: Buffer.from(config.HASH_KEY, "base64"),
         delivery,
         ...createCareerRenderers(loadPacks(resolve("locales"))),
       });
@@ -165,12 +165,12 @@ describe.skipIf(!url)(
     it("imports with a secret host key, returns partial errors and lists source details without employer contact", async () => {
       await request(app)
         .post("/v1/jobs/import")
-        .set("X-Dimts-Key", "public-widget-key")
+        .set("X-Bridgely-Key", "public-widget-key")
         .send({ lang: "en", postings: posting })
         .expect(401);
       const imported = await request(app)
         .post("/v1/jobs/import")
-        .set("X-Dimts-Key", "secret-host-key")
+        .set("X-Bridgely-Key", "secret-host-key")
         .send({
           lang: "en",
           postings: { "@graph": [posting, { "@type": "JobPosting" }] },

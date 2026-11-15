@@ -6,7 +6,7 @@ export default defineConfig({
     lib: {
       entry: "src/helper-console.ts",
       formats: ["es"],
-      fileName: "dimts-helper-console",
+      fileName: "bridgely-helper-console",
     },
     rollupOptions: {
       output: {

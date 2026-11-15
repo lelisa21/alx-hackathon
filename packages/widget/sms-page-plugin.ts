@@ -1,7 +1,7 @@
 import type { Plugin } from "vite";
 
 const simulatorAssets = new Set([
-  "/dimts-sms-simulator.js",
+  "/bridgely-sms-simulator.js",
   "/NotoSansEthiopic-ethiopic-400-normal.woff2",
   "/NotoSansEthiopic-ethiopic-700-normal.woff2",
 ]);
@@ -14,6 +14,7 @@ export function simulatorAssetPath(
   if (url === undefined) return url;
   const path = url.split("?", 1)[0]!;
   const query = url.slice(path.length);
+  if (path === "/helper/") return `/helper${query}`;
   if (["/sim/sms", "/sim/sms/", "/sim/sms/index.html"].includes(path))
     return `${development ? "/dist" : ""}/sim/sms/index.html${query}`;
   if (development && simulatorAssets.has(path)) return `/dist${url}`;
@@ -22,7 +23,7 @@ export function simulatorAssetPath(
 
 export function smsPagePlugin(): Plugin {
   return {
-    name: "dimts-sms-page-route",
+    name: "Bridgely-sms-page-route",
     apply: "serve",
     configurePreviewServer(server) {
       server.middlewares.use((request, _response, next) => {

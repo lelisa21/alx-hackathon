@@ -1,4 +1,4 @@
-### Dimts REST API Level 2: Complete flows with examples
+### Bridgely REST API Level 2: Complete flows with examples
 ### Reference implementation at packages/api/src/
 
 ### Setup headers and variables
@@ -79,11 +79,11 @@ Authorization: Bearer {{sessionToken}}
 ### 8. Get insights (teacher/admin with host key)
 GET {{baseUrl}}/insights?startDate=2026-11-01&endDate=2026-11-13&format=json&minCellSize=5
 Content-Type: application/json
-X-Dimts-Key: {{hostKey}}
+X-Bridgely-Key: {{hostKey}}
 
 ### 9. Export insights as CSV
 GET {{baseUrl}}/insights?startDate=2026-11-01&endDate=2026-11-13&format=csv&minCellSize=5
-X-Dimts-Key: {{hostKey}}
+X-Bridgely-Key: {{hostKey}}
 
 ### 10. Health check
 GET {{baseUrl}}/health
@@ -99,7 +99,7 @@ Content-Type: application/json
 
 {
   "iss": "https://lms.example.com",
-  "client_id": "dimts-client-123",
+  "client_id": "Bridgely-client-123",
   "login_hint": "learner-456",
   "target_link_uri": "https://app.example.com/lti/launch",
   "lti_message_hint": "context-789"

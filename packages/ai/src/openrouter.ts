@@ -47,7 +47,7 @@ export class OpenRouterProvider extends OpenAiCompatible {
     ].slice(0, MAX_ROUTED_MODELS - 1);
     this.reasoning = options.reasoning ?? "off";
     this.referer = options.referer;
-    this.title = options.title ?? "Dimts";
+    this.title = options.title ?? "Bridgely";
   }
   protected override extraHeaders(): Record<string, string> {
     return {

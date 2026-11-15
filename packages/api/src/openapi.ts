@@ -109,7 +109,7 @@ registry.registerComponent("securitySchemes", "helperBearer", {
 registry.registerComponent("securitySchemes", "hostKey", {
   type: "apiKey",
   in: "header",
-  name: "X-Dimts-Key",
+  name: "X-Bridgely-Key",
 });
 registry.registerComponent("securitySchemes", "cronBearer", {
   type: "http",
@@ -119,7 +119,7 @@ registry.registerComponent("securitySchemes", "smsGatewayBearer", {
   type: "http",
   scheme: "bearer",
   description:
-    "Separately configured DIMTS_SMS_GATEWAY_SECRET; never a session, host or cron credential",
+    "Separately configuredSMS_GATEWAY_SECRET; never a session, host or cron credential",
 });
 
 const json = (schema: z.ZodTypeAny) => ({
@@ -130,7 +130,7 @@ registry.registerComponent("securitySchemes", "telegramWebhookSecret", {
   in: "header",
   name: "X-Telegram-Bot-Api-Secret-Token",
   description:
-    "Separately configured DIMTS_TELEGRAM_SECRET; hosted webhook mode only",
+    "Separately configuredTELEGRAM_SECRET; hosted webhook mode only",
 });
 const telegramProblem = {
   description: "Localized safe error with no update content or identifiers",
@@ -385,7 +385,7 @@ registry.registerPath({
     "200": {
       description: "UI strings resolved through the configured fallback chain",
       headers: {
-        "X-Dimts-Locale-Fallback": {
+        "X-Bridgely-Locale-Fallback": {
           description:
             "1 when any UI string came from a fallback pack, otherwise 0",
           schema: { type: "string", enum: ["0", "1"] },
@@ -398,9 +398,9 @@ registry.registerPath({
       ...json(LocaleUiSchema),
     },
     "304": {
-      description: "Not modified; retains the X-Dimts-Locale-Fallback header",
+      description: "Not modified; retains the X-Bridgely-Locale-Fallback header",
       headers: {
-        "X-Dimts-Locale-Fallback": {
+        "X-Bridgely-Locale-Fallback": {
           schema: { type: "string", enum: ["0", "1"] },
         },
       },
@@ -679,7 +679,7 @@ registry.registerPath({
   summary:
     "Import JSON-LD JobPosting items and atomically publish cited passages",
   description:
-    "X-Dimts-Key must resolve to a host registry row with key_type secret. The public widget key is never sufficient. postings accepts an item, array or @graph. Required posting fields include url for citation provenance; unknown posting fields are ignored. Invalid indexes are returned without raw data.",
+    "X-Bridgely-Key must resolve to a host registry row with key_type secret. The public widget key is never sufficient. postings accepts an item, array or @graph. Required posting fields include url for citation provenance; unknown posting fields are ignored. Invalid indexes are returned without raw data.",
   security: [{ hostKey: [] }],
   request: { body: { required: true, ...json(JobsImportRequestSchema) } },
   responses: {
@@ -953,7 +953,7 @@ const document = new OpenApiGeneratorV31(registry.definitions).generateDocument(
   {
     openapi: "3.1.0",
     info: {
-      title: "Dimts API",
+      title: "Bridgely API",
       version: "0.1.0",
     },
   },

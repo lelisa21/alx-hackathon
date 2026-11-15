@@ -14,9 +14,9 @@ const javascriptLimit = 60 * 1024;
 // compressed and leave very little headroom at 150 kB. 155 kB gives ~3 kB of
 // room for new locale keys and minor feature additions without spurious failures.
 const initialLoadLimit = 155 * 1024;
-const widgetBundleName = "dimts-widget.js";
-const helperBundleName = "dimts-helper-console.js";
-const simulatorBundleName = "dimts-sms-simulator.js";
+const widgetBundleName = "Bridgely-widget.js";
+const helperBundleName = "bridgely-helper-console.js";
+const simulatorBundleName = "bridgely-sms-simulator.js";
 
 async function filesUnder(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
@@ -47,7 +47,7 @@ try {
 const assets = files.filter(
   (file) =>
     /\.(?:js|css|woff2)$/.test(file) ||
-    path.basename(file) === "dimts-assets.json",
+    path.basename(file) === "Bridgely-assets.json",
 );
 const javascriptAssets = assets.filter((file) => file.endsWith(".js"));
 let widgetJavaScriptAssets = javascriptAssets.filter(
@@ -105,12 +105,12 @@ if (files.includes(manifestPath)) {
     for (const imported of chunk.imports ?? []) include(imported);
   }
   include("src/loader.ts");
-  const bootstrap = path.join(widgetDist, "dimts-embed.js");
+  const bootstrap = path.join(widgetDist, "bridgely-embed.js");
   if (!files.includes(bootstrap))
     throw new Error("Embed bootstrap build output is missing.");
   initial.add(bootstrap);
   // The service worker and its precache manifest are fetched on first install.
-  for (const name of ["service-worker.js", "dimts-assets.json"]) {
+  for (const name of ["service-worker.js", "Bridgely-assets.json"]) {
     const file = path.join(widgetDist, name);
     if (files.includes(file)) initial.add(file);
   }
@@ -153,7 +153,7 @@ let initialLoadBytes = sizes
     ({ file }) => initialAssets.includes(file) || localeAssets.includes(file),
   )
   .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
-const localeSizesPath = path.join(widgetDist, "dimts-locale-ui-sizes.json");
+const localeSizesPath = path.join(widgetDist, "Bridgely-locale-ui-sizes.json");
 if (files.includes(localeSizesPath)) {
   const localeSizes = Object.values(
     JSON.parse(await readFile(localeSizesPath, "utf8")),
@@ -168,7 +168,7 @@ if (files.includes(localeSizesPath)) {
     .reduce((total, { compressedBytes }) => total + compressedBytes, 0);
   initialLoadBytes += Math.max(...localeSizes);
 }
-const faqSizesPath = path.join(widgetDist, "dimts-faq-sizes.json");
+const faqSizesPath = path.join(widgetDist, "Bridgely-faq-sizes.json");
 if (files.includes(faqSizesPath)) {
   const faqSizes = Object.values(
     JSON.parse(await readFile(faqSizesPath, "utf8")),

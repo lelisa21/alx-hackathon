@@ -13,7 +13,7 @@ export function createHelpIceProvider(
   let cached: z.infer<typeof HelpIceResponseSchema> | undefined;
   let pending: Promise<z.infer<typeof HelpIceResponseSchema>> | undefined;
   return async (): Promise<z.infer<typeof HelpIceResponseSchema>> => {
-    if (!config.DIMTS_TURN_API_KEY || !config.DIMTS_TURN_APP) return stun;
+    if (!config.TURN_API_KEY || !config.TURN_APP) return stun;
     if (
       cached?.expiresAt &&
       Date.parse(cached.expiresAt) > now().getTime() + 300000
@@ -23,9 +23,9 @@ export function createHelpIceProvider(
     pending = (async () => {
       try {
         const endpoint = new URL(
-          `https://${config.DIMTS_TURN_APP}.metered.live/api/v1/turn/credential`,
+          `https://${config.TURN_APP}.metered.live/api/v1/turn/credential`,
         );
-        endpoint.searchParams.set("secretKey", config.DIMTS_TURN_API_KEY!);
+        endpoint.searchParams.set("secretKey", config.TURN_API_KEY!);
         const createdAt = now().getTime();
         const response = await fetcher(endpoint, {
           method: "POST",

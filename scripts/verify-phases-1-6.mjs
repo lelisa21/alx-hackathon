@@ -1,18 +1,18 @@
 import { spawnSync } from "node:child_process";
 
-if (!process.env.DIMTS_TEST_DATABASE_URL?.trim()) {
+if (!process.env.TEST_DATABASE_URL?.trim()) {
   process.stderr.write(
-    "Set DIMTS_TEST_DATABASE_URL to an isolated PostgreSQL database; the verification suite will not silently skip database tests.\n",
+    "SetTEST_DATABASE_URL to an isolated PostgreSQL database; the verification suite will not silently skip database tests.\n",
   );
   process.exit(1);
 }
 
 let databaseUrl;
 try {
-  databaseUrl = new URL(process.env.DIMTS_TEST_DATABASE_URL);
+  databaseUrl = new URL(process.env.TEST_DATABASE_URL);
 } catch {
   process.stderr.write(
-    "DIMTS_TEST_DATABASE_URL must be a valid PostgreSQL URL.\n",
+    "TEST_DATABASE_URL must be a valid PostgreSQL URL.\n",
   );
   process.exit(1);
 }
@@ -21,7 +21,7 @@ if (
   !["localhost", "127.0.0.1", "[::1]"].includes(databaseUrl.hostname)
 ) {
   process.stderr.write(
-    "DIMTS_TEST_DATABASE_URL must point to a local PostgreSQL database.\n",
+    "TEST_DATABASE_URL must point to a local PostgreSQL database.\n",
   );
   process.exit(1);
 }

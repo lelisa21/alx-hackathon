@@ -1,6 +1,6 @@
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import { JobsError } from "@dimts/jobs";
+import { JobsError } from "@bridgely/jobs";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { sha256 } from "../src/middleware/auth.js";
@@ -10,10 +10,10 @@ const token = "session-token-with-enough-characters";
 const config = parseConfig({
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "test-only-jwt-secret-with-enough-characters",
-  DIMTS_CRON_SECRET: "test-only-cron-secret-with-enough-characters",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "test-only-jwt-secret-with-enough-characters",
+ CRON_SECRET: "test-only-cron-secret-with-enough-characters",
 });
 function setup() {
   const service = {
@@ -78,12 +78,12 @@ describe("P06 authenticated career REST routes", () => {
     const { app, service } = setup();
     await request(app)
       .post("/v1/jobs/import")
-      .set("x-dimts-key", "public-widget-key")
+      .set("x-Bridgely-key", "public-widget-key")
       .send({ lang: "en", postings: [] })
       .expect(401);
     const result = await request(app)
       .post("/v1/jobs/import")
-      .set("x-dimts-key", "secret-host-key")
+      .set("x-Bridgely-key", "secret-host-key")
       .send({ lang: "en", postings: { "@graph": [] } })
       .expect(200);
     expect(result.body).toEqual({
@@ -191,12 +191,12 @@ describe("P06 authenticated career REST routes", () => {
     await request(app).post("/v1/internal/alerts?dry=1").expect(401);
     await request(app)
       .post("/v1/internal/alerts?dry=1")
-      .set("Authorization", `Bearer ${config.DIMTS_CRON_SECRET}`)
+      .set("Authorization", `Bearer ${config.CRON_SECRET}`)
       .expect(200);
     expect(service.runAlerts).toHaveBeenCalledWith({ dryRun: true });
     await request(app)
       .post("/v1/internal/alerts?dry=yes")
-      .set("Authorization", `Bearer ${config.DIMTS_CRON_SECRET}`)
+      .set("Authorization", `Bearer ${config.CRON_SECRET}`)
       .expect(400);
   });
   it("NFR-SEC-09 bounds subscription creation abuse", async () => {

@@ -1,5 +1,5 @@
-import { isAnswerEcho } from "@dimts/engine";
-import type { AnswerRequest } from "@dimts/engine";
+import { isAnswerEcho } from "@bridgely/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import {
   describeProviderFailure,
   InvalidProviderResponseError,
@@ -10,8 +10,8 @@ import type { AiProvider, AnswerResult } from "./provider.js";
 const COOLDOWN_MS = 60_000;
 // A rejected key or unknown model will not fix itself within a minute.
 const PERMANENT_COOLDOWN_MS = 15 * 60_000;
-// A daily quota (Gemini free tier: 20 requests a day for gemini-4-hydrogen)
-// resets within a day; never park a provider longer than that.
+// Rate limits can include daily quota resets; never park a provider longer
+// than the maximum supported reset window.
 const MAX_QUOTA_COOLDOWN_MS = 24 * 60 * 60_000;
 
 /** Content-free description of a failed provider attempt, for operators. */

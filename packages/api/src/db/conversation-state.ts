@@ -1,4 +1,4 @@
-import type { ConversationSignals, ReplyKind } from "@dimts/engine";
+import type { ConversationSignals, ReplyKind } from "@bridgely/engine";
 import type { Pool } from "pg";
 
 export interface ConversationStateStore extends ConversationSignals {

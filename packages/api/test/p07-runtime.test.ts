@@ -9,10 +9,10 @@ import type { SmsApiService } from "../src/sms-runtime.js";
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "synthetic-jwt-secret-with-32-characters",
-  DIMTS_CRON_SECRET: "synthetic-cron-secret-long-enough",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "synthetic-jwt-secret-with-32-characters",
+ CRON_SECRET: "synthetic-cron-secret-long-enough",
 };
 describe("P07 host callback and P06 delivery wiring", () => {
   it("fails closed instead of bypassing SMS budgets through a legacy host relay", async () => {
@@ -42,8 +42,8 @@ describe("P07 host callback and P06 delivery wiring", () => {
   it("requires the versioned, matching receipt and suppresses host error details", async () => {
     const config = parseConfig({
       ...environment,
-      DIMTS_SMS_CALLBACK_URL: "https://host.example/callback",
-      DIMTS_SMS_CALLBACK_SECRET: "synthetic-callback-secret-long-enough",
+     SMS_CALLBACK_URL: "https://host.example/callback",
+     SMS_CALLBACK_SECRET: "synthetic-callback-secret-long-enough",
     });
     const input = {
       from: "+251900000010",

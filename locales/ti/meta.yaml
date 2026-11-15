@@ -6,6 +6,7 @@ dir: ltr
 calendar: ethiopic
 fallback: en
 status: draft
+public_preview: true
 stt: false
 tts: false
 sms_encoding: ucs2

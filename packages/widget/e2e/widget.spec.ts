@@ -1,8 +1,31 @@
 import { expect, test } from "@playwright/test";
 import { resolve } from "node:path";
 import { getVisiblePacks, loadPacks } from "../../locales-tools/src/index.js";
+import { withPreviewLanguages } from "../../api/src/preview-languages.js";
 
 const packs = loadPacks(resolve("locales"));
+const hostPacks = withPreviewLanguages(packs, []);
+
+test("Bridgely registers the assistant as a valid lowercase custom element", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await expect
+    .poll(() => page.evaluate(() => Boolean(customElements.get("bridgely-assistant"))))
+    .toBe(true);
+});
+
+test("FR-LANG-06 migrates the saved language choice from the previous brand key", async ({
+  page,
+}) => {
+  await page.addInitScript(() => localStorage.setItem("dimts.lang", "ti"));
+  await openWidget(page, { languages: languageChoices });
+
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute("lang", "ti");
+  await expect
+    .poll(() => page.evaluate(() => localStorage.getItem("Bridgely.lang")))
+    .toBe("ti");
+});
 
 test("P03 consent persists opt-in and revocation before the next question", async ({
   page,
@@ -38,21 +61,21 @@ test("P03 consent persists opt-in and revocation before the next question", asyn
   expect(calls.at(-1)).toBe("ask");
 });
 
-test("FR-LANG-01 offers Tigrinya beta and uses it for the session", async ({
+test("FR-LANG-01 offers configured Tigrinya beta and uses it for the session", async ({
   page,
 }) => {
-  await openWidget(page, { languages: languageChoices, preview: true });
+  await openWidget(page, { languages: languageChoices });
   await page.getByRole("button", { name: "English" }).click();
   await page.getByRole("button", { name: "Change language" }).click();
   await page.getByRole("button", { name: "Tigrinya" }).click();
   await expect(page.locator("#message")).toBeVisible();
-  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "ti");
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute("lang", "ti");
   await expect
-    .poll(async () => page.evaluate(() => localStorage.getItem("dimts.lang")))
+    .poll(async () => page.evaluate(() => localStorage.getItem("Bridgely.lang")))
     .toBe("ti");
 });
 
-test("FR-UI-07 exposes Tigrinya in the Settings language picker", async ({
+test("FR-UI-07 exposes configured Tigrinya in the Settings language picker", async ({
   page,
 }) => {
   await openWidget(page, { languages: languageChoices });
@@ -65,7 +88,7 @@ test("FR-UI-07 exposes Tigrinya in the Settings language picker", async ({
   await expect(tigrinya).toContainText("Beta");
   await tigrinya.click();
 
-  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "ti");
+  await expect(page.locator("bridgely-assistant")).toHaveAttribute("lang", "ti");
 });
 
 test("FR-UI keeps the composer below a scrollable conversation and compact settings", async ({
@@ -85,10 +108,10 @@ test("FR-UI keeps the composer below a scrollable conversation and compact setti
 
   const layout = await page.evaluate(() => {
     const log = document
-      .querySelector("dimts-assistant")
+      .querySelector("bridgely-assistant")
       ?.shadowRoot?.querySelector(".messages");
     const composer = document
-      .querySelector("dimts-assistant")
+      .querySelector("bridgely-assistant")
       ?.shadowRoot?.querySelector(".composer");
     const logRect = log?.getBoundingClientRect();
     const composerRect = composer?.getBoundingClientRect();
@@ -112,6 +135,19 @@ test("FR-UI keeps the composer below a scrollable conversation and compact setti
   expect(toggleSize!.height).toBe(48);
   await expect(toggle).toHaveCSS("appearance", "none");
   await expect(toggle).toHaveCSS("border-top-width", "12px");
+});
+
+test("FR-UI-02 keeps chat controls simple and puts accessibility controls in Settings", async ({
+  page,
+}) => {
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+
+  await expect(page.locator("header .a11y")).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Settings" })).toBeVisible();
+  await page.getByRole("button", { name: "Settings" }).click();
+  await expect(page.getByRole("button", { name: "150 percent" })).toBeVisible();
+  await expect(page.getByRole("checkbox", { name: "Simple mode" })).toBeVisible();
 });
 
 test("P03 failed revocation blocks another ask and provides a retry", async ({
@@ -240,7 +276,7 @@ for (const scenario of [
       ),
     ).toBeVisible();
     await expect(consent).not.toBeChecked();
-    await expect(page.locator("dimts-assistant")).toHaveAttribute(
+    await expect(page.locator("bridgely-assistant")).toHaveAttribute(
       "high-contrast",
       "",
     );
@@ -351,7 +387,7 @@ test("P03 Simple mode makes text large, hides advanced controls, and keeps one c
   );
   await expect(page.locator("#speech-rate")).toHaveCount(0);
   const scale = await page
-    .locator("dimts-assistant")
+    .locator("bridgely-assistant")
     .evaluate((element) =>
       Number.parseFloat(getComputedStyle(element).fontSize),
     );
@@ -438,7 +474,7 @@ test("P03 a slow question announces politely once and provides retry and help", 
   });
   await page.evaluate(() => {
     const status = document
-      .querySelector("dimts-assistant")!
+      .querySelector("bridgely-assistant")!
       .shadowRoot!.querySelector(".chat > .status")!;
     (
       window as Window & { __workingAnnouncements?: number }
@@ -483,7 +519,7 @@ test("P03 Simple replies read aloud and the microphone shortcut preserves review
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const target = window as TestWindow;
     target.__spoken = [];
@@ -584,7 +620,7 @@ test("FR-LANG-15 keeps direct Ethiopic input and removes suggestions when disabl
   await expect(page.locator("#transliteration-suggestion")).toHaveCount(0);
   await question.fill("selam");
   await expect(page.locator("#transliteration-suggestion")).toHaveValue("ሰላም");
-  const layout = await page.locator("dimts-assistant").evaluate((element) => ({
+  const layout = await page.locator("bridgely-assistant").evaluate((element) => ({
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
   }));
@@ -741,7 +777,7 @@ interface TestLanguage {
   tts: boolean;
 }
 
-const languages: TestLanguage[] = getVisiblePacks(packs).map((pack) => ({
+const languages: TestLanguage[] = getVisiblePacks(hostPacks).map((pack) => ({
   code: pack.meta.code,
   nameNative: pack.meta.name_native,
   nameEn: pack.meta.name_en,
@@ -755,7 +791,7 @@ const languageChoices: TestLanguage[] = [
   ...languages,
   {
     code: "am",
-    nameNative: "አማርኛ",
+    nameNative: "????",
     nameEn: "Amharic",
     script: "Ethi",
     dir: "ltr",
@@ -768,16 +804,6 @@ const languageChoices: TestLanguage[] = [
     nameNative: "Afaan Oromoo",
     nameEn: "Afaan Oromoo",
     script: "Latn",
-    dir: "ltr",
-    status: "beta",
-    stt: false,
-    tts: false,
-  },
-  {
-    code: "ti",
-    nameNative: "ትግርኛ",
-    nameEn: "Tigrinya",
-    script: "Ethi",
     dir: "ltr",
     status: "beta",
     stt: false,
@@ -874,7 +900,7 @@ async function openWidget(
       route.fulfill({
         status: 200,
         contentType: "text/html",
-        body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+        body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><bridgely-assistant data-api="http://api.test/v1" data-host-key="test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
       }),
   );
   await page.context().route("http://api.test/v1/**", async (route) => {
@@ -897,10 +923,10 @@ async function openWidget(
       await route.fulfill({
         json: packs.get(code)?.ui ?? {},
         headers: {
-          "X-Dimts-Locale-Fallback": options.fallbackLanguages?.includes(code)
+          "X-Bridgely-Locale-Fallback": options.fallbackLanguages?.includes(code)
             ? "1"
             : "0",
-          "Access-Control-Expose-Headers": "X-Dimts-Locale-Fallback",
+          "Access-Control-Expose-Headers": "X-Bridgely-Locale-Fallback",
         },
       });
       return;
@@ -1062,7 +1088,7 @@ async function installCueMocks(
 async function attachPendingSpeech(
   page: import("@playwright/test").Page,
 ): Promise<void> {
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__voice = { starts: [], stops: 0 };
@@ -1092,7 +1118,7 @@ test("loads the language picker with a same-origin relative API root", async ({
     route.fulfill({
       status: 200,
       contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><dimts-assistant data-api="/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      body: '<!doctype html><html lang="en"><head><title>Widget test</title></head><body><bridgely-assistant data-api="/v1" data-host-key="test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
     }),
   );
   await page.route("http://127.0.0.1:4173/v1/**", async (route) => {
@@ -1140,16 +1166,16 @@ test("loads the language picker with a same-origin relative API root", async ({
   });
   await page.addInitScript(() => {
     document.addEventListener(
-      "dimts:ready",
+      "Bridgely:ready",
       () => {
-        document.documentElement.dataset.dimtsWidgetReady = "true";
+        document.documentElement.dataset.BridgelyWidgetReady = "true";
       },
       { capture: true, once: true },
     );
   });
   await page.goto("http://127.0.0.1:4173/");
   await page.waitForFunction(
-    () => document.documentElement.dataset.dimtsWidgetReady === "true",
+    () => document.documentElement.dataset.BridgelyWidgetReady === "true",
   );
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   await page.getByRole("button", { name: "English" }).click();
@@ -1190,22 +1216,22 @@ test("refreshes cached shell assets while online", async ({ page }) => {
     .toBe(true);
 
   const shellCacheName = await page.evaluate(async () =>
-    (await caches.keys()).find((name) => name.startsWith("dimts-shell-")),
+    (await caches.keys()).find((name) => name.startsWith("Bridgely-shell-")),
   );
   if (!shellCacheName) throw new Error("Expected the widget shell cache.");
   await page.evaluate(async (cacheName) => {
     const cache = await caches.open(cacheName);
     await cache.put(
-      new URL("/dimts-widget.js", location.origin),
+      new URL("/Bridgely-widget.js", location.origin),
       new Response("stale shell"),
     );
   }, shellCacheName);
 
   const bundle = await page.evaluate(async () =>
-    (await fetch("/dimts-widget.js")).text(),
+    (await fetch("/Bridgely-widget.js")).text(),
   );
   expect(bundle).not.toBe("stale shell");
-  expect(bundle).toContain("DimtsAssistant");
+  expect(bundle).toContain("BridgelyAssistant");
 });
 
 test("keeps Help me now fixed in one corner and within the first five tab stops", async ({
@@ -1505,7 +1531,7 @@ test("announces microphone state with its ring, tone, and haptic cues", async ({
   await page.getByRole("button", { name: "English" }).click();
   await attachPendingSpeech(page);
 
-  const layout = await page.locator("dimts-assistant").evaluate((element) => {
+  const layout = await page.locator("bridgely-assistant").evaluate((element) => {
     const mic = element
       .shadowRoot!.querySelector(".mic")!
       .getBoundingClientRect();
@@ -1623,7 +1649,7 @@ test("welcomes in-language, keeps the conversation, and focuses cited replies", 
   await expect(page.getByRole("article", { name: "You" })).toContainText(
     "How do I make a study plan?",
   );
-  const reply = page.getByRole("article", { name: "Dimts" });
+  const reply = page.getByRole("article", { name: "Bridgely" });
   await expect(reply).toContainText("Choose one topic to learn this week.");
   await expect(reply).toBeFocused();
   await expect(
@@ -1640,7 +1666,7 @@ test("reflows at 320px and has no critical or serious accessibility violations",
   await page.getByRole("button", { name: "English" }).click();
   await page.getByRole("button", { name: "Settings" }).click();
 
-  const root = page.locator("dimts-assistant");
+  const root = page.locator("bridgely-assistant");
   const layout = await root.evaluate((element) => ({
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
@@ -1664,7 +1690,7 @@ test("names controls in their language and meets interactive target sizes", asyn
   await expect(page.getByRole("button", { name: "English" })).toBeVisible();
   const assertTargets = async () => {
     const controls = await page
-      .locator("dimts-assistant")
+      .locator("bridgely-assistant")
       .locator("button, a, input, select, textarea")
       .evaluateAll((elements) =>
         elements.map((element) => {
@@ -1701,7 +1727,7 @@ test("keeps at least 8px between interactive targets", async ({ page }) => {
   await openWidget(page);
   const assertSpacing = async () => {
     const closePairs = await page
-      .locator("dimts-assistant")
+      .locator("bridgely-assistant")
       .evaluate((element) => {
         const controls = Array.from(
           element.shadowRoot!.querySelectorAll<HTMLElement>(
@@ -1797,7 +1823,7 @@ test("speaks the language name on focus when that language has TTS", async ({
   page,
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__spoken = [];
@@ -1828,7 +1854,7 @@ test("changing language keeps chat history and returns focus to the picker", asy
   await composer.fill("How do I make a study plan?");
   await composer.press("Enter");
   const learnerMessage = page
-    .locator("dimts-assistant")
+    .locator("bridgely-assistant")
     .locator('article[data-role="learner"]');
   await expect(learnerMessage).toContainText("How do I make a study plan?");
 
@@ -1839,7 +1865,7 @@ test("changing language keeps chat history and returns focus to the picker", asy
   await expect
     .poll(() =>
       page
-        .locator("dimts-assistant")
+        .locator("bridgely-assistant")
         .locator(".header-actions button")
         .first()
         .evaluate((element) => element === element.getRootNode().activeElement),
@@ -1879,10 +1905,10 @@ test("reflows at 200 percent text size on a 320px viewport", async ({
   await page.getByRole("button", { name: "Settings" }).click();
   await page.getByRole("button", { name: "200 percent" }).click();
 
-  const layout = await page.locator("dimts-assistant").evaluate((element) => ({
+  const layout = await page.locator("bridgely-assistant").evaluate((element) => ({
     scrollWidth: element.scrollWidth,
     clientWidth: element.clientWidth,
-    scale: getComputedStyle(element).getPropertyValue("--dimts-scale").trim(),
+    scale: getComputedStyle(element).getPropertyValue("--Bridgely-scale").trim(),
   }));
   expect(layout.scale).toBe("2");
   expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
@@ -1892,16 +1918,16 @@ test("keeps default and high-contrast text at 7:1 without fading disabled contro
   page,
 }) => {
   await openWidget(page);
-  const widget = page.locator("dimts-assistant");
+  const widget = page.locator("bridgely-assistant");
   const getPalette = () =>
     widget.evaluate((element) => {
       const style = getComputedStyle(element);
       return {
-        surface: style.getPropertyValue("--dimts-surface").trim(),
-        text: style.getPropertyValue("--dimts-text").trim(),
-        muted: style.getPropertyValue("--dimts-muted").trim(),
-        primary: style.getPropertyValue("--dimts-primary").trim(),
-        primaryText: style.getPropertyValue("--dimts-primary-text").trim(),
+        surface: style.getPropertyValue("--Bridgely-surface").trim(),
+        text: style.getPropertyValue("--Bridgely-text").trim(),
+        muted: style.getPropertyValue("--Bridgely-muted").trim(),
+        primary: style.getPropertyValue("--Bridgely-primary").trim(),
+        primaryText: style.getPropertyValue("--Bridgely-primary-text").trim(),
       };
     });
 
@@ -1963,7 +1989,7 @@ test("announces failed asks with retry and help actions", async ({ page }) => {
   await expect(page.getByRole("button", { name: "Try again" })).toBeVisible();
   await expect(page.getByRole("button", { name: "Help me now" })).toBeVisible();
   await page.getByRole("button", { name: "Try again" }).click();
-  await expect(page.getByRole("article", { name: "Dimts" })).toContainText(
+  await expect(page.getByRole("article", { name: "Bridgely" })).toContainText(
     "Choose one topic to learn this week.",
   );
 });
@@ -1992,7 +2018,7 @@ test("suggests a language for typed text without switching until chosen", async 
   await expect(page.locator("main")).toHaveAttribute("lang", "om");
   await expect(composer).toHaveValue("Hello there");
   await composer.press("Enter");
-  await expect(page.getByRole("article", { name: "Dimts" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Bridgely" })).toBeVisible();
   expect(askLangs).toEqual(["om"]);
 });
 
@@ -2051,7 +2077,7 @@ test("reads replies aloud only after the learner selects the read-aloud mode", a
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__spoken = [];
@@ -2152,7 +2178,7 @@ test("hides unconfigured voice while typed questions still work", async ({
   const composer = page.getByRole("textbox", { name: "Ask a question" });
   await composer.fill("How do I make a study plan?");
   await composer.press("Enter");
-  await expect(page.getByRole("article", { name: "Dimts" })).toContainText(
+  await expect(page.getByRole("article", { name: "Bridgely" })).toContainText(
     "Choose one topic to learn this week.",
   );
   expect(
@@ -2167,7 +2193,7 @@ test("hides injected adapters that do not support the selected language", async 
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     widget.speechToText = {
       supported: () => false,
@@ -2196,7 +2222,7 @@ test("reviews editable speech text and submits only the learner-edited text", as
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__voice = { starts: [], stops: 0 };
@@ -2259,7 +2285,7 @@ test("reviews editable speech text and submits only the learner-edited text", as
     }
   });
   await composer.press("Enter");
-  await expect(page.getByRole("article", { name: "Dimts" })).toBeVisible();
+  await expect(page.getByRole("article", { name: "Bridgely" })).toBeVisible();
   expect(submitted.join(" ")).toContain("How do I plan my study this week?");
   await expect
     .poll(() => page.evaluate(() => (window as TestWindow).__voice?.stops))
@@ -2274,7 +2300,7 @@ test("stops a recording at 60 seconds and announces silence for retry", async ({
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__voice = { starts: [], stops: 0 };
@@ -2329,7 +2355,7 @@ test("automatically reads replies when the learner enables that setting", async 
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     const testWindow = window as TestWindow;
     testWindow.__spoken = [];
@@ -2351,7 +2377,7 @@ test("automatically reads replies when the learner enables that setting", async 
   await composer.fill("How do I make a study plan?");
   await composer.press("Enter");
 
-  await expect(page.getByRole("article", { name: "Dimts" })).toContainText(
+  await expect(page.getByRole("article", { name: "Bridgely" })).toContainText(
     "Choose one topic to learn this week.",
   );
   await expect
@@ -2370,7 +2396,7 @@ test("explains microphone denial and keeps text entry available", async ({
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     widget.speechToText = {
       supported: (lang) => lang === "en",
@@ -2395,7 +2421,7 @@ test("explains when no microphone is available and preserves text entry", async 
 }) => {
   await openWidget(page, { languages: voiceEnabledTestLanguages });
   await page.getByRole("button", { name: "English" }).click();
-  await page.locator("dimts-assistant").evaluate(async (element) => {
+  await page.locator("bridgely-assistant").evaluate(async (element) => {
     const widget = element as WidgetElement;
     widget.speechToText = {
       supported: (lang) => lang === "en",

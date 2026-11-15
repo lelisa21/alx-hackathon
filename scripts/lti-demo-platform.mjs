@@ -1,21 +1,21 @@
 // A minimal LTI 1.3 platform (a stand-in for Moodle or Canvas) that performs a
-// real, signed launch into the local Dimts API.
+// real, signed launch into the local Bridgely API.
 //
 //   node scripts/lti-demo-platform.mjs
 //   open http://localhost:5180/
 //
 // It implements the platform half of the OIDC third-party-initiated login:
-// 1. The course page frames Dimts' /v1/lti/login with iss, login_hint and
+// 1. The course page frames Bridgely' /v1/lti/login with iss, login_hint and
 //    target_link_uri.
-// 2. Dimts redirects the frame to this platform's /auth with state and nonce.
+// 2. Bridgely redirects the frame to this platform's /auth with state and nonce.
 // 3. This platform signs an RS256 id_token with LTI 1.3 claims and posts it
-//    to Dimts' /v1/lti/launch, which verifies it against /jwks.
+//    to Bridgely' /v1/lti/launch, which verifies it against /jwks.
 //
 // Register the platform with the API (development only; see .env.example):
-//   DIMTS_LTI_PLATFORMS=<the JSON printed at start>
-//   DIMTS_LTI_WIDGET_URL=http://localhost:5173/dimts-widget.js
-//   DIMTS_LTI_WIDGET_KEY=<DIMTS_LOCAL_WIDGET_KEY>
-// The launch page is served by Dimts itself, so DIMTS_HOST_ORIGINS needs no
+//  LTI_PLATFORMS=<the JSON printed at start>
+//  LTI_WIDGET_URL=http://localhost:5173/Bridgely-widget.js
+//  LTI_WIDGET_KEY=<LOCAL_WIDGET_KEY>
+// The launch page is served by Bridgely itself, soHOST_ORIGINS needs no
 // change.
 import { createServer } from "node:http";
 import { createPrivateKey, generateKeyPairSync, sign } from "node:crypto";
@@ -25,13 +25,13 @@ import path from "node:path";
 
 const port = Number(process.env.LTI_DEMO_PORT ?? 5180);
 const issuer = `http://localhost:${port}`;
-const dimts = (process.env.DIMTS_URL ?? "http://localhost:5173").replace(
+const Bridgely = (process.env.URL ?? "http://localhost:5173").replace(
   /\/$/u,
   "",
 );
-const clientId = "dimts-demo-client";
+const clientId = "Bridgely-demo-client";
 const deploymentId = "demo-deployment-1";
-const kid = "dimts-demo-key-1";
+const kid = "Bridgely-demo-key-1";
 
 // Keep one key across restarts so a cached JWKS stays valid.
 const keyFile = path.join(
@@ -97,11 +97,11 @@ const PEOPLE = {
 };
 
 function page(role) {
-  const login = new URL(`${dimts}/v1/lti/login`);
+  const login = new URL(`${Bridgely}/v1/lti/login`);
   for (const [key, value] of Object.entries({
     iss: issuer,
     login_hint: `${role}-demo-user`,
-    target_link_uri: `${dimts}/v1/lti/launch`,
+    target_link_uri: `${Bridgely}/v1/lti/launch`,
     client_id: clientId,
     lti_deployment_id: deploymentId,
     lti_message_hint: role,
@@ -127,11 +127,11 @@ p.muted{color:var(--muted)}
 <section>
 <h1>WR 100: Fundamentals of Effective Communication</h1>
 <nav aria-label="Launch as"><a href="/?role=learner"${role === "learner" ? ' aria-current="page"' : ""}>View as learner</a><a href="/?role=instructor"${role === "instructor" ? ' aria-current="page"' : ""}>View as instructor</a></nav>
-<p>Signed in as <strong>${escape(PEOPLE[role])}</strong>. The Dimts activity on the right is an LTI 1.3 tool launch: this platform signs an id_token, and Dimts verifies the signature, issuer, audience, nonce and deployment before it shows the tutor.</p>
-<p class="muted">Week 10: Verifying AI-generated content. Ask Dimts about this course in English, Amharic or Afaan Oromoo.</p>
+<p>Signed in as <strong>${escape(PEOPLE[role])}</strong>. The Bridgely activity on the right is an LTI 1.3 tool launch: this platform signs an id_token, and Bridgely verifies the signature, issuer, audience, nonce and deployment before it shows the tutor.</p>
+<p class="muted">Week 10: Verifying AI-generated content. Ask Bridgely about this course in English, Amharic or Afaan Oromoo.</p>
 </section>
-<section aria-label="Dimts activity">
-<iframe title="Dimts course assistant" src="${escape(login.href)}" allow="microphone"></iframe>
+<section aria-label="Bridgely activity">
+<iframe title="Bridgely course assistant" src="${escape(login.href)}" allow="microphone"></iframe>
 </section>
 </main></body></html>`;
 }
@@ -148,7 +148,7 @@ function authResponse(url) {
   if (required.some((key) => !q.get(key)) || q.get("client_id") !== clientId)
     return { status: 400, body: "Invalid authentication request." };
   const redirect = new URL(q.get("redirect_uri"));
-  if (`${redirect.origin}${redirect.pathname}` !== `${dimts}/v1/lti/launch`)
+  if (`${redirect.origin}${redirect.pathname}` !== `${Bridgely}/v1/lti/launch`)
     return { status: 400, body: "Unregistered redirect_uri." };
   const role =
     q.get("lti_message_hint") === "instructor" ? "instructor" : "learner";
@@ -164,10 +164,10 @@ function authResponse(url) {
       "LtiResourceLinkRequest",
     "https://purl.imsglobal.org/spec/lti/claim/version": "1.3.0",
     "https://purl.imsglobal.org/spec/lti/claim/deployment_id": deploymentId,
-    "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": `${dimts}/v1/lti/launch`,
+    "https://purl.imsglobal.org/spec/lti/claim/target_link_uri": `${Bridgely}/v1/lti/launch`,
     "https://purl.imsglobal.org/spec/lti/claim/resource_link": {
-      id: "wr100-week10-dimts",
-      title: "Ask Dimts",
+      id: "wr100-week10-Bridgely",
+      title: "Ask Bridgely",
     },
     "https://purl.imsglobal.org/spec/lti/claim/roles": [ROLES[role]],
     "https://purl.imsglobal.org/spec/lti/claim/context": {
@@ -182,10 +182,10 @@ function authResponse(url) {
   });
   return {
     status: 200,
-    body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Launching Dimts…</title></head>
+    body: `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Launching Bridgely…</title></head>
 <body onload="document.forms[0].submit()"><form method="post" action="${escape(redirect.href)}">
 <input type="hidden" name="id_token" value="${escape(idToken)}"><input type="hidden" name="state" value="${escape(q.get("state"))}">
-<noscript><button type="submit">Continue to Dimts</button></noscript></form></body></html>`,
+<noscript><button type="submit">Continue to Bridgely</button></noscript></form></body></html>`,
   };
 }
 
@@ -228,8 +228,8 @@ createServer((request, response) => {
     },
   ];
   process.stdout.write(
-    `Demo LMS on ${issuer}/  (launches into ${dimts})\n` +
+    `Demo LMS on ${issuer}/  (launches into ${Bridgely})\n` +
       "Register it with the API (development only):\n" +
-      `DIMTS_LTI_PLATFORMS=${JSON.stringify(registration)}\n`,
+      `LTI_PLATFORMS=${JSON.stringify(registration)}\n`,
   );
 });

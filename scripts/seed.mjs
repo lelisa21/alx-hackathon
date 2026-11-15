@@ -17,7 +17,7 @@ export function validateSeedHelperToken(helperToken) {
     helperTokenBytes.toString("base64url") !== helperToken
   )
     throw new Error(
-      "DIMTS_SEED_HELPER_TOKEN must be a random 32-byte base64url token.",
+      "SEED_HELPER_TOKEN must be a random 32-byte base64url token.",
     );
   return helperToken;
 }
@@ -29,7 +29,7 @@ async function main() {
       "DATABASE_URL_DIRECT is required to seed local sample data.",
     );
   const helperToken = validateSeedHelperToken(
-    process.env.DIMTS_SEED_HELPER_TOKEN,
+    process.env.SEED_HELPER_TOKEN,
   );
 
   const posting = JSON.parse(

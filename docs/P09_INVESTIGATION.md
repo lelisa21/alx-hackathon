@@ -3,7 +3,7 @@
 **Status:** Historical investigation; implementation and requirement corrections
 recorded in the 15 November follow-up and current remaining work plan.
 **Date:** 13 November 2026; follow-up 15 November 2026
-**Authority:** Dimts-System-Blueprint-v2.0.md, REMAINING_WORK_PLAN.md P09 section
+**Authority:** Bridgely-System-Blueprint-v2.0.md, REMAINING_WORK_PLAN.md P09 section
 
 ---
 
@@ -257,7 +257,7 @@ export interface InsightsRepository {
 **Authentication:**
 
 - Bearer token (session) → should NOT have access (learner, not teacher)
-- X-Dimts-Key (host secret) → admin/host access
+- X-Bridgely-Key (host secret) → admin/host access
 - LTI instructor claim (P10 adds; for now, return 501 Not Implemented)
 
 **Query Parameters:**
@@ -286,7 +286,7 @@ export const InsightsResponseSchema = z.object({
 
 - Content-Type: `text/csv; charset=utf-8`
 - Headers: `topic_id,topic_label,lang,period,question_count,notfound_count,helpful,unhelpful`
-- Header: `Content-Disposition: attachment; filename="dimts-insights-{date}.csv"`
+- Header: `Content-Disposition: attachment; filename="bridgely-insights-{date}.csv"`
 
 ### 4.3 Schema and Migration
 
@@ -347,7 +347,7 @@ export const InsightsResponseSchema = z.object({
 - Add `/v1/insights` endpoint docs with:
   - Query parameters (startDate, endDate, lang, format)
   - Responses: 200 (JSON/CSV), 401, 403, 429
-  - Note: "Host secret key (X-Dimts-Key) required; LTI instructor access in P10"
+  - Note: "Host secret key (X-Bridgely-Key) required; LTI instructor access in P10"
 
 ---
 
@@ -362,7 +362,7 @@ export const InsightsResponseSchema = z.object({
 
 ### 5.2 API Route Tests (`packages/api/test/`)
 
-- **Authentication:** 401 without X-Dimts-Key or valid LTI, 403 if key is invalid
+- **Authentication:** 401 without X-Bridgely-Key or valid LTI, 403 if key is invalid
 - **Query validation:** Zod rejects invalid startDate, malformed lang, etc.
 - **Small-cell suppression:** Groups with count<5 combined into single "Other" row
 - **No raw data:** Verify no session IDs, question text, or identifiers in response

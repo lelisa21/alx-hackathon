@@ -10,8 +10,8 @@ const base = (
   process.argv.find((arg) => /^https?:/u.test(arg)) ?? "http://localhost:5173"
 ).replace(/\/$/u, "");
 const cloud = process.argv.includes("--cloud");
-const key = process.env.DIMTS_LOCAL_WIDGET_KEY ?? "local-widget-public-id";
-const consentVersion = process.env.DIMTS_AI_CONSENT_VERSION ?? "remote-ai-v1";
+const key = process.env.LOCAL_WIDGET_KEY ?? "local-widget-public-id";
+const consentVersion = process.env.AI_CONSENT_VERSION ?? "remote-ai-v1";
 
 const questions = {
   en: [
@@ -33,7 +33,7 @@ const questions = {
     "Koorsii darbuuf qabxii hammamii barbaada?",
     "Jajjabeessi saffisaa maali?",
     "Gargaaraan dijitaalaa maali?",
-    "Dimts Telegram irratti fayyadamuu nan danda'aa?",
+    "Bridgely Telegram irratti fayyadamuu nan danda'aa?",
   ],
 };
 
@@ -44,7 +44,7 @@ for (const [lang, list] of Object.entries(questions)) {
     headers: {
       "content-type": "application/json",
       origin: base,
-      "x-dimts-key": key,
+      "x-Bridgely-key": key,
     },
     body: JSON.stringify({
       lang,

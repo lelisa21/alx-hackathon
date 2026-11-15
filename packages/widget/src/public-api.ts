@@ -1,4 +1,4 @@
-export interface DimtsApi {
+export interface BridgelyApi {
   open(): void;
   close(): void;
   setLanguage(language: string): void;
@@ -7,7 +7,7 @@ export interface DimtsApi {
 
 declare global {
   interface Window {
-    Dimts?: DimtsApi;
+    Bridgely?: BridgelyApi;
   }
 }
 
@@ -18,22 +18,22 @@ interface PublicWidget extends HTMLElement {
 
 /** Keeps direct custom-element integrations compatible; the script loader owns its instance. */
 export function installDefaultApi(): void {
-  if (typeof window === "undefined" || window.Dimts) return;
+  if (typeof window === "undefined" || window.Bridgely) return;
   const each = (action: (widget: PublicWidget) => void) =>
-    document.querySelectorAll<PublicWidget>("dimts-assistant").forEach(action);
-  window.Dimts = {
+    document.querySelectorAll<PublicWidget>("bridgely-assistant").forEach(action);
+  window.Bridgely = {
     open: () =>
       each((widget) => {
         widget.hidden = false;
         widget.dispatchEvent(
-          new CustomEvent("dimts:opened", { bubbles: true, composed: true }),
+          new CustomEvent("Bridgely:opened", { bubbles: true, composed: true }),
         );
       }),
     close: () =>
       each((widget) => {
         widget.hidden = true;
         widget.dispatchEvent(
-          new CustomEvent("dimts:closed", { bubbles: true, composed: true }),
+          new CustomEvent("Bridgely:closed", { bubbles: true, composed: true }),
         );
       }),
     setLanguage: (code) => each((widget) => widget.setLanguage(code)),

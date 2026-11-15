@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { parseConfig } from "../src/config.js";
 import { createApiProviderRuntime } from "../src/provider-runtime.js";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { resolve } from "node:path";
 
 const secrets = [
@@ -13,10 +13,10 @@ const secrets = [
 const baseEnvironment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: secrets[0],
-  DIMTS_HASH_KEY: secrets[1],
-  DIMTS_JWT_SECRET: secrets[2],
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ ENC_KEY: secrets[0],
+ HASH_KEY: secrets[1],
+ JWT_SECRET: secrets[2],
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
 };
 
 const remoteProvider = {
@@ -45,9 +45,9 @@ describe("provider runtime configuration", () => {
       const binding = { ...remoteProvider, endpoint: undefined };
       const config = parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_PROVIDER: adapter,
-        DIMTS_AI_LADDER: `${adapter},offline`,
-        DIMTS_AI_PROVIDERS: JSON.stringify([
+       AI_PROVIDER: adapter,
+       AI_LADDER: `${adapter},offline`,
+       AI_PROVIDERS: JSON.stringify([
           { ...binding, id: adapter, adapter },
         ]),
         TEST_LLM_CREDENTIAL: "test-only-native-key",
@@ -135,9 +135,9 @@ describe("provider runtime configuration", () => {
   it("uses configured priorities for remaining enabled fallback bindings", () => {
     const config = parseConfig({
       ...baseEnvironment,
-      DIMTS_AI_PROVIDER: "selected",
-      DIMTS_AI_LADDER: "selected",
-      DIMTS_AI_PROVIDERS: JSON.stringify([
+     AI_PROVIDER: "selected",
+     AI_LADDER: "selected",
+     AI_PROVIDERS: JSON.stringify([
         { ...remoteProvider, id: "later", priority: 30 },
         { ...remoteProvider, id: "selected", priority: 10 },
         { ...remoteProvider, id: "earlier", priority: 20 },
@@ -160,9 +160,9 @@ describe("provider runtime configuration", () => {
   it("preserves an explicitly configured offline step before any later remote provider", () => {
     const config = parseConfig({
       ...baseEnvironment,
-      DIMTS_AI_PROVIDER: "selected",
-      DIMTS_AI_LADDER: "selected,offline,remote",
-      DIMTS_AI_PROVIDERS: JSON.stringify([
+     AI_PROVIDER: "selected",
+     AI_LADDER: "selected,offline,remote",
+     AI_PROVIDERS: JSON.stringify([
         { ...remoteProvider, id: "selected" },
         { ...remoteProvider, id: "remote" },
       ]),
@@ -181,7 +181,7 @@ describe("provider runtime configuration", () => {
       expect(() =>
         parseConfig({
           ...baseEnvironment,
-          DIMTS_AI_PROVIDERS: JSON.stringify([
+         AI_PROVIDERS: JSON.stringify([
             { ...remoteProvider, adapter, privacyClass: "local" },
           ]),
           TEST_LLM_CREDENTIAL: "test-only-key",
@@ -191,7 +191,7 @@ describe("provider runtime configuration", () => {
       expect(() =>
         parseConfig({
           ...baseEnvironment,
-          DIMTS_AI_PROVIDERS: JSON.stringify([{ ...binding, adapter }]),
+         AI_PROVIDERS: JSON.stringify([{ ...binding, adapter }]),
         }),
       ).toThrow(/credentialRef/u);
     },
@@ -199,20 +199,20 @@ describe("provider runtime configuration", () => {
   it("parses arbitrary provider bindings without retaining credential values", () => {
     const config = parseConfig({
       ...baseEnvironment,
-      DIMTS_AI_PROVIDER: "groq-fast",
-      DIMTS_AI_LADDER: "groq-fast,offline",
-      DIMTS_AI_PROVIDERS: JSON.stringify([remoteProvider]),
-      DIMTS_AI_MAX_TOKENS: "256",
-      DIMTS_AI_TEMPERATURE: "0.15",
+     AI_PROVIDER: "groq-fast",
+     AI_LADDER: "groq-fast,offline",
+     AI_PROVIDERS: JSON.stringify([remoteProvider]),
+     AI_MAX_TOKENS: "256",
+     AI_TEMPERATURE: "0.15",
       TEST_LLM_CREDENTIAL: "credential-value-not-for-config",
     });
 
-    expect(config.DIMTS_AI_PROVIDER).toBe("groq-fast");
-    expect(config.DIMTS_AI_PROVIDERS).toEqual([
+    expect(config.AI_PROVIDER).toBe("groq-fast");
+    expect(config.AI_PROVIDERS).toEqual([
       { ...remoteProvider, evaluatedLanguages: [] },
     ]);
-    expect(config.DIMTS_AI_MAX_TOKENS).toBe(256);
-    expect(config.DIMTS_AI_TEMPERATURE).toBe(0.15);
+    expect(config.AI_MAX_TOKENS).toBe(256);
+    expect(config.AI_TEMPERATURE).toBe(0.15);
     expect(JSON.stringify(config)).not.toContain(
       "credential-value-not-for-config",
     );
@@ -221,18 +221,18 @@ describe("provider runtime configuration", () => {
   it("defaults to offline answers and bounded deterministic generation settings", () => {
     const config = parseConfig(baseEnvironment);
 
-    expect(config.DIMTS_AI_PROVIDER).toBe("offline");
-    expect(config.DIMTS_AI_PROVIDERS).toEqual([]);
-    expect(config.DIMTS_AI_MAX_TOKENS).toBe(400);
-    expect(config.DIMTS_AI_TEMPERATURE).toBe(0.1);
+    expect(config.AI_PROVIDER).toBe("offline");
+    expect(config.AI_PROVIDERS).toEqual([]);
+    expect(config.AI_MAX_TOKENS).toBe(400);
+    expect(config.AI_TEMPERATURE).toBe(0.1);
   });
 
   it("uses a local model without cloud consent and falls back offline on failure", async () => {
     const config = parseConfig({
       ...baseEnvironment,
-      DIMTS_AI_PROVIDER: "local-model",
-      DIMTS_AI_LADDER: "local-model,offline",
-      DIMTS_AI_PROVIDERS: JSON.stringify([
+     AI_PROVIDER: "local-model",
+     AI_LADDER: "local-model,offline",
+     AI_PROVIDERS: JSON.stringify([
         {
           ...remoteProvider,
           id: "local-model",
@@ -332,21 +332,21 @@ describe("provider runtime configuration", () => {
     expect(() =>
       parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_PROVIDERS: "{not-json",
+       AI_PROVIDERS: "{not-json",
       }),
-    ).toThrow(/DIMTS_AI_PROVIDERS/u);
+    ).toThrow(/AI_PROVIDERS/u);
 
     expect(() =>
       parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_PROVIDERS: JSON.stringify([remoteProvider]),
+       AI_PROVIDERS: JSON.stringify([remoteProvider]),
       }),
     ).toThrow(/TEST_LLM_CREDENTIAL/u);
 
     expect(() =>
       parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_PROVIDERS: JSON.stringify([
+       AI_PROVIDERS: JSON.stringify([
           { ...remoteProvider, privacyClass: "unspecified" },
         ]),
         TEST_LLM_CREDENTIAL: "credential-value",
@@ -356,16 +356,16 @@ describe("provider runtime configuration", () => {
     expect(() =>
       parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_MAX_TOKENS: "0",
+       AI_MAX_TOKENS: "0",
       }),
-    ).toThrow(/DIMTS_AI_MAX_TOKENS/u);
+    ).toThrow(/AI_MAX_TOKENS/u);
 
     expect(() =>
       parseConfig({
         ...baseEnvironment,
-        DIMTS_AI_TEMPERATURE: "2.5",
+       AI_TEMPERATURE: "2.5",
       }),
-    ).toThrow(/DIMTS_AI_TEMPERATURE/u);
+    ).toThrow(/AI_TEMPERATURE/u);
   });
 });
 

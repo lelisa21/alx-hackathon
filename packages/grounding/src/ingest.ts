@@ -236,7 +236,7 @@ function canonicalLessonUrl(baseUrl: string, lessonId: string): URL {
     base.search ||
     base.hash
   ) {
-    throw new Error("DIMTS_CONTENT_BASE_URL must be an HTTP(S) directory URL.");
+    throw new Error("CONTENT_BASE_URL must be an HTTP(S) directory URL.");
   }
   if (!base.pathname.endsWith("/")) base.pathname += "/";
   return new URL(encodeURIComponent(lessonId), base);

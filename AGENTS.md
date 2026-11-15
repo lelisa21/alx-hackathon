@@ -2,7 +2,7 @@
 
 ## Authority
 
-- `Dimts-System-Blueprint-v2.0.md` is authoritative where it supersedes the
+- `Bridgely-System-Blueprint-v2.0.md` is authoritative where it supersedes the
   earlier SRS.
 - Use the contracts in the blueprint; do not invent endpoint names, fields, or
   file formats.

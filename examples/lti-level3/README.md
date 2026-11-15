@@ -1,9 +1,9 @@
 # LTI 1.3 Integration Guide (Level 3)
 
-**Integration Level 3:** Platform launches Dimts via LTI 1.3 (IMS Learning Tools Interoperability) with OIDC login and signed JWT token validation.
+**Integration Level 3:** Platform launches Bridgely via LTI 1.3 (IMS Learning Tools Interoperability) with OIDC login and signed JWT token validation.
 
 > **Not production-ready:** this guide describes the intended contract, not a
-> working LMS setup. `DIMTS_LTI_PLATFORMS` loads static issuer/client/deployment
+> working LMS setup. `LTI_PLATFORMS` loads static issuer/client/deployment
 > metadata, but `/v1/lti/jwks` currently returns an empty key set and the login
 > route does not complete the browser OIDC redirect flow. Deep linking and an
 > LMS-backed launch have not been verified. Do not follow the example requests
@@ -12,7 +12,7 @@
 
 ## Static host configuration
 
-Set `DIMTS_LTI_PLATFORMS` in the API environment to a JSON array with one entry
+Set `LTI_PLATFORMS` in the API environment to a JSON array with one entry
 per registered issuer/client pair. All URLs must use HTTPS. The metadata is
 public configuration, not a place for credentials:
 
@@ -21,7 +21,7 @@ public configuration, not a place for credentials:
   {
     "platformId": "savanna",
     "issuer": "https://lms.example.org",
-    "clientId": "dimts-client",
+    "clientId": "Bridgely-client",
     "authLoginUrl": "https://lms.example.org/oidc/login",
     "authTokenUrl": "https://lms.example.org/oidc/token",
     "jwksUri": "https://lms.example.org/.well-known/jwks.json",
@@ -38,15 +38,15 @@ private course content or secrets in this setting.
 
 ### Platform registration checklist
 
-1. **Admin registers platform in Dimts**
+1. **Admin registers platform in Bridgely**
    - POST /v1/lti/login endpoint
    - Platform issuer URL: `https://your-lms.example.com`
-   - OAuth client ID: `dimts-client-prod`
+   - OAuth client ID: `Bridgely-client-prod`
    - OAuth endpoints for OIDC redirect
    - JWKS public key URL: `https://your-lms.example.com/.well-known/jwks.json`
-   - Deployment ID (if using multiple Dimts instances on same LMS): `deployment-prod-001`
+   - Deployment ID (if using multiple Bridgely instances on same LMS): `deployment-prod-001`
 
-2. **Platform adds Dimts OIDC client**
+2. **Platform adds Bridgely OIDC client**
    - Redirect URI: `https://api.example.com/v1/lti/launch`
    - Scopes: `openid` (id_token signed JWT only)
    - Response type: `id_token` (no authorization code)
@@ -58,32 +58,32 @@ private course content or secrets in this setting.
 ### Learner launch flow
 
 ```
-Learner clicks "Ask Dimts" in LMS course
+Learner clicks "Ask Bridgely" in LMS course
         ↓
 LMS initiates OIDC login
-    POST /lti/login to Dimts with learner hint
+    POST /lti/login to Bridgely with learner hint
         ↓
-Dimts returns state, nonce, auth endpoint
+Bridgely returns state, nonce, auth endpoint
         ↓
 Learner redirects to LMS auth, grants consent
         ↓
-LMS returns signed id_token to Dimts
+LMS returns signed id_token to Bridgely
     POST /lti/launch with id_token, state
         ↓
-Dimts validates:
+Bridgely validates:
   - JWT signature (platform JWKS)
   - issuer, audience (client_id), deployment
   - state (5 min expiry), nonce (one-time)
   - exp (≤5 min in future), sub, roles
         ↓
-Dimts creates pseudonymous session
+Bridgely creates pseudonymous session
   - No account created
   - Learner role: normal session
   - Instructor role: insightsAccess flag set
         ↓
-Dimts returns sessionId, sessionToken, roles
+Bridgely returns sessionId, sessionToken, roles
         ↓
-LMS displays Dimts widget or redirects to session
+LMS displays Bridgely widget or redirects to session
         ↓
 Learner can ask, get answers, request help
 ```
@@ -97,7 +97,7 @@ Instructor clicks "Class Insights" in LMS
     ↓
 LTI launch (same flow, but roles includes Instructor)
     ↓
-Dimts sets insightsAccess=true in session
+Bridgely sets insightsAccess=true in session
     ↓
 Session bearer token grants GET /v1/insights access
     ↓
@@ -126,7 +126,7 @@ Instructor sees aggregated, privacy-safe insights
 
 ### Insights access control (P09 + P10)
 
-- **Host key** (`X-Dimts-Key` header) — Server-to-server access
+- **Host key** (`X-Bridgely-Key` header) — Server-to-server access
 - **LTI instructor role** — Bearer token from learner/instructor launch + `insightsAccess` flag
 - **Both paths** — Same response format, privacy rules
 
@@ -138,7 +138,7 @@ Instructor sees aggregated, privacy-safe insights
 ```json
 {
   "iss": "https://lms.example.com",
-  "client_id": "dimts-client-123",
+  "client_id": "Bridgely-client-123",
   "login_hint": "learner-456",
   "target_link_uri": "https://app.example.com/lti/launch",
   "lti_message_hint": "context-789"
@@ -202,16 +202,16 @@ Instructor sees aggregated, privacy-safe insights
 # Step 1: Register platform (admin only)
 curl -X POST https://api.example.com/v1/lti/login \
   -H "Content-Type: application/json" \
-  -H "X-Dimts-Key: admin-secret-key" \
+  -H "X-Bridgely-Key: admin-secret-key" \
   -d '{
     "iss": "https://lms.example.com",
-    "client_id": "dimts-client-123",
+    "client_id": "Bridgely-client-123",
     "login_hint": "test-learner",
     "target_link_uri": "https://app.example.com/lti/launch",
     "lti_message_hint": "test-context"
   }'
 
-# Step 2: Platform auth redirects learner to Dimts launch
+# Step 2: Platform auth redirects learner to Bridgely launch
 curl -X POST https://api.example.com/v1/lti/launch \
   -H "Content-Type: application/json" \
   -d '{

@@ -8,7 +8,7 @@ import { PostgresSmsStore } from "../src/store.js";
 import { SimulatedSmsGateway } from "../src/gateway.js";
 import type { SmsServiceOptions } from "../src/types.js";
 
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 const schema = `sms_${randomUUID().replaceAll("-", "")}`;
 const strings = {
   menu: "1 English 2 አማርኛ 3 Afaan Oromoo",

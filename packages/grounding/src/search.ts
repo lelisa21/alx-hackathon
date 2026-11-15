@@ -1,4 +1,4 @@
-import type { ScoredPassage } from "@dimts/engine";
+import type { ScoredPassage } from "@bridgely/engine";
 import { confidence, queryTokens } from "./grams.js";
 import { normalise } from "./normalise.js";
 

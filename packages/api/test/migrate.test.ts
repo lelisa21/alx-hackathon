@@ -17,7 +17,7 @@ function fakeClient(failOn?: string) {
 
 describe("migration runner", () => {
   it("serialises concurrent deploys with an advisory lock and releases it", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "dimts-migrate-"));
+    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-migrate-"));
     await writeFile(path.join(directory, "001_a.sql"), "SELECT 1;");
     const { client, query } = fakeClient();
 
@@ -29,7 +29,7 @@ describe("migration runner", () => {
   });
 
   it("releases the lock when a migration fails", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "dimts-migrate-"));
+    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-migrate-"));
     await writeFile(path.join(directory, "001_bad.sql"), "SELECT broken;");
     const { client, query } = fakeClient("SELECT broken");
 

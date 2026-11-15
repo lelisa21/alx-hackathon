@@ -2,19 +2,19 @@
 // is complete, without ever exposing unreviewed voice in production.
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { parseConfig } from "../src/config.js";
 import { getVoiceCapabilities } from "../src/voice-capabilities.js";
 
 const packs = loadPacks(resolve("locales"));
 const base = {
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
-  DIMTS_STT_ENGINE: "browser",
-  DIMTS_TTS_ENGINE: "browser",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ STT_ENGINE: "browser",
+ TTS_ENGINE: "browser",
 };
 
 describe("development voice preview", () => {
@@ -31,7 +31,7 @@ describe("development voice preview", () => {
     const config = parseConfig({
       ...base,
       NODE_ENV: "development",
-      DIMTS_VOICE_PREVIEW: "true",
+     VOICE_PREVIEW: "true",
     });
     expect(getVoiceCapabilities(packs.get("en")!, config)).toEqual({
       stt: true,
@@ -48,8 +48,8 @@ describe("development voice preview", () => {
     const config = parseConfig({
       ...base,
       NODE_ENV: "development",
-      DIMTS_VOICE_PREVIEW: "true",
-      DIMTS_TTS_ENGINE: "none",
+     VOICE_PREVIEW: "true",
+     TTS_ENGINE: "none",
     });
     expect(getVoiceCapabilities(packs.get("en")!, config)).toMatchObject({
       stt: true,
@@ -62,8 +62,8 @@ describe("development voice preview", () => {
       parseConfig({
         ...base,
         NODE_ENV: "production",
-        DIMTS_VOICE_PREVIEW: "true",
+       VOICE_PREVIEW: "true",
       }),
-    ).toThrow(/DIMTS_VOICE_PREVIEW/u);
+    ).toThrow(/VOICE_PREVIEW/u);
   });
 });

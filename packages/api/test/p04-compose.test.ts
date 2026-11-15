@@ -5,7 +5,7 @@ import { parse } from "yaml";
 import { describe, expect, it } from "vitest";
 
 describe("P04 Compose voice configuration", () => {
-  it.each(["DIMTS_STT_ENGINE", "DIMTS_TTS_ENGINE"])(
+  it.each(["STT_ENGINE", "TTS_ENGINE"])(
     "forwards %s from the host environment with a none default",
     async (key) => {
       const compose = parse(

@@ -7,7 +7,7 @@ bill, or guarantee that an application deployment will remain free.
 
 - `pnpm usage` reports `pg_database_size`, the ten largest user tables,
   session/message counts, and warns at the configured 600 MiB budget
-  (`DIMTS_DB_BUDGET_MB`). The query uses PostgreSQL's own `pg_database_size`
+  (`DB_BUDGET_MB`). The query uses PostgreSQL's own `pg_database_size`
   value as the database total.
 - Individual active sessions are retained for 24 hours after inactivity;
   help images expire after two hours; alert contact data is deleted when

@@ -11,7 +11,7 @@ import { parseConfig } from "../src/config.js";
 import { sha256 } from "../src/middleware/auth.js";
 import { applyMigrations } from "../src/db/migrate.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)(
   "P05 real PostgreSQL/HTTP/WebSocket handoff",
   () => {
@@ -51,10 +51,10 @@ describe.skipIf(!databaseUrl)(
         config: parseConfig({
           NODE_ENV: "test",
           DATABASE_URL: connectionString,
-          DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-          DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-          DIMTS_JWT_SECRET: "jwt-secret-at-least-thirty-two-characters",
-          DIMTS_CRON_SECRET: "cron-secret-at-least-twenty-four-characters",
+         ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+         HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+         JWT_SECRET: "jwt-secret-at-least-thirty-two-characters",
+         CRON_SECRET: "cron-secret-at-least-twenty-four-characters",
         }),
       });
       server = createServer(app);

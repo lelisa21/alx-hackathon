@@ -9,10 +9,10 @@ import {
 const base = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "synthetic-jwt-secret-at-least-32-characters",
-  DIMTS_CRON_SECRET: "synthetic-cron-secret-at-least-24-characters",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "synthetic-jwt-secret-at-least-32-characters",
+ CRON_SECRET: "synthetic-cron-secret-at-least-24-characters",
 };
 const token = "123456789:synthetic_telegram_token_for_tests_only";
 const secret = "synthetic-telegram-webhook-secret-only";
@@ -37,39 +37,39 @@ describe("P08 Telegram configuration", () => {
     ).toBe(false);
   });
   it("defaults to webhook, disabled without a token, and accepts empty optional environment values", () => {
-    expect(parseConfig(base).DIMTS_TELEGRAM_MODE).toBe("webhook");
+    expect(parseConfig(base).TELEGRAM_MODE).toBe("webhook");
     const config = parseConfig({
       ...base,
-      DIMTS_TELEGRAM_TOKEN: "",
-      DIMTS_TELEGRAM_SECRET: "",
+     TELEGRAM_TOKEN: "",
+     TELEGRAM_SECRET: "",
     });
-    expect(config.DIMTS_TELEGRAM_TOKEN).toBeUndefined();
-    expect(config.DIMTS_TELEGRAM_SECRET).toBeUndefined();
+    expect(config.TELEGRAM_TOKEN).toBeUndefined();
+    expect(config.TELEGRAM_SECRET).toBeUndefined();
   });
   it("requires a valid token and separate webhook secret when enabled", () => {
     expect(() =>
-      parseConfig({ ...base, DIMTS_TELEGRAM_TOKEN: token }),
+      parseConfig({ ...base,TELEGRAM_TOKEN: token }),
     ).toThrow();
     expect(() =>
       parseConfig({
         ...base,
-        DIMTS_TELEGRAM_TOKEN: "invalid",
-        DIMTS_TELEGRAM_SECRET: secret,
+       TELEGRAM_TOKEN: "invalid",
+       TELEGRAM_SECRET: secret,
       }),
     ).toThrow();
     expect(() =>
       parseConfig({
         ...base,
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_SECRET: base.DIMTS_CRON_SECRET,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_SECRET: base.CRON_SECRET,
       }),
     ).toThrow();
     expect(
       parseConfig({
         ...base,
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_SECRET: secret,
-      }).DIMTS_TELEGRAM_TOKEN,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_SECRET: secret,
+      }).TELEGRAM_TOKEN,
     ).toBe(token);
   });
   it.each([
@@ -80,8 +80,8 @@ describe("P08 Telegram configuration", () => {
     expect(() =>
       parseConfig({
         ...base,
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_SECRET: value,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_SECRET: value,
       }),
     ).toThrow();
   });
@@ -89,17 +89,17 @@ describe("P08 Telegram configuration", () => {
     expect(
       parseConfig({
         ...base,
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_MODE: "polling",
-      }).DIMTS_TELEGRAM_MODE,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_MODE: "polling",
+      }).TELEGRAM_MODE,
     ).toBe("polling");
     expect(() =>
       parseConfig({
         ...base,
         NODE_ENV: "production",
-        DIMTS_TELEGRAM_TOKEN: token,
-        DIMTS_TELEGRAM_MODE: "polling",
-        DIMTS_TELEGRAM_SECRET: secret,
+       TELEGRAM_TOKEN: token,
+       TELEGRAM_MODE: "polling",
+       TELEGRAM_SECRET: secret,
       }),
     ).toThrow();
   });
@@ -108,23 +108,23 @@ describe("P08 Telegram configuration", () => {
 describe("Telegram mode defaults", () => {
   const base = {
     DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-    DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-    DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-    DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-    DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+   ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+   HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+   JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+   CRON_SECRET: "a-cron-secret-that-is-long-enough",
   };
   it("polls in development and uses webhooks elsewhere when unset or empty", () => {
     expect(
-      parseConfig({ ...base, NODE_ENV: "development" }).DIMTS_TELEGRAM_MODE,
+      parseConfig({ ...base, NODE_ENV: "development" }).TELEGRAM_MODE,
     ).toBe("polling");
     expect(
-      parseConfig({ ...base, NODE_ENV: "development", DIMTS_TELEGRAM_MODE: "" })
-        .DIMTS_TELEGRAM_MODE,
+      parseConfig({ ...base, NODE_ENV: "development",TELEGRAM_MODE: "" })
+        .TELEGRAM_MODE,
     ).toBe("polling");
     expect(
-      parseConfig({ ...base, NODE_ENV: "production" }).DIMTS_TELEGRAM_MODE,
+      parseConfig({ ...base, NODE_ENV: "production" }).TELEGRAM_MODE,
     ).toBe("webhook");
-    expect(parseConfig({ ...base, NODE_ENV: "test" }).DIMTS_TELEGRAM_MODE).toBe(
+    expect(parseConfig({ ...base, NODE_ENV: "test" }).TELEGRAM_MODE).toBe(
       "webhook",
     );
   });
@@ -134,8 +134,8 @@ describe("Telegram mode defaults", () => {
       parseConfig({
         ...base,
         NODE_ENV: "development",
-        DIMTS_TELEGRAM_TOKEN: "123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
-      }).DIMTS_TELEGRAM_MODE,
+       TELEGRAM_TOKEN: "123456:ABCDEFGHIJKLMNOPQRSTUVWXYZ",
+      }).TELEGRAM_MODE,
     ).toBe("polling");
   });
 });

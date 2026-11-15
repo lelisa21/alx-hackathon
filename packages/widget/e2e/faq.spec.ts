@@ -44,7 +44,7 @@ async function fixture(
   await context.route(`${base}/`, (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>FAQ offline test</title></head><body>${options.manualMount ? "" : '<dimts-assistant data-api="http://api.test/v1" data-host-key="public-fixture"></dimts-assistant><script type="module" src="/dimts-widget.js"></script>'}</body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>FAQ offline test</title></head><body>${options.manualMount ? "" : '<bridgely-assistant data-api="http://api.test/v1" data-host-key="public-fixture"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script>'}</body></html>`,
     }),
   );
   await context.route("http://api.test/v1/**", async (route) => {
@@ -129,7 +129,7 @@ test("FR-UI-16 NFR-PERF-06 opens prefetched reviewed FAQ for the first time afte
     .poll(() =>
       page.evaluate(async () => {
         const saved = await (
-          await caches.open("dimts-faq-v1")
+          await caches.open("Bridgely-faq-v1")
         ).match("http://api.test/v1/locales/en/faq");
         return Boolean(saved && (await saved.json()).items.length);
       }),
@@ -145,21 +145,21 @@ test("FR-UI-16 NFR-PERF-06 opens prefetched reviewed FAQ for the first time afte
   await expect
     .poll(() =>
       page.evaluate(async () => {
-        const cache = await caches.open("dimts-shell-v3");
+        const cache = await caches.open("Bridgely-shell-v3");
         return (await cache.keys()).some(
-          (request) => new URL(request.url).pathname === "/dimts-widget.js",
+          (request) => new URL(request.url).pathname === "/Bridgely-widget.js",
         );
       }),
     )
     .toBe(true);
   state.offline = true;
   await context.setOffline(true);
-  // The host supplies its own HTML shell; Dimts restores only the assets/data it owns.
+  // The host supplies its own HTML shell; Bridgely restores only the assets/data it owns.
   await page.reload();
   const diagnostics = await page.evaluate(async () => ({
     htmlElements: document.body.children.length,
-    hasWidget: Boolean(document.querySelector("dimts-assistant")),
-    defined: Boolean(customElements.get("dimts-assistant")),
+    hasWidget: Boolean(document.querySelector("bridgely-assistant")),
+    defined: Boolean(customElements.get("bridgely-assistant")),
     controller: navigator.serviceWorker.controller?.scriptURL,
     cacheKeys: await Promise.all(
       (await caches.keys()).map(async (name) => ({
@@ -190,7 +190,7 @@ test("FR-UI-16 NFR-PERF-06 opens prefetched reviewed FAQ for the first time afte
   });
   await expect
     .poll(
-      () => page.evaluate(() => Boolean(customElements.get("dimts-assistant"))),
+      () => page.evaluate(() => Boolean(customElements.get("bridgely-assistant"))),
       { message: "Cached widget module registers after offline reload" },
     )
     .toBe(true);
@@ -212,7 +212,7 @@ test("FR-UI-16 NFR-PERF-06 opens prefetched reviewed FAQ for the first time afte
   const cached = await page.evaluate(async () => {
     const results: string[] = [];
     for (const name of await caches.keys())
-      if (name.startsWith("dimts-"))
+      if (name.startsWith("Bridgely-"))
         results.push(
           ...(await (await caches.open(name)).keys()).map(
             (request) => request.url,
@@ -279,7 +279,7 @@ test("FR-INT-11 preserves a host service worker and unrelated storage during uni
   context,
 }) => {
   await fixture(context, page, { manualMount: true });
-  // An existing worker at the conventional path is not proof that Dimts owns it.
+  // An existing worker at the conventional path is not proof that Bridgely owns it.
   await page.evaluate(async () => {
     const registration = await navigator.serviceWorker.register(
       "/service-worker.js?owner=host",
@@ -298,8 +298,8 @@ test("FR-INT-11 preserves a host service worker and unrelated storage during uni
     await (
       await caches.open("host-owned-cache")
     ).put("/host-data", new Response("keep"));
-    await import("/dimts-widget.js");
-    const widget = document.createElement("dimts-assistant");
+    await import("/Bridgely-widget.js");
+    const widget = document.createElement("bridgely-assistant");
     widget.setAttribute("data-api", "http://api.test/v1");
     widget.setAttribute("data-host-key", "public-fixture");
     document.body.append(widget);
@@ -314,7 +314,7 @@ test("FR-INT-11 preserves a host service worker and unrelated storage during uni
       ),
     )
     .toBe(`${base}/service-worker.js?owner=host`);
-  await page.locator("dimts-assistant").evaluate((element) => {
+  await page.locator("bridgely-assistant").evaluate((element) => {
     (
       element as HTMLElement & { clearOwnedStorage(): void }
     ).clearOwnedStorage();
@@ -341,7 +341,7 @@ test("FR-INT-11 preserves a host service worker and unrelated storage during uni
   ).toBe(true);
 });
 
-test("FR-INT-11 preserves a host replacement installed after the Dimts worker", async ({
+test("FR-INT-11 preserves a host replacement installed after the Bridgely worker", async ({
   page,
   context,
 }) => {
@@ -353,7 +353,7 @@ test("FR-INT-11 preserves a host replacement installed after the Dimts worker", 
         async () => (await navigator.serviceWorker.ready).active?.scriptURL,
       ),
     )
-    .toContain("owner=dimts");
+    .toContain("owner=Bridgely");
   await page.evaluate(async () => {
     await navigator.serviceWorker.register("/service-worker.js?owner=host", {
       scope: "/",
@@ -365,7 +365,7 @@ test("FR-INT-11 preserves a host replacement installed after the Dimts worker", 
         (await navigator.serviceWorker.getRegistration("/"))?.active?.scriptURL,
     );
   await expect.poll(currentWorker).toBe(`${base}/service-worker.js?owner=host`);
-  await page.locator("dimts-assistant").evaluate((element) => {
+  await page.locator("bridgely-assistant").evaluate((element) => {
     element.remove();
     (
       element as HTMLElement & { clearOwnedStorage(): void }

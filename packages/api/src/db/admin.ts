@@ -7,7 +7,7 @@ import pg from "pg";
 /**
  * Operator CLI for hosted deployments. Provisions the host keys and helper
  * accounts that the API only ever stores as SHA-256 hashes (blueprint 3.3).
- * Secrets are read from DIMTS_PROVISION_SECRET so they never appear in argv,
+ * Secrets are read fromPROVISION_SECRET so they never appear in argv,
  * shell history or process listings.
  */
 
@@ -121,7 +121,7 @@ export async function provisionHelper(
 const usage =
   "Usage: admin host-key --id <id> --name <name> [--type public|secret] [--origins <a,b>]\n" +
   "       admin helper --id <id> --name <name> --langs <en,am>\n" +
-  "Set DIMTS_PROVISION_SECRET to the host key or helper token, and DATABASE_URL_DIRECT.";
+  "SetPROVISION_SECRET to the host key or helper token, and DATABASE_URL_DIRECT.";
 
 const list = (value: string | undefined) =>
   (value ?? "")
@@ -146,8 +146,8 @@ export function parseAdminArguments(
     },
     strict: true,
   });
-  const secret = environment.DIMTS_PROVISION_SECRET?.trim();
-  if (!secret) throw new Error(`DIMTS_PROVISION_SECRET is required.\n${usage}`);
+  const secret = environment.PROVISION_SECRET?.trim();
+  if (!secret) throw new Error(`PROVISION_SECRET is required.\n${usage}`);
   if (!values.id || !values.name) throw new Error(usage);
 
   if (command === "helper") {

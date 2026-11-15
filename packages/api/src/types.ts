@@ -1,7 +1,7 @@
 import type { ApiConfig } from "./config.js";
-import type { LangPack } from "@dimts/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { ReplySchema } from "./schemas.js";
-import type { InsightsRepository } from "@dimts/insights";
+import type { InsightsRepository } from "@bridgely/insights";
 import type { z } from "zod";
 
 export type ApiReply = z.infer<typeof ReplySchema>;

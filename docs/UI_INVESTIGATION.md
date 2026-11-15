@@ -3,13 +3,13 @@
 **Date:** 15 November 2026  
 **Status:** Ongoing investigation  
 **Branch:** `fix/responsive-accessible-ui`  
-**Scope:** Reproduce and document layout problems in Dimts widget across responsive widths
+**Scope:** Reproduce and document layout problems in Bridgely widget across responsive widths
 
 ---
 
 ## Summary
 
-This document records layout, accessibility, and usability problems discovered in the current Dimts UI implementation. The investigation focuses on:
+This document records layout, accessibility, and usability problems discovered in the current Bridgely UI implementation. The investigation focuses on:
 
 - **Responsive widths:** 320px, 375px, 768px, 1024px, 1920px, plus landscape modes
 - **Text zoom:** 200% at baseline font size
@@ -38,7 +38,7 @@ The goal is to reproduce actual problems (not just visual inconsistencies) and m
 
 ### Phase 3: Manual Browser Inspection
 
-- Start dev server: `pnpm --filter @dimts/widget exec vite preview --host 127.0.0.1 --port 4173`
+- Start dev server: `pnpm --filter @bridgely/widget exec vite preview --host 127.0.0.1 --port 4173`
 - Test pages manually at each width using browser DevTools
 - Take screenshots of problems (if possible)
 - Document exact reproduction steps
@@ -113,7 +113,7 @@ Needs manual reproduction
 ### F-003: Header Buttons Wrap Unexpectedly on Mobile
 
 **Description:**  
-The header has a `.brand` (Dimts logo + tagline), `.a11y` buttons (size, contrast, simple mode), and `.header-actions` (language, settings, career). On 320px, buttons may wrap to multiple rows or the tagline may be truncated, causing inconsistent header height and potential overlap.
+The header has a `.brand` (Bridgely logo + tagline), `.a11y` buttons (size, contrast, simple mode), and `.header-actions` (language, settings, career). On 320px, buttons may wrap to multiple rows or the tagline may be truncated, causing inconsistent header height and potential overlap.
 
 **Affected widths:**  
 - Mobile narrow: 320px
@@ -402,7 +402,7 @@ Needs inspection of helper-console.ts CSS
   - May be a different issue, not layout-related
 
 ⚠ **Skipped tests (require database connection):**
-- `P06 live web career contract` — Skipped (needs DIMTS_TEST_DATABASE_URL)
+- `P06 live web career contract` — Skipped (needsTEST_DATABASE_URL)
 - `P07 real SMS simulator contract` — Skipped (needs database)
 
 ### Browser Manual Testing
@@ -500,7 +500,7 @@ Before implementing fix, focus on:
 
 ## Investigation Status: COMPLETE
 
-This report documents the current state of the Dimts UI. The basic learner chat layout is responsive and accessible at 320px with 200% zoom. Secondary features (voice, careers, insights, helper console) and wider layouts need manual verification.
+This report documents the current state of the Bridgely UI. The basic learner chat layout is responsive and accessible at 320px with 200% zoom. Secondary features (voice, careers, insights, helper console) and wider layouts need manual verification.
 
 **Ready for:** Design phase review and implementation planning
 

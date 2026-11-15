@@ -6,10 +6,10 @@ import rateLimit from "express-rate-limit";
 import helmet from "helmet";
 import pino from "pino";
 import { pinoHttp } from "pino-http";
-import { FrancLanguageDetector } from "@dimts/ai";
-import { JobsService } from "@dimts/jobs";
-import type { JobsDelivery } from "@dimts/jobs";
-import { loadPacks } from "@dimts/locales-tools";
+import { FrancLanguageDetector } from "@bridgely/ai";
+import { JobsService } from "@bridgely/jobs";
+import type { JobsDelivery } from "@bridgely/jobs";
+import { loadPacks } from "@bridgely/locales-tools";
 import { withPreviewLanguages } from "./preview-languages.js";
 import {
   PostgresGrounding,
@@ -17,14 +17,14 @@ import {
   PublicSitemapSource,
   SourceSyncManager,
   processTextDocument,
-} from "@dimts/grounding";
-import type { AnswerCache, AskDependencies } from "@dimts/engine";
+} from "@bridgely/grounding";
+import type { AnswerCache, AskDependencies } from "@bridgely/engine";
 import type {
   ContentSource,
   SourceDocumentProcessor,
   SourceSyncManagerOptions,
   SourceSyncStore,
-} from "@dimts/grounding";
+} from "@bridgely/grounding";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseConfig, configuredOrigins } from "./config.js";
@@ -57,7 +57,7 @@ import type { JobsApiService } from "./routes/jobs.js";
 import { createHostJobsDelivery } from "./jobs-delivery.js";
 import { createCareerRenderers } from "./jobs-format.js";
 import { generateOpenApiDocument, generateOpenApiYaml } from "./openapi.js";
-import type { SmsGateway } from "@dimts/sms";
+import type { SmsGateway } from "@bridgely/sms";
 import { createSmsRouter } from "./routes/sms.js";
 import {
   createSmsRuntime,
@@ -71,7 +71,7 @@ import {
   withTelegramJobsDelivery,
 } from "./telegram-runtime.js";
 import type { TelegramApiService } from "./telegram-runtime.js";
-import type { TelegramTransport, TelegramVoice } from "@dimts/telegram";
+import type { TelegramTransport, TelegramVoice } from "@bridgely/telegram";
 import { createTelegramRouter } from "./routes/telegram.js";
 import { createLtiRouter } from "./routes/lti.js";
 
@@ -121,7 +121,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.logDestination,
   );
   const sources = [
-    ...config.DIMTS_PUBLIC_SOURCES.map(
+    ...config.PUBLIC_SOURCES.map(
       ({ pageSize, ...source }) =>
         new PublicSitemapSource({
           ...source,
@@ -144,14 +144,14 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     options.helpSocketStore ??
     (pool ? createPostgresHelpSocketStore(pool) : undefined);
   const cloudVoiceKey =
-    config.DIMTS_CLOUD_VOICE === "gemini"
+    config.CLOUD_VOICE === "gemini"
       ? (options.providerSecrets ?? process.env)[
-          config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF
+          config.CLOUD_VOICE_CREDENTIAL_REF
         ]?.trim()
       : undefined;
-  if (config.DIMTS_CLOUD_VOICE === "gemini" && !cloudVoiceKey)
+  if (config.CLOUD_VOICE === "gemini" && !cloudVoiceKey)
     throw new Error(
-      `Cloud voice credential ${config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF} is unavailable.`,
+      `Cloud voice credential ${config.CLOUD_VOICE_CREDENTIAL_REF} is unavailable.`,
     );
   // A template key makes every voice request fail with 400; offer no cloud
   // voice instead of a microphone that never works.
@@ -161,7 +161,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     logger.warn(
       {
         event: "cloud_voice_disabled",
-        reason: `placeholder_credential:${config.DIMTS_CLOUD_VOICE_CREDENTIAL_REF}`,
+        reason: `placeholder_credential:${config.CLOUD_VOICE_CREDENTIAL_REF}`,
       },
       "Cloud voice disabled: its credential is a placeholder. Put the real key in the environment.",
     );
@@ -169,15 +169,15 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     cloudVoiceUsable && cloudVoiceKey
       ? createGeminiVoice({
           apiKey: cloudVoiceKey,
-          sttModel: config.DIMTS_CLOUD_VOICE_STT_MODEL,
-          ttsModel: config.DIMTS_CLOUD_VOICE_TTS_MODEL,
-          languages: config.DIMTS_CLOUD_VOICE_LANGS,
-          speakLanguages: config.DIMTS_CLOUD_VOICE_SPEAK_LANGS,
+          sttModel: config.CLOUD_VOICE_STT_MODEL,
+          ttsModel: config.CLOUD_VOICE_TTS_MODEL,
+          languages: config.CLOUD_VOICE_LANGS,
+          speakLanguages: config.CLOUD_VOICE_SPEAK_LANGS,
         })
       : undefined;
   const packs = withPreviewLanguages(
     loadPacks(options.localesRoot ?? defaultLocalesRoot),
-    config.DIMTS_PREVIEW_LANGS ?? [],
+    config.PREVIEW_LANGS ?? [],
   );
   let smsService = options.smsService;
   let telegramService = options.telegramService;
@@ -206,8 +206,8 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
     (pool
       ? new JobsService({
           pool,
-          encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
-          hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
+          encryptionKey: Buffer.from(config.ENC_KEY, "base64"),
+          hashKey: Buffer.from(config.HASH_KEY, "base64"),
           delivery: jobsDelivery,
           ...createCareerRenderers(packs),
         })
@@ -304,9 +304,9 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
                   ? "Another process is polling this bot token (409 Conflict). Stop the other instance (another machine, container or deploy) or switch it to webhook mode."
                   : "Telegram refused because a webhook or poller conflicts (409)."
                 : event.code === 401 || event.code === 404
-                  ? "Telegram rejected DIMTS_TELEGRAM_TOKEN. Copy the token again from @BotFather."
+                  ? "Telegram rejectedTELEGRAM_TOKEN. Copy the token again from @BotFather."
                   : event.stage === "webhook"
-                    ? "Telegram did not accept the webhook. Check DIMTS_PUBLIC_API_URL is the public HTTPS address of this API."
+                    ? "Telegram did not accept the webhook. CheckPUBLIC_API_URL is the public HTTPS address of this API."
                     : "Telegram is unreachable from this server; retrying.";
             logger.error({ event: "telegram_setup_failed", ...event }, hint);
           },
@@ -320,7 +320,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   let mediaCleanupRunning = false;
   let careerCleanupRunning = false;
   const jobSourceSync =
-    jobsService && pool && config.DIMTS_JOB_SOURCES.length > 0
+    jobsService && pool && config.JOB_SOURCES.length > 0
       ? createJobSourceSync(config, jobsService, (event) =>
           logger.warn({ event: "job_source_sync_failed", ...event }),
         )
@@ -347,7 +347,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
   void cleanupCareer();
   let alertsRunning = false;
   const alertsTimer =
-    jobsService && config.DIMTS_JOBS_ALERT_INTERVAL_MS > 0
+    jobsService && config.JOBS_ALERT_INTERVAL_MS > 0
       ? setInterval(() => {
           if (alertsRunning) return;
           alertsRunning = true;
@@ -357,7 +357,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
             .finally(() => {
               alertsRunning = false;
             });
-        }, config.DIMTS_JOBS_ALERT_INTERVAL_MS)
+        }, config.JOBS_ALERT_INTERVAL_MS)
       : undefined;
   alertsTimer?.unref();
   const cleanupHelpImages = async () => {
@@ -392,7 +392,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       store,
       process: options.sourceSync?.process ?? processTextDocument,
       intervalMs:
-        options.sourceSync?.intervalMs ?? config.DIMTS_SOURCE_SYNC_INTERVAL_MS,
+        options.sourceSync?.intervalMs ?? config.SOURCE_SYNC_INTERVAL_MS,
       onError:
         options.sourceSync?.onError ??
         (() => {
@@ -452,7 +452,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       redact: [
         "req.headers.authorization",
         "req.headers.cookie",
-        "req.headers.x-dimts-key",
+        "req.headers.x-Bridgely-key",
         "req.headers.x-telegram-bot-api-secret-token",
       ],
       serializers: {
@@ -474,11 +474,11 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       },
       allowedHeaders: [
         "content-type",
-        "x-dimts-key",
+        "x-Bridgely-key",
         "authorization",
         "if-none-match",
       ],
-      exposedHeaders: ["ETag", "X-Dimts-Locale-Fallback"],
+      exposedHeaders: ["ETag", "X-Bridgely-Locale-Fallback"],
     }),
   );
   app.use(
@@ -558,7 +558,7 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
         delivery: jobsDelivery,
         repository,
         packs,
-        defaultLang: config.DIMTS_DEFAULT_LANG,
+        defaultLang: config.DEFAULT_LANG,
         ...(jobSourceSync ? { sources: jobSourceSync } : {}),
       }),
     );
@@ -570,16 +570,16 @@ export function buildApp(options: BuildAppOptions = {}): express.Express {
       repository,
       logger,
       platformConfigs: new Map(
-        config.DIMTS_LTI_PLATFORMS.map((platform) => [
+        config.LTI_PLATFORMS.map((platform) => [
           platform.platformId,
           platform,
         ]),
       ),
-      ...(config.DIMTS_LTI_WIDGET_URL && config.DIMTS_LTI_WIDGET_KEY
+      ...(config.LTI_WIDGET_URL && config.LTI_WIDGET_KEY
         ? {
             launchPage: {
-              widgetUrl: config.DIMTS_LTI_WIDGET_URL,
-              hostKey: config.DIMTS_LTI_WIDGET_KEY,
+              widgetUrl: config.LTI_WIDGET_URL,
+              hostKey: config.LTI_WIDGET_KEY,
             },
           }
         : {}),

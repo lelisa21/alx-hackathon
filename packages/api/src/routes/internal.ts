@@ -3,7 +3,7 @@ import express from "express";
 import type { ApiConfig } from "../config.js";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
-import type { JobSourceSync } from "@dimts/jobs";
+import type { JobSourceSync } from "@bridgely/jobs";
 import type { JobsApiService } from "./jobs.js";
 import { AlertsQuerySchema, AlertsResponseSchema } from "../jobs-schemas.js";
 
@@ -20,7 +20,7 @@ export function createInternalRouter(
       request.header("authorization") ?? "",
     );
     const provided = Buffer.from(match?.[1] ?? "");
-    const expected = Buffer.from(config.DIMTS_CRON_SECRET);
+    const expected = Buffer.from(config.CRON_SECRET);
     if (
       !match ||
       provided.length !== expected.length ||
@@ -34,7 +34,7 @@ export function createInternalRouter(
 
   router.post("/retention", async (_request, response) => {
     await jobs?.cleanupExpired();
-    await repository.runRetention(config.DIMTS_RETENTION_HOURS);
+    await repository.runRetention(config.RETENTION_HOURS);
     response.json({ ok: true });
   });
   router.post("/alerts", async (request, response) => {

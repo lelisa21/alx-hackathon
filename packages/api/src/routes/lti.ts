@@ -7,7 +7,7 @@ import {
   generateLtiNonce,
   type LtiPlatformConfig,
   type LtiIdTokenClaims,
-} from "@dimts/lti";
+} from "@bridgely/lti";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
 import { sha256 } from "../middleware/auth.js";
@@ -322,12 +322,12 @@ export function createLtiRouter(options: {
         res.setHeader("Referrer-Policy", "no-referrer");
         const apiUrl = `${req.protocol}://${req.get("host")}/v1`;
         const launchContent = insightsAccess
-          ? `<dimts-insights data-api="${escapeHtml(apiUrl)}" data-language="en" data-session-token="${escapeHtml(sessionToken)}"></dimts-insights>`
-          : `<dimts-assistant data-api="${escapeHtml(apiUrl)}" data-host-key="${escapeHtml(options.launchPage.hostKey)}"></dimts-assistant>`;
+          ? `<bridgely-insights data-api="${escapeHtml(apiUrl)}" data-language="en" data-session-token="${escapeHtml(sessionToken)}"></bridgely-insights>`
+          : `<bridgely-assistant data-api="${escapeHtml(apiUrl)}" data-host-key="${escapeHtml(options.launchPage.hostKey)}"></bridgely-assistant>`;
         res
           .type("html")
           .send(
-            `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Dimts</title><style>body{margin:0;padding:1rem}</style></head><body>${launchContent}<script type="module" src="${escapeHtml(widget.href)}"></script></body></html>`,
+            `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Bridgely</title><style>body{margin:0;padding:1rem}</style></head><body>${launchContent}<script type="module" src="${escapeHtml(widget.href)}"></script></body></html>`,
           );
       } else
         res.json(

@@ -1,11 +1,11 @@
 import { createHash, randomBytes } from "node:crypto";
 import type { Request, Response, Router } from "express";
 import express from "express";
-import type { AskDependencies } from "@dimts/engine";
-import type { PostgresGrounding } from "@dimts/grounding";
+import type { AskDependencies } from "@bridgely/engine";
+import type { PostgresGrounding } from "@bridgely/grounding";
 import { z } from "zod";
-import { getVisiblePacks, resolveUi } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+import { getVisiblePacks, resolveUi } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { ApiConfig } from "../config.js";
 import { generateOpenApiYaml } from "../openapi.js";
 import {
@@ -167,10 +167,10 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
         version: "0.1.0",
         contentVersion: health.contentVersion,
         provider:
-          options.providerRuntime?.activeProvider ?? config.DIMTS_AI_PROVIDER,
+          options.providerRuntime?.activeProvider ?? config.AI_PROVIDER,
         ladder:
           options.providerRuntime?.providerOrder ??
-          config.DIMTS_AI_LADDER.split(",").map((provider) => provider.trim()),
+          config.AI_LADDER.split(",").map((provider) => provider.trim()),
       }),
     );
   });
@@ -205,7 +205,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     // The notice is part of the cached representation even when text is identical.
     const etag = `"${createHash("sha256").update(`${fallback}:${ui}`).digest("base64url")}"`;
     response.setHeader("ETag", etag);
-    response.setHeader("X-Dimts-Locale-Fallback", fallback);
+    response.setHeader("X-Bridgely-Locale-Fallback", fallback);
     response.setHeader("Cache-Control", "public, max-age=0, must-revalidate");
     if (request.header("if-none-match")?.split(",").includes(etag)) {
       response.status(304).end();
@@ -264,7 +264,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     response.type("html").send(
       renderDocsPage({
         apiBase: `${request.protocol}://${request.get("host") ?? ""}`,
-        widgetUrl: config.DIMTS_LTI_WIDGET_URL,
+        widgetUrl: config.LTI_WIDGET_URL,
       }),
     );
   });
@@ -275,7 +275,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
 
   router.post("/sessions", async (request, response) => {
     const body = SessionRequestSchema.parse(request.body ?? {});
-    const key = request.header("x-dimts-key") ?? "";
+    const key = request.header("x-Bridgely-key") ?? "";
     if (!key) {
       sendProblem(response, 401, "unauthorized", "error.generic");
       return;
@@ -300,7 +300,7 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     if (body.sessionId && body.resumeToken) {
       if (
         body.cloudOk &&
-        body.consentVersion !== config.DIMTS_AI_CONSENT_VERSION
+        body.consentVersion !== config.AI_CONSENT_VERSION
       ) {
         sendProblem(response, 400, "invalid_request", "error.invalid");
         return;
@@ -332,14 +332,14 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
       return;
     }
 
-    const lang = body.lang ?? config.DIMTS_DEFAULT_LANG;
+    const lang = body.lang ?? config.DEFAULT_LANG;
     if (!validPublicLang(packs, lang)) {
       sendProblem(response, 400, "invalid_request", "error.invalid");
       return;
     }
     const sessionId = randomBytes(16).toString("base64url");
     const cloudOk = body.cloudOk ?? false;
-    if (cloudOk && body.consentVersion !== config.DIMTS_AI_CONSENT_VERSION) {
+    if (cloudOk && body.consentVersion !== config.AI_CONSENT_VERSION) {
       sendProblem(response, 400, "invalid_request", "error.invalid");
       return;
     }

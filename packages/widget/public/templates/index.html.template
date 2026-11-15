@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Dimts · Multilingual learning assistant for ALX Savanna</title>
+    <title>Bridgely · Multilingual learning assistant for ALX Savanna</title>
     <meta
       name="description"
-      content="Dimts answers learners' course questions in English, Amharic and Afaan Oromoo, with a citation for every answer, on the web, by voice, SMS and Telegram."
+      content="Bridgely answers learners' course questions in English, Amharic and Afaan Oromoo, with a citation for every answer, on the web, by voice, SMS and Telegram."
     />
     <link
       rel="icon"
@@ -254,11 +254,11 @@
         font-size: 0.85rem;
         opacity: 0.85;
       }
-      .live dimts-assistant {
+      .live bridgely-assistant {
         display: block;
-        --dimts-help-position: static;
-        --dimts-help-order: 0;
-        --dimts-embed-height: min(40rem, calc(100dvh - 4rem));
+        --Bridgely-help-position: static;
+        --Bridgely-help-order: 0;
+        --bridgely-embed-height: min(40rem, calc(100dvh - 4rem));
       }
       section {
         padding-block: 3rem 1rem;
@@ -373,8 +373,8 @@
         .hero {
           padding-block-end: 2rem;
         }
-        .live dimts-assistant {
-          --dimts-embed-height: calc(100dvh - 2rem);
+        .live bridgely-assistant {
+          --bridgely-embed-height: calc(100dvh - 2rem);
         }
       }
       @media (prefers-reduced-motion: reduce) {
@@ -388,8 +388,8 @@
   <body>
     <a class="skip" href="#assistant">Skip to the assistant</a>
     <header class="hero">
-      <nav class="wrap nav" aria-label="Dimts">
-        <a class="logo" href="/"><span class="mark" aria-hidden="true">D</span>Dimts</a>
+      <nav class="wrap nav" aria-label="Bridgely">
+        <a class="logo" href="/"><span class="mark" aria-hidden="true">D</span>Bridgely</a>
         <div class="nav-links">
           <a href="/savanna/pages/homepage-v1-paced.html">Savanna demo</a>
           <a href="/learn/">Course library</a>
@@ -404,7 +404,7 @@
           <span class="eyebrow">Built for ALX Savanna learners</span>
           <h1>Ask your course anything, in your own language.</h1>
           <p class="lede">
-            Dimts answers from the course itself and shows exactly which
+            Bridgely answers from the course itself and shows exactly which
             lesson it used. It never guesses. When it cannot help, it brings in
             a person.
           </p>
@@ -415,17 +415,17 @@
           </ul>
           <div class="ctas">
             <a class="btn btn-primary" href="/savanna/pages/homepage-v1-paced.html"
-              >Open Savanna with Dimts</a
+              >Open Savanna with Bridgely</a
             >
             <a class="btn btn-ghost" href="/learn/">Browse the lessons</a>
           </div>
         </div>
         <div class="live" id="assistant" tabindex="-1">
           <span class="live-label">Live assistant: try it here</span>
-          <dimts-assistant
+          <bridgely-assistant
             data-api="/v1"
-            data-host-key="${DIMTS_LOCAL_WIDGET_KEY}"
-          ></dimts-assistant>
+            data-host-key="${LOCAL_WIDGET_KEY}"
+          ></bridgely-assistant>
         </div>
       </div>
     </header>
@@ -564,7 +564,7 @@
           </li>
           <li class="card">
             <h3>Find the lesson</h3>
-            <p>Dimts searches the course for the passage that answers it.</p>
+            <p>Bridgely searches the course for the passage that answers it.</p>
           </li>
           <li class="card">
             <h3>Write the answer</h3>
@@ -577,7 +577,7 @@
             <h3>Cite the source</h3>
             <p>
               Every answer links to the exact lesson section. No source, no
-              answer: Dimts offers a person instead.
+              answer: Bridgely offers a person instead.
             </p>
           </li>
         </ol>
@@ -617,7 +617,7 @@
       </section>
 
       <footer>
-        Dimts · open-source multilingual learning assistant. Amharic and Afaan
+        Bridgely · open-source multilingual learning assistant. Amharic and Afaan
         Oromoo content is awaiting native-speaker review.
         <a href="/v1/health">Service status</a>
       </footer>
@@ -626,7 +626,7 @@
     <script>
       // Shown only when the host configures a public Telegram bot username.
       (function () {
-        var bot = "${DIMTS_PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
+        var bot = "${PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
         if (!/^[A-Za-z0-9_]{5,32}$/.test(bot)) return;
         document.getElementById("telegram-link").href = "https://t.me/" + bot;
         document.getElementById("telegram-card").hidden = false;
@@ -661,7 +661,7 @@
         }
         var reasons = {
           partner_feed_required:
-            "No public API or feed. Needs a partner feed URL and token from the platform (DIMTS_*_FEED_URL).",
+            "No public API or feed. Needs a partner feed URL and token from the platform (*_FEED_URL).",
           no_open_postings: "Reached, but no open postings were found.",
           unreachable: "Could not reach the platform from this server.",
         };
@@ -682,15 +682,15 @@
           items.push(
             codes.length >= 3
               ? item("Languages", "ok", "Working", codes.join(" · ") + ". Amharic and Afaan Oromoo await native-speaker review.")
-              : item("Languages", "setup", "Partial", (codes.join(" · ") || "None") + ". Set DIMTS_PREVIEW_LANGS=am,om to offer drafts."),
+              : item("Languages", "setup", "Partial", (codes.join(" · ") || "None") + ". SetPREVIEW_LANGS=am,om to offer drafts."),
           );
           var device = langs && langs.languages ? langs.languages.filter(function (l) { return l.stt || l.tts; }).length : 0;
           items.push(
             voice && voice.available
               ? item("Voice", "ok", "Working", "Browser speech where the device supports it; " + voice.provider + " cloud speech for " + voice.languages.join(", ") + " after the learner allows it.")
               : device
-                ? item("Voice", "setup", "Partial", "Browser speech only. Set DIMTS_CLOUD_VOICE=gemini for Amharic and Afaan Oromoo.")
-                : item("Voice", "setup", "Off", "Set DIMTS_STT_ENGINE/DIMTS_TTS_ENGINE=browser and DIMTS_CLOUD_VOICE=gemini."),
+                ? item("Voice", "setup", "Partial", "Browser speech only. SetCLOUD_VOICE=gemini for Amharic and Afaan Oromoo.")
+                : item("Voice", "setup", "Off", "SetSTT_ENGINE/TTS_ENGINE=browser andCLOUD_VOICE=gemini."),
           );
           (jobs && jobs.sources ? jobs.sources : []).forEach(function (s) {
             var state = s.state === "ok" ? "ok" : s.state === "needs_setup" ? "setup" : s.state === "pending" ? "setup" : "down";
@@ -700,19 +700,19 @@
               : reasons[s.reason] || "Waiting for the first import.";
             items.push(item("Jobs: " + s.name, state, label, detail));
           });
-          items.push(item("SMS", "ok", "Simulator working", "Real phone numbers need an SMS gateway account (DIMTS_SMS_MODE=gateway or smsethiopia)."));
-          var bot = "${DIMTS_PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
+          items.push(item("SMS", "ok", "Simulator working", "Real phone numbers need an SMS gateway account (SMS_MODE=gateway or smsethiopia)."));
+          var bot = "${PUBLIC_TELEGRAM_BOT}".replace(/^@/, "");
           items.push(
             /^[A-Za-z0-9_]{5,32}$/.test(bot)
               ? item("Telegram", "ok", "Working", "@" + bot + " answers text and voice notes. Hosting needs a public HTTPS webhook.")
-              : item("Telegram", "setup", "Needs your action", "Set DIMTS_TELEGRAM_TOKEN and DIMTS_PUBLIC_TELEGRAM_BOT."),
+              : item("Telegram", "setup", "Needs your action", "SetTELEGRAM_TOKEN andPUBLIC_TELEGRAM_BOT."),
           );
           items.push(item("Human help", "ok", "Working", "Learners tap Help me now; a helper answers at /helper."));
-          items.push(item("LTI 1.3", "setup", "Needs your LMS", "Register Dimts in Moodle or Canvas (see API docs) or run scripts/lti-demo-platform.mjs."));
+          items.push(item("LTI 1.3", "setup", "Needs your LMS", "Register Bridgely in Moodle or Canvas (see API docs) or run scripts/lti-demo-platform.mjs."));
           list.replaceChildren.apply(list, items);
         });
       })();
     </script>
-    <script type="module" src="/dimts-widget.js"></script>
+    <script type="module" src="/Bridgely-widget.js"></script>
   </body>
 </html>

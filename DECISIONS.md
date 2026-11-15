@@ -7,7 +7,7 @@ decision register is authoritative for architectural choices.
 
 - **Requirements:** FR-LANG-01/02/06/09/10 and FR-UI-01–21.
 - **Decision:** Keep Tigrinya selectable as a host-configured beta preview
-  (`DIMTS_PREVIEW_LANGS=...ti`) while its pack is unreviewed. Do not change
+  (`PREVIEW_LANGS=...ti`) while its pack is unreviewed. Do not change
   `locales/ti/meta.yaml` to live or claim reviewed answer quality based only on
   language selection, locale presence, or adapter-level checks.
 - **Release gate:** Native reviewer metadata and end-to-end retrieval, answer
@@ -33,7 +33,7 @@ decision register is authoritative for architectural choices.
 - **Scope before implementation:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20,
   NFR-PRIV-03. P09 only on `phase-09-prompt`. Requirements quoted before
   implementation. Tests preceded code.
-- **Auth decision (D31):** Host key (X-Dimts-Key) authorization required for
+- **Auth decision (D31):** Host key (X-Bridgely-Key) authorization required for
   `GET /v1/insights`. LTI instructor role added in P10. Both paths supported;
   learner sessions rejected at 403.
 - **Period granularity (D32):** Day only (existing DATE schema in
@@ -91,7 +91,7 @@ decision register is authoritative for architectural choices.
   security and privacy. P08 only. The checkout was clean on the committed P07
   branch; the requested `phase-08-prompt` did not exist locally and was created
   from that commit. No commit or push is authorized.
-- **Boundary:** Retain `DIMTS_TELEGRAM_TOKEN` and `DIMTS_TELEGRAM_SECRET` and
+- **Boundary:** Retain `TELEGRAM_TOKEN` and `TELEGRAM_SECRET` and
   canonical `POST /v1/telegram/webhook`. Authenticate the standard
   `X-Telegram-Bot-Api-Secret-Token` before parsing a bounded body. Hosted mode
   uses webhooks; explicitly selected polling is allowed only outside production.
@@ -99,7 +99,7 @@ decision register is authoritative for architectural choices.
   names and unused metadata before dispatch. Nonprivate updates are acknowledged
   without conversation effects. Responses contain no chat ID or message text.
 - **Reuse and consent:** Use the existing session, conversation, jobs and help
-  stores. HMAC identities use `DIMTS_HASH_KEY`; only explicit active P06 alert
+  stores. HMAC identities use `HASH_KEY`; only explicit active P06 alert
   consent permits encrypted contact persistence. Helper routing uses bounded,
   temporary in-memory chat IDs; after restart, the next private inbound restores
   routing and replays existing help messages. `/stop` permanently revokes alerts
@@ -137,7 +137,7 @@ decision register is authoritative for architectural choices.
   privacy. P07 only on `phase-07-prompt`; P06 performance/review gates remain
   open. Reuse the conversation engine and P06 subscriptions, not parallel stores.
 - **Agreed API contract:** `POST /v1/sms/inbound` takes `{id,from,text}` under
-  `Authorization: Bearer DIMTS_SMS_GATEWAY_SECRET`; the separate secret is never
+  `Authorization: BearerSMS_GATEWAY_SECRET`; the separate secret is never
   bundled in the simulator. Return `{messages,stopped,lang}`, where messages
   contain `{id,text,encoding,units,segments,status}` and no phone number.
   IDs deduplicate by keyed phone identity; changing the body under an existing
@@ -145,7 +145,7 @@ decision register is authoritative for architectural choices.
   memory-only settings. No real SMS operator is claimed or required for P07.
 - **Gateway boundary:** Preserve the documented `send/onInbound/status` port;
   add optional idempotency metadata. The optional HTTPS adapter uses version
-  `dimts.sms.gateway.v1`, a separate Bearer token, and POST actions `send` and
+  `Bridgely.sms.gateway.v1`, a separate Bearer token, and POST actions `send` and
   `status`. Send accepts `{to,text,lang,idempotencyKey}` and requires a receipt
   with the same key plus `{id,segments,status}`. Status takes `{id}` and returns
   `{id,status}`. Both responses carry the version. Adapters must durably
@@ -159,7 +159,7 @@ decision register is authoritative for architectural choices.
   erases pending content, confirms once, and prevents later delivery.
 - **Callback:** HELP/person asks for a separate Y. Only then may an optional
   authenticated HTTPS callback port receive the transient number. Its version
-  is `dimts.sms.callback.v1`; payload `{from,sessionId,lang,idempotencyKey}` and
+  is `Bridgely.sms.callback.v1`; payload `{from,sessionId,lang,idempotencyKey}` and
   matching accepted receipt. No durable callback phone store. Missing host
   configuration produces a localized unavailable response, not a fake request.
 - **Encoding and continuation:** Count the actual transmitted text using the
@@ -304,8 +304,8 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
 - **Requirements before implementation:** FR-VOICE-01–10/12, FR-UI-06,
   FR-LANG-05 and NFR-A11Y-07. FR-VOICE-11 is removed. The user authorized
   P04 only on `phase-04-prompt`; no commit or push by the agent.
-- **Supported engines and privacy:** `DIMTS_STT_ENGINE` and
-  `DIMTS_TTS_ENGINE` accept `none` (default) or `browser`. Browser STT must
+- **Supported engines and privacy:** `STT_ENGINE` and
+  `TTS_ENGINE` accept `none` (default) or `browser`. Browser STT must
   explicitly support on-device recognition and report the declared language
   available locally; TTS must select a matching local-service voice. No
   automatic language-model download, remote fallback, audio storage or audio
@@ -399,7 +399,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   requests as well as page requests. Headers and small uploads are unshaped;
   this fixture does not establish production hosting or device performance.
   The classic bootstrap imports the complete widget module directly, avoiding
-  a serial loader/facade round trip. The single entry retains DimtsAssistant
+  a serial loader/facade round trip. The single entry retains BridgelyAssistant
   and installEmbed exports plus internal Lit aliases needed by deferred help;
   those aliases are not a supported host API. The four-method window API is
   unchanged. Record first-visible browser-frame timestamps rather than the
@@ -481,7 +481,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   checked-in passages.
 - **Per-key fallback contract:** keep the existing locale UI JSON record
   and endpoint. Resolve missing keys through `meta.fallback`; the additive
-  `X-Dimts-Locale-Fallback: 0|1` response header is exposed through CORS,
+  `X-Bridgely-Locale-Fallback: 0|1` response header is exposed through CORS,
   documented in OpenAPI, retained on 304, and included in the ETag identity.
   API and widget changes are paired in this branch for team review. The
   widget announces a fallback once per active session. Transliteration
@@ -523,7 +523,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
 
 - **A-04, pre-kickoff code:** The user confirmed that organizer approval for
   pre-built code has been obtained before this scaffold was created.
-- **Architecture source:** Follow the authoritative Dimts System Blueprint
+- **Architecture source:** Follow the authoritative Bridgely System Blueprint
   (filename retained as v2.0; architecture revision 2.1) where it supersedes
   the SRS. Express 5, PostgreSQL, Node.js, and pnpm are the current reference
   implementation, not product-level dependencies; public protocols and
@@ -563,7 +563,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   and pseudo-RTL packs remain scaffold English until language-lead review. API
   language listings and direct locale reads hide draft packs by default;
   `?lang_preview=1` is required to preview them.
-- **WP03 citation URLs:** Content ingestion requires `DIMTS_CONTENT_BASE_URL`
+- **WP03 citation URLs:** Content ingestion requires `CONTENT_BASE_URL`
   and builds each lesson URL from that base, the lesson filename, and its
   heading anchor. Transcript ingestion is deferred until the course format is
   confirmed; no transcript file format is assumed.
@@ -588,7 +588,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   selects the reply/search language without mutating the session language,
   while uncertain detection retains the selected language. The default API
   runtime wires the local Franc detector using non-draft packs and the
-  validated `DIMTS_LANGUAGE_DETECTION_CONFIDENCE` setting.
+  validated `LANGUAGE_DETECTION_CONFIDENCE` setting.
 - **Pending later work:** the 70% multilingual retrieval evaluation and floor
   calibration require reviewed glossary/evaluation data (WP14); citation-link
   browser checks belong to the widget (WP05). Transcript ingestion remains
@@ -770,17 +770,17 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   and invalidates answer cache (FR-TUTOR-12). Do not bake course answers into
   the widget or describe the app as static-content-only.
 - **Content integration levels:** public pages need no website code when the
-  owner approves an HTTPS XML sitemap in `DIMTS_PUBLIC_SOURCES`; the built-in
+  owner approves an HTTPS XML sitemap in `PUBLIC_SOURCES`; the built-in
   connector reads only same-origin sitemap pages. Private course content uses
   a small host-owned `ContentSource`/`HostAuth` adapter passed through
   `buildApp({ sourceSync })`. The host selects content shareable with the
   source's learner population; per-user/role ACL filtering is not yet
-  supported. Dimts performs an initial full sync and scheduled reconciliation.
+  supported. Bridgely performs an initial full sync and scheduled reconciliation.
   Native changes are authenticated by the host before calling the manager's
   internal `notify` hook; no generic public webhook is exposed.
 - **Local host bootstrap:** `pnpm local:bootstrap` applies pending migrations
   and upserts the local widget host by ID. It stores only the SHA-256 hash of
-  `DIMTS_LOCAL_WIDGET_KEY`, validates allowed origins, and can be rerun safely.
+  `LOCAL_WIDGET_KEY`, validates allowed origins, and can be rerun safely.
   The key is a public development identifier, not a production credential.
   Backend live-PostgreSQL verification is recorded under WP02; full
   FR-INT-09/12 Compose orchestration was completed in the Person 1 pass below.
@@ -819,7 +819,7 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   requires help data deletion at session end or retention expiry. FR-HELP-17
   requires a limit of five requests per hour per session and helper blocking.
 - **Contract resolutions:** The Help me now action opens the preview; the
-  explicit confirmation sends the request. `DIMTS_HELPER_HOURS` is a JSON
+  explicit confirmation sends the request. `HELPER_HOURS` is a JSON
   weekly schedule using UTC and ISO weekdays (Monday=1 through Sunday=7),
   with each interval represented by `day`, `start` and `end` (`HH:mm`);
   overnight hours are represented by intervals on both days. An unset schedule
@@ -834,11 +834,11 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
 - **Verified acceptance (first backend slice):** Helper login returns only a
   JWT for a valid helper token; invalid tokens and revoked helpers are rejected.
   Claim authentication and the one-winner HTTP behavior pass focused tests.
-  `DIMTS_HELPER_HOURS` strictly parses UTC weekly intervals and the availability
+  `HELPER_HOURS` strictly parses UTC weekly intervals and the availability
   function passes fixed-time boundary tests. OpenAPI includes helper login and
   claim.
 - **Validation:** All 48 API tests pass; 7 PostgreSQL integration tests are
-  skipped because `DIMTS_TEST_DATABASE_URL` is unset. API build, lint,
+  skipped because `TEST_DATABASE_URL` is unset. API build, lint,
   formatting, and `git diff --check` pass. The new PostgreSQL two-helper
   integration test is present but still needs a configured test database.
 - **Still pending:** Help request creation and privacy-limited summary,
@@ -1019,14 +1019,14 @@ summary}]}`. `summary` is null when excluded; otherwise it contains only
   (FR-TG-01–12); learner direct messages and private-chat history are not
   shared index inputs.
 - **Discrepancy found:** the source primitives existed, but current API code
-  did not parse `DIMTS_PUBLIC_SOURCES`, create/start a `SourceSyncManager`, or
+  did not parse `PUBLIC_SOURCES`, create/start a `SourceSyncManager`, or
   expose the documented `sourceSyncReady`/`sourceSyncManager` locals. This
   contradicted the earlier startup-wiring claim.
 
 ### Verified acceptance
 
 - **FR-INT-08:** validated public sitemap registrations feed the existing
-  bounded, same-origin connector. `DIMTS_SOURCE_SYNC_INTERVAL_MS` defaults to
+  bounded, same-origin connector. `SOURCE_SYNC_INTERVAL_MS` defaults to
   300,000 ms and is bounded to 1,000–86,400,000 ms.
 - **FR-TUTOR-12, AR-03–AR-05:** API startup combines public registrations with
   host-injected `ContentSource` adapters, uses PostgreSQL storage by default,
@@ -1074,7 +1074,7 @@ summary}]}`. `summary` is null when excluded; otherwise it contains only
 
 - **FR-VOICE-02:** “STT and TTS are behind interfaces (SpeechToText,
   TextToSpeech). Engines are adapters chosen by voice.yaml and
-  DIMTS_STT_ENGINE / DIMTS_TTS_ENGINE.”
+ STT_ENGINE /TTS_ENGINE.”
 - **FR-VOICE-03:** “if STT or TTS is not supported for the chosen language, the
   mic or read-aloud control is hidden or disabled with a clear text reason,
   and text input works fully.”
@@ -1103,7 +1103,7 @@ selection remain prerequisites for production voice.
 
 ### Verified acceptance
 
-- `@dimts/voice` now defines provider-neutral STT/TTS ports, voice error codes,
+- `@bridgely/voice` now defines provider-neutral STT/TTS ports, voice error codes,
   and the 60-second recording limit. Widget controls require both the language
   capability flag and an injected adapter that reports support.
 - Mock-adapter Playwright tests verify unavailable controls and typed chat,
@@ -1122,8 +1122,8 @@ selection remain prerequisites for production voice.
 ### Still pending — not a WP06 completion claim
 
 - FR-VOICE-01: no Android device/engine comparison has been recorded in
-  `docs/VOICE_TEST.md`; `voice.yaml` and `DIMTS_STT_ENGINE` /
-  `DIMTS_TTS_ENGINE` selection are not wired. No production voice adapter is
+  `docs/VOICE_TEST.md`; `voice.yaml` and `STT_ENGINE` /
+  `TTS_ENGINE` selection are not wired. No production voice adapter is
   active, and the real microphone/audio path is unverified.
 - FR-VOICE-02's configuration-driven engine selection, actual voice behavior
   on supported hardware, server STT deletion behavior under FR-VOICE-09, and
@@ -1135,15 +1135,15 @@ selection remain prerequisites for production voice.
 
 - **Requirements:** FR-INT-09, FR-UI-01/02, and FR-HELP-01/02.
 - **Decision:** Keep the root `index.html` as the offline Savanna reference
-  catalog. Add a direct link to the separate Compose-served Dimts learner app;
+  catalog. Add a direct link to the separate Compose-served Bridgely learner app;
   do not load the API-backed widget from a `file://` page.
 
 ### Verified acceptance
 
 - The root page identifies the interactive app and links to
   `http://localhost:5173/`; README points to the local setup instructions.
-- The widget's existing Compose HTML template mounts `<dimts-assistant>` and
-  loads `dimts-widget.js`. `scripts/test-local-compose.mjs` checks those
+- The widget's existing Compose HTML template mounts `<bridgely-assistant>` and
+  loads `Bridgely-widget.js`. `scripts/test-local-compose.mjs` checks those
   contents when the stack starts.
 - **Runtime not verified in this environment:** Compose acceptance could not
   run because the Docker CLI cannot connect to the Docker Desktop Linux
@@ -1158,7 +1158,7 @@ selection remain prerequisites for production voice.
   aggregation to `feedback_counter` table. P03 provides widget reply controls.
   P09 extends with `GET /v1/insights` for teacher/host access and adds
   `insight_aggregate` population. No second feedback store.
-- **Access control:** Host secret key (`X-Dimts-Key` header) grants insights
+- **Access control:** Host secret key (`X-Bridgely-Key` header) grants insights
   access. LTI instructor access deferred to P10. Both paths use same response
   format and privacy rules.
 - **Period and aggregation:** Day-only granularity (DATE column in schema).
@@ -1189,9 +1189,9 @@ selection remain prerequisites for production voice.
   NFR-PRIV-01–09, NFR-PERF-04, NFR-MAINT-01, NFR-ADOPT-01/02,
   NFR-OPS-01/02, FR-INT-08/09/10/12, FR-CONV-10/13, and G1–G13.
 - **Secret contract authority:** The Blueprint supersedes the earlier plan
-  where they differ. `DIMTS_ENC_KEY` and `DIMTS_HASH_KEY` are distinct
-  32-byte base64 values; `DIMTS_JWT_SECRET` is a distinct string of at least
-  32 characters; `DIMTS_CRON_SECRET` is at least 24 characters. Do not impose
+  where they differ. `ENC_KEY` and `HASH_KEY` are distinct
+  32-byte base64 values; `JWT_SECRET` is a distinct string of at least
+  32 characters; `CRON_SECRET` is at least 24 characters. Do not impose
   the plan's stricter base64 requirement on the JWT secret.
 - **Deletion semantics:** `POST /v1/data/delete` requires the session bearer
   token, deletes transactionally through the shared repository, returns 204
@@ -1215,7 +1215,7 @@ selection remain prerequisites for production voice.
   through the generic LTI 1.3 contract and load platform metadata from static
   host configuration. Do not assume a Savanna-specific API, credentials, or
   private content.
-- **Configuration contract:** `DIMTS_LTI_PLATFORMS` is a JSON array using the
+- **Configuration contract:** `LTI_PLATFORMS` is a JSON array using the
   existing `LtiPlatformConfig` field names. Each entry identifies one
   issuer/client/deployment and its HTTPS authorization, token, and JWKS URLs.
   Platform IDs and issuer/client pairs must be unique. This is deployment
@@ -1244,17 +1244,17 @@ selection remain prerequisites for production voice.
 - **Provisioning:** Hosted deployments had no supported way to create a
   `host_key` or `helper` row, so every hosted widget session was refused.
   Added `pnpm admin host-key|helper` (`packages/api/src/db/admin.ts`). It
-  stores only SHA-256 hashes, reads the secret from `DIMTS_PROVISION_SECRET`
+  stores only SHA-256 hashes, reads the secret from `PROVISION_SECRET`
   (never argv), requires HTTPS origins except loopback, requires an origin for
   public keys, requires 32+ characters for secret keys, and requires a 32-byte
-  base64url helper token. `DIMTS_PROVISION_SECRET` is an operator CLI input,
+  base64url helper token. `PROVISION_SECRET` is an operator CLI input,
   not API configuration.
 - **Migrations on Render:** The free plan has no pre-deploy hook, so the start
   command runs `migrate` first. `applyMigrations` now holds a PostgreSQL
   advisory lock so overlapping deploy instances cannot race.
 - **Scheduled jobs:** Added `cron.yml` (retention 06:00 UTC, alerts 07:30 UTC)
   and the event-bounded `keepwarm.yml` from blueprint 14.1. Both skip when the
-  `DIMTS_API_URL`/`DIMTS_CRON_SECRET` repository secrets are absent.
+  `API_URL`/`CRON_SECRET` repository secrets are absent.
 - **LTI redirect URI:** Derived from the request (`trust proxy` honours
   `X-Forwarded-Proto`) instead of a fixed placeholder host. The platform still
   redirects only to its registered URIs.
@@ -1285,14 +1285,14 @@ selection remain prerequisites for production voice.
   pages say so.
 - **Ingestion:** `content:ingest` now accepts language subfolders. Lesson ids
   are `<lesson>.<lang>` and each passage cites
-  `DIMTS_CONTENT_BASE_URL/<lang>/<lesson>#<section>`. `--if-changed` skips the
+  `CONTENT_BASE_URL/<lang>/<lesson>#<section>`. `--if-changed` skips the
   ingest when the active source hash matches, so the local API container
   re-ingests on start only after content changes.
 - **Lesson pages:** `scripts/build-lessons.mjs` renders the same Markdown to
   `/learn/<lang>/<lesson>`. Heading ids come from `markdownOutline()`, the
   function ingestion uses for anchors, so every citation lands on its section
   (verified for all 144 passages). The cited section is highlighted.
-- **Draft language preview:** `DIMTS_PREVIEW_LANGS=am,om` publishes listed
+- **Draft language preview:** `PREVIEW_LANGS=am,om` publishes listed
   draft packs as `beta` in memory. Pack files and review metadata are
   unchanged, so glossary cross-language retrieval, published FAQs and voice
   flags stay review-gated. Rejected alternative: marking the packs `beta` in
@@ -1312,12 +1312,12 @@ selection remain prerequisites for production voice.
 - **Remote AI:** Gemini (`gemini-3.1-flash-lite`, ~1.5 s; `gemini-4-hydrogen`
   fallback) and OpenRouter are configured for en/am/om in extractive mode with
   `evaluatedLanguages: []`. They run only after the learner allows remote AI.
-  `DIMTS_AI_RECALL_FLOOR=0.15` lets inflected Amharic questions reach the
+  `AI_RECALL_FLOOR=0.15` lets inflected Amharic questions reach the
   consented provider; it still returns not-found when passages do not answer.
 - **Savanna integration:** the web image serves the unmodified captures at
   `/savanna/` and nginx `sub_filter` injects one `<script async
-src="/dimts-host.js">`, the same single-tag embed a real host would add.
-  `dimts-host.js` is an nginx envsubst template carrying the public widget key.
+src="/Bridgely-host.js">`, the same single-tag embed a real host would add.
+  `Bridgely-host.js` is an nginx envsubst template carrying the public widget key.
 - **Widget UI:** branded header, starter questions (`suggest.*` keys), typing
   indicator, avatar bubbles, citation chips, pill launcher and a close icon
   whose accessible name comes from `embed.close`. The initial language follows
@@ -1330,7 +1330,7 @@ src="/dimts-host.js">`, the same single-tag embed a real host would add.
   never answer. Gemini 4 now uses `low`. The local ladder is flash-lite 3.1,
   flash-lite 3.5, OpenRouter, Gemini 4, offline; Interactions API latency varied
   from 1 s to 50 s during testing, which the per-provider timeouts absorb.
-- **Fixed defects:** `@dimts/telegram` did not type-check (grammY's fetch shim
+- **Fixed defects:** `@bridgely/telegram` did not type-check (grammY's fetch shim
   types), which blocked every Docker build; `lti.launch.unconfigured` was
   missing from every pack.
 - **Known limitation:** Playwright's bundled headless Chromium crashes when the
@@ -1379,14 +1379,14 @@ Docker stack before it was changed.
   (`Api-Revision: 2026-05-20`): transcription on `gemini-4-hydrogen` with an
   `audio` input item, read-aloud on `gemini-3.8-flash-lite-tts`
   (`response_format: {type:"audio"}`, WAV output). Gemini TTS lists Amharic but
-  not Afaan Oromoo, so `DIMTS_CLOUD_VOICE_SPEAK_LANGS` (default `en,am`) is
+  not Afaan Oromoo, so `CLOUD_VOICE_SPEAK_LANGS` (default `en,am`) is
   separate from the transcription languages and the widget offers read-aloud
   only where the server can speak.
 - **Telegram:** the log showed `telegram_setup_failed` every 5 s with no
   reason. Telegram answered `409 Conflict`: a second process polls the same
   bot token. Errors now carry the Bot API code with an actionable message, and
   polling backs off (5 s doubling to 60 s on 409; 5 min on 401) instead of
-  fighting the other poller every second. With `DIMTS_PUBLIC_API_URL` set in
+  fighting the other poller every second. With `PUBLIC_API_URL` set in
   webhook mode, the API registers `<url>/v1/telegram/webhook` with its secret on
   every start (`telegram_webhook_registered`).
 - **Jobs in chat:** extractive answers copied 30-word job descriptions and
@@ -1408,7 +1408,7 @@ Docker stack before it was changed.
   with `data-jobs-enabled`, which neither the embed loader nor any host set, so
   embedded pages had no jobs and `p06-career` failed. Jobs is on by default; a
   host opts out with `data-jobs="off"` on the embed script.
-- **Job alerts:** `DIMTS_JOBS_ALERT_INTERVAL_MS=0` relied on an external cron
+- **Job alerts:** `JOBS_ALERT_INTERVAL_MS=0` relied on an external cron
   that no deployment had; hosted and local configs now run alerts hourly in
   process. The relay variables stay empty: Telegram and SMS deliver natively.
 - **Widget visual refresh:** gradient header with a scrolling tool row (chips no
@@ -1459,6 +1459,22 @@ Telegram bot: 44/44 API checks and 18/18 browser checks (phone and desktop).
   delivered natively; interview-support requests go only to the host relay.
   Without one the widget no longer shows a disabled button and a "no delivery
   channel" warning (alerts do work); it simply does not offer the request.
-- **Helper hours:** `DIMTS_HELPER_HOURS=[{"day":1,"start":"09:00","end":"17:00"}]`
+- **Helper hours:** `HELPER_HOURS=[{"day":1,"start":"09:00","end":"17:00"}]`
   (the template example) makes helpers available only Mondays 09:00–17:00 UTC;
   claims were correctly refused on Sunday. The value is the operator's to set.
+
+
+## Bridgely rename and chat response integrity (15 November 2026)
+
+- **Requirements:** FR-UI-02/04/07, FR-LANG-01/06/10, NFR-A11Y-01/02/05.
+- **Brand boundary:** Bridgely is the public brand and valid custom-element tag prefix. Preserve PostgreSQL database, volume, and stored message-role identifiers to keep existing data readable; migrate browser-owned Dimts keys when the new Bridgely key is absent.
+- **Answer integrity:** Apply the same question-echo check to cached and newly generated answers. A cached echo is discarded and retrieval/provider validation continues.
+- **Tigrinya:** Keep the locale pack draft until reviewed; explicit `public_preview: true` or a host `PREVIEW_LANGS` entry publishes it as beta while preserving reviewer gates. The local example and hosted template include `ti`. Voice remains disabled; the picker exposes it in chat and Settings.
+- **Verified acceptance:** Locale, preview-language, engine cache, and widget language/chat tests pass; the widget axe/reflow check reports no critical or serious violations; typecheck, lint, and lang:check pass.
+
+## Local route and Gemini 3.8 correction (15 November 2026)
+
+- **Requirements:** FR-SMS-02, FR-HELP-01/02, FR-AI-02/09, FR-UI-07, NFR-OPS-01/02, NFR-REL-01/02.
+- **Gemini control:** Gemini 3.8 Flash rejects `thinking_level: "minimal"`; send `low` for Gemini 3.8+ in text and cloud transcription requests. A live synthetic ask timed out on Gemini 3.8, then returned a cited answer through Gemini 3.6. Make Gemini 3.6 first for text and transcription, followed by 3.5 Flash-Lite and 3.1 Flash-Lite; keep OpenRouter/offline fallback and the consent boundary.
+- **Routes and deployment config:** Preserve the static `/sim/sms` and `/helper` entries; normalize their trailing-slash variants. Render environment entries must use valid YAML mapping syntax (`key: NAME`).
+- **Verified acceptance:** Docker rebuilt and started the API/widget images. `/sim/sms`, `/helper` and their JS bundles return 200; slash variants return 308. `/v1/languages` includes Tigrinya (`ti`, beta). Focused Gemini/voice, route, engine, SMS simulator, Tigrinya picker, helper, chat layout, 320px/200% text/RTL, and 17 widget axe cases pass. A consented synthetic ask returned a cited answer through the Gemini 3.6 fallback; its temporary session was deleted. After reconfiguration, a consented synthetic English ask returned a cited answer with `gemini` (Gemini 3.6) active; the temporary session was deleted. Multilingual quality and latency remain unverified.

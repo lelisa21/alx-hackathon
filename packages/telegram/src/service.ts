@@ -1,4 +1,4 @@
-import { ContactCipher } from "@dimts/jobs";
+import { ContactCipher } from "@bridgely/jobs";
 import { formatTelegramReply } from "./format.js";
 import { parseTelegramUpdate, type TelegramInbound } from "./updates.js";
 import type { TelegramButton } from "./transport.js";

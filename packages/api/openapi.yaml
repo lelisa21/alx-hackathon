@@ -1,6 +1,6 @@
 openapi: 3.1.0
 info:
-  title: Dimts API
+  title: Bridgely API
   version: 0.1.0
 components:
   securitySchemes:
@@ -13,20 +13,20 @@ components:
     hostKey:
       type: apiKey
       in: header
-      name: X-Dimts-Key
+      name: X-Bridgely-Key
     cronBearer:
       type: http
       scheme: bearer
     smsGatewayBearer:
       type: http
       scheme: bearer
-      description: Separately configured DIMTS_SMS_GATEWAY_SECRET; never a session,
-        host or cron credential
+      description: Separately configuredSMS_GATEWAY_SECRET; never a session, host or
+        cron credential
     telegramWebhookSecret:
       type: apiKey
       in: header
       name: X-Telegram-Bot-Api-Secret-Token
-      description: Separately configured DIMTS_TELEGRAM_SECRET; hosted webhook mode only
+      description: Separately configuredTELEGRAM_SECRET; hosted webhook mode only
     ltiBearer:
       type: http
       scheme: bearer
@@ -3709,7 +3709,7 @@ paths:
         "200":
           description: UI strings resolved through the configured fallback chain
           headers:
-            X-Dimts-Locale-Fallback:
+            X-Bridgely-Locale-Fallback:
               description: 1 when any UI string came from a fallback pack, otherwise 0
               schema:
                 type: string
@@ -3727,9 +3727,9 @@ paths:
                 additionalProperties:
                   type: string
         "304":
-          description: Not modified; retains the X-Dimts-Locale-Fallback header
+          description: Not modified; retains the X-Bridgely-Locale-Fallback header
           headers:
-            X-Dimts-Locale-Fallback:
+            X-Bridgely-Locale-Fallback:
               schema:
                 type: string
                 enum:
@@ -5474,7 +5474,7 @@ paths:
   /v1/jobs/import:
     post:
       summary: Import JSON-LD JobPosting items and atomically publish cited passages
-      description: X-Dimts-Key must resolve to a host registry row with key_type
+      description: X-Bridgely-Key must resolve to a host registry row with key_type
         secret. The public widget key is never sufficient. postings accepts an
         item, array or @graph. Required posting fields include url for citation
         provenance; unknown posting fields are ignored. Invalid indexes are

@@ -30,7 +30,7 @@ async function worker() {
       Headers,
       fetch,
       location: new URL(
-        "https://host.example/service-worker.js?api=https%3A%2F%2Fapi.example%2Fv1&asset=https%3A%2F%2Fhost.example%2Fdimts-widget.js",
+        "https://host.example/service-worker.js?api=https%3A%2F%2Fapi.example%2Fv1&asset=https%3A%2F%2Fhost.example%2FBridgely-widget.js",
       ),
       caches: { open: async () => cache },
       skipWaiting: async () => undefined,
@@ -77,7 +77,7 @@ describe("NFR-PERF-06 scoped service-worker offline content", () => {
     );
     runtime.fetch.mockRejectedValue(new Error("offline"));
     expect(
-      (await runtime.dispatch("https://host.example/dimts-widget.js"))?.status,
+      (await runtime.dispatch("https://host.example/Bridgely-widget.js"))?.status,
     ).toBe(200);
     await expect(
       runtime.dispatch("https://api.example/v1/locales/en/faq"),
@@ -89,9 +89,9 @@ describe("NFR-PERF-06 scoped service-worker offline content", () => {
       new Response(
         JSON.stringify({
           assets: [
-            "dimts-widget.js",
-            "dimts-loader.js",
-            "dimts-shared-123.js",
+            "Bridgely-widget.js",
+            "Bridgely-loader.js",
+            "Bridgely-shared-123.js",
             "https://other.example/unrelated.js",
             "../unrelated.js",
           ],
@@ -101,14 +101,14 @@ describe("NFR-PERF-06 scoped service-worker offline content", () => {
     await runtime.install();
     expect(runtime.cache.add.mock.calls.map((call) => call[0])).toEqual(
       expect.arrayContaining([
-        "https://host.example/dimts-widget.js",
-        "https://host.example/dimts-loader.js",
-        "https://host.example/dimts-shared-123.js",
+        "https://host.example/Bridgely-widget.js",
+        "https://host.example/Bridgely-loader.js",
+        "https://host.example/Bridgely-shared-123.js",
       ]),
     );
     expect(
       runtime.cache.add.mock.calls.every((call) =>
-        String(call[0]).startsWith("https://host.example/dimts-"),
+        String(call[0]).startsWith("https://host.example/Bridgely-"),
       ),
     ).toBe(true);
   });
@@ -122,7 +122,7 @@ describe("NFR-PERF-06 scoped service-worker offline content", () => {
       expect((await runtime.dispatch(url))?.status).toBe(200);
       runtime.fetch.mockRejectedValueOnce(new Error("offline"));
       expect(
-        (await runtime.dispatch(url))?.headers.get("X-Dimts-Offline"),
+        (await runtime.dispatch(url))?.headers.get("X-Bridgely-Offline"),
       ).toBe("1");
     }
     expect(runtime.cache.put).toHaveBeenCalledTimes(2);

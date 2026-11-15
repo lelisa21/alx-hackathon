@@ -9,7 +9,7 @@ import { parseConfig } from "../src/config.js";
 const platform = {
   platformId: "savanna",
   issuer: "https://lms.example.org",
-  clientId: "dimts-client",
+  clientId: "Bridgely-client",
   authLoginUrl: "https://lms.example.org/oidc/login",
   authTokenUrl: "https://lms.example.org/oidc/token",
   jwksUri: "https://lms.example.org/.well-known/jwks.json",
@@ -19,10 +19,10 @@ const platform = {
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
 };
 
 afterEach(() => {
@@ -52,16 +52,16 @@ function createRepository(): ApiRepository {
 
 describe("P10 static LTI platform configuration", () => {
   it("defaults to no registered LTI platforms", () => {
-    expect(parseConfig(environment).DIMTS_LTI_PLATFORMS).toEqual([]);
+    expect(parseConfig(environment).LTI_PLATFORMS).toEqual([]);
   });
 
   it("parses strict platform metadata from host configuration", () => {
     const config = parseConfig({
       ...environment,
-      DIMTS_LTI_PLATFORMS: JSON.stringify([platform]),
+     LTI_PLATFORMS: JSON.stringify([platform]),
     });
 
-    expect(config.DIMTS_LTI_PLATFORMS).toEqual([platform]);
+    expect(config.LTI_PLATFORMS).toEqual([platform]);
   });
 
   it.each([
@@ -82,21 +82,21 @@ describe("P10 static LTI platform configuration", () => {
     ],
   ])("rejects %s", (_description, value) => {
     expect(() =>
-      parseConfig({ ...environment, DIMTS_LTI_PLATFORMS: value }),
-    ).toThrow(/DIMTS_LTI_PLATFORMS/u);
+      parseConfig({ ...environment,LTI_PLATFORMS: value }),
+    ).toThrow(/LTI_PLATFORMS/u);
   });
 
   it("wires configured platforms into the API and matches both issuer and client", async () => {
     const config = parseConfig({
       ...environment,
-      DIMTS_LTI_PLATFORMS: JSON.stringify([platform]),
+     LTI_PLATFORMS: JSON.stringify([platform]),
     });
     const app = buildApp({ config, repository: createRepository() });
     const login = {
       iss: platform.issuer,
       client_id: platform.clientId,
       login_hint: "opaque-platform-hint",
-      target_link_uri: "https://learn.example.org/dimts",
+      target_link_uri: "https://learn.example.org/Bridgely",
     };
 
     try {
@@ -109,11 +109,11 @@ describe("P10 static LTI platform configuration", () => {
       // The launch URL must point at this deployment, not a fixed placeholder.
       const proxied = await request(app)
         .post("/v1/lti/login")
-        .set("Host", "dimts-api.example.org")
+        .set("Host", "Bridgely-api.example.org")
         .set("X-Forwarded-Proto", "https")
         .send(login);
       expect(proxied.body.redirectUri).toBe(
-        "https://dimts-api.example.org/v1/lti/launch",
+        "https://Bridgely-api.example.org/v1/lti/launch",
       );
 
       const mismatchedClient = await request(app)
@@ -128,7 +128,7 @@ describe("P10 static LTI platform configuration", () => {
   it("does not issue a login state when persistent state storage is unavailable", async () => {
     const config = parseConfig({
       ...environment,
-      DIMTS_LTI_PLATFORMS: JSON.stringify([platform]),
+     LTI_PLATFORMS: JSON.stringify([platform]),
     });
     const repository = createRepository();
     repository.storeLtiState = undefined;
@@ -139,7 +139,7 @@ describe("P10 static LTI platform configuration", () => {
         iss: platform.issuer,
         client_id: platform.clientId,
         login_hint: "platform-hint",
-        target_link_uri: "https://learn.example.org/dimts",
+        target_link_uri: "https://learn.example.org/Bridgely",
       });
 
       expect(response.status).toBe(500);
@@ -153,7 +153,7 @@ describe("P10 static LTI platform configuration", () => {
   it("validates a signed instructor launch and persists its LTI session", async () => {
     const config = parseConfig({
       ...environment,
-      DIMTS_LTI_PLATFORMS: JSON.stringify([platform]),
+     LTI_PLATFORMS: JSON.stringify([platform]),
     });
     const states = new Map<
       string,
@@ -181,7 +181,7 @@ describe("P10 static LTI platform configuration", () => {
         iss: platform.issuer,
         client_id: platform.clientId,
         login_hint: "platform-hint",
-        target_link_uri: "https://learn.example.org/dimts",
+        target_link_uri: "https://learn.example.org/Bridgely",
       });
       expect(login.status).toBe(200);
 

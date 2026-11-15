@@ -1,20 +1,20 @@
 # Level 1 widget embedding
 
-Serve the widget build (`pnpm --filter @dimts/widget build`) from an approved
+Serve the widget build (`pnpm --filter @bridgely/widget build`) from an approved
 static origin. Keep the generated files together: the classic bootstrap,
 ES modules and deferred chunks, service worker, manifest, and fonts.
 Enable gzip or Brotli for JavaScript, CSS, and JSON at the serving origin;
 the startup and size budgets measure compressed transfers. The included Nginx
 configuration enables gzip for these response types, including proxied locale
 and FAQ JSON. Hosts must verify their deployed `Content-Encoding` headers.
-The async bootstrap requests the complete `dimts-widget.js` module directly;
+The async bootstrap requests the complete `Bridgely-widget.js` module directly;
 there is no intermediate loader/shared-runtime download before the launcher.
 Voice and help modules remain deferred until used.
 
 ```html
 <script
   async
-  src="/dimts/dimts-embed.js"
+  src="/Bridgely/bridgely-embed.js"
   nonce="SERVER_GENERATED_NONCE"
   data-host-key="PUBLIC_HOST_IDENTIFIER"
   data-api="https://api.example.org/v1"
@@ -36,7 +36,7 @@ contract, not an ALX Savanna deployment.
 
 There is no Savanna-specific connector, platform registration, or private
 course content configured in this repository. Generic LTI 1.3 metadata can be
-loaded from the host's `DIMTS_LTI_PLATFORMS` setting. Browser OIDC redirect and
+loaded from the host's `LTI_PLATFORMS` setting. Browser OIDC redirect and
 platform-JWKS launch validation are implemented, but have not been accepted
 against a real LMS. `/v1/lti/jwks` publishes an empty tool key set; current
 launches do not sign tool-originated deep-link or grade-passback messages, so
@@ -50,7 +50,7 @@ learner roster, or role-specific content is read.
 Course content enters through the generic public-sitemap connector or a
 host-owned `ContentSource`/`HostAuth` adapter documented in [API.md](./API.md).
 the adapter must only publish content authorized for every learner using that
-source. There is no Savanna API endpoint or credential assumed by Dimts, and
+source. There is no Savanna API endpoint or credential assumed by Bridgely, and
 the current widget/REST contract is not connected to an LMS/LTI launch.
 The demonstration recorded for this work used only
 [`content/sample-course`](../content/sample-course); it is not ALX course
@@ -69,17 +69,17 @@ preference. Unsupported/draft languages are not silently enabled. Install one
 script per document. The launcher is closed initially; the session can initialize
 without recording, speaking, or consenting to remote processing.
 
-Only `window.Dimts` is added to the public JavaScript API:
+Only `window.Bridgely` is added to the public JavaScript API:
 
 ```js
-window.Dimts.open();
-window.Dimts.close();
-window.Dimts.setLanguage("om");
-window.Dimts.escalate();
+window.Bridgely.open();
+window.Bridgely.close();
+window.Bridgely.setLanguage("om");
+window.Bridgely.escalate();
 ```
 
 Call these from a host-owned external script after the widget is installed.
-`dimts:opened`, `dimts:closed`, `dimts:language`, and `dimts:escalated` are dispatched
+`Bridgely:opened`, `Bridgely:closed`, `Bridgely:language`, and `Bridgely:escalated` are dispatched
 on the assistant element and bubble across its shadow root to the document.
 Language events carry `{lang}`; escalation carries the current `{lang}`. Text,
 identifiers, and conversation history are never event payloads. Escalation opens
@@ -89,10 +89,10 @@ The embed uses shadow DOM for its launcher and panel. Host page selectors do not
 style the controls. Bundled Lit property metadata lives in a private module cell;
 an existing host Lit metadata map is reused without replacement. Functional
 metadata is retained across uninstall/reinstall, while optional version diagnostic
-globals introduced by the embed are removed. Accessible custom properties can be set on `dimts-embed` or
-`dimts-assistant`: `--dimts-surface`, `--dimts-text`, `--dimts-muted`,
-`--dimts-primary`, `--dimts-primary-text`, `--dimts-border`, `--dimts-focus`,
-`--dimts-font-family`, and `--dimts-radius`. Colors accept opaque hex or integer
+globals introduced by the embed are removed. Accessible custom properties can be set on `bridgely-embed` or
+`bridgely-assistant`: `--Bridgely-surface`, `--Bridgely-text`, `--Bridgely-muted`,
+`--Bridgely-primary`, `--Bridgely-primary-text`, `--Bridgely-border`, `--Bridgely-focus`,
+`--Bridgely-font-family`, and `--Bridgely-radius`. Colors accept opaque hex or integer
 `rgb(...)`; font families accept names/lists, not external URLs; radius is bounded
 to 32px or 2rem/em. The guard restores the theme palette when text is below 7:1 or
 control/focus contrast below 3:1. High contrast overrides ordinary host colors.
@@ -114,9 +114,9 @@ host page: serve the worker and widget shell from the host origin for offline
 reload support. Cross-origin embedding still has a complete online text path and
 reports unavailable offline installation honestly.
 
-Dimts caches only its owned shell, locale UI, and reviewed FAQ. The host must
+Bridgely caches only its owned shell, locale UI, and reviewed FAQ. The host must
 provide its own offline HTML/router response (or keep the current page open).
-Installing Dimts does not make an arbitrary uncached host page reload offline.
+Installing Bridgely does not make an arbitrary uncached host page reload offline.
 
 ## Uninstall and storage
 
@@ -144,9 +144,9 @@ real course/job data.
 This tests the generic widget contract on a local HTTP host; it is not a
 Savanna connection. From the repository root:
 
-1. Build the widget with `pnpm --filter @dimts/widget build`.
+1. Build the widget with `pnpm --filter @bridgely/widget build`.
 2. In `.env`, allow the page origin `http://localhost:5500` in
-   `DIMTS_HOST_ORIGINS`. Set `DIMTS_LOCAL_WIDGET_KEY` to a non-secret local
+   `HOST_ORIGINS`. Set `LOCAL_WIDGET_KEY` to a non-secret local
    public identifier, then use that same value for `data-host-key` in
    `examples/embed-level1.html`. Never use an AI provider credential as a host
    key.
@@ -157,7 +157,7 @@ Savanna connection. From the repository root:
    `http://localhost:5500/examples/embed-level1.html`.
 5. Confirm the launcher loads and the browser can create a session through
    `http://localhost:3000/v1`. The browser `Origin`, configured
-   `DIMTS_HOST_ORIGINS`, and public host identifier must match. This example
+   `HOST_ORIGINS`, and public host identifier must match. This example
    uses the offline provider unless a host explicitly configures a remote
    provider and a learner grants consent.
 
@@ -207,7 +207,7 @@ Run the connected automated checks from the repository root:
 pnpm verify:phases-1-6
 ```
 
-Set `DIMTS_TEST_DATABASE_URL` to a disposable PostgreSQL database first. The
+Set `TEST_DATABASE_URL` to a disposable PostgreSQL database first. The
 command fails before running if it is absent, rather than letting PostgreSQL
 integration tests silently skip. It builds the workspace, runs typecheck,
 lint, locale validation, core and locale coverage gates, the complete Vitest

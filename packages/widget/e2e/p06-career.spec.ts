@@ -24,7 +24,7 @@ async function openCareer(
   await page.route("http://127.0.0.1:4173/", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Career test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      body: '<!doctype html><html lang="en"><head><title>Career test</title></head><body><bridgely-assistant data-api="http://api.test/v1" data-host-key="test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
     }),
   );
   await page.route("http://api.test/v1/**", (route) => {
@@ -358,7 +358,7 @@ test("P06 voice answers are editable before Next and hiding discards late privat
     };
     (window as unknown as { careerVoice: typeof fixture }).careerVoice =
       fixture;
-    const widget = document.querySelector("dimts-assistant") as unknown as {
+    const widget = document.querySelector("bridgely-assistant") as unknown as {
       speechToText: unknown;
     };
     widget.speechToText = {
@@ -409,7 +409,7 @@ test("P06 voice answers are editable before Next and hiding discards late privat
     .getByRole("button", { name: ui["mic.start"], exact: true })
     .click();
   await page.evaluate(() =>
-    document.querySelector("dimts-assistant")?.setAttribute("hidden", ""),
+    document.querySelector("bridgely-assistant")?.setAttribute("hidden", ""),
   );
   await page.evaluate(() =>
     (
@@ -417,7 +417,7 @@ test("P06 voice answers are editable before Next and hiding discards late privat
     ).careerVoice.finish("private late transcript"),
   );
   await page.evaluate(() =>
-    document.querySelector("dimts-assistant")?.removeAttribute("hidden"),
+    document.querySelector("bridgely-assistant")?.removeAttribute("hidden"),
   );
   await page
     .getByRole("button", { name: ui["jobs.title"], exact: true })
@@ -481,14 +481,14 @@ test("P06 expired per-tab resume clears owned progress before a fresh session", 
   expect(
     await page.evaluate(() =>
       Object.keys(localStorage).filter((key) =>
-        key.startsWith("dimts.career."),
+        key.startsWith("Bridgely.career."),
       ),
     ),
   ).toEqual([]);
   expect(
     await page.evaluate(() =>
       Object.keys(sessionStorage).filter((key) =>
-        key.startsWith("dimts.career-session."),
+        key.startsWith("Bridgely.career-session."),
       ),
     ),
   ).toEqual([]);
@@ -693,7 +693,7 @@ for (const code of ["en", "am", "om", "ar-test"])
     await openCareer(page, ["sms", "telegram"], code);
     const copy = packs.get(code)!.ui;
     await page.evaluate(() => {
-      const widget = document.querySelector("dimts-assistant") as HTMLElement;
+      const widget = document.querySelector("bridgely-assistant") as HTMLElement;
       widget.style.setProperty("font-size", "32px");
     });
     await page

@@ -22,11 +22,11 @@ or credentials to application logs.
    $rng.Dispose()
    ```
 
-   Use separate generated values for `DIMTS_ENC_KEY`, `DIMTS_HASH_KEY`,
-   `DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`; the first two must decode to
+   Use separate generated values for `ENC_KEY`, `HASH_KEY`,
+   `JWT_SECRET`, and `CRON_SECRET`; the first two must decode to
    32 bytes. Keep `.env` private and untracked.
 
-3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` includes the
+3. Set `LOCAL_WIDGET_KEY` and make sure `HOST_ORIGINS` includes the
    exact origin of each page that embeds the widget (scheme, host and port).
    For the stock local widget shell, that origin is
    `http://localhost:5173`; a separately served host page needs its own entry.
@@ -37,21 +37,21 @@ or credentials to application logs.
    the API becomes healthy, and serves the widget shell at
    `http://localhost:5173`. The API is also available at
    `http://localhost:3000`. Override the API and widget
-   `DIMTS_COMPOSE_*_PORT` values to avoid local port conflicts, and update
-   `DIMTS_HOST_ORIGINS` if the widget port changes.
+   `COMPOSE_*_PORT` values to avoid local port conflicts, and update
+   `HOST_ORIGINS` if the widget port changes.
 5. To stop the stack while preserving the database, run
    `docker compose --profile local down`. To remove the local database too, use
    `docker compose --profile local down --volumes`.
 
 PostgreSQL is private to the internal backend network; use
-`docker compose --profile local exec db psql -U dimts -d dimts` for local
+`docker compose --profile local exec db psql -U Bridgely -d Bridgely` for local
 database access. The API and widget share a separate edge bridge for the
 loopback-published host ports and API integrations. All published ports bind
 only to loopback. The configured AI provider defaults to offline; no provider
 credentials are required for the local stack.
 
 The Compose `local` profile defaults to `NODE_ENV=development`; set
-`DIMTS_TELEGRAM_MODE=polling` in `.env` to test the configured bot locally.
+`TELEGRAM_MODE=polling` in `.env` to test the configured bot locally.
 Polling requires a valid bot token and no active webhook. Do not combine it
 with production mode. To exercise scheduled job alerts, start the `scheduler`
 profile as well, and seed only the tracked sample records with
@@ -62,12 +62,12 @@ integrations so it never polls or sends through credentials from `.env`.
 `GET /v1/health`, `GET /v1/languages`, `GET /v1/locales/{code}/ui`,
 `GET /v1/openapi.yaml`, and `GET /v1/docs` are public. Draft packs are hidden
 unless `?lang_preview=1` is supplied.
-`POST /v1/sessions` requires `X-Dimts-Key` and an allowed browser origin.
+`POST /v1/sessions` requires `X-Bridgely-Key` and an allowed browser origin.
 `POST /v1/ask` requires the returned session bearer token and `sessionId`.
 
 ## Voice capability configuration
 
-`DIMTS_STT_ENGINE` and `DIMTS_TTS_ENGINE` independently accept `none` (the
+`STT_ENGINE` and `TTS_ENGINE` independently accept `none` (the
 default) or `browser`; unsupported values fail API startup. Browser voice
 requires on-device recognition and a matching local-service synthesis voice.
 No selected adapter needs a server audio transport, so `/v1/stt` and `/v1/tts`
@@ -92,24 +92,24 @@ voice flags remain false until that evidence and native review are supplied.
 
 ## Embed the widget
 
-Build the static ES module with `pnpm --filter @dimts/widget build`, then serve
-`packages/widget/dist/dimts-widget.js` from the host page. Register the allowed
+Build the static ES module with `pnpm --filter @bridgely/widget build`, then serve
+`packages/widget/dist/Bridgely-widget.js` from the host page. Register the allowed
 host origin and its public widget key with the API before using the component:
 
 ```html
-<script type="module" async src="/assets/dimts-widget.js"></script>
-<dimts-assistant
+<script type="module" async src="/assets/Bridgely-widget.js"></script>
+<bridgely-assistant
   data-api="https://api.example.org/v1"
   data-host-key="public-widget-key"
-></dimts-assistant>
+></bridgely-assistant>
 ```
 
 For offline shell support, also serve the built
 `packages/widget/dist/service-worker.js` as `/service-worker.js` from the same
 origin as the embedding page and widget module. A cross-origin widget module
 cannot register a service worker for the host page. The worker caches the
-widget entry and its static import graph from `dimts-assets.json`; voice and
-help chunks remain on demand. Only Dimts-owned assets and the configured API's
+widget entry and its static import graph from `Bridgely-assets.json`; voice and
+help chunks remain on demand. Only Bridgely-owned assets and the configured API's
 public language/UI/FAQ GET routes are cached. The widget separately caches
 validated reviewed FAQ responses, so cached questions remain usable when the
 API is asleep or offline. No session, ask, feedback, or help response is cached.
@@ -118,8 +118,8 @@ uninstall contract.
 
 The widget loads visible language packs, asks the API for a pseudonymous
 session, and keeps the bearer token in memory. The host can call
-`window.Dimts.open()`, `close()`, `setLanguage(code)`, or `escalate()`.
-`dimts:opened`, `dimts:closed`, `dimts:language`, and `dimts:escalated` events
+`window.Bridgely.open()`, `close()`, `setLanguage(code)`, or `escalate()`.
+`Bridgely:opened`, `Bridgely:closed`, `Bridgely:language`, and `Bridgely:escalated` events
 are dispatched on `window`. It renders in a shadow root so host styles do not
 change its controls.
 
@@ -127,11 +127,11 @@ The helper console is a separate module; serve it only on a helper-facing page
 so learner pages do not load helper code:
 
 ```html
-<script type="module" async src="/assets/dimts-helper-console.js"></script>
-<dimts-helper-console
+<script type="module" async src="/assets/bridgely-helper-console.js"></script>
+<bridgely-helper-console
   data-api="https://api.example.org/v1"
   data-language="en"
-></dimts-helper-console>
+></bridgely-helper-console>
 ```
 
 Helpers enter their token in the console; do not embed it in page markup. The
@@ -209,7 +209,7 @@ cancellation never returns content to a disconnected screen;
 offline copies can be older than the current server content. No arbitrary
 learner question is answered or stored by this browser FAQ path. Disabled
 CacheStorage leaves network and in-memory operation available. Uninstall
-removes the FAQ cache with the other Dimts-owned storage.
+removes the FAQ cache with the other Bridgely-owned storage.
 
 ## Dynamic course content
 
@@ -225,17 +225,17 @@ pnpm content:ingest content/sample-course
 
 `FR-INT-08` supports two integration paths.
 
-**Public website, no host code:** set `DIMTS_PUBLIC_SOURCES` to an approved
+**Public website, no host code:** set `PUBLIC_SOURCES` to an approved
 HTTPS XML sitemap and language. The connector indexes only same-origin HTML
 pages explicitly listed in that sitemap, then rechecks them on the normal
 reconciliation schedule.
 
 ```dotenv
-DIMTS_PUBLIC_SOURCES=[{"id":"course-site","sitemapUrl":"https://learn.example/sitemap.xml","language":"en","pageSize":25}]
+PUBLIC_SOURCES=[{"id":"course-site","sitemapUrl":"https://learn.example/sitemap.xml","language":"en","pageSize":25}]
 ```
 
 The API validates source registrations at startup. Reconciliation runs every
-five minutes by default; set `DIMTS_SOURCE_SYNC_INTERVAL_MS` (1,000 through
+five minutes by default; set `SOURCE_SYNC_INTERVAL_MS` (1,000 through
 86,400,000) to change the interval.
 
 The public connector follows same-origin sitemap indexes, caps discovery at
@@ -247,7 +247,7 @@ published XML sitemap needs a private adapter or a sitemap added by its owner.
 
 **Private platform, small backend adapter:** pass the host's existing
 authorization and content functions through the `ContentSource`/`HostAuth`
-ports. No platform-specific API is assumed by Dimts. The adapter must scope
+ports. No platform-specific API is assumed by Bridgely. The adapter must scope
 discovery to content that should be visible to every learner using that
 source. Per-learner or role-specific content must not be added to a shared
 index; per-user ACL filtering is not implemented yet.
@@ -277,11 +277,11 @@ adapter remains WP08. Index only material explicitly authorized for all
 learners using that source, never learner direct messages or private-chat
 history.
 
-On startup Dimts performs full discovery before the API begins listening, then
+On startup Bridgely performs full discovery before the API begins listening, then
 runs scheduled reconciliation and publishes complete generations atomically.
 Failed syncs preserve the last good generation. The host authenticates its
 native content-change events before calling
-`app.locals.sourceSyncManager.notify(sourceId, changes)`; Dimts then fetches
+`app.locals.sourceSyncManager.notify(sourceId, changes)`; Bridgely then fetches
 authoritative content through the adapter. There is no generic public webhook
 route or payload. With the default PostgreSQL repository, the API creates the
 source store automatically; when using a custom repository, pass a conforming
@@ -294,7 +294,7 @@ Per-question language detection is now local and confidence-gated: detection
 runs against the installed language packs, and short, unsupported, or
 ambiguous text keeps the request's selected language. It changes only that
 answer turn, not the saved session preference. Configure the confidence
-threshold with `DIMTS_LANGUAGE_DETECTION_CONFIDENCE`; the detector never sends
+threshold with `LANGUAGE_DETECTION_CONFIDENCE`; the detector never sends
 question text to a third party. Cross-language retrieval remains capability
 and evaluation dependent.
 
@@ -305,7 +305,7 @@ adapters. Native wire contracts are tested with fixtures; credentials,
 evaluated models and real-service latency still require host verification.
 See [local AI setup](./LOCAL_AI.md) for profiles and protocol references.
 Custom providers are described by
-`DIMTS_AI_PROVIDERS` JSON entries (`id`, `adapter`, `endpoint`, `model`,
+`AI_PROVIDERS` JSON entries (`id`, `adapter`, `endpoint`, `model`,
 `credentialRef`, `privacyClass`, `allowedDataClasses`, `evaluatedLanguages`,
 `enabled`, `priority`, `timeoutMs`, and declared `capabilities`). A `credentialRef`
 names an environment variable; the secret value is never returned by the API.
@@ -314,7 +314,7 @@ Likewise, Node/Express/PostgreSQL are the current reference adapters;
 replacing a stack requires a conforming implementation, not zero-effort
 substitution.
 
-The selected provider and explicit `DIMTS_AI_LADDER` order take precedence;
+The selected provider and explicit `AI_LADDER` order take precedence;
 remaining enabled bindings follow in priority order. An explicitly placed
 offline step keeps its position. Remote calls require host enablement and
 current session consent. They receive only policy-allowed question and course
@@ -335,14 +335,14 @@ destination is collected. The tutor stays usable while waiting.
   returns `{available,nextOpenAt?,waitTimeoutMs}`. Availability means the UTC
   schedule permits help, not proof that a helper is online. `nextOpenAt` is an
   ISO timestamp and is absent for an empty schedule. The default wait is
-  300000 ms; `DIMTS_HELP_WAIT_TIMEOUT_MS` accepts 1000–3600000. Claims outside
-  the validated `DIMTS_HELPER_HOURS` intervals return 409; confirmed waiting
+  300000 ms; `HELP_WAIT_TIMEOUT_MS` accepts 1000–3600000. Claims outside
+  the validated `HELPER_HOURS` intervals return 409; confirmed waiting
   requests and existing conversations remain usable.
 - `POST /v1/help/{id}/ice` accepts `{sessionId}` from the owning learner or
   `{}` from the assigned helper JWT. Only claimed requests qualify. The
   response is `{iceServers:[{urls,username?,credential?}],expiresAt?}` with
-  `Cache-Control: no-store`. `DIMTS_TURN_APP` is the Metered app subdomain;
-  `DIMTS_TURN_API_KEY` is its server-only secret key. Configure both or neither.
+  `Cache-Control: no-store`. `TURN_APP` is the Metered app subdomain;
+  `TURN_API_KEY` is its server-only secret key. Configure both or neither.
   The server creates credentials with a one-hour lifetime and omits the
   application secret and provider API key from responses. Unconfigured or
   failed TURN returns `stun:stun.l.google.com:19302`. Metered documents up to
@@ -385,7 +385,7 @@ IDs, language, content or contact fields. It survives session deletion.
 
 Automated evidence is in `p05-help.test.ts`, `p05-media.test.ts` and
 `p05-postgres.integration.test.ts`; the PostgreSQL suite requires an isolated
-`DIMTS_TEST_DATABASE_URL`. Physical device, real TURN, bandwidth and human
+`TEST_DATABASE_URL`. Physical device, real TURN, bandwidth and human
 accessibility evidence are separate release checks.
 
 ## Feedback and conversation signals
@@ -411,8 +411,8 @@ engine revalidates cached citations and content version before reuse.
 
 ## Ingest course content
 
-Set `DIMTS_CONTENT_BASE_URL` to the canonical directory URL for rendered lessons
-and `DIMTS_DEFAULT_LANG` to the language of the content directory. After
+Set `CONTENT_BASE_URL` to the canonical directory URL for rendered lessons
+and `DEFAULT_LANG` to the language of the content directory. After
 migrations and local host bootstrap have run, use:
 
 ```powershell
@@ -422,7 +422,7 @@ pnpm content:ingest content/sample-course
 Ingestion accepts Markdown and HTML lesson files in one directory. Each file
 becomes one lesson; its filename (without extension) is the lesson id. Markdown
 heading slugs or existing HTML heading ids are used as citation anchors. A
-content directory is ingested in the language selected by `DIMTS_DEFAULT_LANG`.
+content directory is ingested in the language selected by `DEFAULT_LANG`.
 HTML sections that contain lesson text must have heading ids; ingestion rejects
 sections without a rendered anchor rather than creating broken citations. A
 content update atomically replaces the `legacy` source generation and clears
@@ -444,7 +444,7 @@ or query. Career responses use `Cache-Control: no-store`. Public/beta locale
 packs are accepted; draft and unknown locales are rejected.
 
 - `POST /v1/jobs/import`: `{lang,postings}` where `postings` is a JSON-LD
-  item, array or `@graph`. `X-Dimts-Key` must hash to a `host_key` row whose
+  item, array or `@graph`. `X-Bridgely-Key` must hash to a `host_key` row whose
   `key_type` is `secret`. Migration 007 defaults existing rows to `public`.
   Provision a separate server-only random secret through trusted deployment
   administration; store its SHA-256 hash, never promote the widget key.
@@ -466,8 +466,8 @@ jobType,datePosted,deadline,deadlineDisplay,url,lang,accommodationsOffered`.
 channel,contact,consent:{accepted:true,noticeVersion:"job-alerts-v1"}}`.
   Channel is `sms` or `telegram`. Show localized consent before collecting
   contact. Success 201 returns `{id,status}` without contact. Reusing the
-  request ID is idempotent. Contact is encrypted with `DIMTS_ENC_KEY`, and
-  continuity uses keyed hashing with the distinct `DIMTS_HASH_KEY`.
+  request ID is idempotent. Contact is encrypted with `ENC_KEY`, and
+  continuity uses keyed hashing with the distinct `HASH_KEY`.
   Consent expires after 30 days; metadata contains timestamp, channel and
   notice version only.
 - `GET /v1/subscriptions?sessionId=…` returns `{subscriptions:[{id,status,
@@ -501,11 +501,11 @@ interviewAt?,interviewDisplay?}`. Draft edits create a new revision;
   `resume` action to retrieve the exact private payload. Only safe IDs need
   browser persistence. Cancellation before a delivery attempt clears private
   draft contents.
-- `POST /v1/internal/alerts?dry=1` uses `Bearer DIMTS_CRON_SECRET`. Returns
+- `POST /v1/internal/alerts?dry=1` uses `BearerCRON_SECRET`. Returns
   aggregate `{matched,sent,skipped,failed}` only. Dry run has no writes or
   sends. The daily digest is unique per subscriber/date and each job is
   unique per subscriber. Uncertain retries keep the original durable key.
-  `DIMTS_JOBS_ALERT_INTERVAL_MS=0` (default) delegates scheduling to an
+  `JOBS_ALERT_INTERVAL_MS=0` (default) delegates scheduling to an
   external caller. Values 60000–86400000 enable a bounded in-process
   interval; daily limits still apply. `/internal/retention` also clears
   expired consent contacts and old private requests. Independent startup and
@@ -521,9 +521,9 @@ key. Responses and logs do not echo sensitive failure details.
 
 ### Host HTTP delivery contract
 
-Set `DIMTS_JOBS_RELAY_URL` and `DIMTS_JOBS_RELAY_SECRET` together. The URL
+Set `JOBS_RELAY_URL` and `JOBS_RELAY_SECRET` together. The URL
 must be HTTPS without user information, query or fragment. Requests reject
-redirects and expire after ten seconds. `DIMTS_JOBS_RELAY_CHANNELS` is an
+redirects and expire after ten seconds. `JOBS_RELAY_CHANNELS` is an
 optional comma-separated list declaring host adapters; its default is empty.
 After P07, the default API composition takes SMS exclusively through the native
 SMS service: a legacy `sms` host advertisement is ignored, and absent native
@@ -539,7 +539,7 @@ The API POSTs JSON with `Authorization: Bearer <relay secret>` and
 
 ```json
 {
-  "version": "dimts.jobs.delivery.v1",
+  "version": "Bridgely.jobs.delivery.v1",
   "kind": "accommodation",
   "to": "employer@example.org",
   "message": "Synthetic approved request",
@@ -555,7 +555,7 @@ key before accepting delivery and return 2xx JSON exactly confirming:
 
 ```json
 {
-  "version": "dimts.jobs.delivery.v1",
+  "version": "Bridgely.jobs.delivery.v1",
   "accepted": true,
   "idempotencyKey": "the-original-key"
 }
@@ -577,14 +577,14 @@ P11; P06 does not expose a partial endpoint claiming to erase all user data.
 
 Automated API evidence: `p06-contract.test.ts`, `p06-routes.test.ts` and
 `p06-flow.integration.test.ts` (real isolated PostgreSQL plus synthetic local
-HTTP relay, gated by `DIMTS_TEST_DATABASE_URL`);
+HTTP relay, gated by `TEST_DATABASE_URL`);
 domain/database and browser evidence are recorded with P06's acceptance
 checks in `IMPLEMENTATION_PROGRESS.md`.
 
 ## SMS inbound and simulator (P07)
 
 `POST /v1/sms/inbound` is shared by the gateway and `/sim/sms` browser page.
-It requires `Authorization: Bearer DIMTS_SMS_GATEWAY_SECRET`, a separate
+It requires `Authorization: BearerSMS_GATEWAY_SECRET`, a separate
 credential of at least 24 non-whitespace characters. An absent secret or
 unavailable service returns 503. Authentication runs before the SMS JSON
 parser and body validation. Every SMS response is `Cache-Control: no-store`.
@@ -617,13 +617,13 @@ delivery 503. Errors do not echo input or raw transport details. A 429
 includes `Retry-After: 60`; the daily outbound cap may require waiting until
 the next UTC day.
 
-`DIMTS_SMS_MODE=simulator` uses in-process simulated delivery and makes no
+`SMS_MODE=simulator` uses in-process simulated delivery and makes no
 mobile-network call. `gateway` mode requires paired HTTPS
-`DIMTS_SMS_GATEWAY_URL`/`DIMTS_SMS_GATEWAY_TOKEN`. An optional paired HTTPS
-`DIMTS_SMS_CALLBACK_URL`/`DIMTS_SMS_CALLBACK_SECRET` enables the separate-Y
+`SMS_GATEWAY_URL`/`SMS_GATEWAY_TOKEN`. An optional paired HTTPS
+`SMS_CALLBACK_URL`/`SMS_CALLBACK_SECRET` enables the separate-Y
 callback host port. Missing callback configuration reports unavailability.
 The inbound secret must differ from encryption/hash/JWT/cron/relay/channel
-credentials. `DIMTS_SMS_DAILY_LIMIT` is 1–1000, default 20. The domain applies
+credentials. `SMS_DAILY_LIMIT` is 1–1000, default 20. The domain applies
 30 new inbound IDs per minute per phone; STOP bypasses the burst and daily
 cap. P06 alert runs use the same native SMS delivery adapter and budget.
 
@@ -642,14 +642,14 @@ retained; retention does not resume messaging for a stopped number.
 ## Telegram private chats (P08)
 
 `POST /v1/telegram/webhook` accepts Telegram's native update envelope, verified
-with `X-Telegram-Bot-Api-Secret-Token: DIMTS_TELEGRAM_SECRET` before JSON parsing.
+with `X-Telegram-Bot-Api-Secret-Token:TELEGRAM_SECRET` before JSON parsing.
 Bodies are limited to 64 KiB. Success is `{"ok":true}`; nonprivate updates are
 ignored. Invalid credentials return 401, invalid updates 400, oversized bodies
 413, and unavailable adapters 503. Safe error responses include localized
 recovery copy, never the submitted content or credentials.
 
-`DIMTS_TELEGRAM_TOKEN` enables the native grammY adapter.
-`DIMTS_TELEGRAM_MODE=webhook` is the default; explicit `polling` is allowed only
+`TELEGRAM_TOKEN` enables the native grammY adapter.
+`TELEGRAM_MODE=webhook` is the default; explicit `polling` is allowed only
 outside production. Both modes use shared sessions, conversation, help and P06
 jobs services. Telegram jobs delivery uses the same native transport, consent
 checks and permanent STOP enforcement. No additional public session-creation

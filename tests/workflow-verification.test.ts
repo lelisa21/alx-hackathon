@@ -10,11 +10,11 @@ describe("Phases 1-6 verification command", () => {
   it("fails before running checks when PostgreSQL integration is not configured", () => {
     const result = spawnSync(process.execPath, [verifier], {
       encoding: "utf8",
-      env: { ...process.env, DIMTS_TEST_DATABASE_URL: "" },
+      env: { ...process.env,TEST_DATABASE_URL: "" },
     });
 
     expect(result.status).toBe(1);
-    expect(result.stderr).toContain("DIMTS_TEST_DATABASE_URL");
+    expect(result.stderr).toContain("TEST_DATABASE_URL");
   });
 
   it("refuses a remote database URL before running destructive integration tests", () => {
@@ -22,7 +22,7 @@ describe("Phases 1-6 verification command", () => {
       encoding: "utf8",
       env: {
         ...process.env,
-        DIMTS_TEST_DATABASE_URL: "postgresql://test:secret@db.example.org/test",
+       TEST_DATABASE_URL: "postgresql://test:secret@db.example.org/test",
       },
     });
 

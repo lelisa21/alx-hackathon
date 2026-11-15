@@ -4,10 +4,10 @@ import {
   mapLtiRoles,
   validateLtiToken,
   type LtiPlatformConfig,
-} from "@dimts/lti";
+} from "@bridgely/lti";
 
 const mockIssuer = "https://platform.example.com";
-const mockClientId = "dimts-client-123";
+const mockClientId = "Bridgely-client-123";
 const mockDeploymentId = "deployment-001";
 const mockNonce = "test-nonce";
 

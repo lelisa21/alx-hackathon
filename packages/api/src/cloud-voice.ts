@@ -5,17 +5,17 @@
  * Both directions use the Gemini Interactions API (POST /v1beta/interactions),
  * as documented at https://aistudio.google.com/docs: transcription sends the
  * recording as an `audio` input item to a multimodal model (default
- * gemini-4-hydrogen); speech uses a TTS model (default
+ * gemini-3.8-flash); speech uses a TTS model (default
  * gemini-3.8-flash-lite-tts) with `response_format: {type:"audio"}`, which
  * returns a complete 24 kHz WAV file.
  *
  * Privacy: audio and text are sent to Google only after the learner allows
- * cloud voice for the session (consent version `cloud-voice-v1`). Dimts never
+ * cloud voice for the session (consent version `cloud-voice-v1`). Bridgely never
  * logs or stores the audio, the transcript or the spoken text. Google's own
  * data terms for the Gemini API apply to what is sent.
  */
-import { parseRetryDelay } from "@dimts/ai";
-import type { createTelegramVoice } from "@dimts/telegram";
+import { parseRetryDelay } from "@bridgely/ai";
+import type { createTelegramVoice } from "@bridgely/telegram";
 
 type FileVoiceAdapters = NonNullable<
   Parameters<typeof createTelegramVoice>[0]["adapters"]
@@ -128,15 +128,15 @@ function modelOutput(response: InteractionResponse): ContentItem[] {
     .flatMap((step) => step.content ?? []);
 }
 
-// Gemini 3.x accepts thinking level "minimal"; Gemini 4 rejects it (400) and
-// "low" is its lowest level. Gemini 4 and 3.6+ also reject `temperature`.
+// Gemini 3.8+ and Gemini 4 reject "minimal" (400); "low" is their lowest
+// level. Gemini 3.6+ and Gemini 4 also reject `temperature`.
 function generationConfig(model: string): Record<string, unknown> {
   const match = /^(?:models\/)?gemini-(\d+)(?:\.(\d+))?/u.exec(model);
   if (!match || /tts|transcribe/u.test(model)) return {};
   const major = Number(match[1]);
   const minor = Number(match[2] ?? "0");
   return {
-    ...(major >= 4
+    ...(major >= 4 || (major === 3 && minor >= 8)
       ? { thinking_level: "low" }
       : major === 3
         ? { thinking_level: "minimal" }

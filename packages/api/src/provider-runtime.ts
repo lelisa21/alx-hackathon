@@ -7,15 +7,15 @@ import {
   GeminiProvider,
   XaiProvider,
   ProviderRegistry,
-} from "@dimts/ai";
-import type { AnswerRequest, AnswerResult } from "@dimts/engine";
-import type { LangPack } from "@dimts/locales-tools";
+} from "@bridgely/ai";
+import type { AnswerRequest, AnswerResult } from "@bridgely/engine";
+import type { LangPack } from "@bridgely/locales-tools";
 import type {
   OfflineFaq,
   ProviderBinding,
   ProviderFailureEvent,
   ResolvedProviderBinding,
-} from "@dimts/ai";
+} from "@bridgely/ai";
 import type { ApiConfig } from "./config.js";
 
 export interface ApiProviderRuntime {
@@ -125,8 +125,8 @@ export function createApiProviderRuntime(
         capabilities: binding.capabilities,
         privacyClass: binding.privacyClass,
         allowedDataClasses: binding.allowedDataClasses,
-        maxTokens: config.DIMTS_AI_MAX_TOKENS,
-        temperature: config.DIMTS_AI_TEMPERATURE,
+        maxTokens: config.AI_MAX_TOKENS,
+        temperature: config.AI_TEMPERATURE,
         ...(binding.evaluatedLanguages
           ? { evaluatedLanguages: binding.evaluatedLanguages }
           : {}),
@@ -141,15 +141,15 @@ export function createApiProviderRuntime(
           model: binding.model,
           capabilities: binding.capabilities,
           allowedDataClasses: binding.allowedDataClasses,
-          maxTokens: config.DIMTS_AI_MAX_TOKENS,
-          temperature: config.DIMTS_AI_TEMPERATURE,
+          maxTokens: config.AI_MAX_TOKENS,
+          temperature: config.AI_TEMPERATURE,
           ...(binding.endpoint ? { baseUrl: binding.endpoint } : {}),
           ...(binding.apiKey ? { apiKey: binding.apiKey } : {}),
           ...(binding.fallbackModels
             ? { fallbackModels: binding.fallbackModels }
             : {}),
-          ...(config.DIMTS_PUBLIC_API_URL
-            ? { referer: config.DIMTS_PUBLIC_API_URL }
+          ...(config.PUBLIC_API_URL
+            ? { referer: config.PUBLIC_API_URL }
             : {}),
           ...(binding.evaluatedLanguages
             ? { evaluatedLanguages: binding.evaluatedLanguages }
@@ -181,8 +181,8 @@ export function createApiProviderRuntime(
           capabilities: binding.capabilities,
           privacyClass: binding.privacyClass,
           allowedDataClasses: binding.allowedDataClasses,
-          maxTokens: config.DIMTS_AI_MAX_TOKENS,
-          temperature: config.DIMTS_AI_TEMPERATURE,
+          maxTokens: config.AI_MAX_TOKENS,
+          temperature: config.AI_TEMPERATURE,
           ...(binding.endpoint ? { baseUrl: binding.endpoint } : {}),
           ...(binding.apiKey ? { apiKey: binding.apiKey } : {}),
           ...(binding.evaluatedLanguages
@@ -210,7 +210,7 @@ export function createApiProviderRuntime(
     },
   };
   const configuredBindings = resolveBindings(
-    config.DIMTS_AI_PROVIDERS,
+    config.AI_PROVIDERS,
     environment,
     hooks.onWarning,
   );
@@ -220,8 +220,8 @@ export function createApiProviderRuntime(
       .map((provider) => [provider.name, provider]),
   );
   const orderedIds = [
-    config.DIMTS_AI_PROVIDER,
-    ...config.DIMTS_AI_LADDER.split(",").map((id) => id.trim()),
+    config.AI_PROVIDER,
+    ...config.AI_LADDER.split(",").map((id) => id.trim()),
     ...providerMap.keys(),
   ].filter(
     (id, index, values) => id.length > 0 && values.indexOf(id) === index,

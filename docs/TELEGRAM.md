@@ -6,9 +6,9 @@ store. No live bot token, webhook registration or real delivery is claimed.
 
 ## Configuration and webhook
 
-Apply migrations through `009_telegram_channel.sql`. Set `DIMTS_TELEGRAM_TOKEN`
-from BotFather and a distinct `DIMTS_TELEGRAM_SECRET` (24–256 characters from
-`A-Z`, `a-z`, `0-9`, `_`, `-`). `DIMTS_TELEGRAM_MODE=webhook` is the default.
+Apply migrations through `009_telegram_channel.sql`. Set `TELEGRAM_TOKEN`
+from BotFather and a distinct `TELEGRAM_SECRET` (24–256 characters from
+`A-Z`, `a-z`, `0-9`, `_`, `-`). `TELEGRAM_MODE=webhook` is the default.
 Without a token the adapter stays disabled. Production rejects polling mode.
 
 An operator must register the deployed HTTPS `/v1/telegram/webhook` URL using
@@ -27,7 +27,7 @@ private unsupported attachment receives a localized request for text.
 Success returns only `{"ok":true}`. Safe errors contain a localized message and
 `/help`, never an ID, token, transcript or upstream error. Responses are no-store.
 The same service handles webhook and polling updates. For local development,
-explicitly select `DIMTS_TELEGRAM_MODE=polling` and ensure that the bot has no
+explicitly select `TELEGRAM_MODE=polling` and ensure that the bot has no
 active webhook. Polling stops with the application; production always uses the
 verified webhook boundary.
 
@@ -71,7 +71,7 @@ unavailable and retains text. Production **FR-TG-02/03 voice acceptance remains
 unverified** until a compatible file adapter, credentials where needed, and
 language/device review are provided.
 
-The shared `@dimts/voice` file ports permit an explicit implementation to be
+The shared `@bridgely/voice` file ports permit an explicit implementation to be
 injected through `createTelegramVoice`. Tests use synthetic audio and fixture
 adapters; they do not claim real transcription accuracy. Downloaded audio is
 limited to 60 seconds/8 MiB, verified against supported OGG/MP3/MP4 signatures and
@@ -94,7 +94,7 @@ content. A single oversized sentence/token falls back to word/code-point chunks
 without splitting surrogate pairs. That edge-case policy needs review; strict
 sentence-boundary acceptance is not claimed for an indivisible oversized input.
 
-Chat continuity uses HMAC with `DIMTS_HASH_KEY`. IDs are not stored in session
+Chat continuity uses HMAC with `HASH_KEY`. IDs are not stored in session
 or channel state. Only explicitly consented active P06 subscriptions store an
 AES-GCM encrypted contact. Pending transcript/job/help state is encrypted and
 expires after 24 hours; voice review expires sooner. Delivery/update metadata

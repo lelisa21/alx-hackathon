@@ -107,6 +107,7 @@ function citationsFrom(
 
 function isValidCachedAnswer(
   cached: Reply | null,
+  question: string,
   lang: string,
   contentVersion: string,
   passagesById: Map<string, ScoredPassage> | undefined,
@@ -118,6 +119,7 @@ function isValidCachedAnswer(
     cached.lang === lang &&
     cached.contentVersion === contentVersion &&
     cached.text.trim() &&
+    !isAnswerEcho(cached.text, question) &&
     isAnswerInLanguage(cached.text, lang, {
       factsOnly:
         cached.citations.length > 0 &&
@@ -251,6 +253,7 @@ export async function ask(
   if (
     isValidCachedAnswer(
       cachedBeforeSearch,
+      turnRequest.text,
       turnRequest.lang,
       contentVersion,
       undefined,
@@ -296,6 +299,7 @@ export async function ask(
   if (
     isValidCachedAnswer(
       cached,
+      turnRequest.text,
       turnRequest.lang,
       contentVersion,
       passagesById,

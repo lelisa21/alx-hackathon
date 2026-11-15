@@ -15,7 +15,7 @@ recommended choice. Two small reference candidates for host evaluation are
 [Qwen2.5-0.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct) and
 [Qwen2.5-1.5B-Instruct](https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct);
 their publisher's model cards identify Apache-2.0 licenses. Neither has passed
-Dimts' Amharic, Afaan Oromoo, accessibility, hardware or latency acceptance.
+Bridgely' Amharic, Afaan Oromoo, accessibility, hardware or latency acceptance.
 Check the exact downloaded weight revision, quantization and license rather
 than treating a family name as a quality guarantee.
 
@@ -31,7 +31,7 @@ than treating a family name as a quality guarantee.
    Disable prompt logging; do not enable verbose request/body logs.
 
    ```powershell
-   llama-server -m C:\models\approved-model.gguf --alias dimts-local --host 127.0.0.1 --port 8080 --ctx-size 4096 --log-disable
+   llama-server -m C:\models\approved-model.gguf --alias Bridgely-local --host 127.0.0.1 --port 8080 --ctx-size 4096 --log-disable
    ```
 
 4. Check readiness without submitting learner data:
@@ -40,19 +40,19 @@ than treating a family name as a quality guarantee.
    Invoke-RestMethod http://127.0.0.1:8080/v1/models
    ```
 
-   Confirm that the response advertises `dimts-local`. If the endpoint reports
-   loading or a model error, fix that before starting Dimts. A successful
+   Confirm that the response advertises `Bridgely-local`. If the endpoint reports
+   loading or a model error, fix that before starting Bridgely. A successful
    model listing alone does not establish valid JSON output or language quality.
 
-5. In the shell that starts the Dimts API, configure the existing binding
+5. In the shell that starts the Bridgely API, configure the existing binding
    contract. Keep the normal database and host secrets from local setup.
 
    ```powershell
-   $env:DIMTS_AI_PROVIDER = 'local-model'
-   $env:DIMTS_AI_LADDER = 'local-model,offline'
-   $env:DIMTS_AI_MAX_TOKENS = '400'
-   $env:DIMTS_AI_TEMPERATURE = '0.1'
-   $env:DIMTS_AI_PROVIDERS = '[{"id":"local-model","adapter":"openai-compatible","endpoint":"http://127.0.0.1:8080/v1","model":"dimts-local","privacyClass":"local","enabled":true,"priority":10,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","glossary"],"evaluatedLanguages":[],"capabilities":{"languages":["en"],"modes":["extractive"],"modalities":["text"],"structuredOutput":true}}]'
+   $env:AI_PROVIDER = 'local-model'
+   $env:AI_LADDER = 'local-model,offline'
+   $env:AI_MAX_TOKENS = '400'
+   $env:AI_TEMPERATURE = '0.1'
+   $env:AI_PROVIDERS = '[{"id":"local-model","adapter":"openai-compatible","endpoint":"http://127.0.0.1:8080/v1","model":"Bridgely-local","privacyClass":"local","enabled":true,"priority":10,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","glossary"],"evaluatedLanguages":[],"capabilities":{"languages":["en"],"modes":["extractive"],"modalities":["text"],"structuredOutput":true}}]'
    pnpm api:start
    ```
 
@@ -114,7 +114,7 @@ data-retention or training policy; the host must check its actual account terms.
 ## Enable Gemini for a local test
 
 The checked-in Gemini adapter uses the Interactions API; the provider ID in
-`DIMTS_AI_PROVIDER`, the ladder, and the binding's `id` must all match. Keep the
+`AI_PROVIDER`, the ladder, and the binding's `id` must all match. Keep the
 API key in the server environment as `GEMINI_API_KEY`, referenced by
 `credentialRef`; never put it in widget markup, source control, or a chat.
 Use a newly rotated key, not one that has been disclosed.
@@ -124,9 +124,9 @@ configure the local `.env` with the following non-secret settings and enable the
 Gemini binding:
 
 ```dotenv
-DIMTS_AI_PROVIDER=gemini
-DIMTS_AI_LADDER=gemini,offline
-DIMTS_AI_PROVIDERS=[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":8000,"allowedDataClasses":["question","course-passage"],"evaluatedLanguages":[],"capabilities":{"languages":["en"],"modes":["extractive"],"modalities":["text"],"structuredOutput":true}}]
+AI_PROVIDER=gemini
+AI_LADDER=gemini,offline
+AI_PROVIDERS=[{"id":"gemini","adapter":"gemini","model":"gemini-3.6-flash","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":8000,"allowedDataClasses":["question","course-passage"],"evaluatedLanguages":[],"capabilities":{"languages":["en"],"modes":["extractive"],"modalities":["text"],"structuredOutput":true}}]
 ```
 
 Provide `GEMINI_API_KEY` through a local secret manager or an untracked,

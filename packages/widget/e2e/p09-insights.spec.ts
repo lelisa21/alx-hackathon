@@ -19,7 +19,7 @@ test("FR-INSIGHT-03 instructor page filters anonymous rows and downloads CSV", a
   await page.route("http://127.0.0.1:4173/p09-insights", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>Insights</title></head><body><dimts-insights data-api="${apiRoot}" data-language="en" data-session-token="instructor-session-token"></dimts-insights><script type="module" src="/dimts-widget.js"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Insights</title></head><body><bridgely-insights data-api="${apiRoot}" data-language="en" data-session-token="instructor-session-token"></bridgely-insights><script type="module" src="/Bridgely-widget.js"></script></body></html>`,
     }),
   );
   await page.route(`${apiRoot}/**`, async (route) => {
@@ -42,7 +42,7 @@ test("FR-INSIGHT-03 instructor page filters anonymous rows and downloads CSV", a
         contentType: "text/csv",
         headers: {
           "content-disposition":
-            'attachment; filename="dimts-insights-2026-11-14.csv"',
+            'attachment; filename="bridgely-insights-2026-11-14.csv"',
         },
         body: "topic_id,lang,question_count\nlesson-1,en,8\n",
       });
@@ -125,7 +125,7 @@ test("FR-INSIGHT-03 instructor page filters anonymous rows and downloads CSV", a
   await page.getByRole("button", { name: "Download CSV" }).click();
   // The page names the file with the current UTC date.
   expect((await download).suggestedFilename()).toBe(
-    `dimts-insights-${new Date().toISOString().slice(0, 10)}.csv`,
+    `bridgely-insights-${new Date().toISOString().slice(0, 10)}.csv`,
   );
   const protectedRequests = requests.filter(({ url }) =>
     new URL(url).pathname.endsWith("/insights"),

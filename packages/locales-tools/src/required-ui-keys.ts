@@ -176,7 +176,7 @@ export const requiredUiKeys: readonly string[] = [
   "answer.notfound",
   "answer.source",
   "app.name",
-  "chat.dimts",
+  "chat.Bridgely",
   "chat.log",
   "chat.messages",
   "chat.you",

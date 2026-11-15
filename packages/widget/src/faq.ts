@@ -24,7 +24,7 @@ interface FaqDocument {
   items: Omit<FaqItem, "lang" | "dir">[];
 }
 
-const cacheName = "dimts-faq-v1";
+const cacheName = "Bridgely-faq-v1";
 const memory = new Map<string, Response>();
 let epoch = 0;
 
@@ -190,7 +190,7 @@ export async function loadFaq(
         /* In-memory/offline use remains available. */
       }
     }
-    return result(document, response.headers.get("X-Dimts-Offline") === "1");
+    return result(document, response.headers.get("X-Bridgely-Offline") === "1");
   } catch (error) {
     options.signal?.throwIfAborted();
     if (controller.signal.aborted && previous) return result(previous, true);

@@ -21,7 +21,7 @@ const localesRoot = path.join(projectRoot, "locales");
 const temporaryRoots: string[] = [];
 
 async function copyLocales() {
-  const root = await mkdtemp(path.join(tmpdir(), "dimts-locales-"));
+  const root = await mkdtemp(path.join(tmpdir(), "Bridgely-locales-"));
   temporaryRoots.push(root);
   await cp(localesRoot, root, { recursive: true });
   return root;
@@ -90,6 +90,7 @@ describe("locale pack loading and translation", () => {
 
     expect(getVisiblePacks(packs).map((pack) => pack.meta.code)).toEqual([
       "en",
+      "ti",
     ]);
     expect(getVisiblePacks(packs, true).map((pack) => pack.meta.code)).toEqual([
       "am",
@@ -98,6 +99,17 @@ describe("locale pack loading and translation", () => {
       "om",
       "ti",
     ]);
+  });
+
+  it("offers the explicitly public-preview Tigrinya pack by default", () => {
+    const packs = loadPacks(localesRoot);
+    const visible = getVisiblePacks(packs).map((pack) => pack.meta.code);
+
+    expect(visible).toContain("ti");
+    expect(packs.get("ti")?.meta.public_preview).toBe(true);
+    expect(packs.get("ti")?.meta.status).toBe("draft");
+    expect(packs.get("ti")?.meta.name_native).toBe("ትግርኛ");
+    expect(packs.get("ti")?.ui["language.button"]).toContain("ቋንቋ");
   });
 
   it("offers Amharic or Tigrinya for Ethiopic and asks for a choice for Latin", () => {

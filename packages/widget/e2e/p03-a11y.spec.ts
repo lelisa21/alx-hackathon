@@ -20,7 +20,7 @@ async function installFixture(page: Page, code: string) {
   await page.route("http://127.0.0.1:4173/p03-a11y", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Accessibility fixture</title></head><body style="margin:0"><dimts-assistant data-api="http://api.test/v1" data-host-key="public-test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      body: '<!doctype html><html lang="en"><head><title>Accessibility fixture</title></head><body style="margin:0"><bridgely-assistant data-api="http://api.test/v1" data-host-key="public-test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
     }),
   );
   const citation = {
@@ -164,7 +164,7 @@ async function audit(page: Page, testInfo: TestInfo, screen: string) {
     ({ impact }) => impact === "critical" || impact === "serious",
   );
   expect(violations, `${screen}: axe`).toEqual([]);
-  const layout = await page.locator("dimts-assistant").evaluate((widget) => {
+  const layout = await page.locator("bridgely-assistant").evaluate((widget) => {
     const root = widget.shadowRoot!;
     const targets = [
       ...root.querySelectorAll<HTMLElement>("button,a,input,textarea,select"),

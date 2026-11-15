@@ -30,7 +30,7 @@ afterEach(() =>
 
 describe("P01 FR-LANG-04/05/16/17 locale runtime", () => {
   it("loads extensible data and handles missing/empty files without treating hidden staging folders as packs", () => {
-    const directory = mkdtempSync(path.join(tmpdir(), "dimts-runtime-"));
+    const directory = mkdtempSync(path.join(tmpdir(), "Bridgely-runtime-"));
     fixtureRoots.push(directory);
     writeFileSync(path.join(directory, "notes.txt"), "fixture");
     for (const name of [".draft-hidden", "without-meta", "ti"])

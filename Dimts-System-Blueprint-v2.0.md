@@ -1,6 +1,6 @@
-# Dimts System Blueprint, Version 2.0 (Unified; architecture revision 2.1)
+# Bridgely System Blueprint, Version 2.0 (Unified; architecture revision 2.1)
 
-Product: **Dimts**, the Track 3 module (multilingual voice and text tutor, human help, career gateway) for the Digital Bridge Accessibility Hackathon, 14 and 15 November 2026.
+Product: **Bridgely**, the Track 3 module (multilingual voice and text tutor, human help, career gateway) for the Digital Bridge Accessibility Hackathon, 14 and 15 November 2026.
 Date: 11 November 2026. Status: **authoritative**. Supersedes SRS Parts I to III wherever they differ. Architecture revision 2.1 clarifies portability and dynamic integration requirements; it does not claim that an unconfigured installation can discover private platform data without an authorized connector. The versioned filename remains stable for existing project links.
 
 ---
@@ -54,7 +54,7 @@ If this blueprint and the SRS disagree, this blueprint wins. If this blueprint a
 
 > A person in Ethiopia who has never used a learning platform can ask a question in their own language, by voice or text, get a short answer taken only from their course with a visible source, and reach a real person in one tap, with every control usable by someone who cannot see, hear, read well or afford data.
 
-Dimts is a **plug-in module**, not an app. A host platform (first the ALX Savanna starter, then job boards and training institutions) adds it with one script tag, calls it by REST, or launches it through LTI 1.3.
+Bridgely is a **plug-in module**, not an app. A host platform (first the ALX Savanna starter, then job boards and training institutions) adds it with one script tag, calls it by REST, or launches it through LTI 1.3.
 
 ### 1.2 Win conditions
 
@@ -110,7 +110,7 @@ Dimts is a **plug-in module**, not an app. A host platform (first the ALX Savann
  Telegram -------+                   |  script tag | REST | LTI         Teacher (insights)
  SMS (simulator)-+                   v                                 Admin (CLI scripts)
                  |        +---------------------------------------------+
-                 +------->|                   DIMTS                      |
+                 +------->|                   Bridgely                      |
                           |  Channel adapters -> Conversation Engine     |
                           |        |                  |                  |
                           |   Grounding         Human Help service       |
@@ -157,7 +157,7 @@ These requirements are implementable through adapters, capability declarations, 
 
 | ID | Package | Responsibility | Owner team |
 | --- | --- | --- | --- |
-| C1 | `widget` | Web component `<dimts-assistant>`: chat, language, mic, help, settings, flows | Experience |
+| C1 | `widget` | Web component `<bridgely-assistant>`: chat, language, mic, help, settings, flows | Experience |
 | C2 | `api` | Reference HTTP/WebSocket adapter, auth, OpenAPI, internal endpoints, wiring of adapters | Connect |
 | C3 | `engine` | Ask pipeline, rules, ports, types | Core |
 | C4 | `grounding` | Ingest, normalise, trigram search, confidence, citations | Core |
@@ -267,10 +267,10 @@ its configured glossary or multilingual model supports that pair.
 | Actor | Credential | Scope |
 | --- | --- | --- |
 | Learner session | `sessionId` plus bearer `sessionToken` (32 random bytes, only its SHA-256 stored) | Own session only |
-| Widget host | `data-host-key` (a **public identifier**, not a secret) restricted by `DIMTS_HOST_ORIGINS` | Create sessions from allowed origins |
-| Server-to-server host | Secret host key in `X-Dimts-Key`, stored hashed | Job import, insights |
+| Widget host | `data-host-key` (a **public identifier**, not a secret) restricted by `HOST_ORIGINS` | Create sessions from allowed origins |
+| Server-to-server host | Secret host key in `X-Bridgely-Key`, stored hashed | Job import, insights |
 | Helper | Helper token, hashed in `helper` table, exchanged for an 8-hour JWT | Queue, claim, relay |
-| Scheduler | `DIMTS_CRON_SECRET` bearer, constant-time compare | `/v1/internal/*` |
+| Scheduler | `CRON_SECRET` bearer, constant-time compare | `/v1/internal/*` |
 | Telegram | Webhook secret token header | `/v1/telegram/webhook` |
 | LTI platform | Signed `id_token` validated against platform JWKS | Launch |
 
@@ -284,7 +284,7 @@ Rules: all input validated by Zod with unknown fields rejected; output rendered 
 | Messages | `message` | Text deleted first | With session |
 | Help chat and pictures | `help_*` | Cascade delete | Session end or 24 h; pictures 2 h |
 | Telegram chat id, phone | `subscription.contact_enc` | AES-256-GCM, consent first | Until Stop, then deleted within 1 minute |
-| Session link to chat or phone | HMAC with `DIMTS_HASH_KEY` | One-way | With session |
+| Session link to chat or phone | HMAC with `HASH_KEY` | One-way | With session |
 | Accommodation request | `accommodation_request` | Choices only, no diagnosis field | 30 days after event or on delete |
 | Consent | `consent_log` | Time, channel, notice version, purpose; no content | Until event deletion |
 | Aggregates | `insight_aggregate`, `feedback_counter` | No text, no session id, groups under 5 as Other | Kept |
@@ -309,8 +309,8 @@ it already publishes a sitemap.
 For private platforms, the host adds a small trusted backend adapter that maps
 its existing content service/store to `ContentSource` and `HostAuth`. That
 adapter must select only content that is authorized and appropriate to every
-learner using that Dimts source. Per-learner or role-specific ACL filtering is
-not yet implemented; such content must not be added to a shared source. Dimts
+learner using that Bridgely source. Per-learner or role-specific ACL filtering is
+not yet implemented; such content must not be added to a shared source. Bridgely
 does not guess platform APIs or credentials. The adapter provides stable IDs,
 revisions, metadata, deletions, and optionally authenticated change hints.
 Hints only trigger authoritative fetches; they are never trusted as lesson
@@ -336,9 +336,9 @@ Synchronization behavior:
 
 The host adapter owns access to source credentials and native notification
 authentication. It may read existing host services or databases directly;
-Dimts does not expose a generic platform API endpoint or public webhook
+Bridgely does not expose a generic platform API endpoint or public webhook
 protocol. The host passes the adapter to the application composition root.
-After startup, Dimts performs an initial full sync and scheduled
+After startup, Bridgely performs an initial full sync and scheduled
 reconciliation; an authenticated host event may call the manager's internal
 notification hook to request an earlier refresh. Every indexed answer is
 still subject to the grounding confidence floor and citation gate.
@@ -364,7 +364,7 @@ still subject to the grounding confidence floor and citation gate.
 | D13 | Telegram uses webhook on hosted; long polling allowed locally | FR-TG-08 |
 | D14 | Screen-share pictures stored in `help_image` (2 MB, 2 h); no files on disk. FR-VOICE-11 (audio cache files) removed | FR-HELP-12, FR-VOICE-11 |
 | D15 | Auth model in section 3.3 (session token, helper token, public widget key, cron secret). Gap in SRS: "session or helper token" was undefined | Section 9.1 of SRS |
-| D16 | Two separate keys: `DIMTS_ENC_KEY` (encrypt contacts) and `DIMTS_HASH_KEY` (HMAC pseudonymisation) | 19.12 reused one secret |
+| D16 | Two separate keys: `ENC_KEY` (encrypt contacts) and `HASH_KEY` (HMAC pseudonymisation) | 19.12 reused one secret |
 | D17 | Provider modes: `extractive` is the forced mode for any (provider, language) pair that has not passed the evaluation; am and om default to extractive | FR-AI-11 |
 | D18 | Language pack loaded at startup; UI strings served per language with ETag; `lang:check` enforces live status; draft hidden unless `?lang_preview=1` | FR-LANG-01, 10 |
 | D19 | The canonical SMS segment calculator is SRS 22.3 plus a per-language sentence splitter for shortening; the 19.13 version is superseded | 19.13 |
@@ -373,7 +373,7 @@ still subject to the grounding confidence floor and citation gate.
 | D22 | Answer cache (FR-AI-08) lives in Postgres `answer_cache` and is the first cut after the cut line | FR-AI-08 |
 | D23 | Section numbering restarts here; SRS section numbers are no longer used in new tickets, requirement IDs are | Duplicate Part II numbering |
 | D24 | Vendor integrations are registered adapters behind capability-declaring ports. The domain/engine uses provider IDs and declared capabilities, never vendor-specific branches. OpenAI-compatible transport is one adapter, not the universal provider contract | AR-01, FR-AI-01 to 03 |
-| D25 | Public discovery is explicit and sitemap-bounded; private discovery uses a host-owned adapter scoped to shareable content. Dimts performs no arbitrary crawl and infers no credentials | AR-03, AR-05, FR-INT-08 |
+| D25 | Public discovery is explicit and sitemap-bounded; private discovery uses a host-owned adapter scoped to shareable content. Bridgely performs no arbitrary crawl and infers no credentials | AR-03, AR-05, FR-INT-08 |
 | D26 | Source change notifications are authenticated adapter-owned hints; scheduled reconciliation is authoritative for repairing missed changes. Publish complete index generations atomically and retain the prior generation on failed sync | AR-04, FR-TUTOR-12 |
 | D27 | Per-question language detection may choose the reply language at high confidence without mutating saved preference. Unknown/ambiguous detection falls back explicitly. Cross-language retrieval is capability-gated and evaluated | AR-06, AR-07, FR-LANG-07, FR-TUTOR-03, 07, 08 |
 | D28 | TypeScript/Express/PostgreSQL are this repository's reference stack only. Stable ports, OpenAPI/JSON schemas, and conformance fixtures are the portability boundary; another stack must implement and pass them | AR-02, NFR-MAINT-01 |
@@ -390,7 +390,7 @@ still subject to the grounding confidence floor and citation gate.
 
 | Term | Meaning |
 | --- | --- |
-| Learner | Person using Dimts (never "user" in UI text) |
+| Learner | Person using Bridgely (never "user" in UI text) |
 | Helper | Human support person (never "agent" in UI; "agent" means AI coding agent only) |
 | Session | Pseudonymous conversation container |
 | Passage | Chunk of course or job text, at most about 300 words, with url and anchor |
@@ -401,7 +401,7 @@ still subject to the grounding confidence floor and citation gate.
 | Mode | `generative` (model writes) or `extractive` (engine quotes best sentences) |
 | Ladder | Ordered provider fallback |
 | Gate | Final accessibility pass/fail test |
-| Host | Platform embedding Dimts |
+| Host | Platform embedding Bridgely |
 
 ### 5.2 Entities
 
@@ -558,7 +558,7 @@ language before the system claims full support.
 Errors: `application/problem+json` with `type, title, status, code, messageKey`; the UI shows `ui.yaml[messageKey]`, never the raw title. Codes: `invalid_request` 400, `unauthorized` 401, `forbidden` 403, `not_found` 404, `conflict` 409, `rate_limited` 429, `payload_too_large` 413, `internal` 500. An AI failure is never a 5xx: it returns a `notfound` Reply.
 
 For FR-HELP-01 and FR-HELP-02, activating Help me now opens the preview; the
-request is sent only after the learner confirms. `DIMTS_HELPER_HOURS`, when
+request is sent only after the learner confirms. `HELPER_HOURS`, when
 set, is a JSON array of UTC intervals:
 `[{"day":1,"start":"09:00","end":"17:00"}]`. `day` uses ISO weekdays
 (Monday=1 through Sunday=7), and times use 24-hour `HH:mm`. Intervals must
@@ -779,14 +779,14 @@ independent ports.
 The reference implementation uses validated deployment configuration for
 provider bindings, source registrations, detector selection, sync/reconcile
 intervals, confidence policy, allowed host origins, retention, and secret
-references. These values are not compiled into domain logic. `DIMTS_AI_PROVIDER`
-and `DIMTS_AI_LADDER` select arbitrary registered IDs;
-`DIMTS_AI_PROVIDERS` declares adapter IDs, endpoints, models, capabilities,
+references. These values are not compiled into domain logic. `AI_PROVIDER`
+and `AI_LADDER` select arbitrary registered IDs;
+`AI_PROVIDERS` declares adapter IDs, endpoints, models, capabilities,
 privacy classes, allowed data classes, priorities, timeouts, and credential
-references. `DIMTS_AI_MAX_TOKENS` and `DIMTS_AI_TEMPERATURE` set bounded
+references. `AI_MAX_TOKENS` and `AI_TEMPERATURE` set bounded
 generation defaults. Public source registrations use
-`DIMTS_PUBLIC_SOURCES` (approved sitemap entries with `id`, `sitemapUrl`,
-`language`, and optional `pageSize`). `DIMTS_SOURCE_SYNC_INTERVAL_MS`
+`PUBLIC_SOURCES` (approved sitemap entries with `id`, `sitemapUrl`,
+`language`, and optional `pageSize`). `SOURCE_SYNC_INTERVAL_MS`
 configures scheduled reconciliation (default 300,000; valid range 1,000 to
 86,400,000). Private platforms use host-owned `ContentSource`/`HostAuth`
 adapters passed through `buildApp({ sourceSync })`; PostgreSQL is the default
@@ -799,11 +799,11 @@ and a git-ignored local `.env`;
 provider credentials, source credentials, and webhook verification secrets
 never appear in logs or client configuration.
 
-The API also requires `DIMTS_ENC_KEY`, `DIMTS_HASH_KEY`,
-`DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`. `DIMTS_ENC_KEY` and
-`DIMTS_HASH_KEY` are distinct 32-byte base64 values;
-`DIMTS_JWT_SECRET` is at least 32 characters and different from both; and
-`DIMTS_CRON_SECRET` is at least 24 characters. Startup fails when required
+The API also requires `ENC_KEY`, `HASH_KEY`,
+`JWT_SECRET`, and `CRON_SECRET`. `ENC_KEY` and
+`HASH_KEY` are distinct 32-byte base64 values;
+`JWT_SECRET` is at least 32 characters and different from both; and
+`CRON_SECRET` is at least 24 characters. Startup fails when required
 secrets are missing or invalid. These constraints implement NFR-SEC-12.
 
 ## 8. Language system
@@ -939,7 +939,7 @@ Aggregates by topic (lesson and section from citations), language, period, notfo
 
 ### 10.8 Integration (C12 and L1 to L3)
 
-L1 script tag (`data-host-key, data-lang, data-theme, data-position, data-simple, data-api`), async, shadow root, no globals except `window.Dimts` (`open, close, setLanguage, escalate`; events `dimts:opened, dimts:closed, dimts:language, dimts:escalated`), strict-CSP friendly, clean uninstall. L2 REST with generated OpenAPI. L3 LTI 1.3 (state, nonce, signature, issuer, audience, expiry all validated with negative tests; Learner opens chat, Instructor opens insights) and schema.org/JobPosting import. Host adapters: file-based first, Savanna when known.
+L1 script tag (`data-host-key, data-lang, data-theme, data-position, data-simple, data-api`), async, shadow root, no globals except `window.Bridgely` (`open, close, setLanguage, escalate`; events `Bridgely:opened, Bridgely:closed, Bridgely:language, Bridgely:escalated`), strict-CSP friendly, clean uninstall. L2 REST with generated OpenAPI. L3 LTI 1.3 (state, nonce, signature, issuer, audience, expiry all validated with negative tests; Learner opens chat, Instructor opens insights) and schema.org/JobPosting import. Host adapters: file-based first, Savanna when known.
 
 ## 11. Implementation starter
 
@@ -999,7 +999,7 @@ export async function requireSession(req: Request, res: Response, next: NextFunc
 ### 11.3 Bootstrap commands
 
 ```text
-git init dimts && cd dimts && corepack enable
+git init Bridgely && cd Bridgely && corepack enable
 mkdir -p packages/{widget,api,engine,grounding,ai,voice,telegram,sms,help,jobs,insights,lti,locales-tools}
 mkdir -p locales/{en,am,om} content/{sample-course,sample-jobs} tests/{e2e,a11y,grounding,lang} docs examples scripts
 printf 'packages:\n  - "packages/*"\n' > pnpm-workspace.yaml
@@ -1016,7 +1016,7 @@ TypeScript for every package: `strict`, `noUncheckedIndexedAccess`, `exactOption
 ### 11.4 Repository layout (final)
 
 ```text
-dimts/
+Bridgely/
   README.md  AGENTS.md  DECISIONS.md  CHANGELOG.md  render.yaml  docker-compose.yml  Makefile
   .github/workflows/  ci.yml  cron.yml  keepwarm.yml
   packages/  widget api engine grounding ai voice telegram sms help jobs insights lti locales-tools
@@ -1040,7 +1040,7 @@ dimts/
 | --- | --- | --- | --- |
 | **Core** | Back-end lead | Make every answer correct, cited and degradable | engine, grounding, ai, jobs, insights (data) |
 | **Experience** | Front-end lead | Make every screen usable by the persona who needs it most | widget, voice, simulator UI, helper console UI, insights page |
-| **Connect** | Channels lead | Make Dimts reachable and installable everywhere, and keep it running free | api (platform), help (server), telegram, lti, infra |
+| **Connect** | Channels lead | Make Bridgely reachable and installable everywhere, and keep it running free | api (platform), help (server), telegram, lti, infra |
 | **Language and Services** | Language lead | Make three languages feel native; own the SMS route | locales, locales-tools, sms, glossary, eval questions, voice test |
 | **Co-design** | Co-designer | Acceptance authority: nothing UI ships until they have tried it | gate protocol, COCREATION_LOG |
 
@@ -1095,7 +1095,7 @@ Each charter is the complete brief for a team and its agents.
 
 ### 13.2 Experience (Front-end lead)
 
-**Owns:** `widget, voice`, simulator and console and insights pages. **Provides:** `<dimts-assistant>`, `window.Dimts`, screens S1 to S15. **Consumes:** REST and WS contracts, UI strings per language.
+**Owns:** `widget, voice`, simulator and console and insights pages. **Provides:** `<bridgely-assistant>`, `window.Bridgely`, screens S1 to S15. **Consumes:** REST and WS contracts, UI strings per language.
 **Deliverables:** tokens, welcome, chat with live region and focus rules, settings, mic and review, Read aloud, help and share UI, guided flows, Simple mode, offline banner and waking message, service worker, a11y test suite, `WCAG_REPORT.md`.
 **Constraints:** 60 KB initial JS, no third-party requests, logical CSS, no ARIA where HTML suffices, every icon beside text, never one sense.
 **First three tasks:** (1) `tokens.css`, `dm-welcome`, `dm-chat` with focus and live-region tests against a mocked API; (2) language picker with spoken names and lazy Ethiopic font; (3) `pnpm a11y` over screens x languages x themes in CI.
@@ -1124,9 +1124,9 @@ Runs the main-task protocol (ten steps) under each of five conditions, owns pass
 
 ### 14.1 Day-zero setup (do before kick-off; no card needed anywhere)
 
-1. **Neon**: project `dimts`, Free plan, region near Render; copy pooled and direct strings; cap compute at the smallest size; run `pnpm migrate`; seed; create branch `demo-seed`.
+1. **Neon**: project `Bridgely`, Free plan, region near Render; copy pooled and direct strings; cap compute at the smallest size; run `pnpm migrate`; seed; create branch `demo-seed`.
 2. **Render**: connect the repo, apply `render.yaml` (API web service on the free plan, static site for widget and consoles); set secrets; health check path `/v1/health`.
-3. **GitHub**: public repo; secrets `DIMTS_API_URL`, `DIMTS_CRON_SECRET`; workflows `ci`, `cron` (retention 06:00 UTC, alerts 07:30 UTC), `keepwarm` (every 10 minutes, 05:00 to 16:50 UTC, only 14 and 15 November).
+3. **GitHub**: public repo; secrets `API_URL`, `CRON_SECRET`; workflows `ci`, `cron` (retention 06:00 UTC, alerts 07:30 UTC), `keepwarm` (every 10 minutes, 05:00 to 16:50 UTC, only 14 and 15 November).
 4. **Telegram**: create bot with BotFather, set webhook with secret token after every deploy.
 5. **TURN**: free Metered account; key stored server side only.
 6. **Free AI** (optional): pick a provider that states it does not train on API data; offline stays default.
@@ -1186,7 +1186,7 @@ CI on every push: install, typecheck, lint (including no-literal-strings and log
 ### 17.1 One shared rulebook: AGENTS.md (repository root)
 
 ```text
-# Dimts agent rules
+# Bridgely agent rules
 Read docs/BLUEPRINT sections 0, 4, 7 and your team context pack before coding. ONE ticket at a time.
 
 1. Quote the requirement IDs and decision IDs you implement. After coding, list the acceptance criteria you verified and how.
@@ -1377,7 +1377,7 @@ Six slides, none over 12 words: the person; the problem we tested; the live demo
 | Trigrams, candidate SQL, confidence | SRS Part III 33.3 | 19.6 FTS code superseded |
 | SMS segments | SRS 22.3 | Add per-language sentence splitter to `fitToBudget`; 19.13 superseded |
 | Ladder | SRS 23.3 | Keep 60 s cool-down; mode forcing per D17 |
-| Pool, retry, migrations, seal, retention SQL | SRS Part III 33.4 to 33.6 | Use `DIMTS_HASH_KEY` for HMAC, separate from `DIMTS_ENC_KEY` |
+| Pool, retry, migrations, seal, retention SQL | SRS Part III 33.4 to 33.6 | Use `HASH_KEY` for HMAC, separate from `ENC_KEY` |
 | Express app, server, ask route, internal routes, Telegram mount | SRS Part III 34 | Add `requireSession` from 11.2 to protected routes |
 | Locale loader and checker | SRS 23.1 and 19.5 | Loader 23.1; checker 19.5 (add check that no live pack has `TODO` in distress words) |
 | Mic state machine, tones | SRS 23.6 with D09 tones | |
@@ -1386,7 +1386,7 @@ Six slides, none over 12 words: the person; the problem we tested; the live demo
 | Ws relay role checks | SRS 19.14 relay | TURN credential code there is superseded by Metered fetch |
 | LTI validation | SRS 19.16 | |
 | Ethiopian date formatter | SRS 19.15 | Test 14 Nov 2026 = month 3, day 5, year 2019 |
-| Telegram bot | SRS 19.12 | Hash with `DIMTS_HASH_KEY`; webhook mount per Part III 34.7 |
+| Telegram bot | SRS 19.12 | Hash with `HASH_KEY`; webhook mount per Part III 34.7 |
 | Compose, CI, Render, workflows | Part III 35 | Compose `--profile local` |
 | Microcopy | `locales/*/ui.yaml` after Language lead review | Earlier tables are drafts; keys are fixed, wording is not |
 | Welcome and settings strings | Keys in earlier microcopy tables plus `waking.message`, `who.you`, `welcome.ready`, `month.1..13`, `gmonth.1..12`, `error.*`, `limit.reached`, `smalltalk.*`, `help.offer`, `distress.message` | `lang:check` lists any missing key |

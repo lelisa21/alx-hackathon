@@ -3,8 +3,8 @@ import { describe, expect, it, vi } from "vitest";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import type { ApiRepository } from "../src/types.js";
-import { SmsError } from "@dimts/sms";
-import { loadPacks } from "@dimts/locales-tools";
+import { SmsError } from "@bridgely/sms";
+import { loadPacks } from "@bridgely/locales-tools";
 import { resolve } from "node:path";
 import { generateOpenApiYaml } from "../src/openapi.js";
 import { SmsInboundRequestSchema } from "../src/sms-schemas.js";
@@ -13,11 +13,11 @@ const secret = "sms-inbound-secret-is-separate-and-long";
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "test-jwt-secret-is-at-least-32-characters",
-  DIMTS_CRON_SECRET: "test-cron-secret-at-least-24-characters",
-  DIMTS_SMS_GATEWAY_SECRET: secret,
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "test-jwt-secret-is-at-least-32-characters",
+ CRON_SECRET: "test-cron-secret-at-least-24-characters",
+ SMS_GATEWAY_SECRET: secret,
 };
 const body = { id: "synthetic-inbound-1", from: "+251900000001", text: "HELP" };
 function setup(config = parseConfig(environment)) {
@@ -48,7 +48,7 @@ describe("P07 gateway boundary FR-SMS-01/02/09", () => {
     await request(app).post("/v1/sms/inbound").send(body).expect(401);
     await request(app)
       .post("/v1/sms/inbound")
-      .set("Authorization", `Bearer ${environment.DIMTS_CRON_SECRET}`)
+      .set("Authorization", `Bearer ${environment.CRON_SECRET}`)
       .send(body)
       .expect(401);
     expect(inbound).not.toHaveBeenCalled();
@@ -87,7 +87,7 @@ describe("P07 gateway boundary FR-SMS-01/02/09", () => {
   );
   it("fails closed without the inbound secret", async () => {
     const { app, inbound } = setup(
-      parseConfig({ ...environment, DIMTS_SMS_GATEWAY_SECRET: "" }),
+      parseConfig({ ...environment,SMS_GATEWAY_SECRET: "" }),
     );
     await request(app)
       .post("/v1/sms/inbound")
@@ -98,15 +98,15 @@ describe("P07 gateway boundary FR-SMS-01/02/09", () => {
   });
   it("validates mode, separate secrets and paired HTTPS operator/callback settings", () => {
     expect(() =>
-      parseConfig({ ...environment, DIMTS_SMS_MODE: "fake" }),
+      parseConfig({ ...environment,SMS_MODE: "fake" }),
     ).toThrow();
     expect(() =>
       parseConfig({
         ...environment,
-        DIMTS_SMS_GATEWAY_SECRET: environment.DIMTS_CRON_SECRET,
+       SMS_GATEWAY_SECRET: environment.CRON_SECRET,
       }),
     ).toThrow();
-    for (const prefix of ["DIMTS_SMS_GATEWAY", "DIMTS_SMS_CALLBACK"]) {
+    for (const prefix of ["SMS_GATEWAY", "SMS_CALLBACK"]) {
       const credential = prefix.endsWith("GATEWAY") ? "TOKEN" : "SECRET";
       expect(() =>
         parseConfig({
@@ -181,20 +181,20 @@ describe("P07 gateway boundary FR-SMS-01/02/09", () => {
   );
   it("requires operator credentials in gateway mode and bounds the daily cap", () => {
     expect(() =>
-      parseConfig({ ...environment, DIMTS_SMS_MODE: "gateway" }),
+      parseConfig({ ...environment,SMS_MODE: "gateway" }),
     ).toThrow();
     for (const limit of [0, 1001, 1.5])
       expect(() =>
-        parseConfig({ ...environment, DIMTS_SMS_DAILY_LIMIT: limit }),
+        parseConfig({ ...environment,SMS_DAILY_LIMIT: limit }),
       ).toThrow();
-    expect(parseConfig(environment).DIMTS_SMS_DAILY_LIMIT).toBe(20);
+    expect(parseConfig(environment).SMS_DAILY_LIMIT).toBe(20);
     expect(
       parseConfig({
         ...environment,
-        DIMTS_SMS_MODE: "gateway",
-        DIMTS_SMS_GATEWAY_URL: "https://relay.example/sms",
-        DIMTS_SMS_GATEWAY_TOKEN: "separate-operator-token-at-least-24",
-      }).DIMTS_SMS_MODE,
+       SMS_MODE: "gateway",
+       SMS_GATEWAY_URL: "https://relay.example/sms",
+       SMS_GATEWAY_TOKEN: "separate-operator-token-at-least-24",
+      }).SMS_MODE,
     ).toBe("gateway");
   });
   it("counts inbound Unicode code points and documents the canonical route", () => {

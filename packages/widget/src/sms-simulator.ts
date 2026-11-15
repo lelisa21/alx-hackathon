@@ -1,6 +1,6 @@
 import { LitElement, html, nothing, unsafeCSS } from "lit";
-import { countSms, normalizeForSms } from "@dimts/sms/segments";
-import packs from "virtual:dimts-simulator-locales";
+import { countSms, normalizeForSms } from "@bridgely/sms/segments";
+import packs from "virtual:Bridgely-simulator-locales";
 import styles from "./sms-simulator.css?inline";
 import { messageFor } from "./messages.js";
 import {
@@ -18,7 +18,7 @@ interface PendingInbound {
 }
 
 /** Standalone operator simulator: all credentials, contact and text are ephemeral. */
-export class DimtsSmsSimulator extends LitElement {
+export class BridgelySmsSimulator extends LitElement {
   static override properties = {
     api: { state: true },
     secret: { state: true },
@@ -389,4 +389,4 @@ export class DimtsSmsSimulator extends LitElement {
   }
 }
 
-customElements.define("dimts-sms-simulator", DimtsSmsSimulator);
+customElements.define("bridgely-sms-simulator", BridgelySmsSimulator);

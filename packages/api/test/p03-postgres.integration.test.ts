@@ -8,12 +8,12 @@ import {
   replaceContent,
   sourceHash,
   toPassages,
-} from "@dimts/grounding";
-import { loadPacks } from "@dimts/locales-tools";
+} from "@bridgely/grounding";
+import { loadPacks } from "@bridgely/locales-tools";
 import { applyMigrations } from "../src/db/migrate.js";
 import { buildReviewedFaq } from "../src/faq.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 describe.skipIf(!databaseUrl)("P03 PostgreSQL reviewed FAQ publication", () => {
   let admin: pg.Client;
   let pool: pg.Pool;

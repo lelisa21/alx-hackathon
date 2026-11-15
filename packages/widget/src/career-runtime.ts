@@ -1,6 +1,6 @@
 import { html, nothing } from "lit";
-import { MAX_RECORDING_MS } from "@dimts/voice";
-import type { SpeechToText } from "@dimts/voice";
+import { MAX_RECORDING_MS } from "@bridgely/voice";
+import type { SpeechToText } from "@bridgely/voice";
 import type { Language } from "./index.js";
 import { voiceRuntime, type VoiceContext } from "./voice-runtime.js";
 
@@ -193,11 +193,16 @@ export function safeProgress(value: Record<string, unknown>): Progress {
   };
 }
 function key(context: CareerContext): string {
-  return `dimts.career.${context.apiRoot}.${context.hostKey}`;
+  return `Bridgely.career.${context.apiRoot}.${context.hostKey}`;
 }
 function stored(context: CareerContext): Progress | undefined {
   try {
-    const raw = localStorage.getItem(key(context));
+    const currentKey = key(context);
+    const previousKey = currentKey.replace(/^Bridgely\./u, "dimts.");
+    const raw =
+      localStorage.getItem(currentKey) ?? localStorage.getItem(previousKey);
+    if (raw && !localStorage.getItem(currentKey))
+      localStorage.setItem(currentKey, raw);
     return raw
       ? safeProgress(JSON.parse(raw) as Record<string, unknown>)
       : undefined;
@@ -217,7 +222,9 @@ function persist(context: CareerContext): void {
 function remove(context: CareerContext): void {
   state(context).saved = undefined;
   try {
-    localStorage.removeItem(key(context));
+    const currentKey = key(context);
+    localStorage.removeItem(currentKey);
+    localStorage.removeItem(currentKey.replace(/^Bridgely\./u, "dimts."));
   } catch {
     /* Storage may be disabled. */
   }

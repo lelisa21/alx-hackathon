@@ -20,7 +20,7 @@ import {
 } from "../../api/src/jobs-delivery.js";
 import { createCareerRenderers } from "../../api/src/jobs-format.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 const packs = loadPacks(resolve("locales"));
 const ui = packs.get("en")!.ui;
 const relaySecret = "synthetic-live-relay-secret-long-enough";
@@ -29,13 +29,13 @@ const hostKey = "synthetic-live-widget-public-key";
 const importerKey = "synthetic-live-importer-secret-key";
 const environment = {
   NODE_ENV: "test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "synthetic-live-jwt-secret-long-enough-characters",
-  DIMTS_CRON_SECRET: cronSecret,
-  DIMTS_JOBS_RELAY_URL: "https://synthetic-live-host.example/delivery",
-  DIMTS_JOBS_RELAY_SECRET: relaySecret,
-  DIMTS_JOBS_RELAY_CHANNELS: "sms",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "synthetic-live-jwt-secret-long-enough-characters",
+ CRON_SECRET: cronSecret,
+ JOBS_RELAY_URL: "https://synthetic-live-host.example/delivery",
+ JOBS_RELAY_SECRET: relaySecret,
+ JOBS_RELAY_CHANNELS: "sms",
 };
 
 async function listen(server: Server): Promise<string> {
@@ -58,7 +58,7 @@ async function close(server: Server | undefined): Promise<void> {
 }
 
 test.describe("P06 live web career contract", () => {
-  test.skip(!databaseUrl, "Requires an isolated DIMTS_TEST_DATABASE_URL");
+  test.skip(!databaseUrl, "Requires an isolatedTEST_DATABASE_URL");
   let admin: ReturnType<typeof createPool>;
   let pool: ReturnType<typeof createPool>;
   let host: Server;
@@ -82,7 +82,7 @@ test.describe("P06 live web career contract", () => {
           "Cache-Control": "no-store",
         });
         response.end(
-          `<!doctype html><html lang="en"><head><title>Live career test</title></head><body><dimts-assistant data-api="${apiUrl}" data-host-key="${hostKey}"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>`,
+          `<!doctype html><html lang="en"><head><title>Live career test</title></head><body><bridgely-assistant data-api="${apiUrl}" data-host-key="${hostKey}"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>`,
         );
         return;
       }
@@ -120,7 +120,7 @@ test.describe("P06 live web career contract", () => {
     const config = parseConfig({
       ...environment,
       DATABASE_URL: scopedUrl.toString(),
-      DIMTS_HOST_ORIGINS: fixtureOrigin,
+     HOST_ORIGINS: fixtureOrigin,
     });
     pool = createPool(config);
     const migrationClient = await pool.connect();
@@ -168,8 +168,8 @@ test.describe("P06 live web career contract", () => {
     );
     const service = new JobsService({
       pool,
-      encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
-      hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
+      encryptionKey: Buffer.from(config.ENC_KEY, "base64"),
+      hashKey: Buffer.from(config.HASH_KEY, "base64"),
       delivery,
       ...createCareerRenderers(packs),
     });
@@ -219,7 +219,7 @@ test.describe("P06 live web career contract", () => {
       accommodationsOffered: ["written_questions"],
     };
     const imported = await request.post(`${apiUrl}/jobs/import`, {
-      headers: { "X-Dimts-Key": importerKey },
+      headers: { "X-Bridgely-Key": importerKey },
       data: { lang: "en", postings: { "@graph": [posting] } },
     });
     expect(imported.status()).toBe(200);
@@ -276,7 +276,7 @@ test.describe("P06 live web career contract", () => {
       await expect
         .poll(
           () =>
-            page.evaluate(() => Boolean(customElements.get("dimts-assistant"))),
+            page.evaluate(() => Boolean(customElements.get("bridgely-assistant"))),
           {
             timeout: 15000,
             message: "Built widget registers its custom element",
@@ -293,9 +293,9 @@ test.describe("P06 live web career contract", () => {
       await language.click();
     } catch (error) {
       const structure = await page.evaluate(() => ({
-        hostCount: document.querySelectorAll("dimts-assistant").length,
+        hostCount: document.querySelectorAll("bridgely-assistant").length,
         shadowChildren:
-          document.querySelector("dimts-assistant")?.shadowRoot
+          document.querySelector("bridgely-assistant")?.shadowRoot
             ?.childElementCount ?? 0,
         scripts: Array.from(
           document.scripts,

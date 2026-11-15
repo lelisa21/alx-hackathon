@@ -3,9 +3,9 @@ import { resolve } from "node:path";
 import pg from "pg";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { applyMigrations } from "../../api/src/db/migrate.js";
-import { ContactCipher } from "@dimts/jobs";
+import { ContactCipher } from "@bridgely/jobs";
 import { PostgresTelegramStore } from "../src/store.js";
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 const schema = "telegram_" + randomUUID().replaceAll("-", "");
 describe.skipIf(!url)("P08 durable encrypted Telegram state", () => {
   let pool: pg.Pool;

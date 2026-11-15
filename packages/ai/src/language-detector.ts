@@ -1,6 +1,6 @@
 import { francAll } from "franc";
 import { iso6393 } from "iso-639-3";
-import type { LanguageDetection, LanguageDetector } from "@dimts/engine";
+import type { LanguageDetection, LanguageDetector } from "@bridgely/engine";
 
 export class FrancLanguageDetector implements LanguageDetector {
   private readonly languageTags = new Map<string, string>();

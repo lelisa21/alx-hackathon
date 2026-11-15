@@ -1,6 +1,6 @@
 # Scheduled jobs for the hosted deployment (blueprint 3.4 and 14.1).
-# Requires repository secrets DIMTS_API_URL (for example
-# https://dimts-api.onrender.com) and DIMTS_CRON_SECRET. Skips when unset.
+# Requires repository secrets API_URL (for example
+# https://Bridgely-api.onrender.com) and CRON_SECRET. Skips when unset.
 name: cron
 
 on:
@@ -22,14 +22,14 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      DIMTS_API_URL: ${{ secrets.DIMTS_API_URL }}
-      DIMTS_CRON_SECRET: ${{ secrets.DIMTS_CRON_SECRET }}
+      API_URL: ${{ secrets.API_URL }}
+      CRON_SECRET: ${{ secrets.CRON_SECRET }}
       JOB: ${{ github.event.inputs.job || (github.event.schedule == '30 7 * * *' && 'alerts' || 'retention') }}
     steps:
       - name: Call the internal job route
         run: |
-          if [ -z "$DIMTS_API_URL" ] || [ -z "$DIMTS_CRON_SECRET" ]; then
-            echo "::notice::DIMTS_API_URL or DIMTS_CRON_SECRET is not set; skipping."
+          if [ -z "$API_URL" ] || [ -z "$CRON_SECRET" ]; then
+            echo "::notice::API_URL or CRON_SECRET is not set; skipping."
             exit 0
           fi
           case "$JOB" in
@@ -40,6 +40,6 @@ jobs:
           # A sleeping free instance can take about a minute to wake.
           curl --fail-with-body --silent --show-error \
             --retry 4 --retry-all-errors --retry-delay 20 --max-time 120 \
-            -X POST -H "Authorization: Bearer $DIMTS_CRON_SECRET" \
+            -X POST -H "Authorization: Bearer $CRON_SECRET" \
             -o /dev/null -w "$JOB: HTTP %{http_code}\n" \
-            "${DIMTS_API_URL%/}$path"
+            "${API_URL%/}$path"

@@ -3,7 +3,7 @@ declare module "*.woff2?url&no-inline" {
   export default assetUrl;
 }
 
-declare module "virtual:dimts-bootstrap-ui" {
+declare module "virtual:Bridgely-bootstrap-ui" {
   const ui: Record<string, string>;
   export default ui;
 }
@@ -13,7 +13,7 @@ declare module "*.css?inline" {
   export default css;
 }
 
-declare module "virtual:dimts-simulator-locales" {
+declare module "virtual:Bridgely-simulator-locales" {
   const packs: Record<
     string,
     {

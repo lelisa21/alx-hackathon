@@ -19,6 +19,22 @@ const languageRegistry = [...packs.values()]
   }));
 const englishLanguage = languageRegistry.find(({ code }) => code === "en")!;
 
+test("FR-HELP-01 serves the helper entry point and sign-in form", async ({
+  page,
+}) => {
+  await page.route("**/v1/languages", (route) =>
+    route.fulfill({ json: { languages: [englishLanguage] } }),
+  );
+  await page.route("**/v1/locales/en/ui", (route) =>
+    route.fulfill({ json: packs.get("en")!.ui }),
+  );
+  const response = await page.goto("http://127.0.0.1:4173/helper");
+  expect(response?.ok()).toBe(true);
+  await expect(page.getByRole("heading", { name: "Helper console" })).toBeVisible();
+  await expect(page.getByLabel("Helper token")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Sign in" })).toBeVisible();
+});
+
 test("FR-AI-09 helper provider status is authenticated, refreshable and failure-isolated", async ({
   page,
 }) => {
@@ -33,7 +49,7 @@ test("FR-AI-09 helper provider status is authenticated, refreshable and failure-
   await page.route("http://127.0.0.1:4173/helper", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${apiRoot}"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><bridgely-helper-console data-api="${apiRoot}"></bridgely-helper-console><script type="module" src="/bridgely-helper-console.js"></script></body></html>`,
     }),
   );
   await page.route(`${apiRoot}/**`, async (route) => {
@@ -153,7 +169,7 @@ test("helper language and queue pickers discover a new registry language", async
   await page.route("http://127.0.0.1:4173/helper", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${apiRoot}"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><bridgely-helper-console data-api="${apiRoot}"></bridgely-helper-console><script type="module" src="/bridgely-helper-console.js"></script></body></html>`,
     }),
   );
   await page.route(`${apiRoot}/**`, async (route) => {
@@ -198,7 +214,7 @@ test("helper language and queue pickers discover a new registry language", async
   await expect(picker.locator("option[value='es']")).toHaveCount(0);
   await picker.selectOption("fr");
   await expect.poll(() => requestedUi).toContain("fr");
-  await expect(page.locator("dimts-helper-console main")).toHaveAttribute(
+  await expect(page.locator("bridgely-helper-console main")).toHaveAttribute(
     "dir",
     "rtl",
   );
@@ -226,7 +242,7 @@ test("helper draft language is available only through explicit preview requests"
   await page.route("http://127.0.0.1:4173/helper?lang_preview=1", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${apiRoot}"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+      body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><bridgely-helper-console data-api="${apiRoot}"></bridgely-helper-console><script type="module" src="/bridgely-helper-console.js"></script></body></html>`,
     }),
   );
   await page.route(`${apiRoot}/**`, async (route) => {
@@ -284,7 +300,7 @@ for (const configuredApi of [apiRoot, "/v1"]) {
       route.fulfill({
         status: 200,
         contentType: "text/html",
-        body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><dimts-helper-console data-api="${configuredApi}" data-language="en"></dimts-helper-console><script type="module" src="/dimts-helper-console.js"></script></body></html>`,
+        body: `<!doctype html><html lang="en"><head><title>Helper</title></head><body><bridgely-helper-console data-api="${configuredApi}" data-language="en"></bridgely-helper-console><script type="module" src="/bridgely-helper-console.js"></script></body></html>`,
       }),
     );
     await page.route(`${resolvedApi}/**`, async (route) => {
@@ -394,14 +410,14 @@ for (const configuredApi of [apiRoot, "/v1"]) {
       ),
     ).toEqual([]);
     const layout = await page
-      .locator("dimts-helper-console")
+      .locator("bridgely-helper-console")
       .evaluate((element) => ({
         scrollWidth: element.scrollWidth,
         clientWidth: element.clientWidth,
       }));
     expect(layout.scrollWidth).toBeLessThanOrEqual(layout.clientWidth);
     const targets = await page
-      .locator("dimts-helper-console")
+      .locator("bridgely-helper-console")
       .locator("button, input, select, textarea")
       .evaluateAll((elements) =>
         elements.map((element) => {

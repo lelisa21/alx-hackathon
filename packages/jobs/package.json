@@ -1,5 +1,5 @@
 {
-  "name": "@dimts/jobs",
+  "name": "@bridgely/jobs",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "typecheck": "tsc -b --pretty false"
   },
   "dependencies": {
-    "@dimts/grounding": "workspace:*",
+    "@bridgely/grounding": "workspace:*",
     "pg": "^8.13.3"
   },
   "devDependencies": {

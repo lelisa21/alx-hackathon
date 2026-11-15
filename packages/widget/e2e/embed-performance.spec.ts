@@ -89,7 +89,7 @@ test.beforeAll(async () => {
       if (pathname === "/") {
         type = "text/html";
         body =
-          '<!doctype html><html lang="en"><head><title>Dimts throttling fixture</title></head><body><script async src="/dimts-embed.js" data-api="/v1" data-host-key="public-performance-fixture" data-lang="en"></script></body></html>';
+          '<!doctype html><html lang="en"><head><title>Bridgely throttling fixture</title></head><body><script async src="/bridgely-embed.js" data-api="/v1" data-host-key="public-performance-fixture" data-lang="en"></script></body></html>';
       } else if (pathname.startsWith("/v1/")) {
         type = "application/json";
         if (pathname.endsWith("/languages"))
@@ -169,7 +169,7 @@ test("NFR-PERF-02 real compressed requests at 400 kbps/400 ms show launcher with
       launcherMs: null,
       chatReadyMs: null,
     };
-    Reflect.set(window, "__dimtsStartupTimes", marks);
+    Reflect.set(window, "__BridgelyStartupTimes", marks);
     const visible = (element: Element | null | undefined) => {
       if (!(element instanceof HTMLElement)) return false;
       const box = element.getBoundingClientRect();
@@ -181,14 +181,14 @@ test("NFR-PERF-02 real compressed requests at 400 kbps/400 ms show launcher with
       );
     };
     const measureFrame = () => {
-      const root = document.querySelector("dimts-embed")?.shadowRoot;
+      const root = document.querySelector("bridgely-embed")?.shadowRoot;
       if (
         marks.launcherMs === null &&
-        visible(root?.querySelector("#dimts-launcher"))
+        visible(root?.querySelector("#Bridgely-launcher"))
       )
         marks.launcherMs = performance.now();
       const input = root
-        ?.querySelector("dimts-assistant")
+        ?.querySelector("bridgely-assistant")
         ?.shadowRoot?.querySelector<HTMLTextAreaElement>("#message");
       if (
         marks.chatReadyMs === null &&
@@ -205,20 +205,20 @@ test("NFR-PERF-02 real compressed requests at 400 kbps/400 ms show launcher with
     response.url().endsWith("/locales/en/faq"),
   );
   await page.goto(origin, { waitUntil: "commit" });
-  await page.locator("#dimts-launcher").waitFor({ state: "visible" });
-  await page.locator("#dimts-launcher").click();
+  await page.locator("#Bridgely-launcher").waitFor({ state: "visible" });
+  await page.locator("#Bridgely-launcher").click();
   await expect(page.locator("#message")).toBeEnabled();
   await page.waitForFunction(
     () =>
       (
-        Reflect.get(window, "__dimtsStartupTimes") as {
+        Reflect.get(window, "__BridgelyStartupTimes") as {
           chatReadyMs: number | null;
         }
       ).chatReadyMs !== null,
   );
   const { launcherMs, chatReadyMs } = await page.evaluate(
     () =>
-      Reflect.get(window, "__dimtsStartupTimes") as {
+      Reflect.get(window, "__BridgelyStartupTimes") as {
         launcherMs: number;
         chatReadyMs: number;
       },

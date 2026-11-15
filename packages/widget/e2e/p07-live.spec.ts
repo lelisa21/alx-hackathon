@@ -11,7 +11,7 @@ import { createPool } from "../../api/src/db/repository.js";
 import { applyMigrations } from "../../api/src/db/migrate.js";
 import { sha256 } from "../../api/src/middleware/auth.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 const packs = loadPacks(resolve("locales"));
 const ui = packs.get("en")!.ui;
 const sms = packs.get("en")!.sms as Record<string, string>;
@@ -24,19 +24,19 @@ const encryptionKey = Buffer.alloc(32, 7);
 const hashKey = Buffer.alloc(32, 8);
 const environment = {
   NODE_ENV: "test",
-  DIMTS_ENC_KEY: encryptionKey.toString("base64"),
-  DIMTS_HASH_KEY: hashKey.toString("base64"),
-  DIMTS_JWT_SECRET: "synthetic-live-sms-jwt-secret-long-enough-characters",
-  DIMTS_CRON_SECRET: cron,
-  DIMTS_SMS_GATEWAY_SECRET: secret,
-  DIMTS_SMS_MODE: "simulator",
-  DIMTS_AI_PROVIDER: "offline",
-  DIMTS_AI_LADDER: "offline",
-  DIMTS_HOST_ORIGINS: origin,
+ ENC_KEY: encryptionKey.toString("base64"),
+ HASH_KEY: hashKey.toString("base64"),
+ JWT_SECRET: "synthetic-live-sms-jwt-secret-long-enough-characters",
+ CRON_SECRET: cron,
+ SMS_GATEWAY_SECRET: secret,
+ SMS_MODE: "simulator",
+ AI_PROVIDER: "offline",
+ AI_LADDER: "offline",
+ HOST_ORIGINS: origin,
 };
 
 test.describe("P07 real SMS simulator contract", () => {
-  test.skip(!databaseUrl, "Requires an isolated DIMTS_TEST_DATABASE_URL");
+  test.skip(!databaseUrl, "Requires an isolatedTEST_DATABASE_URL");
   let admin: ReturnType<typeof createPool>;
   let pool: ReturnType<typeof createPool>;
   let server: Server;
@@ -103,7 +103,7 @@ test.describe("P07 real SMS simulator contract", () => {
     test.setTimeout(90_000);
     const title = "Synthetic SMS trainee";
     const imported = await request.post(`${api}/jobs/import`, {
-      headers: { "X-Dimts-Key": importer },
+      headers: { "X-Bridgely-Key": importer },
       data: {
         lang: "en",
         postings: {

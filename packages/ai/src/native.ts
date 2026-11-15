@@ -1,6 +1,6 @@
 import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import {
   answerJsonSchema,
   HttpProvider,
@@ -86,7 +86,7 @@ export class OpenAiProvider extends HttpProvider {
         text: {
           format: {
             type: "json_schema",
-            name: "dimts_answer",
+            name: "answer",
             strict: true,
             schema: answerJsonSchema,
           },
@@ -118,7 +118,7 @@ export class XaiProvider extends HttpProvider {
         text: {
           format: {
             type: "json_schema",
-            name: "dimts_answer",
+            name: "answer",
             strict: true,
             schema: answerJsonSchema,
           },
@@ -146,11 +146,13 @@ function isThinkingModel(model: string): boolean {
   return Boolean(match && Number(match[1]) >= 3);
 }
 
-// Gemini 3.x accepts "minimal"; Gemini 4 rejects it (400) and "low" is its
-// lowest supported level.
+// Gemini 3.8 and Gemini 4 reject "minimal" (400); "low" is their lowest
+// supported level. Earlier Gemini 3 models accept "minimal".
 function thinkingLevel(model: string): "minimal" | "low" {
-  const match = /^(?:models\/)?gemini-(\d+)/u.exec(model);
-  return match && Number(match[1]) >= 4 ? "low" : "minimal";
+  const match = /^(?:models\/)?gemini-(\d+)(?:\.(\d+))?/u.exec(model);
+  const major = Number(match?.[1] ?? 0);
+  const minor = Number(match?.[2] ?? 0);
+  return major >= 4 || (major === 3 && minor >= 8) ? "low" : "minimal";
 }
 
 function supportsTemperature(model: string): boolean {

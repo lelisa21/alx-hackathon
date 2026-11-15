@@ -42,11 +42,11 @@ function requiredConfigKeys(): string[] {
 
 describe("hosted Render blueprint", () => {
   it("declares every configuration value the API refuses to start without", async () => {
-    const api = (await renderServices())["dimts-api"]!;
+    const api = (await renderServices())["Bridgely-api"]!;
     const declared = new Set(api.envVars?.map(({ key }) => key));
     const required = requiredConfigKeys();
     expect(required).toEqual(
-      expect.arrayContaining(["DATABASE_URL", "DIMTS_ENC_KEY"]),
+      expect.arrayContaining(["DATABASE_URL", "ENC_KEY"]),
     );
     for (const key of required) expect(declared).toContain(key);
     expect(declared).toContain("DATABASE_URL_DIRECT");
@@ -57,7 +57,7 @@ describe("hosted Render blueprint", () => {
   });
 
   it("applies migrations before the API starts", async () => {
-    const api = (await renderServices())["dimts-api"]!;
+    const api = (await renderServices())["Bridgely-api"]!;
     const start = api.startCommand ?? "";
     expect(start.indexOf("migrate")).toBeGreaterThanOrEqual(0);
     expect(start.indexOf("migrate")).toBeLessThan(start.indexOf(" start"));
@@ -77,7 +77,7 @@ describe("hosted Render blueprint", () => {
   });
 
   it("serves widget modules and fonts with CORS so host pages can import them", async () => {
-    const assets = (await renderServices())["dimts-widget-assets"]!;
+    const assets = (await renderServices())["Bridgely-widget-assets"]!;
     expect(assets.headers).toContainEqual({
       path: "/*",
       name: "Access-Control-Allow-Origin",
@@ -97,8 +97,8 @@ describe("scheduled jobs for hosted deployments", () => {
     );
     expect(text).toContain("/v1/internal/retention");
     expect(text).toContain("/v1/internal/alerts");
-    expect(text).toContain("secrets.DIMTS_CRON_SECRET");
-    expect(text).toContain("secrets.DIMTS_API_URL");
+    expect(text).toContain("secrets.CRON_SECRET");
+    expect(text).toContain("secrets.API_URL");
   });
 });
 
@@ -137,5 +137,29 @@ describe("local Compose provider credentials", () => {
       path: ".env",
       required: false,
     });
+  });
+});
+
+describe("Gemini answer model order", () => {
+  it("uses the live-verified responsive Gemini model first in both templates", async () => {
+    const expected = [
+      "gemini-3.6-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+    ];
+    const render = (await renderServices())["Bridgely-api"]!;
+    const renderValue = render.envVars?.find(
+      ({ key }) => key === "AI_PROVIDERS",
+    )?.value;
+    const example = await read(".env.example");
+    const exampleValue = /^AI_PROVIDERS=(.+)$/mu.exec(example)?.[1];
+    expect(renderValue).toBeTruthy();
+    expect(exampleValue).toBeTruthy();
+    const models = (value: string) =>
+      (JSON.parse(value) as Array<{ id: string; model: string }>)
+        .filter(({ id }) => id.startsWith("gemini"))
+        .map(({ model }) => model);
+    expect(models(renderValue!)).toEqual(expected);
+    expect(models(exampleValue!)).toEqual(expected);
   });
 });

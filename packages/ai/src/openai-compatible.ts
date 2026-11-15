@@ -1,5 +1,5 @@
 import { z } from "zod";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { HttpProvider } from "./http-provider.js";
 import type { HttpProviderOptions } from "./http-provider.js";
 import { InvalidProviderResponseError } from "./provider.js";

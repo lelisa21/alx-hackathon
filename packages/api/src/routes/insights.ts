@@ -1,11 +1,11 @@
 /**
  * P09: GET /v1/insights route
- * Access control: host secret key (X-Dimts-Key) or LTI instructor (P10)
+ * Access control: host secret key (X-Bridgely-Key) or LTI instructor (P10)
  * Returns aggregated feedback data with privacy protections
  */
 
 import { Router, type Request, type Response } from "express";
-import { createInsightsService } from "@dimts/insights";
+import { createInsightsService } from "@bridgely/insights";
 import { InsightsQuerySchema, InsightsResponseSchema } from "../schemas.js";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
@@ -16,14 +16,14 @@ export function createInsightsRouter(repository: ApiRepository): Router {
 
   router.get("/insights", async (req: Request, res: Response) => {
     try {
-      // Authentication: X-Dimts-Key (host) or LTI instructor (P10)
-      const hostKey = req.headers["x-dimts-key"] as string | undefined;
+      // Authentication: X-Bridgely-Key (host) or LTI instructor (P10)
+      const hostKey = req.headers["x-Bridgely-key"] as string | undefined;
       const authHeader = req.headers.authorization as string | undefined;
 
       // Check authorization
       let isAuthorized = false;
 
-      // Path 1: Host key (X-Dimts-Key)
+      // Path 1: Host key (X-Bridgely-Key)
       if (hostKey) {
         const hostKeyRecord = await repository.verifyHostKey(hostKey);
         if (hostKeyRecord) {
@@ -86,7 +86,7 @@ export function createInsightsRouter(repository: ApiRepository): Router {
       // Return response based on format
       if (query.format === "csv") {
         const csv = insightsService.toCsv(rows);
-        const filename = `dimts-insights-${new Date().toISOString().split("T")[0]}.csv`;
+        const filename = `bridgely-insights-${new Date().toISOString().split("T")[0]}.csv`;
         res.setHeader("Content-Type", "text/csv; charset=utf-8");
         res.setHeader(
           "Content-Disposition",

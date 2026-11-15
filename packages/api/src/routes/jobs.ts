@@ -1,8 +1,8 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { JobsError } from "@dimts/jobs";
-import type { JobSourceSync, JobsDelivery, JobsService } from "@dimts/jobs";
-import type { LangPack } from "@dimts/locales-tools";
+import { JobsError } from "@bridgely/jobs";
+import type { JobSourceSync, JobsDelivery, JobsService } from "@bridgely/jobs";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { ApiRepository } from "../types.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
 import { sendProblem } from "../middleware/problem.js";
@@ -76,7 +76,7 @@ export function createJobsRouter(options: {
     },
   );
   router.post("/jobs/import", limit, async (request, response) => {
-    const key = request.header("x-dimts-key");
+    const key = request.header("x-Bridgely-key");
     if (!key || !(await service.authorizeImporter(sha256(key)))) {
       sendProblem(response, 401, "unauthorized", "error.generic");
       return;

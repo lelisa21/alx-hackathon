@@ -171,7 +171,7 @@ describe("admin CLI arguments", () => {
         "--origins",
         "https://a.example, https://b.example",
       ],
-      { DIMTS_PROVISION_SECRET: "public-id" },
+      {PROVISION_SECRET: "public-id" },
     );
     expect(parsed).toEqual({
       command: "host-key",
@@ -190,7 +190,7 @@ describe("admin CLI arguments", () => {
     expect(
       parseAdminArguments(
         ["helper", "--id", "h1", "--name", "Helper", "--langs", "en,om"],
-        { DIMTS_PROVISION_SECRET: token },
+        {PROVISION_SECRET: token },
       ),
     ).toEqual({
       command: "helper",
@@ -206,7 +206,7 @@ describe("admin CLI arguments", () => {
   it("fails without the secret environment value or with an unknown command", () => {
     expect(() =>
       parseAdminArguments(["host-key", "--id", "x", "--name", "X"], {}),
-    ).toThrow(/DIMTS_PROVISION_SECRET/u);
+    ).toThrow(/PROVISION_SECRET/u);
     expect(() => parseAdminArguments(["drop-tables"], {})).toThrow(/Usage/u);
   });
 });

@@ -156,10 +156,10 @@ async function main(): Promise<void> {
   }
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error("DATABASE_URL is required.");
-  const baseUrl = process.env.DIMTS_CONTENT_BASE_URL;
-  if (!baseUrl) throw new Error("DIMTS_CONTENT_BASE_URL is required.");
-  const lang = process.env.DIMTS_DEFAULT_LANG;
-  if (!lang) throw new Error("DIMTS_DEFAULT_LANG is required.");
+  const baseUrl = process.env.CONTENT_BASE_URL;
+  if (!baseUrl) throw new Error("CONTENT_BASE_URL is required.");
+  const lang = process.env.DEFAULT_LANG;
+  if (!lang) throw new Error("DEFAULT_LANG is required.");
 
   const files = await sourceFiles(inputPath, { defaultLang: lang, baseUrl });
   const passages = passagesFor(files, baseUrl);

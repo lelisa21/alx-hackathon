@@ -21,10 +21,10 @@ const config = parseConfig({
   NODE_ENV: "test",
   PORT: "3000",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: secrets[0],
-  DIMTS_HASH_KEY: secrets[1],
-  DIMTS_JWT_SECRET: secrets[2],
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ ENC_KEY: secrets[0],
+ HASH_KEY: secrets[1],
+ JWT_SECRET: secrets[2],
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
 });
 
 const learnerToken = "learner-session-token-000000000000";
@@ -77,7 +77,7 @@ async function createHelperJwt(): Promise<string> {
     .setSubject("helper-one")
     .setIssuedAt()
     .setExpirationTime("1h")
-    .sign(new TextEncoder().encode(config.DIMTS_JWT_SECRET));
+    .sign(new TextEncoder().encode(config.JWT_SECRET));
 }
 
 interface SocketHarness {

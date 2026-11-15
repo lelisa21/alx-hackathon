@@ -29,7 +29,7 @@ it("P07 runtime packaging includes the API's transitive workspace dependency clo
     for (const [dependency, version] of Object.entries(manifest!.dependencies))
       if (version.startsWith("workspace:")) visit(dependency);
   };
-  visit("@dimts/api");
+  visit("@bridgely/api");
   const stage = readFileSync(resolve("Dockerfile"), "utf8")
     .split(/(?=^FROM )/mu)
     .find((section) => /^FROM[^\n]+ AS api\r?$/mu.test(section));

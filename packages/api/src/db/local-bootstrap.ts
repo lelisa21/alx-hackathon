@@ -61,13 +61,13 @@ function requiredEnvironment(name: string): string {
 
 async function main(): Promise<void> {
   const connectionString = requiredEnvironment("DATABASE_URL_DIRECT");
-  const key = requiredEnvironment("DIMTS_LOCAL_WIDGET_KEY");
-  const origins = requiredEnvironment("DIMTS_HOST_ORIGINS")
+  const key = requiredEnvironment("LOCAL_WIDGET_KEY");
+  const origins = requiredEnvironment("HOST_ORIGINS")
     .split(",")
     .map((origin) => origin.trim())
     .filter(Boolean);
   if (origins.length === 0) {
-    throw new Error("DIMTS_HOST_ORIGINS must contain an origin.");
+    throw new Error("HOST_ORIGINS must contain an origin.");
   }
 
   const client = new pg.Client({ connectionString });
@@ -85,8 +85,8 @@ async function main(): Promise<void> {
       origins,
     });
     // Local demo helper so "Help me now" reaches a person: sign in at /helper
-    // with DIMTS_SEED_HELPER_TOKEN. Skipped when the token is not set.
-    const helperToken = process.env.DIMTS_SEED_HELPER_TOKEN?.trim();
+    // withSEED_HELPER_TOKEN. Skipped when the token is not set.
+    const helperToken = process.env.SEED_HELPER_TOKEN?.trim();
     if (helperToken) {
       await provisionHelper(client, {
         id: "local-demo-helper",

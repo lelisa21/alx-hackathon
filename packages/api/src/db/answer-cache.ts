@@ -1,4 +1,4 @@
-import type { AnswerCache } from "@dimts/engine";
+import type { AnswerCache } from "@bridgely/engine";
 import type { Pool } from "pg";
 import { ReplySchema } from "../schemas.js";
 

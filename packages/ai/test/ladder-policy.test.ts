@@ -4,7 +4,7 @@ import { OfflineProvider } from "../src/offline.js";
 import { ProviderRegistry } from "../src/registry.js";
 import { InvalidProviderResponseError } from "../src/provider.js";
 import type { AiProvider, ProviderCapabilities } from "../src/provider.js";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 
 const request: AnswerRequest = {
   question: "What should I learn?",

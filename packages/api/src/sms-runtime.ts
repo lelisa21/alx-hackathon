@@ -1,69 +1,69 @@
 import { randomBytes } from "node:crypto";
 import pg from "pg";
-import type { AskDependencies } from "@dimts/engine";
-import type { JobsDelivery, JobsService } from "@dimts/jobs";
-import { JobsError } from "@dimts/jobs";
-import type { LangPack } from "@dimts/locales-tools";
-import { createSmsGateway, SmsError, SmsService } from "@dimts/sms";
+import type { AskDependencies } from "@bridgely/engine";
+import type { JobsDelivery, JobsService } from "@bridgely/jobs";
+import { JobsError } from "@bridgely/jobs";
+import type { LangPack } from "@bridgely/locales-tools";
+import { createSmsGateway, SmsError, SmsService } from "@bridgely/sms";
 import type {
   SmsGateway,
   SmsGatewayFactoryOptions,
   SmsLocale,
   SmsServiceOptions,
-} from "@dimts/sms";
+} from "@bridgely/sms";
 import type { ApiConfig } from "./config.js";
 import type { ApiRepository } from "./types.js";
 import { createConversationService } from "./conversation.js";
 import { sha256 } from "./middleware/auth.js";
 
 export type SmsApiService = Pick<SmsService, "inbound" | "sendAlert">;
-export const SMS_CALLBACK_VERSION = "dimts.sms.callback.v1";
+export const SMS_CALLBACK_VERSION = "Bridgely.sms.callback.v1";
 
 export function smsGatewayOptions(
   config: ApiConfig,
 ): SmsGatewayFactoryOptions | undefined {
-  switch (config.DIMTS_SMS_MODE) {
+  switch (config.SMS_MODE) {
     case "simulator":
       return { type: "simulator" };
     case "smsethiopia":
-      if (!config.DIMTS_SMS_GATEWAY_TOKEN) return undefined;
+      if (!config.SMS_GATEWAY_TOKEN) return undefined;
       return {
         type: "smsethiopia",
-        token: config.DIMTS_SMS_GATEWAY_TOKEN,
-        ...(config.DIMTS_SMS_GATEWAY_URL
-          ? { url: config.DIMTS_SMS_GATEWAY_URL }
+        token: config.SMS_GATEWAY_TOKEN,
+        ...(config.SMS_GATEWAY_URL
+          ? { url: config.SMS_GATEWAY_URL }
           : {}),
       };
     case "gateway":
-      if (!config.DIMTS_SMS_GATEWAY_URL || !config.DIMTS_SMS_GATEWAY_TOKEN)
+      if (!config.SMS_GATEWAY_URL || !config.SMS_GATEWAY_TOKEN)
         return undefined;
       return {
         type: "gateway",
-        url: config.DIMTS_SMS_GATEWAY_URL,
-        token: config.DIMTS_SMS_GATEWAY_TOKEN,
+        url: config.SMS_GATEWAY_URL,
+        token: config.SMS_GATEWAY_TOKEN,
       };
   }
 }
 
 export function smsConfigured(config: ApiConfig): boolean {
-  return Boolean(config.DIMTS_SMS_GATEWAY_SECRET && smsGatewayOptions(config));
+  return Boolean(config.SMS_GATEWAY_SECRET && smsGatewayOptions(config));
 }
 
 export function createSmsCallback(
   config: ApiConfig,
   transport: typeof fetch = fetch,
 ): SmsServiceOptions["callback"] {
-  if (!config.DIMTS_SMS_CALLBACK_URL || !config.DIMTS_SMS_CALLBACK_SECRET)
+  if (!config.SMS_CALLBACK_URL || !config.SMS_CALLBACK_SECRET)
     return undefined;
   return async (input) => {
     try {
-      const response = await transport(config.DIMTS_SMS_CALLBACK_URL!, {
+      const response = await transport(config.SMS_CALLBACK_URL!, {
         method: "POST",
         redirect: "error",
         signal: AbortSignal.timeout(5000),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${config.DIMTS_SMS_CALLBACK_SECRET!}`,
+          Authorization: `Bearer ${config.SMS_CALLBACK_SECRET!}`,
           "Idempotency-Key": input.idempotencyKey,
         },
         body: JSON.stringify({ version: SMS_CALLBACK_VERSION, ...input }),
@@ -175,10 +175,10 @@ export function createSmsRuntime(options: {
   const service = new SmsService({
     pool: smsPool,
     revocationPool: pool,
-    hashKey: Buffer.from(config.DIMTS_HASH_KEY, "base64"),
-    encryptionKey: Buffer.from(config.DIMTS_ENC_KEY, "base64"),
+    hashKey: Buffer.from(config.HASH_KEY, "base64"),
+    encryptionKey: Buffer.from(config.ENC_KEY, "base64"),
     gateway,
-    dailyLimit: config.DIMTS_SMS_DAILY_LIMIT,
+    dailyLimit: config.SMS_DAILY_LIMIT,
     locales: (lang) => smsLocale(packs, lang),
     sessions: {
       async create(lang) {

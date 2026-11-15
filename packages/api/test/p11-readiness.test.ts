@@ -9,11 +9,11 @@ const signingKey = Buffer.alloc(32, 3).toString("base64");
 const config = parseConfig({
   NODE_ENV: "test",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: signingKey,
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
-  DIMTS_HOST_ORIGINS: "https://learn.example",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: signingKey,
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ HOST_ORIGINS: "https://learn.example",
 });
 const sessionId = "session-to-delete";
 const sessionToken = "session-token-with-at-least-20-chars";
@@ -47,17 +47,25 @@ function createRepository(deleteSessionData = vi.fn(async () => undefined)) {
 }
 
 describe("P11 privacy and configuration contracts", () => {
+  it("defaults cloud transcription to current stable Gemini models", () => {
+    expect(config.CLOUD_VOICE_STT_MODEL.split(",")).toEqual([
+      "gemini-3.6-flash",
+      "gemini-3.5-flash-lite",
+      "gemini-3.1-flash-lite",
+    ]);
+  });
+
   it("requires the JWT signing secret to be at least 32 characters", () => {
     expect(() =>
       parseConfig({
         NODE_ENV: "test",
         DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-        DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-        DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-        DIMTS_JWT_SECRET: "too-short",
-        DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+       ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+       HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+       JWT_SECRET: "too-short",
+       CRON_SECRET: "a-cron-secret-that-is-long-enough",
       }),
-    ).toThrow(/DIMTS_JWT_SECRET/u);
+    ).toThrow(/JWT_SECRET/u);
   });
 
   it("requires an authorized session and idempotently deletes its data", async () => {

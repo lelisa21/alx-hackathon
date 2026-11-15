@@ -15,7 +15,7 @@ import { validatePacks } from "../src/index.js";
 const locales = fileURLToPath(new URL("../../../locales", import.meta.url));
 const roots: string[] = [];
 function fixture() {
-  const root = mkdtempSync(path.join(tmpdir(), "dimts-validation-"));
+  const root = mkdtempSync(path.join(tmpdir(), "Bridgely-validation-"));
   roots.push(root);
   cpSync(locales, root, { recursive: true });
   return root;

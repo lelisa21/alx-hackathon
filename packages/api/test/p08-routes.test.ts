@@ -10,12 +10,12 @@ const secret = "synthetic-telegram-webhook-secret-only";
 const environment = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "synthetic-jwt-secret-at-least-32-characters",
-  DIMTS_CRON_SECRET: "synthetic-cron-secret-at-least-24-characters",
-  DIMTS_TELEGRAM_TOKEN: "123456789:synthetic_telegram_token_for_tests_only",
-  DIMTS_TELEGRAM_SECRET: secret,
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "synthetic-jwt-secret-at-least-32-characters",
+ CRON_SECRET: "synthetic-cron-secret-at-least-24-characters",
+ TELEGRAM_TOKEN: "123456789:synthetic_telegram_token_for_tests_only",
+ TELEGRAM_SECRET: secret,
 };
 const body = {
   update_id: 1,
@@ -61,8 +61,8 @@ describe("P08 Telegram webhook boundary", () => {
     expect(handleUpdate).not.toHaveBeenCalled();
   });
   it.each([
-    { DIMTS_TELEGRAM_TOKEN: "", DIMTS_TELEGRAM_SECRET: "" },
-    { DIMTS_TELEGRAM_MODE: "polling" },
+    {TELEGRAM_TOKEN: "",TELEGRAM_SECRET: "" },
+    {TELEGRAM_MODE: "polling" },
   ])("fails closed when webhook mode is unavailable", async (overrides) => {
     const { app, handleUpdate } = setup(overrides);
     await post(app).send(body).expect(503);

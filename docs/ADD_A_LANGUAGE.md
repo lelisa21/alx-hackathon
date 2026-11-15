@@ -1,4 +1,4 @@
-# Add a Dimts language
+# Add a Bridgely language
 
 Authority: Blueprint section 8 and SRS FR-LANG-01–05, 09–13, 15–17.
 Use Node.js >=22.18 and the repository-pinned pnpm 10.12.1. Run commands
@@ -12,7 +12,10 @@ content; copying it does not create a reviewed translation.
    pack is rejected. Run `pnpm lang:check`; the draft should pass immediately.
 2. **Set metadata.** Edit native/English names, script, direction, calendar,
    SMS encoding/budget and fallback in `meta.yaml`. Keep `status: draft` and
-   null review fields. A fallback must exist and must not form a cycle.
+   null review fields. Set `public_preview: true` only for an explicitly
+   approved unreviewed beta; review-gated features remain disabled. Otherwise
+   drafts stay hidden outside preview mode. A fallback must exist and must not
+   form a cycle.
    The initial Oromo chain remains `om → am → en`. `ar-test` is CI-only.
 3. **Translate all interface copy.** Edit `ui.yaml`, preserving key names and
    ICU variable names/types. Use polite register and one glossary term per

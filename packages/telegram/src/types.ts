@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { JobsService, PublicJob } from "@dimts/jobs";
+import type { JobsService, PublicJob } from "@bridgely/jobs";
 import type { TelegramTransport } from "./transport.js";
 import type { TelegramVoice } from "./voice.js";
 import type { TelegramStore } from "./store.js";

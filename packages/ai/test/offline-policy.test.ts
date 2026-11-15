@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { readFileSync } from "node:fs";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { OfflineProvider } from "../src/offline.js";
 import { parseJobPostingPassages } from "../../grounding/src/job-posting.js";
 

@@ -275,6 +275,37 @@ describe("P02 engine safety and bounded answers", () => {
 });
 
 describe("P02 normalized, validated, private answer cache", () => {
+  it("rejects a cached answer that only repeats the learner's question", async () => {
+    const echoed: Reply = {
+      id: "old-echo",
+      kind: "answer",
+      lang: "en",
+      dir: "ltr",
+      text: request.text,
+      citations: [
+        {
+          passageId: source.id,
+          label: source.label,
+          url: source.url,
+          sourceLang: "en",
+          sourceType: "course",
+        },
+      ],
+      actions: [],
+      contentVersion: "v1",
+    };
+    const d = deps({
+      answerCache: {
+        get: async () => echoed,
+        getCurrent: async () => echoed,
+        set: async () => {},
+      },
+    });
+
+    expect((await ask(request, d)).text).toBe(result.text);
+    expect(d.answer).toHaveBeenCalledOnce();
+  });
+
   it("uses a cache hit validated for the current content before retrieval", async () => {
     let stored: Reply | null = null;
     const getCurrent = vi.fn(

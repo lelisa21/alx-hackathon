@@ -1,7 +1,7 @@
-import type { LangPack } from "@dimts/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 
 /**
- * Publish host-selected draft packs as `beta` for this deployment.
+ * Publish explicitly public or host-selected draft packs as `beta`.
  *
  * Only the visibility status changes. Review metadata stays as authored, so
  * everything that depends on a named reviewer — cross-language glossary
@@ -12,12 +12,17 @@ export function withPreviewLanguages(
   packs: Map<string, LangPack>,
   codes: readonly string[],
 ): Map<string, LangPack> {
-  if (codes.length === 0) return packs;
-  const requested = new Set(codes);
+  const requested = new Set([
+    ...codes,
+    ...[...packs]
+      .filter(([, pack]) => pack.meta.public_preview === true)
+      .map(([code]) => code),
+  ]);
+  if (requested.size === 0) return packs;
   const unknown = codes.filter((code) => !packs.has(code));
   if (unknown.length > 0) {
     throw new Error(
-      `DIMTS_PREVIEW_LANGS names unknown language packs: ${unknown.join(", ")}`,
+      `PREVIEW_LANGS names unknown language packs: ${unknown.join(", ")}`,
     );
   }
   return new Map(

@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { ownsWorkerRegistration } from "../src/worker-ownership.js";
 
 const own =
-  "https://host.example/service-worker.js?owner=dimts&asset=https%3A%2F%2Fhost.example%2Fdimts-index-v1.js&api=https%3A%2F%2Fapi.example%2Fv1";
+  "https://host.example/service-worker.js?owner=Bridgely&asset=https%3A%2F%2Fhost.example%2FBridgely-index-v1.js&api=https%3A%2F%2Fapi.example%2Fv1";
 const host = "https://host.example/service-worker.js?owner=host";
 const worker = (scriptURL: string) => ({ scriptURL });
 
 describe("FR-INT-11 service-worker registration ownership", () => {
-  it("requires all present workers to belong to the same Dimts installation", () => {
+  it("requires all present workers to belong to the same Bridgely installation", () => {
     expect(ownsWorkerRegistration({ active: worker(own) }, new URL(own))).toBe(
       true,
     );
@@ -31,7 +31,7 @@ describe("FR-INT-11 service-worker registration ownership", () => {
     );
     expect(ownsWorkerRegistration({}, new URL(own))).toBe(false);
   });
-  it("permits a Dimts module version update but rejects unrelated origins, APIs, paths or invalid asset URLs", () => {
+  it("permits a Bridgely module version update but rejects unrelated origins, APIs, paths or invalid asset URLs", () => {
     expect(
       ownsWorkerRegistration(
         { active: worker(own.replace("v1.js", "v2.js")) },
@@ -45,7 +45,7 @@ describe("FR-INT-11 service-worker registration ownership", () => {
         "asset=https%3A%2F%2Fhost.example",
         "asset=https%3A%2F%2Fother.example",
       ),
-      "https://host.example/service-worker.js?owner=dimts&asset=invalid&api=https%3A%2F%2Fapi.example%2Fv1",
+      "https://host.example/service-worker.js?owner=Bridgely&asset=invalid&api=https%3A%2F%2Fapi.example%2Fv1",
     ])
       expect(
         ownsWorkerRegistration({ active: worker(invalid) }, new URL(own)),

@@ -12,11 +12,11 @@ const sessionId = "session-12345678";
 const token = "valid-session-token-000000000000";
 const env = {
   NODE_ENV: "test",
-  DATABASE_URL: "postgres://localhost/dimts",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "test-secret-longer-than-thirty-two-characters",
-  DIMTS_CRON_SECRET: "test-cron-secret-longer-than-twenty-four",
+  DATABASE_URL: "postgres://localhost/Bridgely",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "test-secret-longer-than-thirty-two-characters",
+ CRON_SECRET: "test-cron-secret-longer-than-twenty-four",
 };
 const png = await sharp({
   create: { width: 2, height: 2, channels: 3, background: "red" },
@@ -86,8 +86,8 @@ async function helper(app: express.Express) {
 describe("P05 FR-HELP-04/05/11/12/15/16/18 REST contracts", () => {
   it("authenticates availability and reports next UTC opening plus configured wait", async () => {
     const { app, store } = fixture({
-      DIMTS_HELPER_HOURS: '[{"day":1,"start":"09:00","end":"17:00"}]',
-      DIMTS_HELP_WAIT_TIMEOUT_MS: "120000",
+     HELPER_HOURS: '[{"day":1,"start":"09:00","end":"17:00"}]',
+     HELP_WAIT_TIMEOUT_MS: "120000",
     });
     expect(
       (await request(app).get(`/v1/help/availability?sessionId=${sessionId}`))

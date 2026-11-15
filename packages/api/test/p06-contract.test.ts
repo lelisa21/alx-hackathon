@@ -12,10 +12,10 @@ import { generateOpenApiYaml } from "../src/openapi.js";
 const env = {
   NODE_ENV: "test",
   DATABASE_URL: "postgres://test:test@localhost/test",
-  DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-  DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-  DIMTS_JWT_SECRET: "test-only-jwt-secret-with-enough-characters",
-  DIMTS_CRON_SECRET: "test-only-cron-secret-with-enough-characters",
+ ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+ HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+ JWT_SECRET: "test-only-jwt-secret-with-enough-characters",
+ CRON_SECRET: "test-only-cron-secret-with-enough-characters",
 };
 
 describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
@@ -120,12 +120,12 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
   it.each([
     null,
     {
-      version: "dimts.jobs.delivery.v1",
+      version: "Bridgely.jobs.delivery.v1",
       accepted: false,
       idempotencyKey: "test-key",
     },
     {
-      version: "dimts.jobs.delivery.v1",
+      version: "Bridgely.jobs.delivery.v1",
       accepted: true,
       idempotencyKey: "wrong-key",
     },
@@ -134,8 +134,8 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
     const delivery = createHostJobsDelivery(
       parseConfig({
         ...env,
-        DIMTS_JOBS_RELAY_URL: "https://relay.example/deliver",
-        DIMTS_JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
+       JOBS_RELAY_URL: "https://relay.example/deliver",
+       JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
       }),
       vi.fn<typeof fetch>().mockResolvedValue(Response.json(receipt)),
     );
@@ -153,21 +153,21 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
     expect(() =>
       parseConfig({
         ...env,
-        DIMTS_JOBS_RELAY_URL: "https://relay.example/deliver",
+       JOBS_RELAY_URL: "https://relay.example/deliver",
       }),
     ).toThrow();
     expect(() =>
       parseConfig({
         ...env,
-        DIMTS_JOBS_RELAY_URL: "http://relay.example/deliver",
-        DIMTS_JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
+       JOBS_RELAY_URL: "http://relay.example/deliver",
+       JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
       }),
     ).toThrow();
     expect(() =>
-      parseConfig({ ...env, DIMTS_JOBS_RELAY_CHANNELS: "sms" }),
+      parseConfig({ ...env,JOBS_RELAY_CHANNELS: "sms" }),
     ).toThrow();
     expect(() =>
-      parseConfig({ ...env, DIMTS_JOBS_RELAY_CHANNELS: "email" }),
+      parseConfig({ ...env,JOBS_RELAY_CHANNELS: "email" }),
     ).toThrow();
     expect(createHostJobsDelivery(parseConfig(env)).channels).toEqual([]);
     expect(createHostJobsDelivery(parseConfig(env)).relayAvailable).toBe(false);
@@ -179,7 +179,7 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
       .mockRejectedValueOnce(new TypeError("connection lost"))
       .mockResolvedValueOnce(
         Response.json({
-          version: "dimts.jobs.delivery.v1",
+          version: "Bridgely.jobs.delivery.v1",
           accepted: true,
           idempotencyKey: "request-stable-key",
         }),
@@ -187,9 +187,9 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
     const delivery = createHostJobsDelivery(
       parseConfig({
         ...env,
-        DIMTS_JOBS_RELAY_URL: "https://relay.example/deliver",
-        DIMTS_JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
-        DIMTS_JOBS_RELAY_CHANNELS: "sms",
+       JOBS_RELAY_URL: "https://relay.example/deliver",
+       JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
+       JOBS_RELAY_CHANNELS: "sms",
       }),
       transport,
     );
@@ -209,7 +209,7 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
         "Idempotency-Key": "request-stable-key",
       });
       expect(JSON.parse(String(options?.body))).toEqual({
-        version: "dimts.jobs.delivery.v1",
+        version: "Bridgely.jobs.delivery.v1",
         kind: "accommodation",
         ...input,
       });
@@ -232,8 +232,8 @@ describe("P06 FR-JOB-01/04/05/09/10 and FR-INT-07 API contracts", () => {
     const configured = createHostJobsDelivery(
       parseConfig({
         ...env,
-        DIMTS_JOBS_RELAY_URL: "https://relay.example/deliver",
-        DIMTS_JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
+       JOBS_RELAY_URL: "https://relay.example/deliver",
+       JOBS_RELAY_SECRET: "relay-secret-with-enough-characters",
       }),
       transport,
     );

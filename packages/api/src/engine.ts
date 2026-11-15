@@ -1,15 +1,15 @@
 import { randomBytes } from "node:crypto";
-import { ask } from "@dimts/engine";
+import { ask } from "@bridgely/engine";
 import type {
   AnswerCache,
   AskDependencies,
   ConversationSignals,
   LanguageDetector,
-} from "@dimts/engine";
-import { normalise } from "@dimts/grounding";
-import type { GlossaryEntry, PostgresGrounding } from "@dimts/grounding";
-import { translate } from "@dimts/locales-tools";
-import type { LangPack } from "@dimts/locales-tools";
+} from "@bridgely/engine";
+import { normalise } from "@bridgely/grounding";
+import type { GlossaryEntry, PostgresGrounding } from "@bridgely/grounding";
+import { translate } from "@bridgely/locales-tools";
+import type { LangPack } from "@bridgely/locales-tools";
 import type { ApiConfig } from "./config.js";
 import type { ApiProviderRuntime } from "./provider-runtime.js";
 
@@ -139,11 +139,11 @@ export function createEngineDependencies(options: {
         : "extractive",
     recallFloor: (lang, policy) =>
       providerRuntime.canJudge?.(lang, policy)
-        ? config.DIMTS_AI_RECALL_FLOOR
+        ? config.AI_RECALL_FLOOR
         : undefined,
     confidenceFloor: (lang) => {
       const floor = packs.get(lang)?.prompts.floor;
-      return typeof floor === "number" ? floor : config.DIMTS_CONFIDENCE_FLOOR;
+      return typeof floor === "number" ? floor : config.CONFIDENCE_FLOOR;
     },
     translate: (lang, key, vars) => {
       const sourceCode =
@@ -181,7 +181,7 @@ export function createEngineDependencies(options: {
       ? {
           languageDetector,
           languageDetectionConfidence:
-            config.DIMTS_LANGUAGE_DETECTION_CONFIDENCE,
+            config.LANGUAGE_DETECTION_CONFIDENCE,
         }
       : {}),
     contentVersion: () => grounding.currentVersion(),

@@ -12,7 +12,7 @@ if (typeof app.locals.attachHelpWebSockets === "function") {
 }
 
 server.listen(config.PORT, () => {
-  process.stdout.write(`Dimts API listening on port ${config.PORT}\n`);
+  process.stdout.write(`Bridgely API listening on port ${config.PORT}\n`);
 });
 
 let stopping = false;

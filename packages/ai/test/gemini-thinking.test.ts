@@ -2,7 +2,7 @@
 // a thinking limit, grounded answers came back status "incomplete" and were
 // rejected, so every request fell through to the next provider.
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { AnswerRequest } from "@dimts/engine";
+import type { AnswerRequest } from "@bridgely/engine";
 import { GeminiProvider } from "../src/native.js";
 
 const request: AnswerRequest = {
@@ -74,6 +74,14 @@ describe("Gemini thinking budget", () => {
     expect(body.generation_config).toMatchObject({
       max_output_tokens: 300,
       thinking_level: "minimal",
+    });
+  });
+
+  it("uses low thinking for Gemini 3.8, which rejects minimal", async () => {
+    const body = await sentBody("gemini-3.8-flash");
+    expect(body.generation_config).toMatchObject({
+      max_output_tokens: 300,
+      thinking_level: "low",
     });
   });
 

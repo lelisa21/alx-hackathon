@@ -97,15 +97,15 @@ export function resolveTheme(name: string, overrides: Partial<Theme>): Theme {
 }
 
 const properties: Record<keyof Theme, string> = {
-  surface: "--dimts-surface",
-  text: "--dimts-text",
-  muted: "--dimts-muted",
-  primary: "--dimts-primary",
-  primaryText: "--dimts-primary-text",
-  border: "--dimts-border",
-  focus: "--dimts-focus",
-  fontFamily: "--dimts-font-family",
-  radius: "--dimts-radius",
+  surface: "--Bridgely-surface",
+  text: "--Bridgely-text",
+  muted: "--Bridgely-muted",
+  primary: "--Bridgely-primary",
+  primaryText: "--Bridgely-primary-text",
+  border: "--Bridgely-border",
+  focus: "--Bridgely-focus",
+  fontFamily: "--Bridgely-font-family",
+  radius: "--Bridgely-radius",
 };
 
 /** Validate host overrides before applying them; restore safe defaults after mutations. */

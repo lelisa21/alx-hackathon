@@ -6,7 +6,7 @@ const widgetSource = path.resolve("packages/widget/src");
 const userFacingAttributes =
   /\b(?:aria-label|alt|placeholder|title)\s*=\s*(["'])(.*?)\1/gs;
 const visibleText = />([^<>]+)</gs;
-const dynamicMarker = "__DIMTS_DYNAMIC__";
+const dynamicMarker = "__DYNAMIC__";
 const violations = [];
 
 async function sourceFiles(directory) {

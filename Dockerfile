@@ -45,7 +45,7 @@ COPY --from=workspace /app/locales locales
 COPY --from=workspace /app/content content
 COPY --from=workspace /app/scripts/seed.mjs scripts/seed.mjs
 COPY --from=workspace /app/scripts/local-scheduler.mjs scripts/local-scheduler.mjs
-RUN pnpm install --prod --frozen-lockfile --offline --filter @dimts/api...
+RUN pnpm install --prod --frozen-lockfile --offline --filter @bridgely/api...
 
 ENV NODE_ENV=production
 # The API only reads its files; run it without root privileges.

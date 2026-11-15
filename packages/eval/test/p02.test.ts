@@ -6,7 +6,7 @@ import {
   percentile95,
 } from "../src/metrics.js";
 import type { EvalObservation } from "../src/metrics.js";
-import { loadPacks } from "@dimts/locales-tools";
+import { loadPacks } from "@bridgely/locales-tools";
 import { resolve } from "node:path";
 import { glossaryEntries } from "../src/runner.js";
 

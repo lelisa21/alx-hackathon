@@ -6,14 +6,14 @@ import { resolve } from "node:path";
 import pg from "pg";
 import request from "supertest";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
-import type { AskDependencies } from "@dimts/engine";
+import type { AskDependencies } from "@bridgely/engine";
 import { buildApp } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
 import { applyMigrations } from "../src/db/migrate.js";
 import { SMS_CALLBACK_VERSION } from "../src/sms-runtime.js";
 import { sha256 } from "../src/middleware/auth.js";
 
-const url = process.env.DIMTS_TEST_DATABASE_URL;
+const url = process.env.TEST_DATABASE_URL;
 describe.skipIf(!url)("P07 real SMS API, PostgreSQL and callback host", () => {
   const schema = `p07api_${randomUUID().replaceAll("-", "")}`;
   const secret = "synthetic-sms-inbound-secret-only";
@@ -100,14 +100,14 @@ describe.skipIf(!url)("P07 real SMS API, PostgreSQL and callback host", () => {
     const config = parseConfig({
       NODE_ENV: "test",
       DATABASE_URL: scoped.toString(),
-      DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-      DIMTS_HASH_KEY: hashKey.toString("base64"),
-      DIMTS_JWT_SECRET: "synthetic-jwt-secret-long-enough-for-test",
-      DIMTS_CRON_SECRET: cron,
-      DIMTS_SMS_GATEWAY_SECRET: secret,
-      DIMTS_SMS_MODE: "simulator",
-      DIMTS_SMS_CALLBACK_URL: "https://host.example/callback",
-      DIMTS_SMS_CALLBACK_SECRET: callbackSecret,
+     ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+     HASH_KEY: hashKey.toString("base64"),
+     JWT_SECRET: "synthetic-jwt-secret-long-enough-for-test",
+     CRON_SECRET: cron,
+     SMS_GATEWAY_SECRET: secret,
+     SMS_MODE: "simulator",
+     SMS_CALLBACK_URL: "https://host.example/callback",
+     SMS_CALLBACK_SECRET: callbackSecret,
     });
     app = buildApp({
       config,
@@ -256,7 +256,7 @@ describe.skipIf(!url)("P07 real SMS API, PostgreSQL and callback host", () => {
     expect(subscription.contact_hash).toMatch(/^[a-f0-9]{64}$/u);
     await request(app)
       .post("/v1/jobs/import")
-      .set("X-Dimts-Key", "synthetic-host-key")
+      .set("X-Bridgely-Key", "synthetic-host-key")
       .send({
         lang: "en",
         postings: {

@@ -26,7 +26,7 @@ import type {
   SourceResource,
 } from "../../grounding/src/sync.js";
 
-const databaseUrl = process.env.DIMTS_TEST_DATABASE_URL;
+const databaseUrl = process.env.TEST_DATABASE_URL;
 const root = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
   "../../..",
@@ -49,7 +49,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
   const helperIds: string[] = [];
 
   beforeAll(async () => {
-    if (!databaseUrl) throw new Error("DIMTS_TEST_DATABASE_URL is required.");
+    if (!databaseUrl) throw new Error("TEST_DATABASE_URL is required.");
     client = new pg.Client({ connectionString: databaseUrl });
     await client.connect();
     await applyMigrations(client, migrationsRoot);
@@ -63,12 +63,12 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
       config: parseConfig({
         NODE_ENV: "test",
         DATABASE_URL: databaseUrl,
-        DIMTS_ENC_KEY: secrets[0],
-        DIMTS_HASH_KEY: secrets[1],
-        DIMTS_JWT_SECRET: secrets[2],
-        DIMTS_CRON_SECRET: "integration-cron-secret-long-enough",
-        DIMTS_HOST_ORIGINS: origin,
-        DIMTS_AI_PROVIDER: "offline",
+       ENC_KEY: secrets[0],
+       HASH_KEY: secrets[1],
+       JWT_SECRET: secrets[2],
+       CRON_SECRET: "integration-cron-secret-long-enough",
+       HOST_ORIGINS: origin,
+       AI_PROVIDER: "offline",
       }),
       localesRoot,
     });
@@ -98,7 +98,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
 
     const session = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", hostKey)
+      .set("x-Bridgely-key", hostKey)
       .set("origin", origin)
       .send({ lang: "en", channel: "web" });
     expect(session.status).toBe(201);
@@ -374,7 +374,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
   });
 
   it("persists ordered chat and replays only messages after the cursor", async () => {
-    if (!databaseUrl) throw new Error("DIMTS_TEST_DATABASE_URL is required.");
+    if (!databaseUrl) throw new Error("TEST_DATABASE_URL is required.");
     const pool = new pg.Pool({ connectionString: databaseUrl });
     const store = createPostgresHelpSocketStore(pool);
     const sessionId = `socket-session-${randomUUID()}`;
@@ -485,7 +485,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
   it("persists remote-AI consent and its revocation", async () => {
     const created = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", hostKey)
+      .set("x-Bridgely-key", hostKey)
       .set("origin", origin)
       .send({
         lang: "en",
@@ -508,7 +508,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
 
     const resumed = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", hostKey)
+      .set("x-Bridgely-key", hostKey)
       .set("origin", origin)
       .send({
         sessionId: created.body.sessionId,
@@ -536,7 +536,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
   it("replays database-backed replies and enforces the persisted session limit", async () => {
     const session = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", hostKey)
+      .set("x-Bridgely-key", hostKey)
       .set("origin", origin)
       .send({ lang: "en", channel: "web" });
     expect(session.status).toBe(201);
@@ -707,7 +707,7 @@ describe.skipIf(!databaseUrl)("PostgreSQL API integration", () => {
 
       const session = await request(app)
         .post("/v1/sessions")
-        .set("x-dimts-key", hostKey)
+        .set("x-Bridgely-key", hostKey)
         .set("origin", origin)
         .send({ lang: "en", channel: "web" });
       expect(session.status).toBe(201);

@@ -1,8 +1,8 @@
 import { timingSafeEqual } from "node:crypto";
 import { fileURLToPath } from "node:url";
 import express from "express";
-import { SmsError, type SmsService } from "@dimts/sms";
-import { loadPacks, type LangPack } from "@dimts/locales-tools";
+import { SmsError, type SmsService } from "@bridgely/sms";
+import { loadPacks, type LangPack } from "@bridgely/locales-tools";
 import type { ApiConfig } from "../config.js";
 import type { ProblemCode } from "../middleware/problem.js";
 import {
@@ -51,7 +51,7 @@ export function createSmsRouter(options: {
   const authenticate: express.RequestHandler = (request, response, next) => {
     response.set("Cache-Control", "no-store");
     const { config, service } = options;
-    if (!config.DIMTS_SMS_GATEWAY_SECRET || !service) {
+    if (!config.SMS_GATEWAY_SECRET || !service) {
       problem(response, 503, "internal", "sms.unavailable", "unavailable");
       return;
     }
@@ -59,7 +59,7 @@ export function createSmsRouter(options: {
       request.header("authorization") ?? "",
     );
     const provided = Buffer.from(match?.[1] ?? "");
-    const expected = Buffer.from(config.DIMTS_SMS_GATEWAY_SECRET);
+    const expected = Buffer.from(config.SMS_GATEWAY_SECRET);
     if (
       !match ||
       provided.length !== expected.length ||

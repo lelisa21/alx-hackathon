@@ -17,13 +17,13 @@ jobs:
       postgres:
         image: postgres:17-alpine
         env:
-          POSTGRES_DB: dimts
-          POSTGRES_USER: dimts
-          POSTGRES_PASSWORD: dimts-ci-only
+          POSTGRES_DB: Bridgely
+          POSTGRES_USER: Bridgely
+          POSTGRES_PASSWORD: Bridgely-ci-only
         ports:
           - "5432:5432"
         options: >-
-          --health-cmd "pg_isready -U dimts -d dimts"
+          --health-cmd "pg_isready -U Bridgely -d Bridgely"
           --health-interval 5s
           --health-timeout 3s
           --health-retries 10
@@ -52,15 +52,15 @@ jobs:
       - name: Apply database migrations
         run: pnpm migrate
         env:
-          DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
+          DATABASE_URL_DIRECT: postgres://Bridgely:Bridgely-ci-only@localhost:5432/Bridgely
       - name: Verify migrations are idempotent
         run: pnpm migrate
         env:
-          DATABASE_URL_DIRECT: postgres://dimts:dimts-ci-only@localhost:5432/dimts
+          DATABASE_URL_DIRECT: postgres://Bridgely:Bridgely-ci-only@localhost:5432/Bridgely
       - name: Verify API against PostgreSQL
         run: pnpm exec vitest run packages/api/test/*.integration.test.ts --maxWorkers=1
         env:
-          DIMTS_TEST_DATABASE_URL: postgresql://dimts:dimts-ci-only@localhost:5432/dimts
+         TEST_DATABASE_URL: postgresql://Bridgely:Bridgely-ci-only@localhost:5432/Bridgely
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
       - name: Run widget and axe matrix

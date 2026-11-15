@@ -8,7 +8,7 @@ import type {
   InsightQuery,
   RawInsightRow,
   InsightsRepository,
-} from "@dimts/insights";
+} from "@bridgely/insights";
 
 export function createInsightsRepository(pool: Pool): InsightsRepository {
   return {

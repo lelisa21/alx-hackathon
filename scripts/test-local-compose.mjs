@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const project = `dimts-person1-${process.pid}`;
+const project = `Bridgely-person1-${process.pid}`;
 const apiRequire = createRequire(
   fileURLToPath(new URL("../packages/api/package.json", import.meta.url)),
 );
@@ -111,34 +111,34 @@ environment = {
   ...process.env,
   NODE_ENV: "production",
   POSTGRES_PASSWORD: password,
-  DIMTS_COMPOSE_API_PORT: String(apiPort),
-  DIMTS_COMPOSE_WEB_PORT: String(webPort),
-  DIMTS_ENC_KEY: randomBytes(32).toString("base64"),
-  DIMTS_HASH_KEY: randomBytes(32).toString("base64"),
-  DIMTS_JWT_SECRET: randomBytes(32).toString("base64url"),
-  DIMTS_CRON_SECRET: randomBytes(24).toString("base64url"),
-  DIMTS_SEED_HELPER_TOKEN: randomBytes(32).toString("base64url"),
-  DIMTS_HOST_ORIGINS: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
-  DIMTS_LOCAL_WIDGET_KEY: "local-widget-public-id",
-  DIMTS_LTI_PLATFORMS: "[]",
-  DIMTS_TELEGRAM_MODE: "webhook",
-  DIMTS_TELEGRAM_TOKEN: "",
-  DIMTS_TELEGRAM_SECRET: "",
-  DIMTS_JOBS_RELAY_URL: "",
-  DIMTS_JOBS_RELAY_SECRET: "",
-  DIMTS_JOBS_RELAY_CHANNELS: "",
-  DIMTS_SMS_MODE: "simulator",
-  DIMTS_SMS_GATEWAY_SECRET: "",
-  DIMTS_SMS_GATEWAY_URL: "",
-  DIMTS_SMS_GATEWAY_TOKEN: "",
-  DIMTS_SMS_CALLBACK_URL: "",
-  DIMTS_SMS_CALLBACK_SECRET: "",
-  DIMTS_TURN_APP: "",
-  DIMTS_TURN_API_KEY: "",
-  DIMTS_DEFAULT_LANG: "en",
-  DIMTS_AI_PROVIDER: "offline",
-  DIMTS_AI_LADDER: "offline",
-  DIMTS_AI_PROVIDERS: "[]",
+ COMPOSE_API_PORT: String(apiPort),
+ COMPOSE_WEB_PORT: String(webPort),
+ ENC_KEY: randomBytes(32).toString("base64"),
+ HASH_KEY: randomBytes(32).toString("base64"),
+ JWT_SECRET: randomBytes(32).toString("base64url"),
+ CRON_SECRET: randomBytes(24).toString("base64url"),
+ SEED_HELPER_TOKEN: randomBytes(32).toString("base64url"),
+ HOST_ORIGINS: `http://localhost:${webPort},http://127.0.0.1:${webPort}`,
+ LOCAL_WIDGET_KEY: "local-widget-public-id",
+ LTI_PLATFORMS: "[]",
+ TELEGRAM_MODE: "webhook",
+ TELEGRAM_TOKEN: "",
+ TELEGRAM_SECRET: "",
+ JOBS_RELAY_URL: "",
+ JOBS_RELAY_SECRET: "",
+ JOBS_RELAY_CHANNELS: "",
+ SMS_MODE: "simulator",
+ SMS_GATEWAY_SECRET: "",
+ SMS_GATEWAY_URL: "",
+ SMS_GATEWAY_TOKEN: "",
+ SMS_CALLBACK_URL: "",
+ SMS_CALLBACK_SECRET: "",
+ TURN_APP: "",
+ TURN_API_KEY: "",
+ DEFAULT_LANG: "en",
+ AI_PROVIDER: "offline",
+ AI_LADDER: "offline",
+ AI_PROVIDERS: "[]",
 };
 const origin = `http://127.0.0.1:${webPort}`;
 const startedAt = Date.now();
@@ -149,9 +149,9 @@ try {
     response.headers.get("content-type")?.includes("text/html"),
   );
   const html = await web.text();
-  assert.match(html, /<dimts-assistant\b/u);
+  assert.match(html, /<bridgely-assistant\b/u);
   assert.match(html, /data-host-key="local-widget-public-id"/u);
-  assert.match(html, /dimts-widget\.js/u);
+  assert.match(html, /Bridgely-widget\.js/u);
 
   const apiOrigin = `http://127.0.0.1:${apiPort}`;
   assert.equal(
@@ -182,9 +182,9 @@ try {
     "db",
     "psql",
     "-U",
-    "dimts",
+    "Bridgely",
     "-d",
-    "dimts",
+    "Bridgely",
     "-Atc",
     "SELECT (SELECT count(*) > 0 FROM passage)::text || '|' || (SELECT count(*) = 1 FROM job WHERE id='https://jobs.example/jobs/community-garden-assistant')::text || '|' || (SELECT count(*) = 1 FROM helper WHERE id='local-sample-helper')::text",
   ]);
@@ -206,9 +206,9 @@ try {
     "db",
     "psql",
     "-U",
-    "dimts",
+    "Bridgely",
     "-d",
-    "dimts",
+    "Bridgely",
     "-qAtc",
     ltiSql,
   ]);
@@ -218,7 +218,7 @@ try {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-dimts-key": "local-widget-public-id",
+      "x-Bridgely-key": "local-widget-public-id",
       origin,
     },
     body: JSON.stringify({ lang: "en", channel: "web" }),
@@ -270,9 +270,9 @@ try {
     "db",
     "psql",
     "-U",
-    "dimts",
+    "Bridgely",
     "-d",
-    "dimts",
+    "Bridgely",
     "-v",
     "ON_ERROR_STOP=1",
     "-c",
@@ -310,7 +310,7 @@ try {
     method: "POST",
     headers: {
       "content-type": "application/json",
-      "x-dimts-key": "local-widget-public-id",
+      "x-Bridgely-key": "local-widget-public-id",
       origin,
     },
     body: JSON.stringify({
@@ -332,9 +332,9 @@ try {
     "db",
     "psql",
     "-U",
-    "dimts",
+    "Bridgely",
     "-d",
-    "dimts",
+    "Bridgely",
     "-Atc",
     `SELECT (SELECT count(*) = 1 FROM help_image WHERE id='${helpImageId}')::text || '|' || (SELECT count(*) = 1 FROM job WHERE id='https://jobs.example/jobs/community-garden-assistant')::text`,
   ]);

@@ -17,10 +17,10 @@ function app(extra: Record<string, string> = {}) {
     config: parseConfig({
       NODE_ENV: "test",
       DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-      DIMTS_ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
-      DIMTS_HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
-      DIMTS_JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
-      DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
+     ENC_KEY: Buffer.alloc(32, 1).toString("base64"),
+     HASH_KEY: Buffer.alloc(32, 2).toString("base64"),
+     JWT_SECRET: Buffer.alloc(32, 3).toString("base64"),
+     CRON_SECRET: "a-cron-secret-that-is-long-enough",
       ...extra,
     }),
   });
@@ -29,8 +29,8 @@ function app(extra: Record<string, string> = {}) {
 describe("integration guide page", () => {
   it("shows the three integration paths with this deployment's URLs", async () => {
     const instance = app({
-      DIMTS_LTI_WIDGET_URL: "https://assets.example.org/dimts-widget.js",
-      DIMTS_LTI_WIDGET_KEY: "public-id",
+     LTI_WIDGET_URL: "https://assets.example.org/Bridgely-widget.js",
+     LTI_WIDGET_KEY: "public-id",
     });
     try {
       const page = await request(instance)
@@ -47,7 +47,7 @@ describe("integration guide page", () => {
         "https://api.example.org/v1/ask",
         "https://api.example.org/v1/lti/login",
         "https://api.example.org/v1/lti/launch",
-        "https://assets.example.org/dimts-widget.js",
+        "https://assets.example.org/Bridgely-widget.js",
         "/v1/openapi.yaml",
       ])
         expect(page.text).toContain(text);

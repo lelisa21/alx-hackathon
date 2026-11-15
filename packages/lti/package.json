@@ -1,5 +1,5 @@
 {
-  "name": "@dimts/lti",
+  "name": "@bridgely/lti",
   "version": "0.1.0",
   "private": true,
   "type": "module",

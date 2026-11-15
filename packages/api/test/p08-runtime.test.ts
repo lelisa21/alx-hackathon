@@ -10,7 +10,7 @@ import type { TelegramApiService } from "../src/telegram-runtime.js";
 import type { HelpStore } from "../src/types.js";
 import type { HelpSocketStore } from "../src/help-sockets.js";
 import type { ApiReply } from "../src/types.js";
-import { loadPacks, type LangPack } from "@dimts/locales-tools";
+import { loadPacks, type LangPack } from "@bridgely/locales-tools";
 import { resolve } from "node:path";
 
 describe("P08 Telegram platform command languages", () => {

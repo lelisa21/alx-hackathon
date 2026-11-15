@@ -6,7 +6,7 @@ import { createPostgresRepository } from "../src/db/repository.js";
 describe("P10 LTI session persistence", () => {
   it("reports nonce replay only when its atomic insert finds a conflict", async () => {
     const pool = new pg.Pool({
-      connectionString: "postgres://localhost/dimts",
+      connectionString: "postgres://localhost/Bridgely",
     });
     const query = vi.spyOn(pool, "query");
     const repository = createPostgresRepository(pool);
@@ -47,7 +47,7 @@ describe("P10 LTI session persistence", () => {
 
   it("reports token replay only when its atomic insert finds a conflict", async () => {
     const pool = new pg.Pool({
-      connectionString: "postgres://localhost/dimts",
+      connectionString: "postgres://localhost/Bridgely",
     });
     const query = vi.spyOn(pool, "query");
     const repository = createPostgresRepository(pool);
@@ -96,7 +96,7 @@ describe("P10 LTI session persistence", () => {
 
   it("stores only the bearer-token hash with launch context and expiry", async () => {
     const pool = new pg.Pool({
-      connectionString: "postgres://localhost/dimts",
+      connectionString: "postgres://localhost/Bridgely",
     });
     const query = vi.spyOn(pool, "query").mockResolvedValue({
       command: "INSERT",
@@ -141,7 +141,7 @@ describe("P10 LTI session persistence", () => {
 
   it("looks up live LTI sessions using only the bearer-token hash", async () => {
     const pool = new pg.Pool({
-      connectionString: "postgres://localhost/dimts",
+      connectionString: "postgres://localhost/Bridgely",
     });
     const query = vi.spyOn(pool, "query").mockResolvedValue({
       command: "SELECT",

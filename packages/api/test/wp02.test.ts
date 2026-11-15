@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import request from "supertest";
 import { describe, expect, it, vi } from "vitest";
-import { FrancLanguageDetector } from "@dimts/ai";
+import { FrancLanguageDetector } from "@bridgely/ai";
 import { buildApp } from "../src/app.js";
 import type { BuildAppOptions } from "../src/app.js";
 import { parseConfig } from "../src/config.js";
@@ -27,11 +27,11 @@ const validEnv = {
   NODE_ENV: "test",
   PORT: "3000",
   DATABASE_URL: "postgres://dimts:password@localhost:5432/dimts",
-  DIMTS_ENC_KEY: secrets[0],
-  DIMTS_HASH_KEY: secrets[1],
-  DIMTS_JWT_SECRET: secrets[2],
-  DIMTS_CRON_SECRET: "a-cron-secret-that-is-long-enough",
-  DIMTS_HOST_ORIGINS: "https://learn.example, https://demo.example",
+ ENC_KEY: secrets[0],
+ HASH_KEY: secrets[1],
+ JWT_SECRET: secrets[2],
+ CRON_SECRET: "a-cron-secret-that-is-long-enough",
+ HOST_ORIGINS: "https://learn.example, https://demo.example",
 };
 
 function createRepository() {
@@ -153,7 +153,7 @@ function createApp(
 async function createSession(app: ReturnType<typeof buildApp>) {
   return request(app)
     .post("/v1/sessions")
-    .set("x-dimts-key", "public-host")
+    .set("x-Bridgely-key", "public-host")
     .set("origin", "https://learn.example")
     .send({ lang: "en", channel: "web" });
 }
@@ -327,7 +327,7 @@ describe("WP02 configuration and API contracts", () => {
   });
 
   it("discovers a new draft folder on restart and serves it only in language preview", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-language-"));
+    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-api-language-"));
     try {
       await cp(localesRoot, directory, { recursive: true });
       scaffoldPack(directory, "so");
@@ -359,7 +359,7 @@ describe("WP02 configuration and API contracts", () => {
     }
   });
   it("resolves missing UI keys through the configured chain, exposes the fallback signal, and invalidates ETags", async () => {
-    const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-locales-"));
+    const directory = await mkdtemp(path.join(tmpdir(), "Bridgely-api-locales-"));
     try {
       await cp(localesRoot, directory, { recursive: true });
       const file = path.join(directory, "om", "ui.yaml");
@@ -376,16 +376,16 @@ describe("WP02 configuration and API contracts", () => {
       expect(response.status).toBe(200);
       expect(response.body["help.button"]).toBe(am.body["help.button"]);
       expect(response.body).not.toHaveProperty("transliteration.word.selam");
-      expect(response.headers["x-dimts-locale-fallback"]).toBe("1");
+      expect(response.headers["x-Bridgely-locale-fallback"]).toBe("1");
       expect(response.headers["access-control-expose-headers"]).toContain(
-        "X-Dimts-Locale-Fallback",
+        "X-Bridgely-Locale-Fallback",
       );
       expect(response.headers.etag).not.toBe(complete.headers.etag);
       const cached = await request(app)
         .get("/v1/locales/om/ui?lang_preview=1")
         .set("if-none-match", response.headers.etag as string);
       expect(cached.status).toBe(304);
-      expect(cached.headers["x-dimts-locale-fallback"]).toBe("1");
+      expect(cached.headers["x-Bridgely-locale-fallback"]).toBe("1");
       expect((await request(app).get("/v1/locales/om/ui")).status).toBe(404);
     } finally {
       await rm(directory, { recursive: true, force: true });
@@ -393,16 +393,16 @@ describe("WP02 configuration and API contracts", () => {
   });
   it("fails fast for missing, weak, or reused secrets", () => {
     expect(() =>
-      parseConfig({ ...validEnv, DIMTS_HASH_KEY: undefined }),
-    ).toThrow(/DIMTS_HASH_KEY/u);
+      parseConfig({ ...validEnv,HASH_KEY: undefined }),
+    ).toThrow(/HASH_KEY/u);
     expect(() =>
       parseConfig({
         ...validEnv,
-        DIMTS_ENC_KEY: Buffer.alloc(16).toString("base64"),
+       ENC_KEY: Buffer.alloc(16).toString("base64"),
       }),
     ).toThrow(/32 random bytes/u);
     expect(() =>
-      parseConfig({ ...validEnv, DIMTS_HASH_KEY: secrets[0] }),
+      parseConfig({ ...validEnv,HASH_KEY: secrets[0] }),
     ).toThrow(/different/u);
   });
 
@@ -454,7 +454,7 @@ describe("WP02 configuration and API contracts", () => {
       .set("authorization", "Bearer wrong-secret");
     const authorized = await request(app)
       .post("/v1/internal/retention")
-      .set("authorization", `Bearer ${validEnv.DIMTS_CRON_SECRET}`);
+      .set("authorization", `Bearer ${validEnv.CRON_SECRET}`);
 
     expect(missingSecret.status).toBe(401);
     expect(wrongSecret.status).toBe(401);
@@ -477,15 +477,15 @@ describe("WP02 configuration and API contracts", () => {
   });
 
   it("validates the per-question language detection threshold", () => {
-    expect(parseConfig(validEnv).DIMTS_LANGUAGE_DETECTION_CONFIDENCE).toBe(
+    expect(parseConfig(validEnv).LANGUAGE_DETECTION_CONFIDENCE).toBe(
       0.25,
     );
     expect(() =>
       parseConfig({
         ...validEnv,
-        DIMTS_LANGUAGE_DETECTION_CONFIDENCE: "1.01",
+       LANGUAGE_DETECTION_CONFIDENCE: "1.01",
       }),
-    ).toThrow(/DIMTS_LANGUAGE_DETECTION_CONFIDENCE/u);
+    ).toThrow(/LANGUAGE_DETECTION_CONFIDENCE/u);
   });
 
   it("wires the local detector into the default API ask pipeline", async () => {
@@ -591,12 +591,12 @@ describe("WP02 configuration and API contracts", () => {
     const { app, repository } = createApp();
     const invalidOptIn = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://learn.example")
       .send({ lang: "en", cloudOk: true });
     const original = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://learn.example")
       .send({
         lang: "en",
@@ -613,7 +613,7 @@ describe("WP02 configuration and API contracts", () => {
 
     const resumed = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://learn.example")
       .send({
         sessionId: original.body.sessionId,
@@ -635,9 +635,9 @@ describe("WP02 configuration and API contracts", () => {
   it("uses configured remote providers only for consenting sessions", async () => {
     const config = parseConfig({
       ...validEnv,
-      DIMTS_AI_PROVIDER: "remote-test",
-      DIMTS_AI_LADDER: "remote-test,offline",
-      DIMTS_AI_PROVIDERS: JSON.stringify([
+     AI_PROVIDER: "remote-test",
+     AI_LADDER: "remote-test,offline",
+     AI_PROVIDERS: JSON.stringify([
         {
           id: "remote-test",
           adapter: "openai-compatible",
@@ -727,12 +727,12 @@ describe("WP02 configuration and API contracts", () => {
 
       const consenting = await request(app)
         .post("/v1/sessions")
-        .set("x-dimts-key", "public-host")
+        .set("x-Bridgely-key", "public-host")
         .set("origin", "https://learn.example")
         .send({
           lang: "en",
           cloudOk: true,
-          consentVersion: config.DIMTS_AI_CONSENT_VERSION,
+          consentVersion: config.AI_CONSENT_VERSION,
         });
       const remoteAnswer = await request(app)
         .post("/v1/ask")
@@ -767,7 +767,7 @@ describe("WP02 configuration and API contracts", () => {
     const original = await createSession(app);
     const resumed = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://learn.example")
       .send({
         sessionId: original.body.sessionId,
@@ -786,12 +786,12 @@ describe("WP02 configuration and API contracts", () => {
     const { app } = createApp();
     const blockedOrigin = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://attacker.example")
       .send({ lang: "en" });
     const extraField = await request(app)
       .post("/v1/sessions")
-      .set("x-dimts-key", "public-host")
+      .set("x-Bridgely-key", "public-host")
       .set("origin", "https://learn.example")
       .send({ lang: "en", name: "not allowed" });
 

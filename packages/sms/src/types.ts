@@ -1,5 +1,5 @@
 import type { Pool } from "pg";
-import type { SubscriptionInput } from "@dimts/jobs";
+import type { SubscriptionInput } from "@bridgely/jobs";
 import type { SmsGateway, SmsDeliveryStatus } from "./gateway.js";
 import type { SmsStore } from "./store.js";
 

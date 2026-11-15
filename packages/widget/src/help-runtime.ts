@@ -1,5 +1,5 @@
 import { html, nothing } from "lit";
-import { createScreenShareController, type ShareState } from "@dimts/help";
+import { createScreenShareController, type ShareState } from "@bridgely/help";
 import type {
   Language,
   ConversationMessage,

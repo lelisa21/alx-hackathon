@@ -4,7 +4,7 @@ Updated 13 November 2026 for P04. **Status: not tested on a physical device.**
 This is an evidence register and test protocol, not a voice acceptance sign-off.
 
 P04 implements browser STT and TTS behind the existing interfaces. Set
-`DIMTS_STT_ENGINE=browser` and/or `DIMTS_TTS_ENGINE=browser` to allow an
+`STT_ENGINE=browser` and/or `TTS_ENGINE=browser` to allow an
 approved pack's corresponding capability; both default to `none`. A pack needs
 non-draft status, valid review metadata, its approved `stt`/`tts` flag, and
 `voice.yaml` with `engine: browser` and the tested `bcp_tag`. Runtime capability
@@ -30,8 +30,8 @@ before enabling an engine. **NFR-A11Y-07** requires a record of the screen
 reader and voice that correctly reads each live language. **FR-LANG-12**
 requires the calendar display to be verified on the target Android device.
 
-The authoritative protocol is in [Blueprint section 10](../Dimts-System-Blueprint-v2.0.md)
-and the acceptance text is in [SRS FR-VOICE-01 and NFR-A11Y-07](../Dimts-SRS-v1.2-complete.md).
+The authoritative protocol is in [Blueprint section 10](../Bridgely-System-Blueprint-v2.0.md)
+and the acceptance text is in [SRS FR-VOICE-01 and NFR-A11Y-07](../Bridgely-SRS-v1.2-complete.md).
 The blueprint supersedes obsolete SRS engine assumptions. See
 [the add-language checklist](./ADD_A_LANGUAGE.md) before changing pack status.
 

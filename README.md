@@ -1,8 +1,8 @@
-# Dimts: multilingual learning assistant for ALX Savanna
+# Bridgely: multilingual learning assistant for ALX Savanna
 
-Dimts answers learners' course questions in **English, Amharic and Afaan
+Bridgely answers learners' course questions in **English, Amharic and Afaan
 Oromoo**, from the course content itself. Every answer links to the exact lesson
-section it used. When there is no source, Dimts says so and offers a person.
+section it used. When there is no source, Bridgely says so and offers a person.
 The same engine serves the Savanna web widget, browser voice, SMS and
 Telegram.
 
@@ -24,7 +24,7 @@ Telegram.
 
 4. Open <http://localhost:5173/>.
 
-If port 3000 is taken, set `DIMTS_COMPOSE_API_PORT=3001` in `.env`. Stop with
+If port 3000 is taken, set `COMPOSE_API_PORT=3001` in `.env`. Stop with
 `docker compose --profile local down` (add `--volumes` to drop the database).
 
 ## What to open
@@ -32,21 +32,21 @@ If port 3000 is taken, set `DIMTS_COMPOSE_API_PORT=3001` in `.env`. Stop with
 | URL | What it shows |
 | --- | --- |
 | <http://localhost:5173/> | Demo hub with the live assistant |
-| <http://localhost:5173/savanna/pages/homepage-v1-paced.html> | Savanna learner dashboard with the **Open Dimts** launcher |
+| <http://localhost:5173/savanna/pages/homepage-v1-paced.html> | Savanna learner dashboard with the **Open Bridgely** launcher |
 | <http://localhost:5173/savanna/pages/concept-with-navigation.html> | Savanna concept page with the assistant |
-| <http://localhost:5173/learn/> | Course library: the lessons Dimts answers from, in three languages; citations land here |
-| <http://localhost:5173/sim/sms> | SMS simulator (enter `DIMTS_SMS_GATEWAY_SECRET`, any +251 test number) |
+| <http://localhost:5173/learn/> | Course library: the lessons Bridgely answers from, in three languages; citations land here |
+| <http://localhost:5173/sim/sms> | SMS simulator (enter `SMS_GATEWAY_SECRET`, any +251 test number) |
 | <http://localhost:5173/helper> | Helper console for human help requests |
 | <http://localhost:5173/v1/docs> | Integration guide: embed, REST, LTI, channels, content |
-| Telegram | Message your bot (`DIMTS_TELEGRAM_TOKEN`), send `/start`, pick a language |
+| Telegram | Message your bot (`TELEGRAM_TOKEN`), send `/start`, pick a language |
 
 The Savanna pages in `pages/` and `assets/` are unmodified captures. nginx
-adds one `<script async src="/dimts-host.js">` tag to each page as it serves
-it, exactly as a real host would embed Dimts.
+adds one `<script async src="/Bridgely-host.js">` tag to each page as it serves
+it, exactly as a real host would embed Bridgely.
 
 ## Demo walkthrough
 
-1. Open the Savanna dashboard and select **Open Dimts**. Choose a language;
+1. Open the Savanna dashboard and select **Open Bridgely**. Choose a language;
    the picker starts in the browser's language.
 2. Tap a starter question, or type one, for example:
    - English: *What score do I need to pass a course?*
@@ -71,15 +71,15 @@ node scripts/smoke-ask.mjs --cloud    # with remote-AI consent
 
 - **Languages:** English is `beta`. Amharic and Afaan Oromoo packs and lesson
   translations are drafts awaiting native-speaker review.
-  `DIMTS_PREVIEW_LANGS=am,om` shows them to learners while review-gated features
+  `PREVIEW_LANGS=am,om` shows them to learners while review-gated features
   (published FAQ answers, glossary cross-language retrieval, voice flags) stay
   off. See [DECISIONS.md](./DECISIONS.md).
 - **AI:** offline extraction by default. Configure Gemini or any
-  OpenAI-compatible provider in `DIMTS_AI_PROVIDERS` (example in
+  OpenAI-compatible provider in `AI_PROVIDERS` (example in
   `.env.example`). Remote providers run only after the learner consents.
 - **Voice:** browser speech, so audio never leaves the device. Local
-  development can use `DIMTS_VOICE_PREVIEW=true` with
-  `DIMTS_STT_ENGINE=browser` and `DIMTS_TTS_ENGINE=browser`. Production
+  development can use `VOICE_PREVIEW=true` with
+  `STT_ENGINE=browser` and `TTS_ENGINE=browser`. Production
   requires the device review in [VOICE_TEST.md](./docs/VOICE_TEST.md); the
   preview flag is rejected there.
 
@@ -104,7 +104,7 @@ remaining acceptance work. The release checklist is currently blocked on
 human/device and hosted-deployment evidence; automated tests do not substitute
 for those gates.
 
-For sample local data, set `DIMTS_SEED_HELPER_TOKEN` in `.env` to a newly
+For sample local data, set `SEED_HELPER_TOKEN` in `.env` to a newly
 generated 32-byte base64url value, then run:
 
 ```powershell

@@ -193,7 +193,7 @@ export function attachHelpWebSockets(
   options: HelpSocketOptions,
 ): HelpSocketRuntime {
   const rooms = new Map<string, Room>();
-  const signingKey = new TextEncoder().encode(options.config.DIMTS_JWT_SECRET);
+  const signingKey = new TextEncoder().encode(options.config.JWT_SECRET);
   const wss = new WebSocketServer({
     noServer: true,
     maxPayload: 16 * 1024,

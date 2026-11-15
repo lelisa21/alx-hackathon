@@ -1,8 +1,8 @@
-import { JobsError } from "@dimts/jobs";
-import type { JobsDelivery } from "@dimts/jobs";
+import { JobsError } from "@bridgely/jobs";
+import type { JobsDelivery } from "@bridgely/jobs";
 import type { ApiConfig } from "./config.js";
 
-export const JOBS_DELIVERY_VERSION = "dimts.jobs.delivery.v1";
+export const JOBS_DELIVERY_VERSION = "Bridgely.jobs.delivery.v1";
 
 /** Host delivery is real HTTP. Native channel adapters implement the same port in P07/P08. */
 export function createHostJobsDelivery(
@@ -10,22 +10,22 @@ export function createHostJobsDelivery(
   transport: typeof fetch = fetch,
 ): JobsDelivery {
   const configured = Boolean(
-    config.DIMTS_JOBS_RELAY_URL && config.DIMTS_JOBS_RELAY_SECRET,
+    config.JOBS_RELAY_URL && config.JOBS_RELAY_SECRET,
   );
-  const channels = configured ? config.DIMTS_JOBS_RELAY_CHANNELS : [];
+  const channels = configured ? config.JOBS_RELAY_CHANNELS : [];
   const send = async (
     kind: "digest" | "accommodation",
     input: { idempotencyKey: string },
   ) => {
     if (!configured) throw new JobsError("unavailable");
     try {
-      const response = await transport(config.DIMTS_JOBS_RELAY_URL!, {
+      const response = await transport(config.JOBS_RELAY_URL!, {
         method: "POST",
         redirect: "error",
         signal: AbortSignal.timeout(10000),
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${config.DIMTS_JOBS_RELAY_SECRET!}`,
+          Authorization: `Bearer ${config.JOBS_RELAY_SECRET!}`,
           "Idempotency-Key": input.idempotencyKey,
         },
         body: JSON.stringify({

@@ -27,7 +27,7 @@ async function openHelp(
   await page.route("http://127.0.0.1:4173/", (route) =>
     route.fulfill({
       contentType: "text/html",
-      body: '<!doctype html><html lang="en"><head><title>Help test</title></head><body><dimts-assistant data-api="http://api.test/v1" data-host-key="test-host"></dimts-assistant><script type="module" src="/dimts-widget.js"></script></body></html>',
+      body: '<!doctype html><html lang="en"><head><title>Help test</title></head><body><bridgely-assistant data-api="http://api.test/v1" data-host-key="test-host"></bridgely-assistant><script type="module" src="/Bridgely-widget.js"></script></body></html>',
     }),
   );
   await page.context().route("http://api.test/v1/**", async (route) => {
@@ -247,7 +247,7 @@ for (const stop of ["learner", "helper", "hidden"] as const)
     if (stop === "helper") send({ type: "share.stop", reason: "helper" });
     if (stop === "hidden")
       await page
-        .locator("dimts-assistant")
+        .locator("bridgely-assistant")
         .evaluate((el) => el.setAttribute("hidden", ""));
     await expect
       .poll(async () => (await probe()).track, {
