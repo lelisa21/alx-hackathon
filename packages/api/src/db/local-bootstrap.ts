@@ -92,7 +92,7 @@ async function main(): Promise<void> {
         id: "local-demo-helper",
         displayName: "Demo helper",
         token: helperToken,
-        langs: ["en", "am", "om"],
+        langs: ["en", "am", "om", "ti"],
       });
       process.stdout.write("Local demo helper is ready.\n");
     }

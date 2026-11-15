@@ -413,31 +413,37 @@ const environmentSchema = z
     // Languages cloud speech recognition serves.
     DIMTS_CLOUD_VOICE_LANGS: z
       .string()
-      .default("en,am,om")
+      .default("en,am,om,ti")
       .transform((value) =>
         value
           .split(",")
           .map((code) => code.trim())
           .filter(Boolean),
       ),
-    // Languages cloud read-aloud serves. Gemini TTS speaks Amharic but not
-    // Afaan Oromoo (https://aistudio.google.com/docs/speech-generation).
+    // Languages cloud read-aloud serves. Gemini TTS speaks Amharic and
+    // Tigrinya but not Afaan Oromoo
+    // (https://aistudio.google.com/docs/speech-generation).
     DIMTS_CLOUD_VOICE_SPEAK_LANGS: z
       .string()
-      .default("en,am")
+      .default("en,am,ti")
       .transform((value) =>
         value
           .split(",")
           .map((code) => code.trim())
           .filter(Boolean),
       ),
-    // Transcription runs on a multimodal model through the Interactions API.
-    // gemini-2.0-flash-lite is shut down; gemini-2.5-flash is deprecated.
-    DIMTS_CLOUD_VOICE_STT_MODEL: z.string().min(1).default("gemini-4-hydrogen"),
+    // Comma lists, tried in order: each Gemini model has its own free-tier
+    // quota (gemini-4-hydrogen: 20 requests a day), so later models serve
+    // once earlier ones are exhausted. gemini-2.0-flash-lite is shut down and
+    // gemini-2.5-flash(-lite) is closed to new users.
+    DIMTS_CLOUD_VOICE_STT_MODEL: z
+      .string()
+      .min(1)
+      .default("gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite"),
     DIMTS_CLOUD_VOICE_TTS_MODEL: z
       .string()
       .min(1)
-      .default("gemini-3.8-flash-lite-tts"),
+      .default("gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"),
     DIMTS_CLOUD_VOICE_CREDENTIAL_REF: z
       .string()
       .min(1)

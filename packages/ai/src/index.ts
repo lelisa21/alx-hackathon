@@ -8,6 +8,7 @@ export type { OpenRouterOptions } from "./openrouter.js";
 export {
   describeProviderFailure,
   InvalidProviderResponseError,
+  parseRetryDelay,
   ProviderHttpError,
 } from "./provider.js";
 export { OpenAiProvider, GeminiProvider, XaiProvider } from "./native.js";

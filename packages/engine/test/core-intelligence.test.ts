@@ -287,7 +287,8 @@ describe("core intelligence requirements", () => {
   });
 
   it.each([
-    ["en", "The answer is in your course."],
+    // Grounded in the passage: answers must stay inside their sources.
+    ["en", "Choose one learning goal for your course."],
     ["am", "መልሱ በኮርሱ ውስጥ ነው።"],
     ["om", "Deebiin keessan barnoota keessatti argama."],
   ])(

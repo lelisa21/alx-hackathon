@@ -1,0 +1,90 @@
+- q: ኣብዚ ሰሙን ክንደይ ኣርእስትታት ክመርጽ ኣለኒ?
+  a: ኣብዚ ሰሙን እትመሃርዎ ሓደ ኣርእስቲ ምረጹ።
+  source: study-plan#choose-one-goal-0
+- q: ዕላማ መጽናዕተይ ብኸመይ ክጽሕፎ ኣለኒ?
+  a: ነቲ ዕላማ ብሓንቲ ሓጻር ምሉእ ሓሳብ ጽሓፍዎ።
+  source: study-plan#choose-one-goal-0
+- q: ዕላማ መጽናዕተይ ስለምንታይ ንጹር ክኸውን ኣለዎ?
+  a: ንጹር ዕላማ ቀጺሉ እንታይ ከም እተጽንዑ ንምውሳን ይሕግዘኩም።
+  source: study-plan#choose-one-goal-0
+- q: ናይ መጽናዕቲ ግዜታት ብኸመይ እመርጽ?
+  a: ምስ ሰሙንኩም ዝሰማምዑ ቁሩባት ሓጸርቲ ናይ መጽናዕቲ ግዜታት ምረጹ።
+  source: study-plan#make-a-small-schedule-1
+- q: ናይ መጽናዕቲ ግዜታተይ ኣበይ ክምዝግቦም ኣለኒ?
+  a: ነፍሲ ወከፍ ናይ መጽናዕቲ ግዜ ኣብ ካሌንደር ኣስፍሩ።
+  source: study-plan#make-a-small-schedule-1
+- q: ኣብ መንጎ ክፍለ ግዜታት መጽናዕቲ ስለምንታይ ክፍተት ክገድፍ ኣለኒ?
+  a: ንምዕራፍን ንምድጋምን ክፍተት ግደፉ።
+  source: study-plan#make-a-small-schedule-1
+- q: ግስጋሰይ መዓስ ክግምግም ኣለኒ?
+  a: ኣብ መወዳእታ ሰሙን ዝተማሃርኩምዎ ርኣዩ።
+  source: study-plan#review-your-progress-2
+- q: ግስጋሰይ ምስ ገምገምኩ እንታይ ክቕይር ኣለኒ?
+  a: ዝሰርሐ ሓዙ። መጽናዕቲ ዘጸገመ ሓደ ነገር ቀይሩ።
+  source: study-plan#review-your-progress-2
+- q: ድሕሪ ገምጋም ሰሙን እንታይ ይቕጽል?
+  a: ዝቕጽል ንእሽቶ ዕላማ ምረጹ።
+  source: study-plan#review-your-progress-2
+- q: ዕላማ መጽናዕቲ ብኸመይ እመርጽ?
+  a: ኣብዚ ሰሙን እትመሃርዎ ሓደ ኣርእስቲ ምረጹ፣ ነቲ ዕላማ ድማ ብሓጻር ምሉእ ሓሳብ ጽሓፍዎ።
+  source: study-plan#choose-one-goal-0
+- q: ዕላማ መጽናዕቲ ንምቕማጥ እቲ ዝበለጸ መንገዲ እንታይ እዩ?
+  a: ሓጺር፣ ፍሉይን ኣብዚ ሰሙን ብቐሊሉ ክትግበር ዝኽእልን ግበርዎ።
+  source: study-plan#choose-one-goal-0
+- q: እንታይ ከም ዘጽንዕ ብኸመይ እውስን?
+  a: ኣብዚ ሰሙን ዝያዳ ኣገዳሲ ዝኾነ ሓደ ኣርእስቲ ምረጹ።
+  source: study-plan#choose-one-goal-0
+- q: ንእሽቶ መደብ መጽናዕቲ ብኸመይ እሃንጽ?
+  a: ምስ ሰሙንኩም ዝሰማምዑ ቁሩባት ሓጸርቲ ናይ መጽናዕቲ ግዜታት ምረጹ።
+  source: study-plan#make-a-small-schedule-1
+- q: ናይ መጽናዕቲ ግዜታተይ ኣበይ ከቐምጦም ኣለኒ?
+  a: ነፍሲ ወከፍ ናይ መጽናዕቲ ግዜ ኣብ ካሌንደር ኣስፍሩ።
+  source: study-plan#make-a-small-schedule-1
+- q: ኣብ መንጎ ክፍለ ግዜታት ስለምንታይ ክፍተት ይግደፍ?
+  a: ንምዕራፍን ንምድጋምን ክፍተት ግደፉ።
+  source: study-plan#make-a-small-schedule-1
+- q: መደብ ሰዓት ተግባራዊ ዝገብሮ እንታይ እዩ?
+  a: ምስ ሰሙንኩም ዝሰማማዕ ሓጺር መደብ ንምሕላው ይቐልል።
+  source: study-plan#make-a-small-schedule-1
+- q: ትምህርተይ መዓስ ክግምግም ኣለኒ?
+  a: ኣብ መወዳእታ ሰሙን ዝተማሃርኩምዎ ርኣዩ።
+  source: study-plan#review-your-progress-2
+- q: ድሕሪ ገምጋም እንታይ ክገብር ኣለኒ?
+  a: ዝሰርሐ ሓዙ፣ መጽናዕቲ ዘጸገመ ሓደ ነገር ድማ ቀይሩ።
+  source: study-plan#review-your-progress-2
+- q: ድሕሪ ሓደ ሰሙን መጽናዕቲ ብኸመይ እቕጽል?
+  a: ሰሙን ምስ ገምገምኩም ዝቕጽል ንእሽቶ ዕላማ ምረጹ።
+  source: study-plan#review-your-progress-2
+- q: ቀጻሊ ንኽኸውን እንታይ ይሕግዘኒ?
+  a: ንእሽቶን ቀጻልን መደብ ካብ ዓቢ ዕላማ ንምድጋም ይቐልል።
+  source: study-plan#choose-one-goal-0
+- q: ብስራሕ እንተ ተጸቒጠ እንታይ እገብር?
+  a: ነቲ ዕላማ ናብ ሓደ ኣርእስትን ቁሩባት ሓጸርቲ ክፍለ ግዜታትን ኣንእስዎ።
+  source: study-plan#choose-one-goal-0
+- q: ነፍሲ ወከፍ መዓልቲ ከጽንዕ ኣለኒ ዶ?
+  a: መደብኩም ምስ ሰሙንኩም ክሰማማዕ ኣለዎ፣ መዓልታዊ መደብ ክግደድ የብሉን።
+  source: study-plan#make-a-small-schedule-1
+- q: መደበይ ይሰርሕ ከም ዘሎ ብኸመይ እፈልጥ?
+  a: ኣብ መወዳእታ ሰሙን ዝተማሃርኩምዎ ርኣዩ፣ ሓደ ጸገም ድማ ኣመሓይሹ።
+  source: study-plan#review-your-progress-2
+- q: ግዜ መጽናዕቲ ኣብ ምውዳብ እቲ ቀዳማይ ስጉምቲ እንታይ እዩ?
+  a: ሰዓታት ቅድሚ ምምላእኩም እቲ ቀንዲ እትመሃርዎ ኣርእስቲ ምረጹ።
+  source: study-plan#choose-one-goal-0
+- q: ካሌንደር ስለምንታይ ይሕግዝ?
+  a: ካሌንደር ነፍሲ ወከፍ ግዜ መጽናዕቲ ዝረአን ተግባራውን ይገብሮ።
+  source: study-plan#make-a-small-schedule-1
+- q: ንዕረፍቲ ክንደይ ግዜ ክገድፍ ኣለኒ?
+  a: ክትዓርፉን ክትደግሙን ኣብ መንጎ ክፍለ ግዜታት ቁሩብ ክፍተት ግደፉ።
+  source: study-plan#make-a-small-schedule-1
+- q: ካብ ሰሙን እንታይ ክሕዝ ኣለኒ?
+  a: ጽቡቕ ዝሰርሓልኩም ናይ መጽናዕቲ ልምድታት ሓዙ።
+  source: study-plan#review-your-progress-2
+- q: ድሕሪ ሓደ ሰሙን እንታይ ክቕይር ኣለኒ?
+  a: ዝቕጽል ሰሙን ንኽቐልል ምምሃር ዘጸገመ ሓደ ነገር ቀይሩ።
+  source: study-plan#review-your-progress-2
+- q: ዕላማ ገምጋም እንታይ እዩ?
+  a: ገምጋም ዝተማሃርኩምዎን ምምሕያሽ ዘድልዮን ንምርኣይ ይሕግዘኩም።
+  source: study-plan#review-your-progress-2
+- q: ገምጋም ዝቕጽል መደበይ ብኸመይ ከመሓይሾ ይኽእል?
+  a: ዝቕጽል ንእሽቶ ዕላማ ብጥበብ ንምምራጽ ውጽኢት ገምጋም ተጠቐሙ።
+  source: study-plan#review-your-progress-2

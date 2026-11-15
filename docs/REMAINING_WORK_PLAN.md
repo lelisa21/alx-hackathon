@@ -1,268 +1,264 @@
-# Dimts remaining workflows
+# Dimts: audited execution plan
 
-Status reviewed: 14 November 2026
-Purpose: current implementation map and the remaining work needed for release.
-Authority: [Dimts-System-Blueprint-v2.0.md](../Dimts-System-Blueprint-v2.0.md),
-then the SRS for requirement IDs and acceptance criteria. The latest evidence is
-recorded in [IMPLEMENTATION_PROGRESS.md](./IMPLEMENTATION_PROGRESS.md),
-[GATE_CHECKLIST.md](./GATE_CHECKLIST.md), and [EVAL.md](./EVAL.md).
+Audit date: 15 November 2026
+Authority: [Dimts System Blueprint v2.0](../Dimts-System-Blueprint-v2.0.md), then the requirement text in [Dimts SRS v1.2](../Dimts-SRS-v1.2-complete.md). This plan replaces the former queue and records the repository state observed on the audit date.
 
-This replaces the previous prompt-by-prompt plan. P01–P11 have implementation
-increments in the repository; their completed implementation prompts are
-removed from the actionable queue. An implementation increment is not the same
-as an accepted or release-ready work package. The open evidence and incomplete
-surfaces below remain work.
+## Objective and release rule
 
-## System workflow implemented so far
+Finish and verify the product already specified by the blueprint and SRS. Preserve the existing shared API, conversation engine, PostgreSQL stores, source synchronization, channel adapters, and frozen Savanna captures. Do not start P12–P14 or add capabilities without an approved requirement and decision.
 
-```text
-Learner / host
-  -> Lit web widget, REST, Telegram, or SMS simulator
-  -> Express API: session/auth, validation, rate limits, channel routes
-  -> channel-neutral conversation engine
-       -> locale and per-question language checks
-       -> grounded retrieval and citations
-       -> consent/capability-filtered provider ladder
-  -> PostgreSQL persistence and privacy-safe aggregates
-  -> localized response to the originating channel
+A task is complete only when its acceptance criteria are evidenced in the target environment. A passing unit test, successful build, mocked provider, or component rendering alone is insufficient. Keep unverified external, human, and device checks explicitly open. Quote the applicable requirement IDs before implementation, write automated tests before code, and record any contract or privacy decision in `DECISIONS.md`.
 
-Adjacent services: human-help queue/chat/share, career/jobs and alerts,
-feedback/insights, LTI integration, voice adapters, and source synchronization.
-```
+## Audit summary
 
-Current code boundaries:
+The repository contains a substantial, connected implementation: a Lit widget; Express API with OpenAPI/Zod contracts; shared tutor and grounding pipeline; PostgreSQL repositories and migrations; local/cloud AI provider adapters; browser voice; helper, job, SMS, Telegram, insights, and LTI modules; locale tooling; and deployment/CI configuration. The plan is therefore focused on acceptance, evidence gaps, a few identified correctness/documentation issues, and operations rather than rebuilding these systems.
 
-- `packages/widget`, `packages/voice`, `packages/help`: learner UI, embedding,
-  offline/FAQ behavior, helper console, and browser voice/share integrations.
-- `packages/api`: Express routes, OpenAPI/Zod contracts, auth, service wiring,
-  and PostgreSQL adapters/migrations.
-- `packages/engine`, `packages/grounding`, `packages/ai`, `packages/eval`:
-  ask pipeline, retrieval/citations, provider selection, and evaluation.
-- `packages/locales-tools` and `locales/`: locale packs, validation, fallback,
-  formatting, and scaffolding.
-- `packages/jobs`, `packages/sms`, `packages/telegram`, `packages/insights`,
-  `packages/lti`: career, channel, analytics, and integration capabilities.
+| Area                 | What exists                                                                                                                                                                                                  | Actual status at audit                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Widget and API       | Widget calls session, ask, feedback, help, career, voice, privacy, and insights endpoints; API mounts corresponding routes.                                                                                  | Connected in code. Typecheck and lint passed in this audit. Build/tests could not be run here because the sandbox denied Vite/Vitest/esbuild access while resolving config above the repository root. Browser and live HTTP behavior is therefore not independently re-verified in this audit.                                                                                                                                                             |
+| Tutor, retrieval, AI | Shared engine, citations, language checks, provider registry/policy, offline path, Gemini/OpenRouter/native adapters, eval harness.                                                                          | Implemented, but model-backed quality/latency is unverified. Current `docs/EVAL.md` records English 12/12 and Amharic 0/16, Afaan Oromoo 0/18, Tigrinya 0/16 full-pipeline answer recall. Packs are not fully human-reviewed; answer quality remains a release blocker.                                                                                                                                                                                    |
+| Course data          | `content/savanna/{en,am,om,ti}` contains seven files per language.                                                                                                                                           | Multilingual files exist; their existence is not proof of reviewed content, source coverage, or retrieval quality. The previous plan's statement that all checked-in course sources are English-only was too broad. The current evaluation still reports zero retrieval/answer recall for the non-English course and job pairs.                                                                                                                            |
+| PostgreSQL           | Eleven SQL migration files, repositories, constraints, indexes, and integration tests. The runner applies sorted full filenames, tracks names, uses a transaction per migration, and takes an advisory lock. | No migration defect was demonstrated by static review. Two files use prefix `003`; they have distinct names and deterministic lexical ordering, so the duplicate prefix itself is not a failure. The latest migration must still be exercised against real PostgreSQL and an existing-data upgrade path. CI is configured with a PostgreSQL service and migration/integration steps, but no hosted CI result was available to this audit.                  |
+| Insights             | Service, repository, protected API, aggregate recording, instructor page, CSV, minimum cell size 5, LTI instructor access.                                                                                   | Current implementation and 15 November decision log supersede older `IMPLEMENTATION_PROGRESS.md` sections that call these features stubs or absent. PostgreSQL, real LMS/hosted, topic-label quality, and human accessibility evidence remain open. `topicLabel()` queries `passage` by `id` with `LIMIT 1`; after migration 003 the passage primary key is `(content_version_id,id)`, so multiple versions can match and return an arbitrary/stale label. |
+| LTI                  | OIDC login/launch, platform JWKS validation, persistent state/replay, opaque persisted session bearer, instructor authorization.                                                                             | Local mocked-JWKS and signed-token tests are recorded in progress documentation. Real LMS launch and hosted PostgreSQL behavior remain unverified. The empty tool `/jwks` endpoint is not needed by the current no-tool-signature launch contract; deep linking/grade passback remain out of scope.                                                                                                                                                        |
+| Telegram             | Private chat adapter, webhook/polling runtime, commands, shared tutor/help/jobs, STOP/deletion and alert consent, optional voice boundary.                                                                   | Code path exists. No verified live bot/webhook deployment evidence. Server-side Telegram voice is only available if a compatible adapter/provider is explicitly configured and reviewed; do not present unconfigured voice as working.                                                                                                                                                                                                                     |
+| SMS                  | Simulator, shared service, encoding/pagination, STOP/subscriptions, optional provider gateway and callback contracts.                                                                                        | Simulator and replaceable gateway code exist. A real carrier is explicitly outside the release scope; only the simulator and contract boundary need release acceptance. Do not claim that a gateway sends/receives live carrier messages without a real operator test.                                                                                                                                                                                     |
+| Jobs and help        | Ethiojobs public import; partner feed ports; alerts; accommodation relay; queue/chat/share/image; browser WebRTC and optional TURN.                                                                          | Local implementations exist. HahuJobs/Afriwork require authorized partner feeds; interview support requires a host relay. Hosted relay, actual TURN, device sharing, retention and delivery are not verified.                                                                                                                                                                                                                                              |
+| Accessibility/UI     | Locale-backed UI, focus and keyboard work, axe/Playwright suites, responsive CSS breakpoints, voice/text controls.                                                                                           | Automation is documented, but the reported speech/text box issue has not been reproduced on real target viewports in this audit. Co-designer, NVDA, TalkBack and criterion-level review remain required.                                                                                                                                                                                                                                                   |
+| Operations           | CI, Compose, Render, cron, retention, privacy/deletion, cost and release docs.                                                                                                                               | Workflow definitions include PostgreSQL integration, migration rerun, Compose, axe, audit, and secret scanning. Hosted config, actual scheduler delivery, retention timing, cost/size budget, warm 50-session p95, and deployment are unverified. Local progress notes report a malformed `.env` entry (line 47); this audit deliberately did not display or parse secret values.                                                                          |
 
-Preserve these existing foundations. Do not create a second server/session
-store, replace source synchronization, or alter the frozen Savanna captures in
-`pages/` and `assets/`.
+### Documentation reconciliation
 
-## Implementation increments delivered
+- `docs/EVAL.md` currently says English answer recall is 12/12 (100%). `docs/REMAINING_WORK_PLAN.md` before this audit and the newest P02 summary in `docs/IMPLEMENTATION_PROGRESS.md` said 2/12 (16.7%). Re-run `pnpm eval` on the current checkout and update all figures from that single run. Until then, the English baseline is **disputed**; the non-English failures are consistent across the checked-in evaluation report and summaries.
+- Older P09/P10 progress entries describe the teacher page, aggregate wiring, host-key verification, and LTI persistence as missing or stubbed. Newer entries and `DECISIONS.md` record their implementation. Treat older entries as historical implementation notes, not current-state evidence. Update or clearly mark superseded progress sections after verification.
+- The prior plan says the sample course sources are English-only. The tree includes `en`, `am`, `om`, and `ti` folders. The actionable gap is reviewed/correctly indexed source coverage and measured retrieval/answer quality, not the absence of localized files.
+- The current `pnpm` commands are callable as `pnpm.cmd` in this PowerShell environment. `pnpm.cmd typecheck` and `pnpm.cmd lint` passed. `pnpm.cmd test -- --maxWorkers=1` stopped during widget Vite build; direct Vitest startup also failed because esbuild could not access a parent directory while loading its config. This is an audit-environment restriction, not evidence that product tests fail or pass. Repeat in supported CI/clean Linux or an unrestricted developer environment.
+- `.env` is ignored by Git. Its raw values were not printed. All names in `.env.example` have corresponding local entries, but local value correctness was not assessed. Production Render/Neon, host, provider, Telegram, and LMS values are not independently inspectable from this checkout and remain **unverified**, not assumed configured.
 
-These are not remaining implementation prompts. Their acceptance caveats are
-listed as actionable workflows below.
+## Environment and configuration inventory
 
-| Work package | Delivered implementation increment                                                                                                                                                                |
-| ------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| P01          | Locale checker/scaffolder, pack fallback and preview behavior, date/number formatting, and optional confirmed Amharic transliteration.                                                            |
-| P02          | Grounded answer pipeline, provider registry/policy, durable cache and signals, JobPosting passage handling, and evaluation tooling.                                                               |
-| P03          | Widget/offline FAQ and consent flows, reply controls, accessibility automation, and Level 1 embed contract.                                                                                       |
-| P04          | Browser voice adapters, explicit recording/review/send, playback controls, and capability gating.                                                                                                 |
-| P05          | Help queue/relay, availability and fallback behavior, consented sharing/image paths, and helper workflow.                                                                                         |
-| P06          | Job import/search, alert and accommodation services, persistence, and learner career flows.                                                                                                       |
-| P07          | SMS simulator, gateway boundary, encoding/continuation, STOP and subscription integration. Real carrier service remains out of event scope.                                                       |
-| P08          | Private Telegram adapter, shared tutor/help/jobs paths, alert consent and STOP, and voice-note review boundary.                                                                                   |
-| P09          | Insights aggregation service/API, privacy suppression, CSV, and authorization foundations. The teacher-facing page and full aggregate event wiring remain open.                                   |
-| P10          | Static LTI configuration, launch validation/session persistence, replay protection, instructor authorization, and REST/OpenAPI examples. A complete production LTI/OIDC integration remains open. |
-| P11          | Operations/privacy/deletion scaffolding, CI and Compose/evaluation/a11y gates, and release documentation. Human and hosted evidence remains open.                                                 |
+These names are derived from `packages/api/src/config.ts`, `.env.example`, `render.yaml`, workflows, and the setup scripts. Do not put secret values in this plan or in browser builds.
 
-## Remaining workflows
+| Variable(s)                                                                                                                                                                                                                                                                                                                       | Use / component                                                                                 | Required status                                                                                            | Current configuration evidence / where to obtain it                                                                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                                                                                                                                                                                                                                                                                    | API PostgreSQL connection (pooled on hosted topology).                                          | Required to run API.                                                                                       | Listed in `.env.example` and local `.env`; values and live DB availability unverified. Obtain from local Compose or the Neon project.                                                                                                                                                                                                                |
+| `DATABASE_URL_DIRECT`                                                                                                                                                                                                                                                                                                             | Migrations and admin/provisioning commands.                                                     | Required for deploy migrations/admin; optional for API-only development.                                   | Listed locally; value unverified. Use the direct, non-pooled Neon connection string.                                                                                                                                                                                                                                                                 |
+| `DIMTS_ENC_KEY`, `DIMTS_HASH_KEY`, `DIMTS_JWT_SECRET`, `DIMTS_CRON_SECRET`                                                                                                                                                                                                                                                        | Contact encryption, keyed identifiers, helper/LTI signing, and internal jobs.                   | Required by API startup; must be distinct and valid.                                                       | Names present in local/example env; values deliberately not inspected. Generate as specified in `docs/DEPLOY.md` / `docs/ENVIRONMENT.md`; store in API host secret settings.                                                                                                                                                                         |
+| `DIMTS_HOST_ORIGINS`, `DIMTS_CONTENT_BASE_URL`                                                                                                                                                                                                                                                                                    | Widget CORS/host allowlist and citation links.                                                  | Required for a useful hosted widget.                                                                       | Listed locally; correctness unverified. Supply exact embedding origins and deployed lesson base URL.                                                                                                                                                                                                                                                 |
+| `PORT`                                                                                                                                                                                                                                                                                                                            | API listen port.                                                                                | Host-provided or default 3000.                                                                             | Config has a default; omitted from `.env.example`. Set only if the host does not supply it.                                                                                                                                                                                                                                                          |
+| `DIMTS_PUBLIC_API`, `DIMTS_PUBLIC_WIDGET_KEY`                                                                                                                                                                                                                                                                                     | Static widget build's API base and public host key.                                             | Required for deployed static assets to call the API.                                                       | Defined in `render.yaml`/build; not API config and not listed in `.env.example`. Set on the static-site build. API URL is public; key is a public identifier provisioned with `pnpm admin`, not a secret.                                                                                                                                            |
+| `POSTGRES_PASSWORD`, `DIMTS_COMPOSE_API_PORT`, `DIMTS_COMPOSE_WEB_PORT`, `DIMTS_LOCAL_WIDGET_KEY`                                                                                                                                                                                                                                 | Local Compose database and ports/widget.                                                        | Local Compose only; defaults/examples exist.                                                               | Names present in example/local env. Choose local password; Compose port/key values can stay at defaults.                                                                                                                                                                                                                                             |
+| `DIMTS_PROVISION_SECRET`                                                                                                                                                                                                                                                                                                          | One-time admin CLI value for host/helper key provisioning.                                      | Required only when provisioning; should be injected for that command, never committed.                     | Intentionally absent as a persistent example key. Generate a fresh value as in `docs/DEPLOY.md`.                                                                                                                                                                                                                                                     |
+| `DIMTS_SEED_HELPER_TOKEN`                                                                                                                                                                                                                                                                                                         | Local seed helper account.                                                                      | Seed/development only.                                                                                     | Entry exists locally/example; optional outside seed workflow.                                                                                                                                                                                                                                                                                        |
+| `GEMINI_API_KEY`, `OPENROUTER_API_KEY`                                                                                                                                                                                                                                                                                            | Optional real AI and cloud speech provider credentials.                                         | Required only for enabled corresponding remote profiles; offline path needs neither.                       | Entries exist locally/example, but no valid live provider profile is verified. Obtain from Google AI Studio and OpenRouter. Never bake into widget assets.                                                                                                                                                                                           |
+| `DIMTS_AI_PROVIDER`, `DIMTS_AI_LADDER`, `DIMTS_AI_PROVIDERS`, `DIMTS_AI_MAX_TOKENS`, `DIMTS_AI_TEMPERATURE`, `DIMTS_AI_RECALL_FLOOR`, `DIMTS_AI_CONSENT_VERSION`, `DIMTS_CONFIDENCE_FLOOR`, `DIMTS_LANGUAGE_DETECTION_CONFIDENCE`                                                                                                 | Provider selection/policy, response budget, retrieval thresholds and consent version.           | Defaults exist; profile-specific values must match approved provider bindings.                             | Most are in local/example env. `DIMTS_CONFIDENCE_FLOOR` is read by config but omitted from `.env.example`; default is 0.35. No model/provider profile is accepted until quality and privacy evaluation passes.                                                                                                                                       |
+| `DIMTS_CLOUD_VOICE`, `DIMTS_CLOUD_VOICE_LANGS`, `DIMTS_CLOUD_VOICE_SPEAK_LANGS`, `DIMTS_CLOUD_VOICE_STT_MODEL`, `DIMTS_CLOUD_VOICE_TTS_MODEL`, `DIMTS_CLOUD_VOICE_CREDENTIAL_REF`, `DIMTS_STT_ENGINE`, `DIMTS_TTS_ENGINE`, `DIMTS_VOICE_PREVIEW`                                                                                  | Browser/cloud speech capabilities and review gate.                                              | Optional; voice must remain disabled/unadvertised for unsupported or unreviewed language/engine pairs.     | Most entries exist in example/local env. `DIMTS_CLOUD_VOICE_CREDENTIAL_REF` is omitted from `.env.example`, defaulting to `GEMINI_API_KEY`. Cloud use needs the corresponding provider key and explicit learner consent.                                                                                                                             |
+| `DIMTS_TELEGRAM_TOKEN`, `DIMTS_TELEGRAM_SECRET`, `DIMTS_TELEGRAM_MODE`, `DIMTS_PUBLIC_API_URL`, `DIMTS_PUBLIC_TELEGRAM_BOT`                                                                                                                                                                                                       | Telegram bot authentication, webhook/polling, and displayed bot link.                           | Optional integration; token + secret + public HTTPS URL required for hosted webhook operation.             | Entries exist in example/local env; live validity and webhook are unverified. Obtain token from Telegram BotFather; generate a separate webhook secret; set the public API URL in API host config. Only one development process may poll a bot.                                                                                                      |
+| `DIMTS_SMS_MODE`, `DIMTS_SMS_GATEWAY_SECRET`, `DIMTS_SMS_GATEWAY_URL`, `DIMTS_SMS_GATEWAY_TOKEN`, `DIMTS_SMS_CALLBACK_URL`, `DIMTS_SMS_CALLBACK_SECRET`, `DIMTS_SMS_DAILY_LIMIT`                                                                                                                                                  | Simulator, optional SMS Ethiopia/custom gateway, inbound auth, and optional consented callback. | Simulator default; other values conditional. URL/secret or URL/token pairs are validated together.         | Entries exist in example/local env. For `smsethiopia`, get the campaign API key from that provider; for `gateway`/callback, the host must operate the documented HTTPS bridge. Real operator delivery is not a release prerequisite.                                                                                                                 |
+| `DIMTS_JOB_SOURCES`, `DIMTS_JOB_SYNC_LIMIT`, `DIMTS_JOB_SYNC_INTERVAL_MS`, `DIMTS_JOB_USER_AGENT`, `DIMTS_HAHUJOBS_FEED_URL`, `DIMTS_HAHUJOBS_FEED_TOKEN`, `DIMTS_AFRIWORK_FEED_URL`, `DIMTS_AFRIWORK_FEED_TOKEN`, `DIMTS_JOBS_ALERT_INTERVAL_MS`, `DIMTS_JOBS_RELAY_URL`, `DIMTS_JOBS_RELAY_SECRET`, `DIMTS_JOBS_RELAY_CHANNELS` | Job import, partner feeds, alert schedule, and host interview-support relay.                    | Defaults cover Ethiojobs and local operation. Partner feeds/relay are conditional on authorized access.    | Several defaults/relay settings exist locally. Four partner-feed vars and `DIMTS_JOB_SYNC_INTERVAL_MS` / `DIMTS_JOB_USER_AGENT` are absent from `.env.example`; defaults are used for the latter two. Obtain feed credentials and relay contract from the platform owner; do not invent endpoints. HahuJobs/Afriwork have no configured public feed. |
+| `DIMTS_HELPER_HOURS`, `DIMTS_HELP_WAIT_TIMEOUT_MS`, `DIMTS_TURN_APP`, `DIMTS_TURN_API_KEY`                                                                                                                                                                                                                                        | Human helper availability/wait and optional Metered TURN relay.                                 | Optional. TURN values must be paired; no values means public STUN.                                         | Entries exist locally/example. Hours come from the real rota; TURN values come from the host's Metered account. Real-device/network tests remain open.                                                                                                                                                                                               |
+| `DIMTS_LTI_PLATFORMS`, `DIMTS_LTI_WIDGET_URL`, `DIMTS_LTI_WIDGET_KEY`                                                                                                                                                                                                                                                             | Static LMS issuer/client/JWKS/deployment registration and launch page widget.                   | Optional until an LMS is configured.                                                                       | Entries exist locally/example; real platform values unverified. Obtain from the LMS registration/metadata and public widget build. Do not add platform-specific fields beyond the contract.                                                                                                                                                          |
+| `DIMTS_PUBLIC_SOURCES`, `DIMTS_SOURCE_SYNC_INTERVAL_MS`, `DIMTS_DEFAULT_LANG`, `DIMTS_PREVIEW_LANGS`, `DIMTS_RETENTION_HOURS`                                                                                                                                                                                                     | Optional authorized public sitemap ingestion, language publication, and retention.              | Defaults exist; sources/preview language publication must be host-approved.                                | Entries exist locally/example. Sitemaps must be authorized HTTPS sources. Review locale gates before publishing beta/draft language capabilities.                                                                                                                                                                                                    |
+| `DATABASE_URL_DIRECT`, `DIMTS_TEST_DATABASE_URL`                                                                                                                                                                                                                                                                                  | PostgreSQL-backed integration test connection (CI injects its service DB).                      | `DIMTS_TEST_DATABASE_URL` optional for local DB integration suite, required to avoid those tests skipping. | Not present in `.env.example` or current local env. Use an isolated disposable test database; never point tests at production.                                                                                                                                                                                                                       |
+| `DIMTS_DB_BUDGET_MB`                                                                                                                                                                                                                                                                                                              | `pnpm usage` database-size budget threshold.                                                    | Optional; defaults to 600 MB.                                                                              | Read by `scripts/usage.mjs` and documented in `docs/COST.md`, but not in `.env.example`. Set only when host budget differs.                                                                                                                                                                                                                          |
+| `DIMTS_API_URL`, `DIMTS_CRON_SECRET`                                                                                                                                                                                                                                                                                              | GitHub scheduled retention/alerts calls.                                                        | Required GitHub Actions secrets for hosted schedule; workflow silently skips if absent.                    | `DIMTS_CRON_SECRET` API-side name is in example. Set both GitHub secrets to the public API base and the same cron secret as the API. Verify Actions execution; no delivery evidence is present.                                                                                                                                                      |
+| `DIMTS_SCHEDULER_API_URL`, `DIMTS_URL`, `LTI_DEMO_JWKS_URL`, `LTI_DEMO_PORT`, `DIMTS_PUBLIC_API`, `DIMTS_PUBLIC_WIDGET_KEY`                                                                                                                                                                                                       | Local scheduler, demo LMS, and static lesson build scripts.                                     | Development/demo or static build only; script defaults cover local demo URLs/ports.                        | Read in scripts/templates, not all documented in `.env.example`; obtain public values from the deployment when building static pages.                                                                                                                                                                                                                |
 
-Do these in dependency order where noted. Manual reviews and environment setup
-can be scheduled in parallel with code work when their prerequisites are ready.
+Configuration follow-up: reconcile `.env.example` and `docs/ENVIRONMENT.md` with the actual config/script reads above, including defaults and required-versus-conditional status. Never copy `.env` values into documentation or build artifacts.
 
-### 1. Review language packs and build representative source data
+## Remaining tasks
 
-**Packages:** P01 and P02.
-**Requirements:** FR-LANG-01–17, FR-CONV-05/07, FR-TUTOR-08/10,
-FR-AI-04/FR-UI-16, NFR-A11Y-07, AR-06/07.
+Run tasks in order. Tasks marked **P0** block a dependable local/hosted verification path; **P1** block feature/release acceptance; **P2** is behavior-preserving maintainability work after acceptance blockers.
 
-- Obtain and record qualified/native-speaker review for English, Amharic, and
-  Afaan Oromoo packs, including distress/help language and privacy copy. Keep
-  review status truthful; do not promote draft data without review.
-- Complete the reviewed glossary, FAQ, and evaluation-set targets specified
-  by P01 (200 glossary entries and 30 sourced FAQs per live language, plus at
-  least 10 evaluation questions per language).
-- Obtain authorized, representative multilingual lesson/job passages and
-  reviewed cross-language mappings. The current checked-in sample sources are
-  English-only and cannot establish Amharic/Oromo answer quality.
-- Complete the specified Android calendar verification and the review needed
-  before enabling language-specific voice capabilities.
-- Keep verified emergency/support contact values empty until supplied by the
-  host.
+### T0 — Restore a reproducible verification environment
 
-**Exit evidence:** review metadata is genuine; `pnpm lang:check` passes; live
-status and published FAQ data match review; date behavior is checked on the
-target device.
+- **Priority:** P0
+- **Requirements:** NFR-OPS-01/02, NFR-REL-01/02, NFR-SEC-01/02; implementation process in `AGENTS.md`.
+- **Problem/status:** The ignored local `.env` is reported by the latest progress record as malformed at line 47. During this audit, its values were not read or shown. The package build and direct Vitest invocation could not load Vite/Vitest config because esbuild was denied access above the repository root. `typecheck` and lint passed. These are local verification blockers; they do not prove a product defect.
+- **Relevant files:** `.env` (local only), `.env.example`, `docs/ENVIRONMENT.md`, `docker-compose.yml`, `scripts/test-local-compose.mjs`, `vitest*.config.ts`, `packages/widget/vite*.config.ts`, `.github/workflows/ci.yml`.
+- **Solution:** Correct the local env syntax without exposing secrets; run repository commands in the supported tool environment; use isolated PostgreSQL and the repository's existing Compose/CI wiring.
+- **Dependencies:** Developer machine/CI with Node >=22.18, pnpm >=10.12.1, access to repo and a Docker/PostgreSQL runtime.
+- **Steps:**
+  1. Compare only variable names against `.env.example`; repair malformed syntax locally and confirm required variables are populated with valid values without printing them.
+  2. Resolve the Vite/Vitest/esbuild parent-directory restriction in the verification environment or run the same commands on supported CI/Linux. Do not change project source paths solely to bypass this sandbox restriction.
+  3. Run build, full serialized unit suite, widget/axe suite, locale/core coverage, typecheck, lint, formatting check, eval, size, audit, and Compose gates. Record exact command/result and skipped-test reasons.
+  4. Confirm PostgreSQL suites do not skip when `DIMTS_TEST_DATABASE_URL` is set to a disposable database.
+- **Acceptance criteria:** Clean checkout installs from lockfile; all listed project checks complete in supported environment; PostgreSQL tests execute (not silently skip); any remaining failures are reproducible and assigned to a code task; no secret value appears in output/artifacts.
+- **Verification:** `pnpm install --frozen-lockfile`; `pnpm build`; `pnpm test -- --maxWorkers=1`; `pnpm test:widget`; `pnpm test:lang`; `pnpm test:core`; `pnpm typecheck`; `pnpm lint`; `pnpm format:check`; `pnpm eval`; `pnpm size`; `pnpm test:compose`; `pnpm audit --audit-level high`; PostgreSQL integration commands from CI.
 
-### 2. Verify end-to-end tutor quality and provider profiles
+### T1 — Reconcile evaluation evidence and close tutor quality gaps
 
-**Packages:** P02; depends on workflow 1 for language acceptance.
-**Requirements:** FR-CONV-05–09/13/14, FR-TUTOR-07–11/14, FR-AI-02–10,
-AR-01/06/08, NFR-MAINT-02, NFR-PRIV-03, NFR-PERF-03.
+- **Priority:** P1
+- **Requirements:** FR-CONV-05–09/13/14, FR-TUTOR-07–11/14, FR-AI-02–10, FR-LANG-01–17, AR-01/06/07/08, NFR-MAINT-02, NFR-PRIV-03, NFR-PERF-03.
+- **Problem/status:** Evaluation evidence conflicts: checked-in `docs/EVAL.md` reports English 12/12, while the preceding plan and newest progress summary report 2/12. The current report shows Amharic 0/16, Afaan Oromoo 0/18, and Tigrinya 0/16 full-pipeline expected answers; non-English retrieval from course/job sources is 0%. FAQ adapter scores are 30/30 per language but explicitly do not prove engine retrieval. Locale/source review and real provider performance remain unverified. Localized source directories exist, but their review/coverage is not established.
+- **Relevant files:** `docs/EVAL.md`, `docs/IMPLEMENTATION_PROGRESS.md`, `docs/REMAINING_WORK_PLAN.md`, `content/savanna/{en,am,om,ti}/`, `locales/{en,am,om,ti}/`, `packages/eval/`, `packages/grounding/`, `packages/engine/`, `packages/ai/`, `docs/LOCAL_AI.md`.
+- **Solution:** Establish one fresh reproducible baseline; collect authorized representative passages and native-speaker-reviewed questions/locale packs; fix retrieval/source-language mapping and answer behavior against measured cases; enable only evaluated provider profiles under consent/data policy.
+- **Dependencies:** T0; host authorization for content; qualified language reviewers. Keep review-dependent capabilities disabled until evidence exists.
+- **Steps:**
+  1. Run `pnpm eval` on the audited commit and replace contradictory numbers in all current-state documents with its artifact and commit/date.
+  2. Verify each source fixture and evaluation question against its expected language/source. Complete the SRS language glossary/FAQ/evaluation targets only with reviewed material; record reviewer metadata truthfully.
+  3. Diagnose each missed retrieval/answer by language, source pair, passage mapping and confidence gate; add regression tests before changing implementation.
+  4. Re-run the complete pipeline, normal/Simple modes, citations, language correctness, refusal/not-found, prompt-injection, cache/replay and per-provider latency checks.
+  5. If the host enables remote/local models, verify the actual endpoint, structured response, consent gating, data-class policy, timeout/fallback and real p95 using synthetic non-sensitive prompts.
+- **Acceptance criteria:** All current figures come from one reproducible run; language/source targets in the SRS are met on reviewed sets; no unsupported language is marked live; remote calls do not happen before consent; citation and safety gates remain satisfied; measured provider p95 is reported with method and conditions.
+- **Verification:** `pnpm eval`, core coverage gates, focused retrieval/language/provider tests, and controlled live-provider smoke/evaluation when credentials and permission are available. Without credentials, label provider quality/latency unverified.
 
-- Re-run evaluation with reviewed source/question sets; close the current
-  answer-recall gap and report results per language and source/language pair.
-- Configure and test real local/cloud provider profiles only where the host
-  enables them and learner consent/data policy permits. Current provider
-  conformance tests do not establish real model quality or latency.
-- Verify provider p95 targets with the configured adapters, including
-  conditions and failure cases. Keep unsupported/unmeasured results explicit.
-- Maintain the engine/grounding/AI coverage floor. Task 2's focused regression
-  tests now make `pnpm test:core -- --maxWorkers=1` pass; grounding branch
-  coverage is 74.95% against the unchanged 70% threshold.
-- Preserve citation validity, language checks, injection tests, cache
-  invalidation, and restart-safe ask idempotency while closing these gaps.
+### T2 — Verify migrations, persistence, and insight topic labels
 
-**Current evaluation evidence:** `docs/EVAL.md` reports English expected-answer
-recall at 2/12 (16.7%), Amharic 0/16, and Afaan Oromoo 0/18. The draft FAQ
-adapter results are separate and do not satisfy full-pipeline acceptance.
+- **Priority:** P1
+- **Requirements:** FR-INSIGHT-01–04, FR-CONV-12, FR-INT-05/06/07, NFR-PRIV-03, NFR-REL-01/02.
+- **Problem/status:** Migrations 001–011 and persistent repositories exist, and CI defines PostgreSQL migration/integration steps. No current-run DB evidence was available in this audit. Identified correctness risk: `packages/api/src/db/insights-repository.ts::topicLabel()` selects by passage `id` only with `LIMIT 1`, while migration 003 changed the primary key to `(content_version_id,id)`. Multiple retained content versions may contain that ID, making the label arbitrary or stale.
+- **Relevant files:** `packages/api/migrations/001_init.sql`–`011_lti_session_auth.sql`, `packages/api/src/db/migrate.ts`, `packages/api/src/db/insights-repository.ts`, `packages/api/src/db/repository.ts`, `packages/api/test/*postgres*`, `packages/jobs/test/postgres.integration.test.ts`, `.github/workflows/ci.yml`.
+- **Solution:** Run the complete migration chain on fresh and upgrade databases; verify migration ordering/idempotency/data constraints; resolve labels against the active content/source generation according to the blueprint's existing source model, with deterministic fallback when a label no longer exists.
+- **Dependencies:** T0; isolated PostgreSQL; reviewed decision only if the active-generation contract is unclear.
+- **Steps:**
+  1. Apply all migrations to an empty DB and to a copy with representative legacy rows; run the migration command a second time.
+  2. Assert foreign keys, uniqueness, indexes, retention/deletion cascades, session replay persistence, insights aggregation and privacy floor.
+  3. Add a regression with two content versions sharing a passage ID and assert the active version's label is selected. Use the existing active generation/source relationship; do not add an invented table/field.
+  4. Run concurrent/restart persistence tests for LTI nonce/replay/session, ask idempotency, Telegram/SMS state and aggregates.
+- **Acceptance criteria:** Fresh and upgrade migration runs succeed and reruns are no-ops; no data loss or orphaned rows; repository output selects only the active valid label; all PostgreSQL suites run against actual PostgreSQL and pass.
+- **Verification:** CI migration step twice; all `*.integration.test.ts` with `DIMTS_TEST_DATABASE_URL`; `pnpm test:compose`; an upgrade fixture and query-level regression.
 
-### 3. Complete teacher insights end to end
+### T3 — Verify API contracts and complete connected backend workflows
 
-**Packages:** P09, with P02/P03 integration; P10 supplies instructor access.
-**Requirements:** FR-CONV-12, FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01.
-FR-UI-20 covers per-reply controls; it is not the teacher-page requirement.
+- **Priority:** P1
+- **Requirements:** FR-INT-01–12, FR-CONV-01–14, NFR-SEC-01–12, NFR-REL-01–03, NFR-PRIV-01–09.
+- **Problem/status:** Route modules, auth/validation middleware, OpenAPI/Zod schemas, and widget/channel clients are present. Static scan found no proven broken endpoint. This audit could not run HTTP/DB end-to-end checks, so request/response behavior, error propagation, authorization and data persistence are not independently established. `docs/IMPLEMENTATION_PROGRESS.md` contains obsolete claims mixed with current evidence.
+- **Relevant files:** `packages/api/src/app.ts`, `packages/api/src/routes/`, `packages/api/src/middleware/`, `packages/api/src/schemas.ts`, `packages/api/openapi.yaml`, `packages/widget/src/{index,career-runtime,help-runtime,insights-page}.ts`, `packages/api/test/`, `packages/widget/e2e/`, `examples/api-level2.http`, `docs/API.md`.
+- **Solution:** Verify each published OpenAPI route against the actual mounted route, validator, client request, auth scope, persistence effect, and error shape. Correct only demonstrated mismatches, preserving blueprint contracts.
+- **Dependencies:** T0 and T2.
+- **Steps:**
+  1. Generate route inventory from `app.ts`/route modules and compare with OpenAPI and REST examples.
+  2. Exercise success, invalid input, missing/expired auth, replay, rate limit, unavailable dependency, timeout, and DB failure for each route family.
+  3. Follow real widget requests through API to PostgreSQL and back for session/ask/citations/feedback/delete; help; jobs; insights; voice; LTI; SMS simulator; Telegram webhook/polling service boundaries.
+  4. Confirm localized problem responses and that logs contain no learner text, names, phone numbers, Telegram IDs, session credentials or tokens.
+  5. Replace or mark historical implementation notes as superseded; keep this plan and current progress/eval evidence consistent.
+- **Acceptance criteria:** Every documented endpoint is mounted and contract-conformant; widget callers use the published shapes; auth/validation and failure paths behave as specified; no privacy-sensitive data is logged; no unverified path is described as production-working.
+- **Verification:** OpenAPI contract tests; API route tests; PostgreSQL integration; Playwright/API live workflows with the repository's test harness; safe log inspection with synthetic data.
 
-**Implementation now delivered:** the instructor insights page has localized
-loading, empty, error/retry, filter, summary, semantic-table, and CSV states.
-Reply outcomes and feedback are wired into anonymous aggregates. LTI instructor
-launches open the insights page; public widget keys cannot authorize it. The
-API and service enforce the minimum group size of five. Focused API/service and
-Playwright/axe regressions cover authorization, aggregate replay behavior,
-privacy suppression, filters, export, and page states.
+### T4 — Complete insights acceptance and instructor access
 
-**Acceptance still open:**
+- **Priority:** P1
+- **Requirements:** FR-INSIGHT-01–04, FR-CONV-12, FR-INT-05/06, NFR-PRIV-03, NFR-A11Y-01.
+- **Problem/status:** Current service, aggregate write path, API, CSV, instructor page and privacy threshold are implemented and documented in the 15 November progress/decision entries. Older P09 notes are stale. PostgreSQL-backed execution, real LMS/hosted use, accurate active topic labels (T2), and human accessibility review remain incomplete.
+- **Relevant files:** `packages/insights/`, `packages/api/src/db/insights-repository.ts`, `packages/api/src/routes/insights.ts`, `packages/widget/src/insights-page.ts`, `packages/widget/e2e/p09-insights.spec.ts`, `packages/api/test/p09-insights.test.ts`, `DECISIONS.md`, `docs/WCAG_REPORT.md`.
+- **Solution:** Complete database, hosted and instructor-path verification; correct any defects from evidence; review label quality and privacy against authorized data.
+- **Dependencies:** T0, T2, T3; a configured LMS and hosted deployment for external acceptance.
+- **Steps:**
+  1. Test aggregate increments exactly once on initial reply and not on replay; test small-cell suppression at/under/over five; test date/lang filters and CSV injection defenses in PostgreSQL.
+  2. Verify host-key and LTI instructor access; prove learner and public widget keys cannot read insights; check response cache/referrer controls and token handling.
+  3. Run instructor launch, populated data and export on a real LMS/hosted deployment.
+  4. Review table/filter/empty/error/loading/download states with keyboard, NVDA/TalkBack and co-designer; record evidence in WCAG/co-creation logs.
+- **Acceptance criteria:** Aggregate data is correct and idempotent; no small-group leakage; only authorized instructors/hosts can view/export; real LMS journey works; human accessibility review is recorded and findings closed.
+- **Verification:** PostgreSQL integration plus widget/axe tests; hosted LMS trial; manual criterion-level WCAG checks.
 
-- Run the PostgreSQL-backed integration suite against the configured database.
-- Verify instructor launch, data population, and export on a real LMS and
-  hosted deployment.
-- Complete co-designer, NVDA, TalkBack, and criterion-level WCAG review for the
-  insights screen; automated axe coverage alone does not pass the gate.
-- Review the aggregate topic-label quality against authorized source data.
+### T5 — Complete actual channel and provider verification
 
-### 4. Finish production voice and channel verification
+- **Priority:** P1
+- **Requirements:** FR-AI-02–10, FR-VOICE-01–12, FR-TG-01–12, FR-SMS-01–12, FR-JOBS-01–12, FR-HELP-01–12, NFR-PRIV-01–09, NFR-REL-01–03.
+- **Problem/status:** AI adapters, Telegram runtime, SMS simulator/gateway boundary, job sources/relay, helper relay/WebRTC, and cloud/browser voice code exist. Real provider credentials, host integrations, a real LMS/host environment, carrier transport, TURN and device checks are not evidenced. No SMS carrier connection is required by the release scope. HahuJobs/Afriwork remain `needs_setup` without authorized partner feeds; accommodation delivery is unavailable unless the host relay is configured.
+- **Relevant files:** `packages/ai/`, `packages/voice/`, `packages/telegram/`, `packages/api/src/{provider-runtime,cloud-voice,telegram-runtime,sms-runtime,job-sources,jobs-delivery,help-ice}.ts`, `packages/sms/`, `packages/jobs/`, `packages/help/`, `docs/LOCAL_AI.md`, `docs/TELEGRAM.md`, `docs/SMS_GATEWAY.md`, `docs/HELP.md`.
+- **Solution:** Verify only integrations the host elects to enable, using their actual sandbox/production credentials and established contract. Keep disabled integrations unavailable with truthful localized UI state. Do not add provider or platform endpoints not in the blueprint.
+- **Dependencies:** T0–T3; host credentials, integration owner approval, service availability and documented privacy review.
+- **Steps:**
+  1. AI: actual model request/structured response, consent denial/approval, allowed data classes, language correctness, timeout, rate-limit, fallback, restart and p95. Separate local and remote profiles.
+  2. Telegram: BotFather token, webhook secret, public HTTPS webhook or single local poller; test inbound text, replies, callbacks, alert consent/STOP, help, deletion, retry/replay and stale queued sends. Test voice only with an approved configured file adapter.
+  3. Jobs/help: verify Ethiojobs imports against authorized pages; obtain partner feeds only if available; test host relay acceptance/idempotency, subscriptions/STOP, helper claims/sharing/image expiry, network loss and TURN on real devices.
+  4. SMS: test the simulator end-to-end through actual API and encoding/STOP flows. A live carrier test is optional and must not be represented as release acceptance.
+  5. Record integration owner, environment, synthetic test IDs, result, and limitations without logging secrets or personal content.
+- **Acceptance criteria:** Each enabled channel can complete its advertised core workflow end-to-end and recover safely from its documented failure modes. Disabled/unconfigured channels never fake success. Unavailable real credentials are recorded as unverified with the precise missing input, not marked complete.
+- **Verification:** Provider/device/platform-level smoke tests as above; protocol regression tests; hosted logs/metrics reviewed for safe failure signals.
 
-**Packages:** P04 and P08; depends on reviewed P01 capability data and P03
-integration points.
-**Requirements:** FR-VOICE-01–10/12, NFR-A11Y-07, FR-TG-02/03/10.
+### T6 — Reproduce and fix the speech/text interface problems
 
-- The implemented browser voice flow is not evidence of production speech
-  engines. Select/configure supported adapters and complete the same ten
-  sentence/device protocol per language and engine before advertising them.
-- Verify screen-reader/read-aloud behavior on real devices, including the
-  Amharic/Ethiopic limitation and an equivalent text path.
-- Telegram currently handles voice through the shared review/confirmation
-  boundary; a compatible server-side STT/TTS adapter is not configured.
-  Complete its data-policy, consent, deletion, and language-quality checks
-  before enabling voice notes.
-- Keep unsupported or unreviewed voice actions unavailable with localized
-  explanations. Never cache or persist audio; FR-VOICE-11 audio caching was
-  removed by the authoritative blueprint.
+- **Priority:** P1
+- **Requirements:** FR-UI-01–20, FR-VOICE-01–10/12, NFR-A11Y-01–07.
+- **Problem/status:** The user reports visible responsive/styling problems in the speech and text message area. `packages/widget/src/index.ts` contains the conversation, message actions, recording review, composer and responsive rules in a 4,264-line component; voice flow is in `voice-runtime.ts`. CSS includes 30rem, 24rem, short-height and reduced-motion rules, but no real-device reproduction of the reported defect was possible in this audit. Treat the exact visual failure as **unverified** until reproduced.
+- **Relevant files:** `packages/widget/src/index.ts` (styles around lines 630–1626 and 1944–2275; composer/render flow around 4250 onward), `packages/widget/src/voice-runtime.ts`, `packages/widget/src/theme.ts`, `packages/widget/src/embed.ts`, `packages/widget/e2e/p04-voice.spec.ts`, `packages/widget/e2e/p03-a11y.spec.ts`, `docs/VOICE_TEST.md`, `docs/WCAG_REPORT.md`.
+- **Solution:** Reproduce the text/speech layout at realistic host sizes and viewports, isolate the owning layout/state cause, and make the smallest accessible, direction-aware CSS/state correction. Do not apply cosmetic overrides without reproducing a failure.
+- **Dependencies:** T0 and a buildable browser test environment; human/device acceptance also depends on reviewers/devices.
+- **Steps:**
+  1. Capture current behavior at 320/360/390 px, tablet, desktop, embedded narrow host, short viewport, 200% zoom, RTL, Ethiopic fonts, 150/200% text scaling, keyboard and screen reader.
+  2. Exercise long learner/assistant messages, citations and action wraps, microphone start/stop/timeout/permission-denied, transcript review/edit/retry/send, loading/error/retry and virtual keyboard/resizing.
+  3. Record the exact viewport, host container, browser/device and failure screenshot/video (without learner data); add regression coverage for each reproducible issue.
+  4. Fix overflow, sizing, alignment, focus/scroll or state-render defects with CSS logical properties and locale-pack copy. Check other widget panels/components for the same root cause.
+- **Acceptance criteria:** No horizontal overflow or obscured controls at required sizes; message text and speech controls stay readable/usable; composer and conversation remain reachable with virtual keyboard; recording review never sends without explicit confirmation; keyboard/focus/announcements work; relevant axe tests pass and manual device findings are closed.
+- **Verification:** Playwright viewport/interaction matrix, axe, manual physical Android/TalkBack, NVDA/desktop, keyboard-only, 200% zoom and sound-off co-designer run. If device/browser cannot be obtained, leave that acceptance explicitly open.
 
-### 5. Verify real external integration boundaries
+### T7 — Close privacy, accessibility, language and release gates
 
-**Status: Not complete. Blocked until host-provided credentials, real-device
-checks, and platform acceptance are available.**
+- **Priority:** P1
+- **Requirements:** NFR-A11Y-01–07, NFR-PRIV-01–09, NFR-SEC-01–12, G1–G13, FR-LANG-01–17.
+- **Problem/status:** Automated CI/axe and deletion scaffolding exist. Human co-designer/NVDA/TalkBack, qualified language review, privacy/legal review, native-language distress/help copy review and complete G1–G13 evidence are not present. Automated checks do not satisfy those gates.
+- **Relevant files:** `docs/GATE_CHECKLIST.md`, `docs/WCAG_REPORT.md`, `docs/COCREATION_LOG.md`, `docs/PRIVACY.md`, `docs/DECISIONS.md`, `locales/`, `packages/widget/e2e/`, `.github/workflows/ci.yml`.
+- **Solution:** Complete the actual specified manual and language review, address findings, and preserve a traceable evidence trail. Do not change review status metadata or enable a feature without review.
+- **Dependencies:** T1, T4–T6; qualified reviewers and target assistive technologies/devices.
+- **Steps:**
+  1. Run main learner task and helper/instructor paths with co-designer, keyboard only, NVDA, TalkBack on physical Android, 200% zoom and sound off.
+  2. Obtain language review for each published pack, safety/help/privacy copy and enabled voice pair; correct issues and rerun locale checks.
+  3. Obtain privacy/legal review for enabled integrations and third-party data flows; update policy only to describe verified actual behavior.
+  4. Close each applicable G1–G13 criterion with tester/device/date/evidence and regression coverage where code changed.
+- **Acceptance criteria:** Every applicable release gate has recorded evidence and no unresolved critical/high findings; unsupported languages/voice/integrations remain disabled; privacy statements match deployment behavior.
+- **Verification:** `pnpm lang:check`, language pack tests, axe suite plus signed/manual review entries, data deletion/retention tests and reviewer sign-off.
 
-**Packages:** P05–P08 and P10; depends on the applicable completed feature
-contracts and host-provided credentials/configuration.
+### T8 — Verify hosted deployment, reliability, and operations
 
-The following items remain unverified and must be completed before workflow 5
-can be marked done:
+- **Priority:** P1
+- **Requirements:** NFR-OPS-01/02, NFR-REL-01–03, NFR-COST-03–06, NFR-PERF-04, NFR-SEC-01–12, NFR-PRIV-01–09.
+- **Problem/status:** Render/Neon templates, GitHub cron, health checks, migrations, retention, usage scripts, and runbooks exist. No hosted deployment evidence confirms environment values, TLS/origins/CSP, scheduled job delivery, actual retention, free-tier/database sizing, database budget, or warm 50-session p95. `cron.yml` skips quietly when `DIMTS_API_URL` or `DIMTS_CRON_SECRET` is missing. Render sleep can delay inbound requests and in-process alerts.
+- **Relevant files:** `render.yaml`, `Dockerfile`, `docker-compose.yml`, `.github/workflows/{ci,cron,keepwarm}.yml`, `scripts/usage.mjs`, `scripts/purge-event-data.mjs`, `docs/{DEPLOY,FREE_TIER,COST,ENVIRONMENT,PRIVACY}.md`, `packages/api/src/{config,shutdown}.ts`.
+- **Solution:** Configure only documented values on the real hosts; prove health, safe migrations, scheduled retention/alerts, graceful shutdown, observability, budget and measured capacity. Keep limitations such as free-tier sleep visible to operators.
+- **Dependencies:** T0–T7; host accounts, domain/origins, database, GitHub secrets and operations owner.
+- **Steps:**
+  1. Reconcile `.env.example`/`docs/ENVIRONMENT.md` with actual variable reads; document defaults, required/conditional mode and source for each value.
+  2. Deploy API/static site/Neon using secret settings; verify health DB status, TLS, CSP, CORS, widget host key/origin, content ingestion and no secret in client bundles.
+  3. Trigger scheduled retention and alerts workflows; verify success, retries, idempotency, expiry/deletion and reporting. Confirm no silent skip in release monitoring.
+  4. Measure actual database size/usage and warm 50-session p95 under stated concurrency and content; test provider/network/DB failures and recovery.
+  5. Verify graceful shutdown/restart against persistent session/help/job/LTI data and current migrations; attach CI/security/dependency audit results and disclose any moderate advisory.
+- **Acceptance criteria:** Real hosted learner flow passes; DB and external-origin checks are healthy; scheduled jobs have successful run evidence; retention and deletion match policy; measured cost/size and performance meet SRS limits; no unresolved critical/high security issue; skipped checks are explicitly reported.
+- **Verification:** Hosted synthetic smoke workflow, GitHub Actions run history, Neon/Render operational metrics, DB integration, load test, secret scan, `pnpm audit --audit-level high`, clean-machine Compose/restart.
 
-- **Human help (P05):**
-  - Real-device sharing and invite flow verification.
-  - Permission/stop behavior on actual learner/helper sessions.
-  - Network fallback handling on restrictive or low-connectivity devices.
-  - TURN provider validation with real credentials, not just protocol tests.
-  - Hosted retention behavior and deletion timing on the real deployment.
-  - No production claim is valid from local mocks or simulator-only tests.
-- **Jobs (P06):**
-  - Real host relay validation with authorized integration credentials.
-  - Actual delivery and acceptance path verification for the configured host.
-  - Live outbound job alert behavior against the real jobs relay/host backend.
-  - Validation of consent, unsubscribe, stop, and retention on the deployed path.
-  - Local protocol tests do not establish a production host's acceptance.
-- **Telegram (P08):**
-  - Authorized live bot/webhook verification with the real Telegram credentials.
-  - End-to-end delivery checks across inbound, reply, callback, and voice flow.
-  - Real webhook security, retry, and replay handling in the deployed environment.
-  - Consent/deletion and data-policy review for any voice or media handling.
-  - Simulator tests are not evidence of live hosting or operational readiness.
-- **LTI / REST (P10):**
-  - Verify the implemented browser OIDC redirect and platform-JWKS validation
-    against a real LMS.
-  - Tool key/JWKS publication is not required by current launches, which do not
-    sign tool-originated messages. Add it only with an in-scope deep-link or
-    grade-passback contract.
-  - Deep-link launch response validation with a real LMS if that launch type is
-    in the accepted integration scope.
-  - Real learner/instructor launch testing on a production-style platform.
-  - Level 2/3 example runs and an outsider integration trial still required.
-  - Static launch validation and mocked-JWKS tests are not production LMS proof.
-- **SMS (P07):**
-  - The simulator and replaceable gateway contract are in scope for event testing.
-  - A real operator connection is explicitly out of scope and is not a release
-    prerequisite.
-  - No SMS production validation is required for this release gate.
+### T9 — Behavior-preserving modularization of oversized files
 
-**Required gating rule:** Do not invent credentials, host endpoints, legal
-contact values, or platform-specific fields. Agree and record any contract
-changes in `DECISIONS.md` before implementation. Workflow 5 remains blocked until
-all items above are verified against the real configured environment and
-approved by the host or integration owner.
+- **Priority:** P2; begin only after P1 feature behavior is stable and covered.
+- **Requirements:** NFR-MAINT-01/02; preserve all package/contract requirements.
+- **Problem/status:** Large source files concentrate unrelated or difficult-to-review responsibilities. Counts below are physical lines from the current tree; third-party/frozen files are identified so they are not churned.
+- **Files over 1,000 lines and current responsibility:**
+  - `packages/widget/src/index.ts` — 4,264 lines; Lit shell, locale/settings/state, session/ask, consent/deletion, message/composer rendering, voice orchestration, help/career/FAQ coordination and global lifecycle. Strong candidate for behavior-preserving separation by existing module boundaries.
+  - `packages/widget/src/helper-console.ts` — 1,678 lines; helper authentication, queue/chat, WebSocket lifecycle, media/share UI, localization and rendering. Split by clear controller/view responsibilities only if tests can preserve lifecycle and privacy behavior.
+  - `packages/widget/src/career-runtime.ts` — 1,015 lines; career/jobs screens, search/subscription/consent and API orchestration. Review for coherent extraction; do not split merely to meet a count.
+  - `packages/widget/e2e/widget.spec.ts` — 2,223 lines; broad widget integration scenarios. Organize by workflow when it improves failure localization.
+  - `packages/api/test/wp02.test.ts` — 1,020 lines; P02 regression coverage. Group by behavior without reducing assertions.
+  - `assets/css/application_alx.css` — 35,731 lines and `assets/css/app.css` — 6,891 lines; frozen Savanna/reference pages. Preserve unchanged per blueprint.
+  - `assets/js/bootstrap.bundle.js` — 4,187 lines; vendored bundle. Do not reformat/split vendor code.
+  - `locales/{en,am,om}/glossary.yaml` — 1,257 lines each; data packs, not code; maintain with locale tools and review workflow.
+- **Relevant files:** Above files and their focused unit/e2e tests; `Dimts-System-Blueprint-v2.0.md` boundary rules.
+- **Solution:** Extract only separable responsibilities without changing public API, lifecycle, timing, styling, message copy, storage keys, CSS shadow behavior or data contracts. Add/retain tests before each extraction.
+- **Dependencies:** T0–T8; stable acceptance baselines and complete tests in a supported environment.
+- **Steps:**
+  1. Map state ownership and dependencies in `index.ts`; identify one cohesive boundary at a time (voice, lifecycle/session, rendering, or panel coordination).
+  2. Add characterization tests for connect/disconnect, retries, stale async work, transcript confirmation, focus, consent, and cache/session behavior before moving code.
+  3. Extract one responsibility, run affected tests/build/a11y, compare bundle size and behavior, then proceed only when no regressions appear.
+  4. Split test files only by workflow ownership; keep fixtures/assertions intact. Leave frozen/vendor files untouched.
+- **Acceptance criteria:** Responsibilities are clearer, no behavior/contract changes, every extraction has regressions covering its boundary, build/size/a11y gates pass, and the code remains no harder to navigate.
+- **Verification:** Focused unit/e2e tests, full suite, typecheck/lint, size, axe, manual interaction smoke. Refactoring is complete only with behavior evidence.
 
-### 6. Complete human accessibility and co-designer acceptance
+### T10 — Final integrated release verification and plan closure
 
-**Packages:** P03–P05, P09, and P11.
-**Requirements:** NFR-A11Y-01–07 and G1–G13.
+- **Priority:** P1 release gate
+- **Requirements:** All in-scope SRS MUST requirements and G1–G13; NFR-OPS/SEC/REL/PRIV/PERF/A11Y.
+- **Problem/status:** There is no single current, fully verified release record. Existing progress contains historical snapshots with conflicting dates/results and external/manual gates still open.
+- **Relevant files:** This plan and `docs/{IMPLEMENTATION_PROGRESS,GATE_CHECKLIST,EVAL,WCAG_REPORT,COCREATION_LOG,PRIVACY,DEPLOY}.md`; CI workflow artifacts.
+- **Solution:** Run one end-to-end release pass on a known commit and actual target deployment. Update statuses only from attached evidence; do not imply hosted/human/provider checks passed from local mocks.
+- **Dependencies:** T0–T9, with T9 permitted to follow the release if its refactor is not required for acceptance; do not let refactoring delay a reliable product release.
+- **Steps:**
+  1. Freeze the candidate commit and record its SHA, environment topology and enabled integrations.
+  2. Execute CI, migrations, API/widget workflows, provider/channel flows, deletion/retention, accessibility and performance acceptance.
+  3. Reconcile plan, progress, eval and gate documents; list any remaining unverified limitations with owner and evidence needed.
+  4. Mark a work package complete only after its own criteria pass; release remains blocked while a required MUST or gate is open.
+- **Acceptance criteria:** All in-scope MUST requirements are verified on the release candidate; all G1–G13 criteria applicable to the product are closed; no material documentation contradiction remains; evidence and remaining limitations are reproducible and reviewed.
+- **Verification:** Full supported CI result plus hosted end-to-end run, signed human/device/language reviews, provider/platform evidence, and final documentation cross-check.
 
-- Run the end-to-end main task with a co-designer using NVDA, TalkBack on a
-  physical Android device, keyboard only, 200% zoom, and sound off.
-- Complete the helper/share and screen-reader focus/announcement checks on
-  real devices. Automated Playwright/axe results do not replace these runs.
-- Record tester, device/assistive technology, date, findings, and fixes in
-  `COCREATION_LOG.md` and `WCAG_REPORT.md`; close each applicable G1–G13 item
-  in `GATE_CHECKLIST.md`.
-- Obtain the required native-language and privacy/legal reviews. Do not mark
-  the gate complete from automated results alone.
+## Explicitly out of scope
 
-### 7. Close release and operations gates
-
-**Package:** P11; depends on the feature acceptance above.
-
-- Verify hosted Render/Neon setup, secrets, TLS/CSP/origins, scheduled jobs,
-  retention, actual free-tier use, database size, and warm 50-session p95.
-- Run PostgreSQL integration tests with the configured test database and keep
-  the core package coverage thresholds enforced in CI.
-- Re-run the clean-machine Compose/restart workflow after the latest migrations.
-  Earlier progress records a Compose pass, but Docker is unavailable in this
-  verification environment and its local `.env` does not parse. Reproduce the
-  runtime check after those environment blockers are resolved.
-- Resolve/report the remaining evaluation blockers; attach CI results for axe,
-  audit and secret scan; report any skipped checks.
-- `pnpm format:check` currently flags 307 baseline files. Do not reformat
-  unrelated files as part of this remaining-work update; establish an approved
-  baseline or format touched files selectively.
-- Update release/gate documentation only with measured evidence. Keep overall
-  status **blocked** until the manual, human, provider, and hosted gates pass.
-
-## Follow-on proposals, not release workflows
-
-P12 (expanded accessibility/AAC), P13 (longitudinal learning analytics), and
-P14 (additional connectors/SDKs/platform plugins) have no requirement IDs in
-the current product scope. They are not prerequisites for this release. Start
-them only after explicit product, privacy, licensing, data-availability,
-budget, and ownership approval.
-
-## Verification snapshot
-
-The task 2 follow-up build and serialized full suite report 836 tests passed
-and 57 skipped across 85 passing test files and 11 skipped files; the separate
-core coverage run passes 246 tests across 23 files, including the grounding
-branch floor. Typecheck, lint, evaluation, and size checks pass. Compose
-interpolation parses with `.env.example`, but the Docker engine was unavailable
-and the local `.env` has a line-47 parse error, so container deployment was
-not verified. Multilingual tutor quality, native-speaker/co-designer evidence,
-real provider/hosted integration, and release gates remain open.
+Do not add P12 expanded AAC/accessibility capabilities, P13 longitudinal analytics, P14 extra connectors/SDKs/plugins, deep-link content-item responses, grade passback, tool-originated LTI signing, a real SMS carrier integration, unsupported partner feeds, or new AI providers as part of this plan. Add any of these only after an explicit product requirement, contract/decision update, ownership, privacy review and budget approval.

@@ -2,7 +2,7 @@
 
 ## What is Dimts?
 
-Dimts is the learning assistant inside Savanna. It answers questions from your course material. It speaks English, Amharic and Afaan Oromoo.
+Dimts is the learning assistant inside Savanna. It answers questions from your course material. It speaks English, Amharic, Afaan Oromoo and Tigrinya.
 
 ## How do I ask Dimts a question?
 

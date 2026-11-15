@@ -1,0 +1,337 @@
+# Draft Tigrinya glossary: real course and career terms only, pending native review.
+- id: probation
+  en: "probation"
+  am: "የሙከራ ጊዜ"
+  om: "yeroo yaalii"
+  ti: "ግዜ ፈተነ"
+  simple_definition: "ሓድሽ ስራሕ ምስ ጀመርኩም ንስኹምን ኣስራሒኹምን እቲ ስራሕ ከመይ ከም ዝኸይድ እትርእይሉ ግዜ።"
+  do_not_translate: false
+- id: reference
+  en: "reference"
+  am: "ስለ ሥራዎ የሚመሰክር ሰው"
+  om: "nama waa'ee hojii keessanii ragaa kennu"
+  ti: "ብዛዕባ ስራሕኩም ዝምስክር ሰብ"
+  simple_definition: "ብፍቓድኩም ብዛዕባ ስራሕኩም ወይ ክእለትኩም ንኣስራሒ ክዛረብ ዝኽእል ሰብ።"
+  do_not_translate: false
+- id: interview_panel
+  en: "interview panel"
+  am: "የቃለ መጠይቅ ቡድን"
+  om: "garee afgaaffii"
+  ti: "ጉጅለ ቃለ-መሕትት"
+  simple_definition: "ኣብ ቃለ-መሕትት ስራሕ ብሓባር ሕቶታት ዝሓቱኹም ሰባት።"
+  do_not_translate: false
+- id: lesson
+  en: "lesson"
+  am: "ትምህርት"
+  om: "barnoota"
+  ti: "ትምህርቲ"
+  simple_definition: "ሓደ ግዜ እተጽንዕዎ ክፋል ኮርስ።"
+  do_not_translate: false
+- id: course
+  en: "course"
+  am: "ኮርስ"
+  om: "koorsii"
+  ti: "ኮርስ"
+  simple_definition: "ብዛዕባ ሓደ ኣርእስቲ እትመሃርዎም ትምህርትታት።"
+  do_not_translate: false
+- id: certificate
+  en: "certificate"
+  am: "ሰርተፊኬት"
+  om: "ragaa xumuraa"
+  ti: "ምስክር ወረቐት"
+  simple_definition: "ሓደ ኮርስ ወይ ስልጠና ከም ዝወዳእኩም ዘረጋግጽ ሰነድ።"
+  do_not_translate: false
+- id: deadline
+  en: "deadline"
+  am: "የመጨረሻ ቀን"
+  om: "guyyaa dhumaa"
+  ti: "መወዳእታ ዕለት"
+  simple_definition: "ሓደ ዕማም ወይ ሕቶ ስራሕ ክቐርበሉ ዘለዎ ናይ መወዳእታ ዕለትን ሰዓትን።"
+  do_not_translate: false
+- id: job
+  en: "job"
+  am: "ስራ"
+  om: "hojii"
+  ti: "ስራሕ"
+  simple_definition: "ደሞዝ ወይ ተሞክሮ ንምርካብ እትሰርሕዎ ዕዮ።"
+  do_not_translate: false
+- id: application
+  en: "application"
+  am: "ማመልከቻ"
+  om: "iyyannoo"
+  ti: "ሕቶ ስራሕ"
+  simple_definition: "ንሓደ ስራሕ ንምውዳድ እትሰድዎ ቅጥዒ ወይ ሰነዳት።"
+  do_not_translate: false
+- id: interview
+  en: "interview"
+  am: "ቃለ መጠይቅ"
+  om: "af-gaaffii"
+  ti: "ቃለ-መሕትት"
+  simple_definition: "ኣስራሒ ንዓኹም ንምፍላጥ ዝገብሮ ዘተ።"
+  do_not_translate: false
+- id: help
+  en: "help"
+  am: "እርዳታ"
+  om: "gargaarsa"
+  ti: "ሓገዝ"
+  simple_definition: "ሓደ ነገር ክትገብሩ ክትክእሉ ዝወሃበኩም ደገፍ።"
+  do_not_translate: false
+- id: privacy
+  en: "privacy"
+  am: "ግላዊነት"
+  om: "iccitii dhuunfaa"
+  ti: "ብሕትውና"
+  simple_definition: "ሓበሬታኹም ካብ ዘይፈቐድኩምሎም ሰባት ምሕላው።"
+  do_not_translate: false
+- id: consent
+  en: "consent"
+  am: "ፈቃድ"
+  om: "hayyama"
+  ti: "ፍቓድ"
+  simple_definition: "ሓደ ነገር ቅድሚ ምፍጻሙ ብፍላጥ እትህብዎ ስምምዕ።"
+  do_not_translate: false
+- id: goal
+  en: "goal"
+  am: "ግብ"
+  om: "kaayyoo"
+  ti: "ዕላማ"
+  simple_definition: "ክትበጽሕዎ እትደልዩ ውጽኢት።"
+  do_not_translate: false
+- id: study
+  en: "study"
+  am: "ማጥናት"
+  om: "qo'achuu"
+  ti: "መጽናዕቲ"
+  simple_definition: "ሓደ ነገር ንምምሃር እተሕልፍዎ ግዜን ጻዕርን።"
+  do_not_translate: false
+- id: schedule
+  en: "schedule"
+  am: "መርሐ ግብር"
+  om: "sagantaa"
+  ti: "መደብ ሰዓት"
+  simple_definition: "ነገራት መዓስ ከም እትገብርዎም ዘርኢ መደብ።"
+  do_not_translate: false
+- id: calendar
+  en: "calendar"
+  am: "የቀን መቁጠሪያ"
+  om: "kalaandarii"
+  ti: "ካሌንደር"
+  simple_definition: "መዓልታትን ሰሙናትን ኣዋርሕን ዘርኢ፣ ፍጻመታት ዝምዝገብሉ መሳርሒ።"
+  do_not_translate: false
+- id: week
+  en: "week"
+  am: "ሳምንት"
+  om: "torban"
+  ti: "ሰሙን"
+  simple_definition: "ሸውዓተ መዓልታት።"
+  do_not_translate: false
+- id: progress
+  en: "progress"
+  am: "እድገት"
+  om: "guddina"
+  ti: "ግስጋሰ"
+  simple_definition: "ናብ ዕላማኹም ክንደይ ከም ዝቐረብኩም።"
+  do_not_translate: false
+- id: review
+  en: "review"
+  am: "መከለስ"
+  om: "irra deebi'uu"
+  ti: "ገምጋም"
+  simple_definition: "ዝሰራሕኩምዎ ወይ ዝተማሃርኩምዎ ደጊምኩም ምርኣይ።"
+  do_not_translate: false
+- id: topic
+  en: "topic"
+  am: "ርዕስ"
+  om: "mata duree"
+  ti: "ኣርእስቲ"
+  simple_definition: "ትምህርቲ ወይ ዘተ ብዛዕብኡ ዝኸይድ ጉዳይ።"
+  do_not_translate: false
+- id: module
+  en: "module"
+  am: "ሞጁል"
+  om: "modyuulii"
+  ti: "ሞጁል"
+  simple_definition: "ብዙሓት ትምህርትታት ዝሓዘ ቀንዲ ክፋል ኮርስ።"
+  do_not_translate: false
+- id: session
+  en: "study session"
+  am: "የመማር ክፍለ ጊዜ"
+  om: "yeroo barnootaa"
+  ti: "ክፍለ ግዜ"
+  simple_definition: "ንሓደ ዕማም ዝተመደበ ውሱን ግዜ።"
+  do_not_translate: false
+- id: task
+  en: "task"
+  am: "ተግባር"
+  om: "hojii"
+  ti: "ዕማም"
+  simple_definition: "ክትፍጽምዎ ዘለኩም ሓደ ስራሕ።"
+  do_not_translate: false
+- id: skill
+  en: "skill"
+  am: "ክህሎት"
+  om: "dandeettii"
+  ti: "ክእለት"
+  simple_definition: "ብልምምድ እትመሃርዎ ብቕዓት።"
+  do_not_translate: false
+- id: feedback
+  en: "feedback"
+  am: "አስተያየት"
+  om: "yaada"
+  ti: "ርእይቶ"
+  simple_definition: "ስራሕኩም ንምምሕያሽ ዝወሃበኩም ሓሳብ።"
+  do_not_translate: false
+- id: alert
+  en: "alert"
+  am: "ማስጠንቀቂያ"
+  om: "beeksisa"
+  ti: "መዘኻኸሪ መልእኽቲ"
+  simple_definition: "ብዛዕባ ሓድሽ ነገር ዝሕብረኩም ሓጺር መልእኽቲ።"
+  do_not_translate: false
+- id: source
+  en: "source"
+  am: "ምንጭ"
+  om: "madda"
+  ti: "ምንጪ"
+  simple_definition: "ሓበሬታ ዝተወስደሉ ትምህርቲ ወይ ሰነድ።"
+  do_not_translate: false
+- id: answer
+  en: "answer"
+  am: "መልስ"
+  om: "deebii"
+  ti: "መልሲ"
+  simple_definition: "ንሕቶ ዝወሃብ ምላሽ።"
+  do_not_translate: false
+- id: question
+  en: "question"
+  am: "ጥያቄ"
+  om: "gaaffii"
+  ti: "ሕቶ"
+  simple_definition: "ሓበሬታ ንምርካብ እትሓትዎ።"
+  do_not_translate: false
+- id: message
+  en: "message"
+  am: "መልእክት"
+  om: "gulaala"
+  ti: "መልእኽቲ"
+  simple_definition: "ዝተጻሕፈ ወይ ዝተላእከ ሓበሬታ።"
+  do_not_translate: false
+- id: employer
+  en: "employer"
+  am: "አሠሪ"
+  om: "hojjettoota"
+  ti: "ኣስራሒ"
+  simple_definition: "ሰባት ዝቖጽር ትካል ወይ ሰብ።"
+  do_not_translate: false
+- id: employee
+  en: "employee"
+  am: "ሠራተኛ"
+  om: "hojjeetaa"
+  ti: "ሰራሕተኛ"
+  simple_definition: "ንኣስራሒ ዝሰርሕ ሰብ።"
+  do_not_translate: false
+- id: mentor
+  en: "mentor"
+  am: "አማካሪ"
+  om: "gorsaa"
+  ti: "ኣማኻሪ"
+  simple_definition: "ተሞክሮኡ ብምክፋል ዝመርሓኩም ሰብ።"
+  do_not_translate: false
+- id: training
+  en: "training"
+  am: "ስልጠና"
+  om: "leenjii"
+  ti: "ስልጠና"
+  simple_definition: "ሓደ ክእለት ንምምሃር ዝወሃብ ትምህርቲ።"
+  do_not_translate: false
+- id: vacancy
+  en: "vacancy"
+  am: "ባዶ ቦታ"
+  om: "bakka duwwaa"
+  ti: "ክፍቲ ቦታ ስራሕ"
+  simple_definition: "ኣስራሒ ክመልኦ ዝደሊ ቦታ ስራሕ።"
+  do_not_translate: false
+- id: accommodation
+  en: "accommodation"
+  am: "መስጫ ቦታ"
+  om: "iddoo jiraachuu"
+  ti: "ፍሉይ ደገፍ"
+  simple_definition: "ብማዕረ ክትሳተፉ ንምኽኣል ኣብ ቃለ-መሕትት ወይ ስራሕ ዝግበር ምትዕርራይ።"
+  do_not_translate: false
+- id: remote_work
+  en: "remote work"
+  am: "የርቀት ስራ"
+  om: "hojii firaasii"
+  ti: "ካብ ርሑቕ ምስራሕ"
+  simple_definition: "ካብ ቤት ጽሕፈት ወጻኢ ብኢንተርነት ዝስራሕ ስራሕ።"
+  do_not_translate: false
+- id: contact
+  en: "contact"
+  am: "አድራሻ"
+  om: "qunnamtii"
+  ti: "ኣድራሻ"
+  simple_definition: "ክትረኽቡ እትኽእሉሉ ቁጽሪ ተሌፎን ወይ ኢመይል።"
+  do_not_translate: false
+- id: exam
+  en: "exam"
+  am: "ፈተና"
+  om: "qormaata"
+  ti: "ፈተና"
+  simple_definition: "ዝተማሃርኩምዎ ዝግምግም ሕቶታት።"
+  do_not_translate: false
+- id: grade
+  en: "grade"
+  am: "ውጤት"
+  om: "qabxii"
+  ti: "ነጥቢ"
+  simple_definition: "ኣብ ዕማም ወይ ፈተና ዝረኸብኩምዎ ውጽኢት።"
+  do_not_translate: false
+- id: cohort
+  en: "cohort"
+  am: "ቡድን"
+  om: "garee"
+  ti: "ጉጅለ ተማሃሮ"
+  simple_definition: "ሓደ ኮርስ ብሓባር ዝጀምሩን ዝቕጽሉን ተማሃሮ።"
+  do_not_translate: false
+- id: learner
+  en: "learner"
+  am: "ተማሪ"
+  om: "barataa"
+  ti: "ተምሃራይ"
+  simple_definition: "ሓደ ነገር ዝመሃር ሰብ።"
+  do_not_translate: false
+- id: teacher
+  en: "teacher"
+  am: "አስተማሪ"
+  om: "barsiisaa"
+  ti: "መምህር"
+  simple_definition: "ዘምህር ሰብ።"
+  do_not_translate: false
+- id: resume
+  en: "resume"
+  am: "ሪሱመ"
+  om: "resume"
+  ti: "ጽማቕ ታሪኽ ሞያ"
+  simple_definition: "ትምህርትኹም፣ ተሞክሮኹምን ክእለትኩምን ዝዝርዝር ሓጺር ሰነድ።"
+  do_not_translate: false
+- id: salary
+  en: "salary"
+  am: "ደመወዝ"
+  om: "kafalaa"
+  ti: "ደሞዝ"
+  simple_definition: "ኣስራሒ ኣብ ነፍሲ ወከፍ ወርሒ ዝኸፍለኩም ገንዘብ።"
+  do_not_translate: false
+- id: contract
+  en: "contract"
+  am: "ውል"
+  om: "kontraata"
+  ti: "ውዕል"
+  simple_definition: "ኣብ መንጎ ኣስራሕን ሰራሕተኛን ዘሎ ዝተጻሕፈ ስምምዕ።"
+  do_not_translate: false
+- id: portfolio
+  en: "portfolio"
+  am: "ፖርቶፎሊዮ"
+  om: "poortfolii"
+  ti: "ፖርትፎሊዮ"
+  simple_definition: "ዝሰራሕኩምዎ ዝበለጸ ስራሕ ዘርኢ ኣከባ።"
+  do_not_translate: false

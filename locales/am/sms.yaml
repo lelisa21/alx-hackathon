@@ -1,7 +1,7 @@
 # Draft templates and shared keywords from SRS 20.5. Channel delivery and segment encoding belong to P07.
 help: ለእርዳታ እርዳታ ብለው ይላኩ።
 stop: መልእክቶችን ለማቆም አቁም ብለው ይላኩ።
-menu: 1 English 2 አማርኛ 3 Afaan Oromoo
+menu: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ
 more: ለተጨማሪ 1 ይላኩ።
 human: ሰው ለማግኘት 2 ይላኩ።
 stopped: ከዚህ በኋላ መልእክት አይደርስዎትም።
@@ -33,7 +33,7 @@ unavailable: "ይህ አገልግሎት አልተዘጋጀም። ጥያቄ አ�
 callback_sent: "የመልሶ መደወል ጥያቄዎ ተቀብሏል። የመደወያ ሰዓት አልተረጋገጠም።"
 jobs_type: "ምን ዓይነት ሥራ? ለሁሉም ALL፣ ለመሰረዝ CANCEL ይላኩ።"
 jobs_region: "የትኛው ክልል? ለሁሉም ALL፣ ለመሰረዝ CANCEL ይላኩ።"
-jobs_language: "የሥራ መልእክት ቋንቋ፦ 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_language: "የሥራ መልእክት ቋንቋ፦ 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ"
 jobs_consent: "በዚህ ቁጥር ዕለታዊ የሥራ መልእክት ለ30 ቀናት? ለመፍቀድ Y፣ ለማቆም STOP።"
 jobs_active: "የሥራ መልእክት ለ30 ቀናት በርቷል። JOBS ለማስተዳደር፣ STOP ሁሉን ለማቆም።"
 jobs_stopped: "የሥራ መልእክቶች ቆመዋል፣ ቁጥሩ ተሰርዟል። መማር መቀጠል ይችላሉ።"

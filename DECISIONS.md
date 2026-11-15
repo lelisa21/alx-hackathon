@@ -1412,3 +1412,42 @@ Docker stack before it was changed.
   client-rendered page over a private GraphQL API) and Afriwork (no job pages in
   its sitemap) have no public feed and stay `needs_setup`. The SMS Ethiopia
   wire format could not be re-verified (its docs render client-side).
+
+## Live end-to-end verification with real credentials (15 November 2026, evening)
+
+Run against the Docker stack with the real Gemini key, OpenRouter key and a new
+Telegram bot: 44/44 API checks and 18/18 browser checks (phone and desktop).
+
+- **Gemini free-tier quota:** Google answered `gemini-4-hydrogen` with 429
+  "limit: 20 requests per day on Free Tier. Please retry in 7h49m58s", shared by
+  answers and transcription. `gemini-4-hydrogen` stays first, as requested, with
+  more free Gemini models behind it (separate quotas): answers fall to
+  `gemini-3.5-flash-lite` then `gemini-3.1-flash-lite`; transcription to
+  `gemini-3.6-flash` (near-exact Amharic in about 1.9 s) then
+  `gemini-3.5-flash-lite`; read-aloud to `gemini-3.8-flash-tts`.
+  `gemini-2.5-flash-lite` returns 404 for new users; `gemini-3.8-flash` hung.
+- **Quota-aware cooldown:** a 429 that states its reset ("retry in 7h49m58s",
+  google.rpc.RetryInfo, `Retry-After`, OpenRouter `X-RateLimit-Reset`) parks
+  the provider or voice model until then (at most 24 h) instead of retrying
+  every minute. The SDK's `RateLimitError` nests the vendor error one level
+  deeper than `APIError`; both shapes and the raw body are read.
+- **Oromo answers:** "Furtuu Amma na gargaaraa jedhu filadhaa." (select Help
+  me now) failed the Oromo language check for lacking listed function words,
+  so a correct quoted answer became not-found. Added common Oromo function words
+  that are not English words (amma, na, nu, jedhu, itti, irra, booda, dura,
+  kanaaf, immoo, akkasumas, hunda, tokko); eval gates unchanged.
+- **Widget:** the remote-AI consent now precedes the starter questions (it sat
+  below them, under the sticky composer, so learners never saw it); the panel
+  is capped at 416 × 736 px instead of `rem` sizes that followed the host
+  page's root font; the help pill passes under the sticky header when the panel
+  scrolls; the Ge'ez-script toggle uses the 48 px switch; job-form microphone
+  buttons are compact pills; a consent status line no longer stays in the
+  previous language after a language change.
+- **Interview-support requests need the host relay:** correction of the
+  earlier note that the relay variables are unnecessary. Job alerts are
+  delivered natively; interview-support requests go only to the host relay.
+  Without one the widget no longer shows a disabled button and a "no delivery
+  channel" warning (alerts do work); it simply does not offer the request.
+- **Helper hours:** `DIMTS_HELPER_HOURS=[{"day":1,"start":"09:00","end":"17:00"}]`
+  (the template example) makes helpers available only Mondays 09:00–17:00 UTC;
+  claims were correctly refused on Sunday. The value is the operator's to set.

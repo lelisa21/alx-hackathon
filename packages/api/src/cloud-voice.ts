@@ -14,6 +14,7 @@
  * logs or stores the audio, the transcript or the spoken text. Google's own
  * data terms for the Gemini API apply to what is sent.
  */
+import { parseRetryDelay } from "@dimts/ai";
 import type { createTelegramVoice } from "@dimts/telegram";
 
 type FileVoiceAdapters = NonNullable<
@@ -55,20 +56,39 @@ export class CloudVoiceError extends Error {
   readonly reason: string;
   readonly status: number | undefined;
   readonly vendorMessage: string | undefined;
-  constructor(reason: string, status?: number, vendorMessage?: string) {
+  /** Quota reset reported with a 429, in milliseconds. */
+  readonly retryAfterMs: number | undefined;
+  /** The model that failed, for operators choosing fallbacks. */
+  model: string | undefined;
+  constructor(
+    reason: string,
+    status?: number,
+    vendorMessage?: string,
+    retryAfterMs?: number,
+  ) {
     super(`cloud_voice_${reason}`);
     this.name = "CloudVoiceError";
     this.reason = reason;
     this.status = status;
     this.vendorMessage = vendorMessage?.replace(/\s+/gu, " ").slice(0, 240);
+    this.retryAfterMs = retryAfterMs ?? parseRetryDelay(this.vendorMessage);
   }
 }
+
+const MINUTE = 60_000;
+const DAY = 24 * 60 * MINUTE;
 
 const LANGUAGE_HINTS: Record<string, string> = {
   en: "English",
   am: "Amharic, written in Ethiopic (Ge'ez) script",
   om: "Afaan Oromoo, written in Latin script (Qubee)",
+  ti: "Tigrinya, written in Ethiopic (Ge'ez) script, not Amharic",
 };
+
+// Gemini TTS language support differs per model: Tigrinya is listed only for
+// gemini-3.8-flash-tts, not the Flash-Lite TTS model
+// (https://aistudio.google.com/docs/speech-generation).
+const LITE_TTS_UNSUPPORTED = new Set(["ti"]);
 
 /** 16-bit little-endian mono PCM wrapped in a WAV header. */
 export function pcmToWav(pcm: Uint8Array, sampleRate: number): Uint8Array {
@@ -127,15 +147,63 @@ function generationConfig(model: string): Record<string, unknown> {
 
 export function createGeminiVoice(options: {
   apiKey: string;
-  sttModel: string;
-  ttsModel: string;
+  /** Transcription models in order; later ones serve when earlier ones are
+   * out of quota or down (each Gemini model has its own free-tier quota). */
+  sttModel: string | string[];
+  /** Read-aloud models in order, with the same fallback. */
+  ttsModel: string | string[];
   languages: string[];
   speakLanguages?: string[];
   voiceName?: string;
   endpoint?: string;
   fetch?: typeof fetch;
+  now?: () => number;
 }): CloudVoice {
   const fetcher = options.fetch ?? fetch;
+  const now = options.now ?? Date.now;
+  const list = (value: string | string[]) =>
+    (Array.isArray(value) ? value : value.split(","))
+      .map((model) => model.trim())
+      .filter(Boolean);
+  const sttModels = list(options.sttModel);
+  const ttsModels = list(options.ttsModel);
+  if (!sttModels.length || !ttsModels.length)
+    throw new Error("Cloud voice needs at least one model per direction.");
+  const coolUntil = new Map<string, number>();
+  /** Runs `attempt` on each model in order, skipping models whose quota is
+   * exhausted until it resets. A request every model would reject (invalid
+   * key, bad audio) is not retried on the next model. */
+  const withModels = async <T>(
+    models: string[],
+    signal: AbortSignal,
+    attempt: (model: string) => Promise<T>,
+  ): Promise<T> => {
+    const ready = models.filter(
+      (model) => (coolUntil.get(model) ?? 0) <= now(),
+    );
+    let last: unknown = new CloudVoiceError("unavailable");
+    for (const model of ready.length ? ready : models) {
+      if (signal.aborted) break;
+      try {
+        return await attempt(model);
+      } catch (error) {
+        if (!(error instanceof CloudVoiceError)) throw error;
+        error.model = model;
+        last = error;
+        const status = error.status;
+        if (status === 429)
+          coolUntil.set(
+            model,
+            now() + Math.min(DAY, Math.max(MINUTE, error.retryAfterMs ?? 0)),
+          );
+        else if (status === 404) coolUntil.set(model, now() + 15 * MINUTE);
+        else if (status !== undefined && status < 500 && status !== 408)
+          throw error;
+        else coolUntil.set(model, now() + MINUTE);
+      }
+    }
+    throw last;
+  };
   const endpoint = (
     options.endpoint ?? "https://generativelanguage.googleapis.com/v1beta"
   ).replace(/\/$/u, "");
@@ -157,7 +225,8 @@ export function createGeminiVoice(options: {
         },
         // Stateless: Google keeps no interaction history for these calls.
         body: JSON.stringify({ ...body, store: false }),
-        signal: AbortSignal.any([signal, AbortSignal.timeout(45_000)]),
+        // Bounded per model so a slow model leaves time for the next one.
+        signal: AbortSignal.any([signal, AbortSignal.timeout(20_000)]),
         redirect: "error",
       });
     } catch (error) {
@@ -166,17 +235,33 @@ export function createGeminiVoice(options: {
     }
     if (!response.ok) {
       let message: string | undefined;
+      let retryDelay: string | undefined;
       try {
         const error = (
           JSON.parse((await response.text()).slice(0, 8_192)) as {
-            error?: { message?: unknown };
+            error?: { message?: unknown; details?: unknown };
           }
         ).error;
         if (typeof error?.message === "string") message = error.message;
+        if (Array.isArray(error?.details))
+          retryDelay = error.details
+            .map((detail: unknown) =>
+              detail && typeof detail === "object"
+                ? (detail as { retryDelay?: unknown }).retryDelay
+                : undefined,
+            )
+            .find((value): value is string => typeof value === "string");
       } catch {
         // Keep only the status.
       }
-      throw new CloudVoiceError("status", response.status, message);
+      const retryAfterSeconds = Number(response.headers.get("retry-after"));
+      throw new CloudVoiceError(
+        "status",
+        response.status,
+        message,
+        parseRetryDelay(retryDelay) ??
+          (retryAfterSeconds > 0 ? retryAfterSeconds * 1000 : undefined),
+      );
     }
     try {
       return (await response.json()) as InteractionResponse;
@@ -191,23 +276,25 @@ export function createGeminiVoice(options: {
     async transcribe({ audio, mimeType, lang, signal }) {
       if (!options.languages.includes(lang))
         throw new CloudVoiceError("language");
-      const result = await interact(
-        {
-          model: options.sttModel,
-          input: [
-            {
-              type: "text",
-              text: `Transcribe this recording of a learner asking a question in ${LANGUAGE_HINTS[lang] ?? lang}. Write exactly what is said in that language and script. Do not translate, answer, explain or add anything. Return only the transcript.`,
-            },
-            {
-              type: "audio",
-              data: Buffer.from(audio).toString("base64"),
-              mime_type: mimeType,
-            },
-          ],
-          generation_config: generationConfig(options.sttModel),
-        },
-        signal,
+      const result = await withModels(sttModels, signal, (model) =>
+        interact(
+          {
+            model,
+            input: [
+              {
+                type: "text",
+                text: `Transcribe this recording of a learner asking a question in ${LANGUAGE_HINTS[lang] ?? lang}. Write exactly what is said in that language and script. Do not translate, answer, explain or add anything. Return only the transcript.`,
+              },
+              {
+                type: "audio",
+                data: Buffer.from(audio).toString("base64"),
+                mime_type: mimeType,
+              },
+            ],
+            generation_config: generationConfig(model),
+          },
+          signal,
+        ),
       );
       const text =
         result.output_text ??
@@ -222,33 +309,50 @@ export function createGeminiVoice(options: {
     },
     async synthesize({ text, lang, signal }) {
       if (!speakLanguages.includes(lang)) throw new CloudVoiceError("language");
-      const result = await interact(
-        {
-          model: options.ttsModel,
-          input: [
+      const models = LITE_TTS_UNSUPPORTED.has(lang)
+        ? ttsModels.filter((model) => !/lite/iu.test(model))
+        : ttsModels;
+      const result = await withModels(
+        models.length ? models : ttsModels,
+        signal,
+        async (model) => {
+          const reply = await interact(
             {
-              type: "user_input",
-              content: [
+              model,
+              input: [
                 {
-                  type: "text",
-                  text,
-                  // Style goes in metadata so the instruction is not read aloud.
-                  annotations: [
+                  type: "user_input",
+                  content: [
                     {
-                      type: "speech_metadata",
-                      style: `clear, warm and calm, at a steady learning pace, in ${LANGUAGE_HINTS[lang] ?? lang}`,
+                      type: "text",
+                      text,
+                      // Style goes in metadata so the instruction is not read aloud.
+                      annotations: [
+                        {
+                          type: "speech_metadata",
+                          style: `clear, warm and calm, at a steady learning pace, in ${LANGUAGE_HINTS[lang] ?? lang}`,
+                        },
+                      ],
                     },
                   ],
                 },
               ],
+              response_format: { type: "audio" },
+              generation_config: {
+                speech_config: [{ voice: options.voiceName ?? "Kore" }],
+              },
             },
-          ],
-          response_format: { type: "audio" },
-          generation_config: {
-            speech_config: [{ voice: options.voiceName ?? "Kore" }],
-          },
+            signal,
+          );
+          // A TTS reply without audio is a model failure: try the next model.
+          if (
+            !modelOutput(reply).some(
+              (item) => item.type === "audio" && item.data,
+            )
+          )
+            throw new CloudVoiceError("no_audio", 502);
+          return reply;
         },
-        signal,
       );
       const output = modelOutput(result)
         .filter((item) => item.type === "audio" && item.data)

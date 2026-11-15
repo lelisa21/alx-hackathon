@@ -7,7 +7,11 @@ import {
   ProviderBase,
 } from "./http-provider.js";
 import type { HttpProviderOptions, ProviderInput } from "./http-provider.js";
-import { InvalidProviderResponseError, ProviderHttpError } from "./provider.js";
+import {
+  InvalidProviderResponseError,
+  parseRetryDelay,
+  ProviderHttpError,
+} from "./provider.js";
 import type { Interactions } from "@google/genai";
 
 type GeminiInteractionParams =
@@ -175,16 +179,54 @@ function httpStatus(error: unknown): number | undefined {
   return typeof status === "number" ? status : undefined;
 }
 
-function vendorError(error: unknown): { code?: string; message?: string } {
-  const body = (error as { error?: unknown }).error;
+function vendorError(error: unknown): {
+  code?: string;
+  message?: string;
+  retryDelay?: string;
+} {
+  // SDK error classes differ: APIError.error is the vendor error object,
+  // RateLimitError.error wraps it as { httpMeta, error }, and every class
+  // keeps the raw response text in `body`.
+  const candidates: unknown[] = [];
+  const field = (error as { error?: unknown }).error;
+  if (field && typeof field === "object") {
+    const nested = (field as { error?: unknown }).error;
+    if (nested && typeof nested === "object") candidates.push(nested);
+    candidates.push(field);
+  }
+  const raw = (error as { body?: unknown }).body;
+  if (typeof raw === "string" && raw.trim().startsWith("{")) {
+    try {
+      const parsed = JSON.parse(raw.slice(0, 8_192)) as { error?: unknown };
+      if (parsed.error && typeof parsed.error === "object")
+        candidates.push(parsed.error);
+    } catch {
+      // Not JSON: keep the status only.
+    }
+  }
+  const body = candidates.find(
+    (candidate) =>
+      typeof (candidate as { message?: unknown }).message === "string",
+  );
   if (!body || typeof body !== "object") return {};
   const record = body as Record<string, unknown>;
   const code = record.status ?? record.code;
+  // google.rpc.RetryInfo carries the quota reset as e.g. "28s".
+  const retryDelay = Array.isArray(record.details)
+    ? record.details
+        .map((detail) =>
+          detail && typeof detail === "object"
+            ? (detail as Record<string, unknown>).retryDelay
+            : undefined,
+        )
+        .find((value): value is string => typeof value === "string")
+    : undefined;
   return {
     ...(typeof code === "string" || typeof code === "number"
       ? { code: String(code) }
       : {}),
     ...(typeof record.message === "string" ? { message: record.message } : {}),
+    ...(retryDelay ? { retryDelay } : {}),
   };
 }
 
@@ -279,8 +321,10 @@ export class GeminiProvider extends ProviderBase {
         throw new InvalidProviderResponseError("not_json");
       if (status !== undefined) {
         const vendor = vendorError(error);
+        const retryAfterMs = parseRetryDelay(vendor.retryDelay);
         throw new ProviderHttpError(status, vendor.code, vendor.message, {
           cause: error,
+          ...(retryAfterMs ? { retryAfterMs } : {}),
         });
       }
       throw new Error("Provider request failed.", { cause: error });

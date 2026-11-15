@@ -76,7 +76,7 @@ export class SmsService {
   }
   private matches(text: string, key: string, lang: string): boolean {
     const normalized = normalizeSmsKeyword(text);
-    return [lang, "en", "am", "om"].some((code) =>
+    return [lang, "en", "am", "om", "ti"].some((code) =>
       (this.options.locales(code).keywords[key] ?? []).some(
         (keyword) => normalizeSmsKeyword(keyword) === normalized,
       ),
@@ -401,9 +401,9 @@ export class SmsService {
     return { kind: "ask", lang, text };
   }
   private language(text: string): string | undefined {
-    return ({ "1": "en", "2": "am", "3": "om" } as Record<string, string>)[
-      text
-    ];
+    return (
+      { "1": "en", "2": "am", "3": "om", "4": "ti" } as Record<string, string>
+    )[text];
   }
   private async execute(
     store: SmsLockedStore,

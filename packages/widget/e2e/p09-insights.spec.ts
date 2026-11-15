@@ -123,8 +123,9 @@ test("FR-INSIGHT-03 instructor page filters anonymous rows and downloads CSV", a
 
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download CSV" }).click();
+  // The page names the file with the current UTC date.
   expect((await download).suggestedFilename()).toBe(
-    "dimts-insights-2026-11-14.csv",
+    `dimts-insights-${new Date().toISOString().slice(0, 10)}.csv`,
   );
   const protectedRequests = requests.filter(({ url }) =>
     new URL(url).pathname.endsWith("/insights"),

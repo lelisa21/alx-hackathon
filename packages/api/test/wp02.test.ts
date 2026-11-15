@@ -330,19 +330,19 @@ describe("WP02 configuration and API contracts", () => {
     const directory = await mkdtemp(path.join(tmpdir(), "dimts-api-language-"));
     try {
       await cp(localesRoot, directory, { recursive: true });
-      scaffoldPack(directory, "ti");
+      scaffoldPack(directory, "so");
       const { app } = createApp(createRepository(), { localesRoot: directory });
       const visible = await request(app).get("/v1/languages");
       expect(
         visible.body.languages.some(
-          (entry: { code: string }) => entry.code === "ti",
+          (entry: { code: string }) => entry.code === "so",
         ),
       ).toBe(false);
       const preview = await request(app).get("/v1/languages?lang_preview=1");
       expect(preview.body.languages).toContainEqual({
-        code: "ti",
-        nameNative: "ti",
-        nameEn: "ti",
+        code: "so",
+        nameNative: "so",
+        nameEn: "so",
         script: "Latn",
         dir: "ltr",
         status: "draft",
@@ -350,8 +350,8 @@ describe("WP02 configuration and API contracts", () => {
         tts: false,
         voice: null,
       });
-      expect((await request(app).get("/v1/locales/ti/ui")).status).toBe(404);
-      const ui = await request(app).get("/v1/locales/ti/ui?lang_preview=1");
+      expect((await request(app).get("/v1/locales/so/ui")).status).toBe(404);
+      const ui = await request(app).get("/v1/locales/so/ui?lang_preview=1");
       expect(ui.status).toBe(200);
       expect(ui.body["help.button"]).toBe("Help me now");
     } finally {
@@ -546,7 +546,7 @@ describe("WP02 configuration and API contracts", () => {
     ).toEqual(["en"]);
     expect(
       preview.body.languages.map((language: { code: string }) => language.code),
-    ).toEqual(["am", "ar-test", "en", "om"]);
+    ).toEqual(["am", "ar-test", "en", "om", "ti"]);
     expect(invalidQuery.status).toBe(400);
   });
 

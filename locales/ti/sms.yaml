@@ -1,0 +1,48 @@
+# Draft templates and shared keywords. English commands stay valid in every language.
+help: ንሓገዝ ሓገዝ ኢልኩም ስደዱ።
+stop: መልእኽቲ ንምቁራጽ ኣቋርጽ ኢልኩም ስደዱ።
+menu: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ
+more: ንተወሳኺ 1 ስደዱ።
+human: ሰብ ንምርካብ 2 ስደዱ።
+stopped: ካብ ሕጂ ንደሓር መልእኽቲ ኣይመጸኩምን እዩ።
+callback: ሓጋዚ ክድውለልኩም Y ስደዱ።
+keywords:
+  help:
+    - HELP
+    - እርዳታ
+    - GARGAARSA
+    - ሓገዝ
+  stop:
+    - STOP
+    - አቁም
+    - DHAABI
+    - ኣቋርጽ
+  language:
+    - LANG
+    - ቋንቋ
+    - AFAAN
+  jobs:
+    - JOBS
+    - ስራ
+    - HOJII
+    - ስራሕ
+  person: [PERSON, HELP, "2", ሰው, NAMA, ሰብ]
+  confirm: [Y, YES, አዎ, EE, እወ]
+  cancel: [CANCEL, ሰርዝ, HAQI, ሰርዝዎ]
+  all: [ALL, ሁሉም, HUNDA, ኩሉ]
+welcome: "ናይ ትምህርቲ ሕቶ ሕተቱ። ሰብ HELP፣ ናይ ስራሕ መልእኽቲ JOBS፣ ንምቁራጽ STOP።"
+invalid: "ካብቶም ዝተዘርዘሩ ምርጫታት ሓደ ስደዱ።"
+unavailable: "እዚ ኣገልግሎት ኣይተዳለወን። ሕቶ ኣይተላእከን። ምምሃር ክትቅጽሉ ትኽእሉ።"
+callback_sent: "ሕቶ ምድዋልኩም ተቐቢልና። ግዜ ምድዋል ኣይውሕስን።"
+jobs_type: "እንታይ ዓይነት ስራሕ? ንኩሉ ALL፣ ንምስራዝ CANCEL ስደዱ።"
+jobs_region: "ኣየናይ ክልል? ንኩሉ ALL፣ ንምስራዝ CANCEL ስደዱ።"
+jobs_language: "ቋንቋ መልእኽቲ ስራሕ፦ 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ"
+jobs_consent: "ኣብዚ ቁጽሪ ንመዓልታዊ መልእኽቲ ስራሕ ን30 መዓልቲ? ንምፍቃድ Y፣ ንምቁራጽ STOP።"
+jobs_active: "መልእኽቲ ስራሕ ን30 መዓልቲ ተኸፊቱ። JOBS ንምምሕዳር፣ STOP ኩሉ ንምቁራጽ።"
+jobs_stopped: "መልእኽቲ ስራሕ ደው ኢሉ፣ ቁጽሪ ተደምሲሱ። ምምሃር ክትቅጽሉ ትኽእሉ።"
+jobs_manage: "1 ሓድሽ መልእኽቲ ስራሕ። 2 መልእኽቲ ስራሕ ኣቋርጽ። STOP ኩሉ የቋርጽ።"
+limit: "ናይ መዓልቲ ደረት መልእኽቲ በጺሑ። ጽባሕ ፈትኑ። STOP ይሰርሕ።"
+no_more: "ተወሳኺ ዝተዓቀበ ጽሑፍ የለን። ካልእ ሕቶ ሕተቱ።"
+error: "ሕቶ ኣይተዓወተን። ነቲ ሓደ መልእኽቲ ደጊምኩም ፈትኑ።"
+cancelled: "ተሰሪዙ። ምምሃር ክትቅጽሉ ትኽእሉ።"
+conflict: "እዚ መለለዪ መልእኽቲ ቀደም ተጠቒሙሉ። ሓድሽ መልእኽቲ ስደዱ።"

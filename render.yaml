@@ -37,7 +37,7 @@ services:
         value: en
       # Amharic and Afaan Oromoo packs await native review; publish them as beta.
       - key: DIMTS_PREVIEW_LANGS
-        value: am,om
+        value: am,om,ti
       # Lesson pages on the static site, e.g. https://dimts-widget-assets.onrender.com/learn/
       - key: DIMTS_CONTENT_BASE_URL
         sync: false
@@ -70,8 +70,9 @@ services:
         value: ethiojobs,hahujobs,afriwork
       - key: DIMTS_JOBS_ALERT_INTERVAL_MS
         value: "3600000"
-      # AI ladder: Gemini gemini-4-hydrogen, then OpenRouter free models, then
-      # the offline extractive answerer. Remote AI answers only after the
+      # AI ladder: gemini-4-hydrogen, gemini-3.5-flash-lite, gemini-3.1-flash-lite
+      # (separate free quotas), then OpenRouter free models, then the offline
+      # extractive answerer. Remote AI answers only after the
       # learner allows it. Keys: https://aistudio.google.com/apikey and
       # https://openrouter.ai/settings/keys
       - key: GEMINI_API_KEY
@@ -81,11 +82,11 @@ services:
       - key: DIMTS_AI_PROVIDER
         value: gemini
       - key: DIMTS_AI_LADDER
-        value: gemini,openrouter,offline
+        value: gemini,gemini-flash-lite,gemini-lite,openrouter,offline
       - key: DIMTS_AI_PROVIDERS
-        value: '[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":12000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":[],"capabilities":{"languages":["en","am","om"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"openrouter","adapter":"openrouter","model":"particle-ai/particle-1:free","fallbackModels":["inclusionai/ling-3.2-flash:free","nvidia/nemotron-3.5-super-vl:free"],"credentialRef":"OPENROUTER_API_KEY","privacyClass":"remote","enabled":true,"priority":2,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":[],"capabilities":{"languages":["en","am","om"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}}]'
+        value: '[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":12000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"gemini-flash-lite","adapter":"gemini","model":"gemini-3.5-flash-lite","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":2,"timeoutMs":8000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"gemini-lite","adapter":"gemini","model":"gemini-3.1-flash-lite","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":3,"timeoutMs":8000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"openrouter","adapter":"openrouter","model":"particle-ai/particle-1:free","fallbackModels":["inclusionai/ling-3.2-flash:free","nvidia/nemotron-3.5-super-vl:free"],"credentialRef":"OPENROUTER_API_KEY","privacyClass":"remote","enabled":true,"priority":4,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}}]'
       - key: DIMTS_AI_MAX_TOKENS
-        value: "512"
+        value: "1024"
       - key: DIMTS_AI_TEMPERATURE
         value: "0.2"
       - key: DIMTS_AI_RECALL_FLOOR
@@ -99,9 +100,13 @@ services:
       - key: DIMTS_CLOUD_VOICE
         value: gemini
       - key: DIMTS_CLOUD_VOICE_LANGS
-        value: en,am,om
+        value: en,am,om,ti
       - key: DIMTS_CLOUD_VOICE_SPEAK_LANGS
-        value: en,am
+        value: en,am,ti
+      - key: DIMTS_CLOUD_VOICE_STT_MODEL
+        value: gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite
+      - key: DIMTS_CLOUD_VOICE_TTS_MODEL
+        value: gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts
 
   - type: web
     name: dimts-widget-assets

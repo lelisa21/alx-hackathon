@@ -222,3 +222,83 @@ describe("Gemini voice adapter", () => {
     });
   });
 });
+
+describe("Gemini voice model chain", () => {
+  const ok = (text: string) =>
+    Response.json({
+      status: "completed",
+      steps: [{ type: "model_output", content: [{ type: "text", text }] }],
+    });
+  const quota = () =>
+    Response.json(
+      {
+        error: {
+          code: 429,
+          message:
+            "Rate limit exceeded for model gemini-4-hydrogen (limit: 20 requests per day on Free Tier). Please retry in 1h0m0s",
+        },
+      },
+      { status: 429 },
+    );
+
+  it("falls back to the next model on an exhausted quota and skips it until reset", async () => {
+    let now = 0;
+    const models: string[] = [];
+    const fetcher = vi.fn(
+      async (_url: RequestInfo | URL, init?: RequestInit) => {
+        const model = JSON.parse(String(init?.body)).model as string;
+        models.push(model);
+        return model === "gemini-4-hydrogen" ? quota() : ok("ሰላም");
+      },
+    ) as unknown as typeof fetch;
+    const voice = createGeminiVoice({
+      apiKey: "key",
+      sttModel: "gemini-4-hydrogen, gemini-3.5-flash-lite",
+      ttsModel: "gemini-3.8-flash-lite-tts",
+      languages: ["am"],
+      fetch: fetcher,
+      now: () => now,
+    });
+    const input = {
+      audio: new Uint8Array([1]),
+      mimeType: "audio/wav",
+      lang: "am",
+      signal: new AbortController().signal,
+    };
+    expect(await voice.transcribe(input)).toBe("ሰላም");
+    expect(models).toEqual(["gemini-4-hydrogen", "gemini-3.5-flash-lite"]);
+    await voice.transcribe(input);
+    expect(models.slice(2)).toEqual(["gemini-3.5-flash-lite"]);
+    now = 3_600_000;
+    await voice.transcribe(input);
+    expect(models.slice(3)).toEqual([
+      "gemini-4-hydrogen",
+      "gemini-3.5-flash-lite",
+    ]);
+  });
+
+  it("does not retry a request every model rejects (bad key)", async () => {
+    const fetcher = vi.fn(async () =>
+      Response.json(
+        { error: { code: 400, message: "API key not valid." } },
+        { status: 400 },
+      ),
+    ) as unknown as typeof fetch;
+    const voice = createGeminiVoice({
+      apiKey: "bad",
+      sttModel: ["gemini-4-hydrogen", "gemini-3.5-flash-lite"],
+      ttsModel: "gemini-3.8-flash-lite-tts",
+      languages: ["am"],
+      fetch: fetcher,
+    });
+    await expect(
+      voice.transcribe({
+        audio: new Uint8Array([1]),
+        mimeType: "audio/wav",
+        lang: "am",
+        signal: new AbortController().signal,
+      }),
+    ).rejects.toMatchObject({ status: 400, model: "gemini-4-hydrogen" });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+});

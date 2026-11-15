@@ -47,6 +47,7 @@ export function createVoiceRouter(options: {
     reason: string;
     status?: number;
     vendorMessage?: string;
+    model?: string;
   }) => void;
 }): express.Router {
   const report = (direction: "transcribe" | "speak", error: unknown) => {
@@ -55,6 +56,7 @@ export function createVoiceRouter(options: {
       status?: unknown;
       vendorMessage?: unknown;
       name?: unknown;
+      model?: unknown;
     };
     options.onError?.({
       direction,
@@ -70,6 +72,7 @@ export function createVoiceRouter(options: {
       ...(typeof failure?.vendorMessage === "string"
         ? { vendorMessage: failure.vendorMessage }
         : {}),
+      ...(typeof failure?.model === "string" ? { model: failure.model } : {}),
     });
   };
   const router = express.Router();
