@@ -149,25 +149,33 @@ async function sourcePaths(directory: string): Promise<string[]> {
 }
 
 async function passagesFromContent(root: string) {
-  const coursePaths = await sourcePaths(
-    path.join(root, "content", "sample-course"),
-  );
   const passages = [];
   const sourceDocuments: { name: string; content: string }[] = [];
-  for (const filePath of coursePaths) {
-    const content = await readFile(filePath, "utf8");
-    const extension = path.extname(filePath).toLowerCase();
-    const name = path.relative(root, filePath);
-    sourceDocuments.push({ name, content });
-    passages.push(
-      ...toPassages({
-        lessonId: path.basename(filePath, extension),
-        content,
-        format: extension === ".md" ? "markdown" : "html",
-        baseUrl: "https://course.example/lessons/",
-        lang: "en",
-      }),
-    );
+
+  // Load course content from all language directories in savanna
+  const contentRoot = path.join(root, "content", "savanna");
+  const langDirs = (await readdir(contentRoot, { withFileTypes: true }))
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+
+  for (const lang of langDirs) {
+    const coursePaths = await sourcePaths(path.join(contentRoot, lang));
+    for (const filePath of coursePaths) {
+      const content = await readFile(filePath, "utf8");
+      const extension = path.extname(filePath).toLowerCase();
+      const name = path.relative(root, filePath);
+      sourceDocuments.push({ name, content });
+      passages.push(
+        ...toPassages({
+          lessonId: path.basename(filePath, extension),
+          content,
+          format: extension === ".md" ? "markdown" : "html",
+          baseUrl: "https://course.example/lessons/",
+          lang,
+        }),
+      );
+    }
   }
 
   const jobDirectory = path.join(root, "content", "sample-jobs");
