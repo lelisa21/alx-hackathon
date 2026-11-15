@@ -1489,9 +1489,12 @@ export class DimtsAssistant extends LitElement {
     .help-summary {
       border: 1px solid var(--dimts-border);
       margin-block: 0.75rem;
-      max-block-size: 12rem;
+      max-block-size: min(12rem, 50vh);
       overflow-y: auto;
       padding: 0.75rem;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      min-inline-size: 0;
     }
 
     .share-banner {
@@ -1523,8 +1526,9 @@ export class DimtsAssistant extends LitElement {
     }
 
     .help-chat-messages {
-      max-block-size: 16rem;
+      max-block-size: min(16rem, 40vh);
       overflow-y: auto;
+      min-inline-size: 0;
     }
 
     .visually-hidden {
