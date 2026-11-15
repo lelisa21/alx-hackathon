@@ -261,6 +261,7 @@ export const requiredUiKeys: readonly string[] = [
   "helper.lang.am",
   "helper.lang.en",
   "helper.lang.om",
+  "helper.lang.ti",
   "helper.learner",
   "helper.loginFailed",
   "helper.message",

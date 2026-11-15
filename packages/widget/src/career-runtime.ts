@@ -460,7 +460,7 @@ function field(context: CareerContext, keyName: FieldName, label: string) {
         refresh(context);
       }}
     />
-    ${context.canRecord() ? html`<button type="button" ?disabled=${value.busy} @click=${() => void record(context, keyName)}>${context.t(value.recording ? "mic.stop" : "mic.start")}</button>` : html`<p>${context.t("voice.inputUnavailable")}</p>`}
+    ${context.canRecord() ? html`<button class="career-mic" type="button" ?disabled=${value.busy} @click=${() => void record(context, keyName)}>${context.t(value.recording ? "mic.stop" : "mic.start")}</button>` : html`<p>${context.t("voice.inputUnavailable")}</p>`}
     ${value.recording ? html`<p role="status">${context.t("voice.listening")}</p>` : nothing}
     ${
       value.voiceReview === keyName
@@ -800,13 +800,19 @@ function browse(context: CareerContext) {
         @click=${() => newFlow(context, "subscription")}
       >
         ${context.t("jobs.alerts")}</button
-      ><button
-        type="button"
-        ?disabled=${value.busy || !value.relayAvailable || !eligibleJobs(value).length}
-        @click=${() => newFlow(context, "accommodation")}
-      >
-        ${context.t("jobs.accommodation")}
-      </button>
+      >${
+        // Interview-support requests go to the host's delivery relay; without
+        // one there is nobody to receive them, so the action is not offered.
+        value.relayAvailable
+          ? html`<button
+              type="button"
+              ?disabled=${value.busy || !eligibleJobs(value).length}
+              @click=${() => newFlow(context, "accommodation")}
+            >
+              ${context.t("jobs.accommodation")}
+            </button>`
+          : nothing
+      }
       ${
         value.saved
           ? html`<button
@@ -862,7 +868,7 @@ function browse(context: CareerContext) {
             ${value.jobs.find((job) => job.id === draft.jobId)?.title ?? context.t("jobs.accommodation")}
           </button>`,
       )}
-    ${!value.channels.length || !value.relayAvailable ? html`<p>${context.t("jobs.unavailable")}</p>` : nothing}
+    ${!value.channels.length ? html`<p>${context.t("jobs.unavailable")}</p>` : nothing}
     ${value.subscriptions
       .filter((subscription) => subscription.status === "active")
       .map(

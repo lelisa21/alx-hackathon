@@ -6,6 +6,7 @@ export interface GlossaryEntry {
   en: string;
   am?: string;
   om?: string;
+  ti?: string;
 }
 
 // Question and function words carry no topic. Counted as matches, they let
@@ -70,6 +71,26 @@ const QUESTION_WORDS: Record<string, readonly string[]> = {
     "እባክዎ",
     "እባክህ",
     "እባክሽ",
+  ],
+  ti: [
+    "እንታይ",
+    "እንታ",
+    "እዩ",
+    "እዮም",
+    "ብኸመይ",
+    "ከመይ",
+    "መን",
+    "ኣበይ",
+    "መዓስ",
+    "ስለምንታይ",
+    "ክንደይ",
+    "ድዩ",
+    "ዶ",
+    "እዚ",
+    "እቲ",
+    "ኣብ",
+    "ናይ",
+    "በጃኹም",
   ],
   om: [
     "maal",

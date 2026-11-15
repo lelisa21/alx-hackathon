@@ -16,6 +16,8 @@ import {
   suggestTransliteration,
 } from "./transliteration.js";
 import ethiopicRegularFontUrl from "../../../assets/fonts/NotoSansEthiopic-ethiopic-400-normal.woff2?url&no-inline";
+// Languages written in Ge'ez script; they share the Noto Sans Ethiopic font.
+const ETHIOPIC_LANGS = new Set(["am", "ti"]);
 let ethiopicFont: FontFace | undefined;
 const ethiopicFontUsers = new Set<HTMLElement>();
 const activeWidgets = new Set<DimtsAssistant>();
@@ -639,7 +641,8 @@ export class DimtsAssistant extends LitElement {
       line-height: 1.5;
     }
 
-    :host([lang="am"]) {
+    :host([lang="am"]),
+    :host([lang="ti"]) {
       font-family:
         "Noto Sans Ethiopic",
         system-ui,
@@ -650,7 +653,8 @@ export class DimtsAssistant extends LitElement {
       line-height: 1.65;
     }
 
-    [lang="am"] {
+    [lang="am"],
+    [lang="ti"] {
       font-family:
         "Noto Sans Ethiopic", var(--dimts-font-family, system-ui), sans-serif;
       line-height: 1.65;
@@ -1184,6 +1188,10 @@ export class DimtsAssistant extends LitElement {
 
     .language-choice[lang="om"]::before {
       content: "OM" / "";
+    }
+
+    .language-choice[lang="ti"]::before {
+      content: "\\1275\\130D" / "";
     }
 
     .language-name {
@@ -1819,6 +1827,31 @@ export class DimtsAssistant extends LitElement {
       font-size: 0.875em;
       gap: 0.5rem;
       margin: var(--dimts-help-margin, 0 1rem 1rem);
+      /* In the embedded panel the button scrolls with the content and must
+         pass under the sticky header, not over it. */
+      z-index: var(--dimts-help-z, 3);
+    }
+
+    .career-mic {
+      align-items: center;
+      background: var(--dimts-accent-soft);
+      border-color: var(--dimts-accent-line);
+      border-radius: 999px;
+      display: inline-flex;
+      font-size: 0.8125em;
+      font-weight: 600;
+      gap: 0.5rem;
+      justify-self: start;
+      padding-inline: 0.875rem 1.125rem;
+    }
+
+    .career-mic::before {
+      background: currentColor;
+      block-size: 1.15em;
+      content: "";
+      flex: none;
+      inline-size: 1.15em;
+      mask: var(--dimts-icon-mic) center / contain no-repeat;
     }
 
     .help::before {
@@ -1840,7 +1873,8 @@ export class DimtsAssistant extends LitElement {
     /* Consent is a 48px switch (the 24px checkbox failed the target-size
        rule). Knob position and track colour both show the state; the row
        carries the focus ring because the mask would hide an outline. */
-    .consent input[type="checkbox"] {
+    .consent input[type="checkbox"],
+    .transliteration input[type="checkbox"] {
       appearance: none;
       background:
         radial-gradient(
@@ -1861,7 +1895,8 @@ export class DimtsAssistant extends LitElement {
       min-inline-size: 48px;
     }
 
-    .consent input[type="checkbox"]:checked {
+    .consent input[type="checkbox"],
+    .transliteration input[type="checkbox"]:checked {
       background:
         radial-gradient(
           circle at 32px 50%,
@@ -1871,7 +1906,8 @@ export class DimtsAssistant extends LitElement {
         var(--dimts-primary);
     }
 
-    main[dir="rtl"] .consent input[type="checkbox"] {
+    main[dir="rtl"] .consent input[type="checkbox"],
+    main[dir="rtl"] .transliteration input[type="checkbox"] {
       background:
         radial-gradient(
           circle at 32px 50%,
@@ -1881,7 +1917,8 @@ export class DimtsAssistant extends LitElement {
         color-mix(in srgb, var(--dimts-muted) 72%, var(--dimts-surface));
     }
 
-    main[dir="rtl"] .consent input[type="checkbox"]:checked {
+    main[dir="rtl"] .consent input[type="checkbox"],
+    main[dir="rtl"] .transliteration input[type="checkbox"]:checked {
       background:
         radial-gradient(
           circle at 16px 50%,
@@ -1891,24 +1928,30 @@ export class DimtsAssistant extends LitElement {
         var(--dimts-primary);
     }
 
-    .consent input[type="checkbox"]:focus-visible {
+    .consent input[type="checkbox"],
+    .transliteration input[type="checkbox"]:focus-visible {
       box-shadow: none;
       outline: 0;
     }
 
-    .consent .setting-row:has(input:focus-visible) {
+    .consent .setting-row:has(input:focus-visible),
+    .transliteration .setting-row:has(input:focus-visible) {
       border-radius: 0.75rem;
       outline: 3px solid var(--dimts-focus);
       outline-offset: 2px;
     }
 
     @media (forced-colors: active) {
-      .consent input[type="checkbox"] {
+      .consent input[type="checkbox"],
+      .transliteration input[type="checkbox"],
+      .transliteration input[type="checkbox"] {
         appearance: auto;
         mask: none;
       }
 
-      .consent input[type="checkbox"]:focus-visible {
+      .consent input[type="checkbox"],
+      .transliteration input[type="checkbox"],
+      .transliteration input[type="checkbox"]:focus-visible {
         outline: 3px solid;
       }
     }
@@ -2240,7 +2283,7 @@ export class DimtsAssistant extends LitElement {
     window.addEventListener("offline", this.handleOffline);
     window.addEventListener("online", this.handleOnline);
     window.addEventListener("keydown", this.handleShortcut);
-    if (this.selectedLang === "am") registerEthiopicFonts(this);
+    if (ETHIOPIC_LANGS.has(this.selectedLang)) registerEthiopicFonts(this);
     if (this.hasAttribute("data-simple")) {
       this.updateSettings({
         simple: this.getAttribute("data-simple") === "true",
@@ -2658,7 +2701,7 @@ export class DimtsAssistant extends LitElement {
   }
 
   private setSelectedLanguage(code: string): void {
-    if (code === "am") registerEthiopicFonts(this);
+    if (ETHIOPIC_LANGS.has(code)) registerEthiopicFonts(this);
     this.selectedLang = code;
     this.transliterationEnabled = false;
     this.transliterationSuggestion = null;
@@ -2678,6 +2721,8 @@ export class DimtsAssistant extends LitElement {
     this.stopSpeech();
     this.fallbackNotice = "";
     this.fallbackPending = false;
+    // A status line translated for the previous language would stay in it.
+    if (!this.consentBusy) this.consentNotice = "";
     this.setSelectedLanguage(selected.code);
     this.faqRun += 1;
     this.faqController?.abort();
@@ -3200,6 +3245,11 @@ export class DimtsAssistant extends LitElement {
       <strong>${this.t("welcome.ready")}</strong>
       <span>${this.t("app.tagline")}</span>
       ${
+        // The AI choice comes before the starter questions so it is seen
+        // without scrolling under the composer.
+        this.renderConsent()
+      }
+      ${
         suggestions.length
           ? html`<div
               class="suggestions-list"
@@ -3223,7 +3273,6 @@ export class DimtsAssistant extends LitElement {
             </div>`
           : nothing
       }
-      ${this.renderConsent()}
     </div>`;
   }
 

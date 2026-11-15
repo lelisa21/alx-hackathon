@@ -9,6 +9,9 @@ import type { AiProvider, AnswerResult } from "./provider.js";
 const COOLDOWN_MS = 60_000;
 // A rejected key or unknown model will not fix itself within a minute.
 const PERMANENT_COOLDOWN_MS = 15 * 60_000;
+// A daily quota (Gemini free tier: 20 requests a day for gemini-4-hydrogen)
+// resets within a day; never park a provider longer than that.
+const MAX_QUOTA_COOLDOWN_MS = 24 * 60 * 60_000;
 
 /** Content-free description of a failed provider attempt, for operators. */
 export interface ProviderFailureEvent {
@@ -61,7 +64,16 @@ export class Ladder {
       if ((this.coolUntil.get(provider.name) ?? 0) > this.now()) continue;
       if (provider.privacyClass === "remote" && !policy.cloudOk) continue;
 
-      const effectiveRequest = this.applyEvaluationGate(provider, request);
+      let effectiveRequest = this.applyEvaluationGate(provider, request);
+      // A provider that can only quote (the offline answerer) still serves an
+      // in-depth request, extractively, instead of being skipped.
+      const modes = provider.capabilities().modes;
+      if (
+        effectiveRequest.mode === "generative" &&
+        !modes.includes("generative") &&
+        modes.includes("extractive")
+      )
+        effectiveRequest = { ...effectiveRequest, mode: "extractive" };
       if (!this.supportsRequest(provider, effectiveRequest)) continue;
       const providerRequest = this.filterDataClasses(
         provider,
@@ -145,11 +157,13 @@ export class Ladder {
           failure.reason =
             healthStatus === 401 || healthStatus === 403
               ? "unauthorized"
-              : healthStatus === 404
-                ? "model_not_found"
-                : healthStatus === 400
-                  ? "rejected"
-                  : "health_check_failed";
+              : healthStatus === 429
+                ? "rate_limited"
+                : healthStatus === 404
+                  ? "model_not_found"
+                  : healthStatus === 400
+                    ? "rejected"
+                    : "health_check_failed";
         }
         // Google answers an invalid API key with 400 INVALID_ARGUMENT, both on
         // the health probe and on generation.
@@ -166,11 +180,18 @@ export class Ladder {
         // availability: this question falls through, the next one tries the
         // provider again instead of sending every learner to the fallback.
         const malformed = error instanceof InvalidProviderResponseError;
+        // An exhausted quota says when it resets: skip the provider until
+        // then instead of spending a request and a round trip every minute.
+        const quotaMs =
+          failure.status === 429 && failure.retryAfterMs
+            ? Math.min(
+                MAX_QUOTA_COOLDOWN_MS,
+                Math.max(COOLDOWN_MS, failure.retryAfterMs),
+              )
+            : undefined;
         const cooldownMs = malformed
           ? 0
-          : permanent
-            ? PERMANENT_COOLDOWN_MS
-            : COOLDOWN_MS;
+          : (quotaMs ?? (permanent ? PERMANENT_COOLDOWN_MS : COOLDOWN_MS));
         if (!malformed) {
           this.healthyUntil.delete(provider.name);
           this.coolUntil.set(provider.name, this.now() + cooldownMs);

@@ -66,7 +66,9 @@ export function paginateSms(
   let remaining = normalizeForSms(raw).trim();
   const pages: string[] = [];
   const boundary =
-    lang === "am" ? /(?<=[።.!?])\s+|\n+/u : /(?<=[.!?።])\s+|\n+/u;
+    lang === "am" || lang === "ti"
+      ? /(?<=[።.!?])\s+|\n+/u
+      : /(?<=[.!?።])\s+|\n+/u;
   while (remaining && pages.length < maxPages) {
     if (countSms(remaining).segments <= maxSegments) {
       pages.push(remaining);

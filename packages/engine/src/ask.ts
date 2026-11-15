@@ -4,6 +4,7 @@ import { isAnswerInLanguage } from "./langcheck.js";
 import {
   hasInstructionInjection,
   isAnswerLengthAllowed,
+  isAnswerSupported,
 } from "./answer-validation.js";
 import type {
   AnswerPolicy,
@@ -377,7 +378,17 @@ export async function ask(
         ),
       }) &&
       isAnswerLengthAllowed(result.text, turnRequest.simple ?? false) &&
-      !hasInstructionInjection(result.text)
+      !hasInstructionInjection(result.text) &&
+      // In-depth (generative) answers rephrase; they must still stay inside
+      // the cited passages. A failure retries once in extractive mode.
+      isAnswerSupported(
+        result.text,
+        result.usedPassageIds.flatMap((id) => {
+          const passage = passagesById.get(id);
+          return passage ? [passage] : [];
+        }),
+        turnRequest.lang,
+      )
     )
       break;
     result = undefined;

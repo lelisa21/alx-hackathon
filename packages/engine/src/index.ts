@@ -4,6 +4,7 @@ export {
   sentenceWordCounts,
   isAnswerLengthAllowed,
   hasInstructionInjection,
+  isAnswerSupported,
 } from "./answer-validation.js";
 export { createAnswerCacheKey, InMemoryAnswerCache } from "./cache.js";
 export { isAnswerInLanguage } from "./langcheck.js";

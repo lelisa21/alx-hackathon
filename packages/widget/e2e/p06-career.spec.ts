@@ -337,9 +337,10 @@ test("P06 unavailable relay does not offer pretend delivery", async ({
   await expect(
     page.getByRole("button", { name: ui["jobs.alerts"], exact: true }),
   ).toBeDisabled();
+  // Without a host relay nobody could receive the request: not offered.
   await expect(
     page.getByRole("button", { name: ui["jobs.accommodation"], exact: true }),
-  ).toBeDisabled();
+  ).toHaveCount(0);
   expect(
     calls.filter((x) => x.method === "POST" && !x.path.endsWith("/sessions")),
   ).toHaveLength(0);

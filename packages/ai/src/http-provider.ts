@@ -168,7 +168,7 @@ export abstract class ProviderBase implements AiProvider {
       `Reply language: ${JSON.stringify(request.lang)}. Mode: ${request.mode}. Maximum words in each sentence: ${request.simple ? 12 : 15}.`,
       request.mode === "extractive"
         ? "Return one to three complete sentences copied verbatim from the cited supplied passages. Do not invent claims or sentence boundaries. Prefer the shortest sentences that answer. For a job posting, copy its title, employer and location lines (the first lines of the posting), not its long description."
-        : "Return a short grounded answer supported by the supplied passages.",
+        : "Answer the learner's exact question in depth: give every step, reason, number and detail that the relevant passages state, combining all passages that help (up to seven short sentences). Explain in clear natural sentences in the reply language instead of copying word for word. Use only facts stated in the passages: never add outside knowledge, examples, numbers, names or advice. Focus on what was asked and leave out unrelated passage content. Cite every passage you used.",
       // Free models otherwise accept a passage that only shares words such as
       // "what is" with the question (verified on Amharic questions).
       'First check relevance: a passage counts only if it directly answers what the learner asked. Sharing words such as "what is" or a topic name is not enough. If no passage directly answers the question, return {"text":"","usedPassageIds":[]}.',

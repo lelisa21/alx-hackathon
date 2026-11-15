@@ -44,6 +44,7 @@ const previewTags: Record<string, string> = {
   en: "en-US",
   am: "am-ET",
   om: "om-ET",
+  ti: "ti-ET",
 };
 
 /** Pack flags record human approval of the device protocol, never a computed score. */

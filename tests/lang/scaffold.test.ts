@@ -34,10 +34,10 @@ describe("FR-LANG-13 pack scaffolder", () => {
   it("creates all eight files as an unreviewed draft with safe disabled voice in under five minutes", () => {
     const root = fixture();
     const start = performance.now();
-    scaffoldPack(root, "ti");
-    const pack = loadPacks(root).get("ti");
+    scaffoldPack(root, "so");
+    const pack = loadPacks(root).get("so");
     expect(pack?.meta).toMatchObject({
-      code: "ti",
+      code: "so",
       status: "draft",
       fallback: "en",
       reviewed_by: null,
@@ -73,7 +73,7 @@ describe("FR-LANG-13 pack scaffolder", () => {
   it("validates before publishing the draft folder", () => {
     const root = fixture();
     writeFileSync(path.join(root, "en/ui.yaml"), "broken: [\n");
-    expect(() => scaffoldPack(root, "ti")).toThrow();
-    expect(existsSync(path.join(root, "ti"))).toBe(false);
+    expect(() => scaffoldPack(root, "so")).toThrow();
+    expect(existsSync(path.join(root, "so"))).toBe(false);
   });
 });

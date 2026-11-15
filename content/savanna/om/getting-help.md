@@ -2,7 +2,7 @@
 
 ## Dimts maali?
 
-Dimts gargaaraa barnootaa Savanna keessa jiru dha. Barnoota koorsii keessanii irraa gaaffii ni deebisa. Afaan Ingiliffaa, Amaariffaa fi Afaan Oromoo ni dubbata.
+Dimts gargaaraa barnootaa Savanna keessa jiru dha. Barnoota koorsii keessanii irraa gaaffii ni deebisa. Afaan Ingiliffaa, Amaariffaa, Afaan Oromoo fi Tigiriffaa ni dubbata.
 
 ## Dimts gaaffii akkamitti gaafadha?
 

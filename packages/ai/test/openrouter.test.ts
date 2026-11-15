@@ -228,3 +228,69 @@ describe("verbatim check", () => {
     ).toThrow("Provider returned an invalid answer.");
   });
 });
+
+describe("quota-aware cooldown", () => {
+  it("parks a provider until the reset time Gemini reports", async () => {
+    const { parseRetryDelay } = await import("../src/provider.js");
+    expect(
+      parseRetryDelay(
+        "Rate limit exceeded for model gemini-4-hydrogen (limit: 20 requests per day on Free Tier). Please retry in 7h49m58s or upgrade",
+      ),
+    ).toBe((7 * 3600 + 49 * 60 + 58) * 1000);
+    expect(parseRetryDelay("Please retry in 26.5s.")).toBe(26_500);
+    expect(parseRetryDelay("28s")).toBe(28_000);
+    expect(parseRetryDelay("Rate limit exceeded: free-models-per-day")).toBe(
+      undefined,
+    );
+
+    let now = 0;
+    const events: ProviderFailureEvent[] = [];
+    const fetchMock = vi.fn<typeof fetch>(async (url) =>
+      String(url).endsWith("/key")
+        ? Response.json({ data: {} })
+        : Response.json(
+            {
+              error: {
+                code: 429,
+                message: "Rate limit exceeded. Please retry in 2h0m0s",
+              },
+            },
+            { status: 429 },
+          ),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const ladder = new Ladder(
+      [provider()],
+      { openrouter: 1_000 },
+      () => now,
+      (event) => events.push(event),
+    );
+    await ladder.answer(request, { cloudOk: true });
+    expect(events[0]).toMatchObject({
+      reason: "rate_limited",
+      status: 429,
+      retryAfterMs: 7_200_000,
+      cooldownMs: 7_200_000,
+    });
+    const calls = fetchMock.mock.calls.length;
+    now = 7_199_999;
+    await ladder.answer(request, { cloudOk: true });
+    expect(fetchMock.mock.calls.length).toBe(calls);
+    now = 7_200_000;
+    await ladder.answer(request, { cloudOk: true });
+    expect(fetchMock.mock.calls.length).toBeGreaterThan(calls);
+  });
+});
+
+describe("in-depth requests", () => {
+  it("are served extractively by a provider that can only quote", async () => {
+    const { OfflineProvider } = await import("../src/offline.js");
+    const ladder = new Ladder([new OfflineProvider()], {});
+    const result = await ladder.answer(
+      { ...request, mode: "generative" },
+      { cloudOk: false },
+    );
+    expect(result.providerId).toBe("offline");
+    expect(result.usedPassageIds).toEqual(["p1"]);
+  });
+});

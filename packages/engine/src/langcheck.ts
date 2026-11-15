@@ -54,6 +54,22 @@ const OROMO_STOPWORDS = new Set([
   "isa",
   "ni",
   "yoo",
+  // Added 2026-11-15: "Furtuu Amma na gargaaraa jedhu filadhaa." (select the
+  // Help me now button) has none of the words above and was rejected as
+  // not Oromo, so a correct quoted answer became "not found".
+  "amma",
+  "na",
+  "nu",
+  "jedhu",
+  "itti",
+  "irra",
+  "booda",
+  "dura",
+  "kanaaf",
+  "immoo",
+  "akkasumas",
+  "hunda",
+  "tokko",
 ]);
 // Oromo writes the glottal stop (hudhaa) with an apostrophe inside words, as in
 // "danda'a". Splitting there would yield tokens such as "a" that match English
@@ -76,6 +92,84 @@ function languageBase(lang: string): string {
   return lang.toLowerCase().split("-")[0] ?? lang.toLowerCase();
 }
 
+// Amharic and Tigrinya share the Ge'ez script, so the script alone cannot tell
+// a Tigrinya reply from an Amharic one. These markers can: letters Amharic
+// does not use (the ቐ and ኸ rows), Tigrinya's word-initial ኣ, each language's
+// most frequent function words, and their polite-plural verb endings.
+const TIGRINYA_WORDS = new Set([
+  "እዩ",
+  "እዮም",
+  "እያ",
+  "እየ",
+  "ኢዩ",
+  "ኢኹም",
+  "ኣብ",
+  "ናይ",
+  "ምስ",
+  "ከም",
+  "እንታይ",
+  "ብኸመይ",
+  "ኣሎ",
+  "ኣለዉ",
+  "ኣለኹ",
+  "ድማ",
+  "ከኣ",
+  "ብዛዕባ",
+  "ናብ",
+  "ካብ",
+  "የለን",
+  "ኩሉ",
+  "እዚ",
+  "እቲ",
+  "ነዚ",
+  "ንዚ",
+]);
+const AMHARIC_WORDS = new Set([
+  "ነው",
+  "ናቸው",
+  "ነበር",
+  "እና",
+  "ወይም",
+  "ላይ",
+  "ውስጥ",
+  "ጋር",
+  "ይህ",
+  "ይህን",
+  "እንዴት",
+  "ምንድን",
+  "ምንድነው",
+  "አለ",
+  "አሉ",
+  "እንደ",
+  "በጣም",
+  "ሁሉም",
+  "እርስዎ",
+  "የእርስዎ",
+  "ይችላሉ",
+  "ያለ",
+]);
+const TIGRINYA_LETTERS = /[ቐ-ቖኸ-ኾ]/gu;
+
+/** Evidence for Amharic versus Tigrinya in Ge'ez-script text. */
+export function ethiopicLanguageScores(text: string): {
+  am: number;
+  ti: number;
+} {
+  const words = text.normalize("NFC").match(/[\p{L}\p{N}]+/gu) ?? [];
+  let ti = Math.min(3, text.match(TIGRINYA_LETTERS)?.length ?? 0);
+  let am = 0;
+  for (const word of words) {
+    if (
+      TIGRINYA_WORDS.has(word) ||
+      word.startsWith("ኣ") ||
+      /(?:ኩም|ኹም)$/u.test(word)
+    )
+      ti += 1;
+    if (AMHARIC_WORDS.has(word) || /ዎታል$/u.test(word)) am += 1;
+  }
+  return { am, ti };
+}
+
 /**
  * `factsOnly`: the answer quotes job-posting fact lines (title, employer,
  * place), which are names with no function words. They still must use the
@@ -91,8 +185,14 @@ export function isAnswerInLanguage(
 
   const base = languageBase(lang);
   const ethiopic = text.match(/[\u1200-\u137f]/gu)?.length ?? 0;
-  if (base === "am") {
-    return ethiopic / letters.length >= 0.3;
+  if (base === "am" || base === "ti") {
+    if (ethiopic / letters.length < 0.3) return false;
+    // Reject only clear evidence of the other Ge'ez-script language; a short
+    // answer with no markers either way is accepted.
+    const scores = ethiopicLanguageScores(text);
+    const own = base === "am" ? scores.am : scores.ti;
+    const other = base === "am" ? scores.ti : scores.am;
+    return !(other >= 2 && other > own);
   }
   if (ethiopic / letters.length >= 0.3) return false;
   const latin = text.match(/\p{Script=Latin}/gu)?.length ?? 0;
