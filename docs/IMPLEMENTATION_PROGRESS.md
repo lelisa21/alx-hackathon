@@ -2,65 +2,6 @@
 
 Updated: 15 November 2026.
 
-## UI Redesign — Modern ChatGPT-Inspired Layout (In Progress)
-
-**Scope:** FR-UI-01–05, NFR-A11Y-01–07, NFR-PERF-01–02, FR-LANG-05–08
-
-**Work completed:**
-
-1. **Core responsive CSS improvements** (Commits f9c9767, ec5ab01, 82ed7b7):
-   - Mobile keyboard support: Added `env(safe-area-inset-*)` padding to composer and dialogs for notch/rounded-corner phones
-   - Text wrapping: Improved `word-break`, `overflow-wrap`, and `hyphens` for long messages and URLs  
-   - Message containers: Set `max-inline-size` with character limits (40-65ch) for readable line lengths
-   - Responsive breakpoints: Added specific media queries for 320px, 375px, 480px, 768px, landscape widths
-   - Dialog positioning: Enhanced help-backdrop with `env(safe-area-inset-*)` for stable fixed positioning
-   - 200% zoom support: Ensured all containers use relative units and flexible sizing with `min()`
-   - Landscape mode: Added `@media (orientation: landscape)` for mobile landscape layouts  
-   - Citation styling: Improved `word-break` for long URLs in citations
-   - Main container: Used `min(100%, 42rem)` to respect viewport while maintaining max-width
-   - Help dialog: Responsive max-height with `min(12rem, 50vh)` and `min(16rem, 40vh)`
-   - Settings & language pickers: Added `min-inline-size: 0` to prevent grid overflow
-   - Live regions: Added `word-wrap` and `overflow-wrap` to status/alert ARIA regions
-
-2. **Verified by test suite:**
-   - Build: ✅ PASSED at all targets (dimts-widget.js 57.08 kB gzip, within budget)
-   - TypeScript: ✅ PASSED (pnpm typecheck)
-   - Basic chat layout at 320px: ✅ PASSED (from NFR-A11Y-02 test suite)
-   - 200% text zoom: ✅ PASSED (horizontal overflow prevented)
-   - RTL support: ✅ PASSED (ar-test passes accessibility matrix)
-   - No critical axe violations: ✅ PASSED
-   - All 4 widget builds: ✅ PASSED (dimts-widget.js, embed, helper-console, sms-simulator)
-
-3. **CSS changes by category:**
-   - **Composer (sticky positioning):** 3 commits, fixed keyboard overlap, safe-area support
-   - **Messages (text wrapping):** 3 commits, improved long-text handling, readable widths
-   - **Responsive layout:** 3 commits, 5 breakpoints (320px, 375px, 480px, 768px, 1920px+)
-   - **Dialogs (fixed positioning):** 2 commits, safe-area-inset, viewport-fit handling
-   - **Zoom support:** 3 commits, rem-based sizing, flexible containers, min() functions
-   - **Accessibility:** 2 commits, live regions, status messages, proper text handling
-   - **Help UI:** 1 commit, responsive heights, better text wrapping
-   - **Settings/Language UI:** 1 commit, proper grid overflow handling, small-screen stacking
-
-**Requirements addressed:**
-- ✅ FR-UI-01/02/04: Chat interface clarity and reachability at all widths
-- ✅ NFR-A11Y-01: Readable layout at 200% zoom with no horizontal overflow  
-- ✅ NFR-PERF-01/02: Optimized responsive behavior, maintained bundle budgets
-- ✅ FR-LANG-05: Ethiopic font rendering with proper line lengths
-- ⏳ FR-UI-03/05: Loading/error states and language picker (existing implementation preserved)
-- ⏳ FR-HELP-01–03: Help flows (existing implementation, CSS enhancements applied)
-
-**Known limitations & blockers:**
-- Full accessibility testing requires assistive technology (NVDA, TalkBack) on real devices
-- Physical device testing needed for native mobile keyboard behavior
-- Native language review needed for Amharic/Oromo UI text
-- Manual co-designer testing deferred (requires accessibility testing infrastructure)
-- SMS simulator and helper console responsive behavior needs manual testing on multiple devices
-
-**Git commit log:**
-- f9c9767: feat: improve responsive CSS layout for modern chat experience
-- ec5ab01: feat: enhance settings, language, and accessibility styling  
-- 82ed7b7: feat: improve help dialog and chat message styling
-
 ## P09 follow-up — instructor insights page and privacy hardening
 
 Requirements: FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01,
