@@ -1,4 +1,4 @@
-// FR-LANG: a host can publish unreviewed Amharic/Oromo packs as beta without
+// FR-LANG: a host can publish unreviewed language packs as beta without
 // faking review metadata or unlocking review-gated features.
 import { resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -30,9 +30,11 @@ describe("DIMTS_PREVIEW_LANGS", () => {
 
   it("publishes only the listed draft packs as beta", () => {
     expect(packs.get("am")?.meta.status).toBe("draft");
-    const preview = withPreviewLanguages(packs, ["am", "om"]);
+    expect(packs.get("ti")?.meta.status).toBe("draft");
+    const preview = withPreviewLanguages(packs, ["am", "om", "ti"]);
     expect(preview.get("am")?.meta.status).toBe("beta");
     expect(preview.get("om")?.meta.status).toBe("beta");
+    expect(preview.get("ti")?.meta.status).toBe("beta");
     expect(preview.get("ar-test")?.meta.status).toBe("draft");
     // The loaded packs are not mutated.
     expect(packs.get("am")?.meta.status).toBe("draft");
@@ -44,6 +46,23 @@ describe("DIMTS_PREVIEW_LANGS", () => {
     expect(am.meta.reviewed_by).toBeNull();
     expect(
       getVoiceCapabilities(am, {
+        DIMTS_STT_ENGINE: "browser",
+        DIMTS_TTS_ENGINE: "browser",
+      }),
+    ).toEqual({ stt: false, tts: false, voice: null });
+  });
+
+  it("keeps Tigrinya reviewer and voice gates in preview", () => {
+    const ti = withPreviewLanguages(packs, ["ti"]).get("ti")!;
+    expect(ti.meta).toMatchObject({
+      status: "beta",
+      reviewed_by: null,
+      reviewed_on: null,
+      stt: false,
+      tts: false,
+    });
+    expect(
+      getVoiceCapabilities(ti, {
         DIMTS_STT_ENGINE: "browser",
         DIMTS_TTS_ENGINE: "browser",
       }),

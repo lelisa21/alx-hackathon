@@ -721,6 +721,7 @@ export class DimtsAssistant extends LitElement {
       border-radius: var(--dimts-frame-radius, var(--dimts-radius, 1rem));
       display: flex;
       flex-direction: column;
+      block-size: var(--dimts-available-height);
       margin-inline: auto;
       max-inline-size: min(100%, 42rem);
       min-block-size: min(32rem, var(--dimts-available-height));
@@ -1230,7 +1231,10 @@ export class DimtsAssistant extends LitElement {
       display: flex;
       flex: 1;
       flex-direction: column;
-      min-block-size: 6rem;
+      min-block-size: 0;
+      overflow-x: hidden;
+      overflow-y: auto;
+      overscroll-behavior: contain;
       padding: 1rem;
       gap: 0.75rem;
     }
@@ -1607,6 +1611,28 @@ export class DimtsAssistant extends LitElement {
     .setting-row input {
       min-block-size: 48px;
       min-inline-size: 48px;
+    }
+
+    .setting-toggles input[type="checkbox"] {
+      appearance: none;
+      background-color: var(--dimts-surface);
+      background-clip: padding-box;
+      border: 12px solid transparent;
+      border-radius: 0;
+      block-size: 48px;
+      inline-size: 48px;
+      min-block-size: 48px;
+      min-inline-size: 48px;
+      margin: 0;
+      outline: 2px solid var(--dimts-border);
+      outline-offset: -12px;
+    }
+
+    .setting-toggles input[type="checkbox"]:checked {
+      background-color: var(--dimts-primary);
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20'%3E%3Cpath d='m4 10 4 4 8-9' fill='none' stroke='white' stroke-linecap='round' stroke-linejoin='round' stroke-width='2.5'/%3E%3C/svg%3E");
+      background-position: center;
+      background-repeat: no-repeat;
     }
 
     @media (max-width: 20rem) {
@@ -2115,6 +2141,10 @@ export class DimtsAssistant extends LitElement {
     }
 
     @media (forced-colors: active) {
+      .setting-toggles input[type="checkbox"] {
+        appearance: auto;
+      }
+
       .consent input[type="checkbox"],
       .transliteration input[type="checkbox"],
       .transliteration input[type="checkbox"] {
@@ -2135,7 +2165,7 @@ export class DimtsAssistant extends LitElement {
     }
 
     .messages {
-      gap: 0.125rem;
+      gap: 0.75rem;
       padding: 1rem 1rem 0.5rem;
     }
 
@@ -2153,7 +2183,7 @@ export class DimtsAssistant extends LitElement {
 
     article[data-role="assistant"] {
       background: transparent;
-      max-inline-size: 100%;
+      max-inline-size: min(100%, 48rem);
     }
 
     article[data-role="assistant"] > .avatar {
@@ -3960,6 +3990,7 @@ export class DimtsAssistant extends LitElement {
           type="button"
           lang=${language.code}
           dir=${language.dir}
+          aria-pressed=${language.code === this.selectedLang}
           @focus=${() =>
             void this.speak(
               language.nameNative,
@@ -3988,6 +4019,10 @@ export class DimtsAssistant extends LitElement {
         dir=${this.currentLanguage?.dir ?? "ltr"}
       >
         <h2 id="settings-heading">${this.t("settings.title")}</h2>
+        <fieldset class="setting-group settings-language">
+          <legend>${this.t("language.button")}</legend>
+          <div class="language-list">${this.renderLanguageChoices()}</div>
+        </fieldset>
         <fieldset class="setting-group">
           <legend>${this.t("settings.textSize")}</legend>
           <div class="settings-list">

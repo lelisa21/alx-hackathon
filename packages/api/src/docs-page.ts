@@ -239,7 +239,7 @@ ${code(`pnpm content:ingest content/savanna --if-changed`)}</li>
 
 <section aria-labelledby="languages">
 <h2 id="languages">Language visibility</h2>
-<p>A language pack is <code>live</code>, <code>beta</code> or <code>draft</code>. Draft packs are hidden from learners unless the host lists them in <code>DIMTS_PREVIEW_LANGS</code> (for example <code>am,om</code>), which publishes them as beta. Review-gated features, such as published FAQ answers, cross-language glossary retrieval and voice flags, stay off until a named reviewer is recorded in the pack.</p>
+<p>A language pack is <code>live</code>, <code>beta</code> or <code>draft</code>. Draft packs are hidden from learners unless the host lists them in <code>DIMTS_PREVIEW_LANGS</code> (for example <code>am,om,ti</code>), which publishes them as beta. Review-gated features, such as published FAQ answers, cross-language glossary retrieval and voice flags, stay off until a named reviewer is recorded in the pack.</p>
 </section>
 </div>
 </div>

@@ -5,6 +5,7 @@ import {
   hasInstructionInjection,
   isAnswerLengthAllowed,
   isAnswerSupported,
+  isAnswerEcho,
 } from "./answer-validation.js";
 import type {
   AnswerPolicy,
@@ -378,6 +379,7 @@ export async function ask(
         ),
       }) &&
       isAnswerLengthAllowed(result.text, turnRequest.simple ?? false) &&
+      !isAnswerEcho(result.text, turnRequest.text) &&
       !hasInstructionInjection(result.text) &&
       // In-depth (generative) answers rephrase; they must still stay inside
       // the cited passages. A failure retries once in extractive mode.

@@ -70,6 +70,34 @@ function contentWords(text: string): string[] {
     );
 }
 
+/** Reject provider replies that merely restate the learner's question. */
+export function isAnswerEcho(text: string, question: string): boolean {
+  const normalize = (value: string) =>
+    value
+      .normalize("NFKC")
+      .toLocaleLowerCase()
+      .replace(/[\p{P}\p{S}\s]+/gu, "")
+      .trim();
+  const normalizedAnswer = normalize(text);
+  const normalizedQuestion = normalize(question);
+  if (!normalizedAnswer || !normalizedQuestion) return false;
+  if (normalizedAnswer === normalizedQuestion) return true;
+
+  const questionWords = contentWords(question);
+  const answerWords = contentWords(text);
+  // Keep near-verbatim matching conservative for short or less-tokenized turns.
+  if (
+    questionWords.length < 5 ||
+    answerWords.length < questionWords.length ||
+    answerWords.length > questionWords.length + 2
+  )
+    return false;
+  const matched = questionWords.filter((word) =>
+    answerWords.some((candidate) => candidate === word),
+  ).length;
+  return matched / questionWords.length >= 0.9;
+}
+
 /**
  * A grounded answer may rephrase, but it must stay inside its sources:
  * every number must appear in the cited passages, and at least half of its

@@ -68,6 +68,35 @@ describe("AI recall floor", () => {
     expect(reply.citations[0]?.passageId).toBe(passage.id);
   });
 
+  it("retries an answer that only repeats the learner question", async () => {
+    const answer = vi
+      .fn()
+      .mockResolvedValueOnce({
+        text: question.text,
+        usedPassageIds: [passage.id],
+        provider: "gemini",
+        latencyMs: 1,
+      })
+      .mockResolvedValueOnce({
+        text: "Put each study time on a calendar.",
+        usedPassageIds: [passage.id],
+        provider: "gemini",
+        latencyMs: 1,
+      });
+    const reply = await ask(
+      question,
+      dependencies({ answer, recallFloor: () => 0.3 }),
+      { cloudOk: true },
+    );
+
+    expect(answer).toHaveBeenCalledTimes(2);
+    expect(answer.mock.calls[1]?.[0].mode).toBe("extractive");
+    expect(reply).toMatchObject({
+      kind: "answer",
+      text: "Put each study time on a calendar.",
+    });
+  });
+
   it("does not let the offline fallback answer below the strict floor", async () => {
     const deps = dependencies({
       recallFloor: () => 0.3,

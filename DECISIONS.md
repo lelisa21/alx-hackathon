@@ -3,6 +3,17 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## Tigrinya availability
+
+- **Requirements:** FR-LANG-01/02/06/09/10 and FR-UI-01–21.
+- **Decision:** Keep Tigrinya selectable as a host-configured beta preview
+  (`DIMTS_PREVIEW_LANGS=...ti`) while its pack is unreviewed. Do not change
+  `locales/ti/meta.yaml` to live or claim reviewed answer quality based only on
+  language selection, locale presence, or adapter-level checks.
+- **Release gate:** Native reviewer metadata and end-to-end retrieval, answer
+  language, citation, and Simple-mode evaluation remain required before live
+  status or voice support.
+
 ## P08 — local Telegram polling (14 November 2026)
 
 - **Requirements:** FR-TG-01–12 and NFR-SEC local-versus-production channel

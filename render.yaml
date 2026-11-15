@@ -35,7 +35,7 @@ services:
         sync: false
       - key: DIMTS_DEFAULT_LANG
         value: en
-      # Amharic and Afaan Oromoo packs await native review; publish them as beta.
+      # Amharic, Afaan Oromoo, and Tigrinya packs await native review; publish as beta.
       - key: DIMTS_PREVIEW_LANGS
         value: am,om,ti
       # Lesson pages on the static site, e.g. https://dimts-widget-assets.onrender.com/learn/

@@ -38,6 +38,82 @@ test("P03 consent persists opt-in and revocation before the next question", asyn
   expect(calls.at(-1)).toBe("ask");
 });
 
+test("FR-LANG-01 offers Tigrinya beta and uses it for the session", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: languageChoices, preview: true });
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Change language" }).click();
+  await page.getByRole("button", { name: "Tigrinya" }).click();
+  await expect(page.locator("#message")).toBeVisible();
+  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "ti");
+  await expect
+    .poll(async () => page.evaluate(() => localStorage.getItem("dimts.lang")))
+    .toBe("ti");
+});
+
+test("FR-UI-07 exposes Tigrinya in the Settings language picker", async ({
+  page,
+}) => {
+  await openWidget(page, { languages: languageChoices });
+  await page.getByRole("button", { name: "English" }).click();
+  await page.getByRole("button", { name: "Settings" }).click();
+
+  const languageSettings = page.getByRole("group", { name: "Change language" });
+  const tigrinya = languageSettings.getByRole("button", { name: /Tigrinya/u });
+  await expect(tigrinya).toBeVisible();
+  await expect(tigrinya).toContainText("Beta");
+  await tigrinya.click();
+
+  await expect(page.locator("dimts-assistant")).toHaveAttribute("lang", "ti");
+});
+
+test("FR-UI keeps the composer below a scrollable conversation and compact settings", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 800 });
+  await openWidget(page);
+  await page.getByRole("button", { name: "English" }).click();
+
+  for (let index = 0; index < 8; index += 1) {
+    await page.locator("#message").fill(`Question ${index + 1}`);
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.locator('[data-role="assistant"]')).toHaveCount(
+      index + 1,
+    );
+  }
+
+  const layout = await page.evaluate(() => {
+    const log = document
+      .querySelector("dimts-assistant")
+      ?.shadowRoot?.querySelector(".messages");
+    const composer = document
+      .querySelector("dimts-assistant")
+      ?.shadowRoot?.querySelector(".composer");
+    const logRect = log?.getBoundingClientRect();
+    const composerRect = composer?.getBoundingClientRect();
+    return {
+      overflowY: log ? getComputedStyle(log).overflowY : "",
+      overflows: !!log && log.scrollHeight > log.clientHeight,
+      composerBelowLog:
+        !!logRect && !!composerRect && logRect.bottom <= composerRect.top + 1,
+    };
+  });
+  expect(layout).toEqual({
+    overflowY: "auto",
+    overflows: true,
+    composerBelowLog: true,
+  });
+
+  await page.getByRole("button", { name: "Settings" }).click();
+  const toggle = page.locator(".setting-toggles input[type=checkbox]").first();
+  const toggleSize = await toggle.boundingBox();
+  expect(toggleSize!.width).toBe(48);
+  expect(toggleSize!.height).toBe(48);
+  await expect(toggle).toHaveCSS("appearance", "none");
+  await expect(toggle).toHaveCSS("border-top-width", "12px");
+});
+
 test("P03 failed revocation blocks another ask and provides a retry", async ({
   page,
 }) => {
@@ -697,6 +773,16 @@ const languageChoices: TestLanguage[] = [
     stt: false,
     tts: false,
   },
+  {
+    code: "ti",
+    nameNative: "ትግርኛ",
+    nameEn: "Tigrinya",
+    script: "Ethi",
+    dir: "ltr",
+    status: "beta",
+    stt: false,
+    tts: false,
+  },
 ];
 const voiceEnabledTestLanguages = languages.map((language) =>
   language.code === "en" ? { ...language, stt: true, tts: true } : language,
@@ -837,7 +923,7 @@ async function openWidget(
           sessionId: "session-12345678",
           sessionToken: "session-token",
           resumeToken: "resume-token-12345678901234567890",
-          lang: "en",
+          lang: requestLanguage,
           cloudOk: sessionBody.cloudOk === true,
           consentVersion: sessionBody.cloudOk ? "remote-ai-v1" : null,
         },

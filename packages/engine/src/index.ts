@@ -5,6 +5,7 @@ export {
   isAnswerLengthAllowed,
   hasInstructionInjection,
   isAnswerSupported,
+  isAnswerEcho,
 } from "./answer-validation.js";
 export { createAnswerCacheKey, InMemoryAnswerCache } from "./cache.js";
 export { isAnswerInLanguage } from "./langcheck.js";

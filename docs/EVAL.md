@@ -1,5 +1,10 @@
 # Evaluation results
 
+Tigrinya is exposed as a beta preview in the deployment template. Its current
+full-pipeline evaluation below has zero expected-answer recall; the locale and
+FAQ adapter are present, but this does not establish reliable course answers.
+Keep it beta until native review and the full-pipeline gates pass.
+
 | Language | Questions | Retrieval hit rate | Citation validity | Not-found correctness | Answer-language correctness | Average sentence length (words) |
 | -------- | --------: | -----------------: | ----------------: | --------------------: | --------------------------: | ------------------------------: |
 | am       |        15 |                 0% |               n/a |                  100% |                         n/a |                             n/a |

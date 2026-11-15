@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { resolve } from "node:path";
+import { passagesFor, sourceFiles } from "../src/cli.js";
 import { sourceHash, toPassages } from "../src/ingest.js";
 import { confidence, queryTokens, textGrams, wordGrams } from "../src/grams.js";
 import { normalise } from "../src/normalise.js";
@@ -7,6 +9,23 @@ import { rankPassages } from "../src/search.js";
 import type { ContentPool } from "../src/repository.js";
 
 describe("WP03 grounding", () => {
+  it("ingests and retrieves the checked-in Tigrinya course pages as Tigrinya", async () => {
+    const files = await sourceFiles(resolve("content/savanna"), {
+      defaultLang: "en",
+      baseUrl: "https://course.example/learn/",
+    });
+    const passages = passagesFor(files, "https://course.example/learn/");
+    const tigrinya = passages.filter(({ lang }) => lang === "ti");
+
+    expect(tigrinya.length).toBeGreaterThan(0);
+    const expected = tigrinya.find(({ id }) => id.startsWith("study-plan.ti#"));
+    expect(expected).toBeDefined();
+    expect(rankPassages(expected!.text, "ti", tigrinya, [])[0]?.id).toBe(
+      expected!.id,
+    );
+    expect(expected!.url).toContain("/ti/study-plan.html#");
+  });
+
   it("chunks Markdown into bounded, citable passages", () => {
     const body = Array.from({ length: 301 }, (_, index) => `word${index}`).join(
       " ",

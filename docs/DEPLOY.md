@@ -44,8 +44,8 @@ Never commit them, reuse the local `.env` values, or put them in browser code.
    (scheme and host, no path) of every page that embeds the widget, including
    the static site itself (its lesson pages embed the assistant).
    Also set `DIMTS_CONTENT_BASE_URL` to `https://<static-site>/learn/`.
-   `DIMTS_PREVIEW_LANGS=am,om` is preset so Amharic and Afaan Oromoo are
-   offered while their packs await native review.
+   `DIMTS_PREVIEW_LANGS=am,om,ti` is preset so Amharic, Afaan Oromoo, and
+   Tigrinya are offered as beta while their packs await native review.
 3. For `dimts-widget-assets`, set `DIMTS_PUBLIC_API` to
    `https://<api-host>/v1` and `DIMTS_PUBLIC_WIDGET_KEY` to the public host key
    created in section 4. The build bakes them into `dimts-host.js`; redeploy the static

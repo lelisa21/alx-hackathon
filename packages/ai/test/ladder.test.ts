@@ -60,6 +60,33 @@ function provider(
 }
 
 describe("provider ladder", () => {
+  it("rejects a provider that echoes the question and tries the next one", async () => {
+    const echo = provider(
+      "echo",
+      vi.fn(async () => ({
+        text: request.question,
+        usedPassageIds: ["passage-1"],
+        providerId: "echo",
+        latencyMs: 1,
+      })),
+    );
+    const next = provider(
+      "next",
+      vi.fn(async () => ({
+        text: "Choose one learning goal.",
+        usedPassageIds: ["passage-1"],
+        providerId: "next",
+        latencyMs: 1,
+      })),
+    );
+
+    const result = await new Ladder([echo, next], {}).answer(request);
+
+    expect(echo.answer).toHaveBeenCalledTimes(2);
+    expect(next.answer).toHaveBeenCalledOnce();
+    expect(result).toMatchObject({ providerId: "next" });
+  });
+
   it("skips a failed provider and returns the next successful answer", async () => {
     const cloud = provider(
       "cloud",

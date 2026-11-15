@@ -1,3 +1,4 @@
+import { isAnswerEcho } from "@dimts/engine";
 import type { AnswerRequest } from "@dimts/engine";
 import {
   describeProviderFailure,
@@ -137,12 +138,18 @@ export class Ladder {
               Array.isArray(result.usedPassageIds) &&
               result.usedPassageIds.length > 0 &&
               result.usedPassageIds.length <= 5 &&
-              result.usedPassageIds.every((id) => passageIds.has(id))
+              result.usedPassageIds.every((id) => passageIds.has(id)) &&
+              !isAnswerEcho(result.text, providerRequest.question)
             ) {
               this.activeProviderId = provider.name;
               return { ...result, providerId: provider.name };
             }
-            throw new InvalidProviderResponseError();
+            throw new InvalidProviderResponseError(
+              typeof result?.text === "string" &&
+                isAnswerEcho(result.text, providerRequest.question)
+                ? "echoed_question"
+                : undefined,
+            );
           } catch (error) {
             if (attempt === 0 && error instanceof InvalidProviderResponseError)
               continue;
