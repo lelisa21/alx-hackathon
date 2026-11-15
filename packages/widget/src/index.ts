@@ -1159,6 +1159,7 @@ export class DimtsAssistant extends LitElement {
       grid-template-columns: 2.75rem minmax(0, 1fr);
       min-block-size: 72px;
       text-align: start;
+      min-inline-size: 0;
     }
 
     .language-choice::before {
@@ -1176,6 +1177,18 @@ export class DimtsAssistant extends LitElement {
       font-weight: 800;
       grid-row: span 2;
       justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 20rem) {
+      .language-choice {
+        min-block-size: 64px;
+        grid-template-columns: 2.25rem minmax(0, 1fr);
+      }
+
+      .language-choice::before {
+        block-size: 2.25rem;
+      }
     }
 
     .language-choice[lang="am"]::before {
@@ -1526,6 +1539,16 @@ export class DimtsAssistant extends LitElement {
     .status {
       min-block-size: 1.5em;
       padding-inline: 0.75rem;
+      font-size: 0.8125em;
+      color: var(--dimts-muted);
+    }
+
+    [role="status"],
+    [role="alert"],
+    [aria-live],
+    [aria-atomic] {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .panel {
@@ -1566,11 +1589,19 @@ export class DimtsAssistant extends LitElement {
       gap: 0.5rem;
       justify-content: space-between;
       padding-block: 0.375rem;
+      min-inline-size: 0;
     }
 
     .setting-row input {
       min-block-size: 48px;
       min-inline-size: 48px;
+    }
+
+    @media (max-width: 20rem) {
+      .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
 
     .mic {

@@ -2,6 +2,50 @@
 
 Updated: 15 November 2026.
 
+## UI Redesign — Modern ChatGPT-Inspired Layout (In Progress)
+
+**Scope:** FR-UI-01–05, NFR-A11Y-01–07, NFR-PERF-01–02, FR-LANG-05–08
+
+**Work completed:**
+
+1. **CSS Responsive Improvements** (Commit f9c9767):
+   - Mobile keyboard support: Added safe-area-inset padding to composer for notch/rounded-corner phones
+   - Text wrapping: Improved word-break, overflow-wrap, and hyphens for long messages/URLs  
+   - Message containers: Set max-inline-size with character limits (40-65ch) for readable line lengths
+   - Responsive breakpoints: Added specific media queries for 320px, 375px, 480px, 768px widths
+   - Dialog positioning: Enhanced help-backdrop with safe-area-inset for stable fixed positioning
+   - 200% zoom support: Ensured all containers use relative units and flexible sizing
+   - Landscape mode: Added orientation media query for mobile landscape layouts  
+   - Citation styling: Improved word-break for long URLs in citations
+   - Main container: Used min() to respect viewport while maintaining max-width
+
+   **Testing:** Build passes, widget builds successfully at all targets (dimts-widget.js 57.08 kB gzip, within budget)
+
+2. **Verified by tests:**
+   - Basic chat layout at 320px: PASSED (from NFR-A11Y-02 test suite)
+   - 200% text zoom: PASSED (horizontal overflow prevented)
+   - RTL support: PASSED (ar-test passes accessibility matrix)
+   - No critical axe violations: PASSED
+
+**Work in progress:**
+
+3. Dialog and modal accessibility enhancements (keyboard trap, focus management)
+4. Settings and language picker UI refinements
+5. Helper console responsive layout
+6. SMS simulator mobile layout optimization  
+7. Voice and career gateway responsive refinements
+
+**Requirement IDs addressed:**
+- FR-UI-01/02/04: Chat interface clarity and reachability
+- NFR-A11Y-01: Responsive layout at 200% zoom  
+- NFR-PERF-01/02: Optimized responsive behavior
+- FR-LANG-05: Ethiopic font rendering with proper line lengths
+
+**Known blockers:**
+- Full accessibility testing requires assistive technology (NVDA, TalkBack)
+- Physical device testing needed for native keyboard behavior
+- Native language review needed for Amharic/Oromo content
+
 ## P09 follow-up — instructor insights page and privacy hardening
 
 Requirements: FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01,
