@@ -1,6 +1,77 @@
 # Implementation progress
 
-Updated: 14 November 2026. Current branch: `main`.
+Updated: 15 November 2026.
+
+## P09 follow-up — instructor insights page and privacy hardening
+
+Requirements: FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01,
+FR-INT-05, and FR-INT-06 instructor role mapping.
+
+**Verified acceptance evidence:**
+
+- 33 focused API/service tests passed across six files; they cover secret-only
+  host-key lookup, LTI instructor/learner access, aggregate writes and replay
+  behavior, and the minimum suppression floor.
+- The service and API reject attempts to lower suppression below five
+  questions. A regression with many feedback votes but only one question
+  verifies that the topic remains grouped as Other.
+- `contract-docs.test.ts` verifies the generated OpenAPI entry, both
+  authentication options, CSV/JSON responses, and the minimum threshold.
+- `pnpm --filter @dimts/api build` passed and regenerated
+  `packages/api/openapi.yaml`.
+- `pnpm --filter @dimts/widget build` passed. The focused Playwright/axe test
+  passed for loading, data/table/summary, filters, empty, error/retry, and CSV
+  download; axe reported no violations in the tested state.
+
+**Acceptance remains open:** PostgreSQL-backed integration, real LMS and
+hosted deployment verification, co-designer/assistive-technology review, and
+criterion-level WCAG evidence.
+
+## P02 — task 2 verification follow-up
+
+Scope: FR-CONV-05–09/13/14, FR-TUTOR-07–11/14, FR-AI-02–10, AR-01/06/08,
+NFR-MAINT-02, NFR-PRIV-03, and NFR-PERF-03. No reviewed locale data or
+provider credentials were invented.
+
+**Verified evidence:**
+
+- `pnpm test:core -- --maxWorkers=1`: **246 tests across 23 files passed**.
+  Engine, grounding, and AI each meet the 70% package coverage floors;
+  grounding branch coverage is **74.95%** (the prior 62.33% failure is fixed
+  without changing thresholds).
+- Added focused grounding regressions for multilingual search mapping,
+  source pagination/snapshot integrity, sitemap validation and limits,
+  cancellation, sync rollback failures, and manager lifecycle.
+- `packages/api/test/provider-config.test.ts`: **12 tests passed**, covering
+  local model configuration and offline fallback as well as native adapter
+  configuration. The API remote-provider consent regression passed: no
+  remote request is made before opt-in; configured local models do not require
+  cloud consent.
+- `pnpm eval`: **0 measured gate failures and 8 acceptance blockers**.
+  Offline in-process p95 is **1.73 ms**; repeat-answer p95 is **1.49 ms**.
+  These measurements do not include HTTP/PostgreSQL or a real model.
+- `pnpm typecheck`, `pnpm lint`, and Compose configuration with
+  `.env.example` passed. `pnpm size` passes at **139,951 / 153,600** initial
+  compressed bytes. Docker execution was not available.
+- `pnpm test -- --maxWorkers=1`: **836 passed, 57 skipped** across 85 passing
+  test files and 11 skipped files.
+
+**Acceptance remains blocked:**
+
+- Multilingual answer recall remains English **2/12 (16.7%)**, Amharic **0/16**,
+  Afaan Oromoo **0/18**. Reviewed packs, representative multilingual content,
+  and evaluation questions belong to task 1 and are required before final
+  P02 evaluation; draft FAQ adapter results are not a substitute.
+- No real local/cloud model was configured or evaluated, so local/cloud p95
+  and language quality are unverified. No provider credentials or network
+  requests were used.
+- Compose with the tracked example environment parses, but the local `.env`
+  currently contains an invalid entry at line 47 and Docker's Linux engine is
+  unavailable; full container/runtime deployment verification was not run.
+
+P02 is not release-complete. Keep providers offline by default and do not
+enable a language/provider profile until task 1 review and the real model
+evaluation are complete.
 
 ## P11 — implemented increment; acceptance blocked
 
@@ -37,8 +108,9 @@ FR-CONV-10/13, and G1–G13.
 
 - PostgreSQL suites requiring `DIMTS_TEST_DATABASE_URL` remain skipped;
   the isolated Compose lifecycle test passes separately.
-- `pnpm test:core` ran 230 tests but exits on grounding branch coverage of
-  62.33%, below its 70% threshold. The threshold was not weakened.
+- The grounding coverage failure recorded earlier in this P11 snapshot is
+  resolved by the P02 follow-up below: 74.95% branch coverage against the
+  unchanged 70% floor.
 - Repository-wide `pnpm format:check` still reports 307 baseline files;
   changed files pass targeted formatting checks.
 - The offline `pnpm eval` has eight acceptance blockers; Amharic and Afaan
@@ -71,9 +143,9 @@ session persistence, and instructor insights authorization.
   live LTI session with `insightsAccess`; a caller-supplied session ID or
   arbitrary bearer token is not authorization.
 - `pnpm exec vitest run packages/api/test/p10-lti.test.ts
-  packages/api/test/p10-lti-config.test.ts
-  packages/api/test/p10-lti-persistence.test.ts
-  packages/api/test/p09-insights.test.ts` passes (33 tests).
+packages/api/test/p10-lti-config.test.ts
+packages/api/test/p10-lti-persistence.test.ts
+packages/api/test/p09-insights.test.ts` passes (33 tests).
 - `pnpm test -- --maxWorkers=1`, `pnpm typecheck`, and `pnpm lint` pass.
   Compose could not be rerun after migration 011 because Docker Desktop's
   daemon was unavailable; the earlier Compose pass predates these migration
@@ -108,9 +180,12 @@ implemented or verified. Do not claim production LTI support.
 **Known open items:**
 
 - Static `DIMTS_LTI_PLATFORMS` metadata now reaches the API router and login
-  initiation matches both issuer and client ID. Browser OIDC redirects,
-  tool JWKS signing, deep-link responses, and a real LMS launch remain
-  unimplemented or unverified. The LTI example is explicitly marked as a
+  initiation matches both issuer and client ID. Browser OIDC redirects and
+  platform-JWKS launch validation are implemented and locally tested; acceptance
+  against a real LMS remains open. The tool `/jwks` endpoint returns an empty
+  key set because current launches do not sign tool-originated deep-link or
+  grade-passback messages. Those capabilities remain unimplemented and require
+  tool key management if brought into scope. The LTI example is explicitly marked as a
   prototype, not an installable LMS integration.
 
 ## P10 — LTI 1.3 integration and OpenAPI (13 November 2026)

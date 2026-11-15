@@ -12,6 +12,7 @@
   "scripts": {
     "build": "tsc -b && node dist/openapi-cli.js",
     "migrate": "node --env-file-if-exists=../../.env dist/db/migrate.js",
+    "admin": "node --env-file-if-exists=../../.env dist/db/admin.js",
     "bootstrap:local": "node --env-file-if-exists=../../.env dist/db/local-bootstrap.js",
     "start": "node --env-file-if-exists=../../.env dist/server.js",
     "typecheck": "tsc -b --pretty false"

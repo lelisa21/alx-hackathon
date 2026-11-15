@@ -106,6 +106,16 @@ describe("P10 static LTI platform configuration", () => {
       expect(registered.body.state).toEqual(expect.any(String));
       expect(registered.body.nonce).toEqual(expect.any(String));
 
+      // The launch URL must point at this deployment, not a fixed placeholder.
+      const proxied = await request(app)
+        .post("/v1/lti/login")
+        .set("Host", "dimts-api.example.org")
+        .set("X-Forwarded-Proto", "https")
+        .send(login);
+      expect(proxied.body.redirectUri).toBe(
+        "https://dimts-api.example.org/v1/lti/launch",
+      );
+
       const mismatchedClient = await request(app)
         .post("/v1/lti/login")
         .send({ ...login, client_id: "unregistered-client" });

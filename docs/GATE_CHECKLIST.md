@@ -29,10 +29,12 @@ Additional P11 release blockers:
   cron delivery, and actual free-tier use have not been verified.
 - Warm 50-session non-AI p95 performance measurement and production database
   size have not been measured in this environment.
-- Clean-machine Compose, PostgreSQL integration, and restart tests require
-  Docker, which is not installed in the current environment.
-- `pnpm test:core` runs 230 tests but fails its grounding branch-coverage
-  threshold: 62.33% against 70%. The threshold remains unchanged.
+- Docker's Linux engine is unavailable in the current environment. Compose
+  interpolation passes with `.env.example`, but a container/restart run was
+  not performed here; the local `.env` also has a parse error at line 47.
+- The former grounding branch-coverage failure is resolved on `dev`:
+  `pnpm test:core -- --maxWorkers=1` passes 246 tests with 74.95% grounding
+  branch coverage against the unchanged 70% floor.
 - `pnpm eval` reports zero measured gate failures and eight acceptance
   blockers; Amharic/Afaan Oromoo answer recall is 0%, English answer recall
   is 16.7%, and provider-backed targets remain unverified. See `EVAL.md`.

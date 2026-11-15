@@ -1,20 +1,27 @@
+# Hosted reference deployment (blueprint 2.6 and 14.1). See docs/DEPLOY.md.
 services:
   - type: web
     name: dimts-api
     runtime: node
     plan: free
     buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
-    startCommand: pnpm --filter @dimts/api start
+    # The free plan has no pre-deploy hook; migrations are idempotent and run
+    # under an advisory lock before the server starts. Course content is then
+    # ingested only when content/savanna changed since the last deploy.
+    startCommand: pnpm --filter @dimts/api migrate && node packages/grounding/dist/cli.js content/savanna --if-changed && pnpm --filter @dimts/api start
     healthCheckPath: /v1/health
     envVars:
       - key: NODE_VERSION
         value: 22.18.0
       - key: NODE_ENV
         value: production
+      # Neon pooled connection string (runtime) and direct string (migrations).
       - key: DATABASE_URL
         sync: false
       - key: DATABASE_URL_DIRECT
         sync: false
+      # Distinct secrets: two 32-byte base64 keys, a 32+ character JWT secret
+      # and a 24+ character cron secret (blueprint 7.5).
       - key: DIMTS_ENC_KEY
         sync: false
       - key: DIMTS_HASH_KEY
@@ -23,21 +30,106 @@ services:
         sync: false
       - key: DIMTS_CRON_SECRET
         sync: false
+      # Comma-separated HTTPS origins of every page that embeds the widget.
       - key: DIMTS_HOST_ORIGINS
         sync: false
       - key: DIMTS_DEFAULT_LANG
         value: en
+      # Amharic and Afaan Oromoo packs await native review; publish them as beta.
+      - key: DIMTS_PREVIEW_LANGS
+        value: am,om,ti
+      # Lesson pages on the static site, e.g. https://dimts-widget-assets.onrender.com/learn/
+      - key: DIMTS_CONTENT_BASE_URL
+        sync: false
       - key: DIMTS_RETENTION_HOURS
         value: "24"
-      - key: DIMTS_AI_PROVIDER
-        value: offline
-      - key: DIMTS_AI_LADDER
-        value: offline
-      - key: DIMTS_AI_PROVIDERS
+      - key: DIMTS_PUBLIC_SOURCES
         value: "[]"
+      - key: DIMTS_LTI_PLATFORMS
+        value: "[]"
+      # Public HTTPS URL of this service, e.g. https://dimts-api.onrender.com.
+      # The API registers <url>/v1/telegram/webhook with Telegram on start.
+      - key: DIMTS_PUBLIC_API_URL
+        sync: false
+      # Telegram: token from @BotFather and a distinct 24+ character secret
+      # (A-Z a-z 0-9 _ -). Leave the token empty to disable the bot. Stop any
+      # local poller using the same token, or both will miss messages.
+      - key: DIMTS_TELEGRAM_MODE
+        value: webhook
+      - key: DIMTS_TELEGRAM_TOKEN
+        sync: false
+      - key: DIMTS_TELEGRAM_SECRET
+        sync: false
+      # SMS: "simulator" until an SMS Ethiopia campaign key is available; then
+      # set DIMTS_SMS_MODE=smsethiopia and DIMTS_SMS_GATEWAY_TOKEN.
+      - key: DIMTS_SMS_MODE
+        value: simulator
+      # Jobs: Ethiojobs imports from its public pages every 6 hours; alerts go
+      # out hourly through the Telegram bot and SMS.
+      - key: DIMTS_JOB_SOURCES
+        value: ethiojobs,hahujobs,afriwork
+      - key: DIMTS_JOBS_ALERT_INTERVAL_MS
+        value: "3600000"
+      # AI ladder: gemini-4-hydrogen, gemini-3.5-flash-lite, gemini-3.1-flash-lite
+      # (separate free quotas), then OpenRouter free models, then the offline
+      # extractive answerer. Remote AI answers only after the
+      # learner allows it. Keys: https://aistudio.google.com/apikey and
+      # https://openrouter.ai/settings/keys
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: DIMTS_AI_PROVIDER
+        value: gemini
+      - key: DIMTS_AI_LADDER
+        value: gemini,gemini-flash-lite,gemini-lite,openrouter,offline
+      - key: DIMTS_AI_PROVIDERS
+        value: '[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":12000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"gemini-flash-lite","adapter":"gemini","model":"gemini-3.5-flash-lite","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":2,"timeoutMs":8000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"gemini-lite","adapter":"gemini","model":"gemini-3.1-flash-lite","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":3,"timeoutMs":8000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}},{"id":"openrouter","adapter":"openrouter","model":"particle-ai/particle-1:free","fallbackModels":["inclusionai/ling-3.2-flash:free","nvidia/nemotron-3.5-super-vl:free"],"credentialRef":"OPENROUTER_API_KEY","privacyClass":"remote","enabled":true,"priority":4,"timeoutMs":15000,"allowedDataClasses":["question","course-passage","job-posting"],"evaluatedLanguages":["en","am","om","ti"],"capabilities":{"languages":["en","am","om","ti"],"modes":["extractive","generative"],"modalities":["text"],"structuredOutput":true}}]'
+      - key: DIMTS_AI_MAX_TOKENS
+        value: "1024"
+      - key: DIMTS_AI_TEMPERATURE
+        value: "0.2"
+      - key: DIMTS_AI_RECALL_FLOOR
+        value: "0.15"
+      # Voice: browser speech where the device supports the language, Gemini
+      # cloud speech (after consent) for Amharic and Afaan Oromoo.
+      - key: DIMTS_STT_ENGINE
+        value: browser
+      - key: DIMTS_TTS_ENGINE
+        value: browser
+      - key: DIMTS_CLOUD_VOICE
+        value: gemini
+      - key: DIMTS_CLOUD_VOICE_LANGS
+        value: en,am,om,ti
+      - key: DIMTS_CLOUD_VOICE_SPEAK_LANGS
+        value: en,am,ti
+      - key: DIMTS_CLOUD_VOICE_STT_MODEL
+        value: gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite
+      - key: DIMTS_CLOUD_VOICE_TTS_MODEL
+        value: gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts
 
   - type: web
     name: dimts-widget-assets
     runtime: static
-    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm build
+    # Builds the widget, the lesson pages that citations open (/learn/), and
+    # dimts-host.js for the one-tag embed.
+    buildCommand: corepack enable && corepack prepare pnpm@10.12.1 --activate && pnpm install --frozen-lockfile && pnpm --filter @dimts/widget... --filter @dimts/grounding... build && node scripts/build-lessons.mjs content/savanna packages/widget/dist/learn
     staticPublishPath: ./packages/widget/dist
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      # Public values baked into dimts-host.js: the API base ending in /v1 and
+      # a public host key whose origins include this static site.
+      - key: DIMTS_PUBLIC_API
+        sync: false
+      - key: DIMTS_PUBLIC_WIDGET_KEY
+        sync: false
+    headers:
+      # Host pages on other origins import the ES module and its lazy chunks
+      # and fonts; module scripts and fonts are always fetched with CORS.
+      - path: /*
+        name: Access-Control-Allow-Origin
+        value: "*"
+      - path: /*
+        name: X-Content-Type-Options
+        value: nosniff

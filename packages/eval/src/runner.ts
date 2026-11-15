@@ -326,8 +326,15 @@ async function evaluatePack(
                     passage.sourceType === sourceType,
                 ),
             )),
+        // Same rule the engine applies: answers cited only from job postings
+        // quote title/employer/place lines, which carry no function words.
         answerLanguageCorrect:
-          reply.kind !== "answer" || isAnswerInLanguage(reply.text, lang),
+          reply.kind !== "answer" ||
+          isAnswerInLanguage(reply.text, lang, {
+            factsOnly:
+              reply.citations.length > 0 &&
+              reply.citations.every(({ sourceType }) => sourceType === "job"),
+          }),
         text: reply.text,
         simple,
         sourcePairs: [

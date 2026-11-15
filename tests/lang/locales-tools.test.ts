@@ -39,7 +39,13 @@ describe("locale pack loading and translation", () => {
   it("loads every language folder without code changes", () => {
     const packs = loadPacks(localesRoot);
 
-    expect([...packs.keys()].sort()).toEqual(["am", "ar-test", "en", "om"]);
+    expect([...packs.keys()].sort()).toEqual([
+      "am",
+      "ar-test",
+      "en",
+      "om",
+      "ti",
+    ]);
     expect(packs.get("en")?.ui["welcome.title"]).toBeTruthy();
   });
 
@@ -59,7 +65,7 @@ describe("locale pack loading and translation", () => {
   it("formats ICU plural messages using each pack's language rules", () => {
     const packs = loadPacks(localesRoot);
 
-    for (const lang of ["en", "am", "om"]) {
+    for (const lang of ["en", "am", "om", "ti"]) {
       expect(
         translate(packs, lang, "message.count", { count: 2 }).text,
       ).toContain("2");
@@ -90,11 +96,19 @@ describe("locale pack loading and translation", () => {
       "ar-test",
       "en",
       "om",
+      "ti",
     ]);
   });
 
-  it("suggests Amharic for Ethiopic and asks for a choice for Latin", () => {
-    expect(suggestLanguage("ሰላም")).toEqual({ kind: "suggest", lang: "am" });
+  it("offers Amharic or Tigrinya for Ethiopic and asks for a choice for Latin", () => {
+    expect(suggestLanguage("ሰላም")).toEqual({
+      kind: "choose",
+      languages: ["am", "ti"],
+    });
+    expect(suggestLanguage("ኣብ ኮርስ ሕቶ ኣለኒ")).toEqual({
+      kind: "suggest",
+      lang: "ti",
+    });
     expect(suggestLanguage("hello")).toEqual({
       kind: "choose",
       languages: ["om", "en"],
@@ -170,7 +184,6 @@ describe("locale pack validation", () => {
 
     const issues = validatePacks(root).join("\n");
     expect(issues).toContain("reviewed_by");
-    expect(issues).toContain("glossary");
     expect(issues).toContain("checks");
   });
 

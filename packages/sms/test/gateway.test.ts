@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
-import { HttpSmsGateway, SimulatedSmsGateway } from "../src/gateway.js";
+import {
+  AfromessageSmsGateway,
+  HttpSmsGateway,
+  SimulatedSmsGateway,
+  createSmsGateway,
+} from "../src/gateway.js";
 
 describe("FR-SMS-01/11/12 gateway conformance", () => {
   it("simulates delivery, deduplicates stable identities and passes inbound metadata", async () => {
@@ -131,6 +136,26 @@ describe("FR-SMS-01/11/12 gateway conformance", () => {
       }),
     ).rejects.toThrow("SMS gateway delivery failed");
   });
+  it("selects the appropriate provider through a factory", () => {
+    const simulated = createSmsGateway({ type: "simulator" });
+    const http = createSmsGateway({
+      type: "gateway",
+      url: "https://operator.example/sms",
+      token: "synthetic-token-at-least-24-characters",
+    });
+    const afromessage = createSmsGateway({
+      type: "afromessage",
+      url: "https://api.afromessage.com/api/send",
+      token: "afromessage-token-at-least-24-characters",
+      sender: "Dimts",
+      from: "identifier-123",
+      callback: "https://example.com/sms/callback",
+    });
+    expect(simulated).toBeInstanceOf(SimulatedSmsGateway);
+    expect(http).toBeInstanceOf(HttpSmsGateway);
+    expect(afromessage).toBeInstanceOf(AfromessageSmsGateway);
+  });
+
   it("refuses insecure transport configuration", () => {
     expect(
       () =>

@@ -14,6 +14,38 @@ function response(body: string, contentType: string) {
 }
 
 describe("public sitemap content source", () => {
+  it("validates source identity, language, and page-size configuration", () => {
+    const fetchResource = async () => response("", "application/xml");
+    const create = (options: {
+      id?: string;
+      language?: string;
+      pageSize?: number;
+    }) =>
+      new PublicSitemapSource({
+        id: options.id ?? "learn-public",
+        sitemapUrl,
+        language: options.language ?? "en",
+        ...(options.pageSize === undefined
+          ? {}
+          : { pageSize: options.pageSize }),
+        fetchResource,
+      });
+
+    expect(() => create({ id: "invalid id" })).toThrow(
+      "Public source ID contains invalid characters",
+    );
+    expect(() => create({ language: " " })).toThrow(
+      "Public source language must not be empty",
+    );
+    for (const pageSize of [0, 101, 1.5]) {
+      expect(() => create({ pageSize })).toThrow(
+        "Public source page size must be from 1 through 100",
+      );
+    }
+    expect(() => create({ pageSize: 1 })).not.toThrow();
+    expect(() => create({ pageSize: 100 })).not.toThrow();
+  });
+
   it("discovers approved pages and returns content with a stable body revision", async () => {
     const fetchResource = vi.fn(async (url: string) => {
       if (url === sitemapUrl) {
@@ -145,6 +177,173 @@ describe("public sitemap content source", () => {
     expect(first.resources).toHaveLength(2);
     expect(second.resources).toHaveLength(1);
     expect(second.snapshotRevision).toBe(first.snapshotRevision);
+  });
+
+  it("rejects malformed, missing, and stale pagination snapshots", async () => {
+    const source = new PublicSitemapSource({
+      id: "learn-public",
+      sitemapUrl,
+      language: "en",
+      fetchResource: async (url) =>
+        url === sitemapUrl
+          ? response(sitemap([pageUrl]), "application/xml")
+          : response(html("Course content."), "text/html"),
+    });
+    const signal = new AbortController().signal;
+
+    await expect(
+      source.list({ cursor: "0", snapshotRevision: "snapshot" }, signal),
+    ).rejects.toThrow("snapshot is no longer available");
+
+    const first = await source.list({}, signal);
+    await expect(
+      source.list(
+        { cursor: "x", snapshotRevision: first.snapshotRevision },
+        signal,
+      ),
+    ).rejects.toThrow("pagination cursor is invalid");
+    await expect(source.list({ cursor: "0" }, signal)).rejects.toThrow(
+      "pagination cursor is invalid",
+    );
+    await expect(
+      source.list({ cursor: "0", snapshotRevision: "stale-snapshot" }, signal),
+    ).rejects.toThrow("snapshot is no longer available");
+    await expect(
+      source.list({ snapshotRevision: "stale-snapshot" }, signal),
+    ).rejects.toThrow("site changed during source pagination");
+  });
+
+  it("does not fetch an unknown page or continue with an aborted request", async () => {
+    const fetchResource = vi.fn(async () =>
+      response(sitemap([pageUrl]), "application/xml"),
+    );
+    const source = new PublicSitemapSource({
+      id: "learn-public",
+      sitemapUrl,
+      language: "en",
+      fetchResource,
+    });
+
+    await expect(
+      source.fetch("unknown-resource", new AbortController().signal),
+    ).resolves.toBeNull();
+    const aborted = new AbortController();
+    aborted.abort();
+    await expect(source.list({}, aborted.signal)).rejects.toThrow();
+    expect(fetchResource).not.toHaveBeenCalled();
+  });
+
+  it("rejects malformed and oversized sitemap responses", async () => {
+    const cases = [
+      {
+        response: { status: 503, contentType: "application/xml", body: "" },
+        error: "sitemap fetch failed with status 503",
+      },
+      {
+        response: response("<urlset/>", "text/plain"),
+        error: "must use an XML media type",
+      },
+      {
+        response: response("x".repeat(2 * 1024 * 1024 + 1), "application/xml"),
+        error: "sitemap exceeds the configured size limit",
+      },
+      {
+        response: response("<!DOCTYPE urlset><urlset/>", "application/xml"),
+        error: "must not declare XML entities",
+      },
+      {
+        response: response("<unknown/>", "application/xml"),
+        error: "unsupported XML root element",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const source = new PublicSitemapSource({
+        id: "learn-public",
+        sitemapUrl,
+        language: "en",
+        fetchResource: async () => testCase.response,
+      });
+      await expect(
+        source.list({}, new AbortController().signal),
+      ).rejects.toThrow(testCase.error);
+    }
+  });
+
+  it("rejects failed, unsupported, or oversized public lesson responses", async () => {
+    const cases = [
+      {
+        response: { status: 404, contentType: "text/html", body: "" },
+        error: "page fetch failed with status 404",
+      },
+      {
+        response: response("<html/>", "application/json"),
+        error: "Unsupported public page media type",
+      },
+      {
+        response: response(html("x".repeat(1024 * 1024)), "text/html"),
+        error: "Public page exceeds the configured size limit",
+      },
+    ];
+
+    for (const testCase of cases) {
+      const source = new PublicSitemapSource({
+        id: "learn-public",
+        sitemapUrl,
+        language: "en",
+        fetchResource: async (url) =>
+          url === sitemapUrl
+            ? response(sitemap([pageUrl]), "application/xml")
+            : testCase.response,
+      });
+      await expect(
+        source.list({}, new AbortController().signal),
+      ).rejects.toThrow(testCase.error);
+    }
+  });
+
+  it("deduplicates cyclic sitemap indexes and enforces the page discovery cap", async () => {
+    const childSitemap = "https://learn.example/sitemaps/course.xml";
+    const source = new PublicSitemapSource({
+      id: "learn-public",
+      sitemapUrl,
+      language: "en",
+      fetchResource: async (url) => {
+        if (url === sitemapUrl) {
+          return response(
+            `<sitemapindex><sitemap><loc>${childSitemap}</loc></sitemap><sitemap><loc>${childSitemap}</loc></sitemap><sitemap><loc>${sitemapUrl}</loc></sitemap></sitemapindex>`,
+            "application/xml",
+          );
+        }
+        if (url === childSitemap) {
+          return response(sitemap([pageUrl]), "application/xml");
+        }
+        return response(html("Course content."), "text/html");
+      },
+    });
+    const page = await source.list({}, new AbortController().signal);
+    expect(page.resources.map(({ canonicalUrl }) => canonicalUrl)).toEqual([
+      pageUrl,
+    ]);
+
+    const tooManyPages = new PublicSitemapSource({
+      id: "learn-public",
+      sitemapUrl,
+      language: "en",
+      fetchResource: async () =>
+        response(
+          sitemap(
+            Array.from(
+              { length: 251 },
+              (_value, index) => `https://learn.example/course/${index}`,
+            ),
+          ),
+          "application/xml",
+        ),
+    });
+    await expect(
+      tooManyPages.list({}, new AbortController().signal),
+    ).rejects.toThrow("exceeds the 250-page discovery limit");
   });
 
   it("discovers additions and removals on the next reconciliation snapshot", async () => {

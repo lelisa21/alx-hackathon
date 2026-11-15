@@ -1,8 +1,29 @@
 import type { AnswerRequest } from "@dimts/engine";
-import { InvalidProviderResponseError } from "./provider.js";
+import {
+  describeProviderFailure,
+  InvalidProviderResponseError,
+  permittedPassages,
+} from "./provider.js";
 import type { AiProvider, AnswerResult } from "./provider.js";
 
 const COOLDOWN_MS = 60_000;
+// A rejected key or unknown model will not fix itself within a minute.
+const PERMANENT_COOLDOWN_MS = 15 * 60_000;
+// A daily quota (Gemini free tier: 20 requests a day for gemini-4-hydrogen)
+// resets within a day; never park a provider longer than that.
+const MAX_QUOTA_COOLDOWN_MS = 24 * 60 * 60_000;
+
+/** Content-free description of a failed provider attempt, for operators. */
+export interface ProviderFailureEvent {
+  provider: string;
+  reason: string;
+  status?: number;
+  vendorCode?: string;
+  vendorMessage?: string;
+  cooldownMs: number;
+}
+// A healthy probe is reused so each learner question costs one remote call.
+const HEALTHY_FOR_MS = 60_000;
 
 export interface AnswerPolicy {
   cloudOk: boolean;
@@ -10,19 +31,24 @@ export interface AnswerPolicy {
 
 export class Ladder {
   private readonly coolUntil = new Map<string, number>();
+  private readonly healthyUntil = new Map<string, number>();
   private readonly providers: AiProvider[];
   private readonly timeouts: Record<string, number>;
   private readonly now: () => number;
   private activeProviderId = "offline";
+  private readonly onFailure:
+    ((event: ProviderFailureEvent) => void) | undefined;
 
   constructor(
     providers: AiProvider[],
     timeouts: Record<string, number>,
     now: () => number = () => Date.now(),
+    onFailure?: (event: ProviderFailureEvent) => void,
   ) {
     this.providers = providers;
     this.timeouts = timeouts;
     this.now = now;
+    this.onFailure = onFailure;
   }
 
   get activeProvider(): string {
@@ -38,7 +64,16 @@ export class Ladder {
       if ((this.coolUntil.get(provider.name) ?? 0) > this.now()) continue;
       if (provider.privacyClass === "remote" && !policy.cloudOk) continue;
 
-      const effectiveRequest = this.applyEvaluationGate(provider, request);
+      let effectiveRequest = this.applyEvaluationGate(provider, request);
+      // A provider that can only quote (the offline answerer) still serves an
+      // in-depth request, extractively, instead of being skipped.
+      const modes = provider.capabilities().modes;
+      if (
+        effectiveRequest.mode === "generative" &&
+        !modes.includes("generative") &&
+        modes.includes("extractive")
+      )
+        effectiveRequest = { ...effectiveRequest, mode: "extractive" };
       if (!this.supportsRequest(provider, effectiveRequest)) continue;
       const providerRequest = this.filterDataClasses(
         provider,
@@ -57,12 +92,21 @@ export class Ladder {
       const controller = new AbortController();
       const remaining = () => Math.max(0, deadline - Date.now());
       try {
-        const health = await this.withTimeout(
-          provider.health(controller.signal),
-          remaining(),
-          () => controller.abort(),
-        );
-        if (!health.ok) throw new Error("Provider health check failed.");
+        if ((this.healthyUntil.get(provider.name) ?? 0) <= this.now()) {
+          const health = await this.withTimeout(
+            provider.health(controller.signal),
+            remaining(),
+            () => controller.abort(),
+          );
+          if (!health.ok) {
+            const status = /^status_(\d{3})$/u.exec(health.reasonCode ?? "");
+            throw Object.assign(new Error("Provider health check failed."), {
+              healthReason: health.reasonCode ?? "unhealthy",
+              ...(status ? { healthStatus: Number(status[1]) } : {}),
+            });
+          }
+          this.healthyUntil.set(provider.name, this.now() + HEALTHY_FOR_MS);
+        }
 
         for (let attempt = 0; attempt < 2; attempt += 1) {
           try {
@@ -76,6 +120,17 @@ export class Ladder {
             const passageIds = new Set(
               providerRequest.passages.map(({ id }) => id),
             );
+            // A well-formed decline is a judgement, not a failure: no cooldown
+            // and no fallback (another provider sees the same passages). The
+            // engine turns it into a not-found reply.
+            if (
+              typeof result?.text === "string" &&
+              Array.isArray(result.usedPassageIds) &&
+              result.usedPassageIds.length === 0
+            ) {
+              this.activeProviderId = provider.name;
+              return { ...result, providerId: provider.name };
+            }
             if (
               typeof result?.text === "string" &&
               result.text.trim() &&
@@ -94,8 +149,58 @@ export class Ladder {
             throw error;
           }
         }
-      } catch {
-        this.coolUntil.set(provider.name, this.now() + COOLDOWN_MS);
+      } catch (error) {
+        const failure = describeProviderFailure(error);
+        const healthStatus = (error as { healthStatus?: unknown }).healthStatus;
+        if (typeof healthStatus === "number") {
+          failure.status = healthStatus;
+          failure.reason =
+            healthStatus === 401 || healthStatus === 403
+              ? "unauthorized"
+              : healthStatus === 429
+                ? "rate_limited"
+                : healthStatus === 404
+                  ? "model_not_found"
+                  : healthStatus === 400
+                    ? "rejected"
+                    : "health_check_failed";
+        }
+        // Google answers an invalid API key with 400 INVALID_ARGUMENT, both on
+        // the health probe and on generation.
+        const permanent =
+          failure.reason === "unauthorized" ||
+          failure.reason === "model_not_found" ||
+          (failure.status === 400 && typeof healthStatus === "number") ||
+          (failure.status === 400 &&
+            /api key|api_key|permission|not found|not supported/iu.test(
+              `${failure.vendorCode ?? ""} ${failure.vendorMessage ?? ""}`,
+            ));
+        // Blueprint 3.2: cool down a provider that is down or rate limited.
+        // A malformed answer (after its one retry) says nothing about
+        // availability: this question falls through, the next one tries the
+        // provider again instead of sending every learner to the fallback.
+        const malformed = error instanceof InvalidProviderResponseError;
+        // An exhausted quota says when it resets: skip the provider until
+        // then instead of spending a request and a round trip every minute.
+        const quotaMs =
+          failure.status === 429 && failure.retryAfterMs
+            ? Math.min(
+                MAX_QUOTA_COOLDOWN_MS,
+                Math.max(COOLDOWN_MS, failure.retryAfterMs),
+              )
+            : undefined;
+        const cooldownMs = malformed
+          ? 0
+          : (quotaMs ?? (permanent ? PERMANENT_COOLDOWN_MS : COOLDOWN_MS));
+        if (!malformed) {
+          this.healthyUntil.delete(provider.name);
+          this.coolUntil.set(provider.name, this.now() + cooldownMs);
+        }
+        try {
+          this.onFailure?.({ provider: provider.name, ...failure, cooldownMs });
+        } catch {
+          // Logging must never break answering.
+        }
       } finally {
         controller.abort();
       }
@@ -148,12 +253,11 @@ export class Ladder {
       mode: request.mode,
       systemPrompt: request.systemPrompt,
       question: allowed.has("question") ? request.question : "",
-      passages: allowed.has("course-passage")
-        ? request.passages.filter(
-            ({ sourceType }) =>
-              provider.privacyClass === "local" || sourceType === "course",
-          )
-        : [],
+      passages: permittedPassages(
+        request.passages,
+        allowed,
+        provider.privacyClass,
+      ),
       glossary:
         provider.privacyClass === "local" && allowed.has("glossary")
           ? request.glossary

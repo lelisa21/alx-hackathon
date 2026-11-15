@@ -1,7 +1,7 @@
 import express from "express";
 import rateLimit from "express-rate-limit";
 import { JobsError } from "@dimts/jobs";
-import type { JobsDelivery, JobsService } from "@dimts/jobs";
+import type { JobSourceSync, JobsDelivery, JobsService } from "@dimts/jobs";
 import type { LangPack } from "@dimts/locales-tools";
 import type { ApiRepository } from "../types.js";
 import { createSessionAuth, sha256 } from "../middleware/auth.js";
@@ -47,9 +47,16 @@ export function createJobsRouter(options: {
   repository: ApiRepository;
   packs: Map<string, LangPack>;
   defaultLang: string;
+  sources?: Pick<JobSourceSync, "status">;
 }): express.Router {
   const router = express.Router();
   const { service, delivery, repository, packs } = options;
+  // Public: which job platforms feed this deployment and whether they work.
+  // Contains platform names, states and counts only.
+  router.get("/jobs/sources", (_request, response) => {
+    response.set("Cache-Control", "no-store");
+    response.json({ sources: options.sources?.status() ?? [] });
+  });
   const session = createSessionAuth(repository);
   const validLang = (lang: string) =>
     Boolean(packs.has(lang) && packs.get(lang)?.meta.status !== "draft");
@@ -95,15 +102,33 @@ export function createJobsRouter(options: {
       sendProblem(response, 400, "invalid_request", "error.invalid");
       return;
     }
-    response.json(
-      JobsResponseSchema.parse({
-        jobs: (
-          await service.listJobs({
-            lang,
+    // Follow the pack fallback chain (om -> am -> en) so learners see postings
+    // that exist only in another language; each job keeps its own `lang`.
+    const languages = [lang];
+    for (
+      let next = packs.get(lang)?.meta.fallback;
+      next && !languages.includes(next);
+      next = packs.get(next)?.meta.fallback
+    )
+      languages.push(next);
+    const seen = new Set<string>();
+    const listed = (
+      await Promise.all(
+        languages.map((code) =>
+          service.listJobs({
+            lang: code,
             ...(filters.region ? { region: filters.region } : {}),
             ...(filters.type ? { type: filters.type } : {}),
-          })
-        ).map((job) => publicJobView(packs, lang, job)),
+          }),
+        ),
+      )
+    )
+      .flat()
+      .filter((job) => !seen.has(job.id) && Boolean(seen.add(job.id)))
+      .slice(0, 200);
+    response.json(
+      JobsResponseSchema.parse({
+        jobs: listed.map((job) => publicJobView(packs, lang, job)),
         channels: delivery.channels,
         relayAvailable: delivery.relayAvailable,
         glossary: careerGlossary(packs, lang),

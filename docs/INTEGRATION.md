@@ -36,10 +36,12 @@ contract, not an ALX Savanna deployment.
 
 There is no Savanna-specific connector, platform registration, or private
 course content configured in this repository. Generic LTI 1.3 metadata can be
-loaded from the host's `DIMTS_LTI_PLATFORMS` setting, but the prototype is not
-yet an operational LMS launch: `/v1/lti/jwks` publishes an empty key set, and
-the current login response does not complete the browser OIDC redirect flow.
-Do not register this build as an LTI tool. The usable integration surfaces are
+loaded from the host's `DIMTS_LTI_PLATFORMS` setting. Browser OIDC redirect and
+platform-JWKS launch validation are implemented, but have not been accepted
+against a real LMS. `/v1/lti/jwks` publishes an empty tool key set; current
+launches do not sign tool-originated deep-link or grade-passback messages, so
+that is expected for the implemented path. Do not register this build as an LTI
+tool until a real platform launch is verified. The usable integration surfaces are
 the Level 1 widget embed and REST API described here and in [API.md](./API.md).
 An authorized host must serve the widget, register its origin and public host
 identifier with the API, and set the API URL and CSP. No Savanna session cookie,
@@ -136,6 +138,38 @@ provision a local host key. The Docker Compose startup command there requires
 Docker Desktop. To try the tracked, non-Savanna sample course after startup,
 run `pnpm content:ingest content/sample-course`. Do not treat that fixture as
 real course/job data.
+
+## Local Level 1 embed smoke test
+
+This tests the generic widget contract on a local HTTP host; it is not a
+Savanna connection. From the repository root:
+
+1. Build the widget with `pnpm --filter @dimts/widget build`.
+2. In `.env`, allow the page origin `http://localhost:5500` in
+   `DIMTS_HOST_ORIGINS`. Set `DIMTS_LOCAL_WIDGET_KEY` to a non-secret local
+   public identifier, then use that same value for `data-host-key` in
+   `examples/embed-level1.html`. Never use an AI provider credential as a host
+   key.
+3. Start the stack with `docker compose --profile local up --build -d --wait`.
+   If the sample course is needed, run `pnpm content:ingest content/sample-course`.
+4. In a separate terminal at the repository root, run
+   `python -m http.server 5500`, then open
+   `http://localhost:5500/examples/embed-level1.html`.
+5. Confirm the launcher loads and the browser can create a session through
+   `http://localhost:3000/v1`. The browser `Origin`, configured
+   `DIMTS_HOST_ORIGINS`, and public host identifier must match. This example
+   uses the offline provider unless a host explicitly configures a remote
+   provider and a learner grants consent.
+
+Serve the page over HTTP, not `file://`; the API rejects an unapproved or
+missing browser origin. For a real Savanna dev instance, use its actual HTTPS
+origin, serve the widget from a host-approved static location, and configure
+that exact origin and CSP with the host administrator. The frozen pages under
+`savanna_static_pages/` are reference captures and do not provide a running
+Savanna host, authenticated course access, or a connector. Level 2 REST is
+available through the API contract and [`examples/api-level2.http`](../examples/api-level2.http);
+LTI is not ready for platform registration. A private Savanna source still
+requires an authorized host-owned `ContentSource`/`HostAuth` adapter.
 
 ## Reproducible checks and limits
 

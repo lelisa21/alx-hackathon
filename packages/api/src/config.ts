@@ -62,13 +62,29 @@ const publicSourcesSchema = z
     return parsed.data;
   });
 
+// Plain HTTP is accepted only for a local demo platform on this machine, and
+// only with NODE_ENV=development (enforced in the superRefine below).
+const LOCAL_HTTP_HOSTS = new Set([
+  "localhost",
+  "127.0.0.1",
+  "host.docker.internal",
+]);
+export function isLocalHttpUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === "http:" && LOCAL_HTTP_HOSTS.has(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
 const ltiPlatformUrlSchema = z
   .string()
   .url()
   .refine((value) => {
     const url = new URL(value);
     return (
-      url.protocol === "https:" &&
+      (url.protocol === "https:" || isLocalHttpUrl(value)) &&
       !url.username &&
       !url.password &&
       !url.search &&
@@ -163,14 +179,23 @@ const providerBindingSchema = z
     priority: z.number().int().min(0).max(100_000),
     timeoutMs: z.number().int().min(100).max(120_000),
     allowedDataClasses: z
-      .array(z.enum(["question", "course-passage", "glossary"]))
+      .array(z.enum(["question", "course-passage", "job-posting", "glossary"]))
       .refine((values) => new Set(values).size === values.length),
     evaluatedLanguages: z.array(z.string().min(1)).default([]),
+    // OpenRouter only: models tried in order when the primary is rate
+    // limited or down (OpenRouter allows three models per request).
+    fallbackModels: z.array(z.string().min(1).max(256)).max(2).optional(),
     capabilities: providerCapabilitiesSchema,
   })
   .strict()
   .superRefine((binding, context) => {
-    if (["openai", "gemini", "xai"].includes(binding.adapter)) {
+    if (binding.fallbackModels?.length && binding.adapter !== "openrouter")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: "fallbackModels is supported only by the openrouter adapter",
+        path: ["fallbackModels"],
+      });
+    if (["openai", "gemini", "xai", "openrouter"].includes(binding.adapter)) {
       if (binding.privacyClass !== "remote")
         context.addIssue({
           code: z.ZodIssueCode.custom,
@@ -334,6 +359,23 @@ const environmentSchema = z
     DATABASE_URL_DIRECT: z.string().optional(),
     DIMTS_PUBLIC_SOURCES: publicSourcesSchema,
     DIMTS_LTI_PLATFORMS: ltiPlatformsSchema,
+    // LTI launch page: the widget module URL and its public host key.
+    DIMTS_LTI_WIDGET_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .url()
+        .refine(
+          (value) =>
+            new URL(value).protocol === "https:" || isLocalHttpUrl(value),
+          "must use HTTPS",
+        )
+        .optional(),
+    ),
+    DIMTS_LTI_WIDGET_KEY: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(1).max(256).optional(),
+    ),
     DIMTS_SOURCE_SYNC_INTERVAL_MS: z.coerce
       .number()
       .int()
@@ -364,6 +406,83 @@ const environmentSchema = z
     DIMTS_JOBS_RELAY_SECRET: z.preprocess(
       (value) => (value === "" ? undefined : value),
       z.string().min(24).optional(),
+    ),
+    // Cloud speech for languages the browser cannot recognise or speak. Runs
+    // only after the learner allows cloud voice for the session.
+    DIMTS_CLOUD_VOICE: z.enum(["off", "gemini"]).default("off"),
+    // Languages cloud speech recognition serves.
+    DIMTS_CLOUD_VOICE_LANGS: z
+      .string()
+      .default("en,am,om,ti")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    // Languages cloud read-aloud serves. Gemini TTS speaks Amharic and
+    // Tigrinya but not Afaan Oromoo
+    // (https://aistudio.google.com/docs/speech-generation).
+    DIMTS_CLOUD_VOICE_SPEAK_LANGS: z
+      .string()
+      .default("en,am,ti")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      ),
+    // Comma lists, tried in order: each Gemini model has its own free-tier
+    // quota (gemini-4-hydrogen: 20 requests a day), so later models serve
+    // once earlier ones are exhausted. gemini-2.0-flash-lite is shut down and
+    // gemini-2.5-flash(-lite) is closed to new users.
+    DIMTS_CLOUD_VOICE_STT_MODEL: z
+      .string()
+      .min(1)
+      .default("gemini-4-hydrogen,gemini-3.6-flash,gemini-3.5-flash-lite"),
+    DIMTS_CLOUD_VOICE_TTS_MODEL: z
+      .string()
+      .min(1)
+      .default("gemini-3.8-flash-lite-tts,gemini-3.8-flash-tts"),
+    DIMTS_CLOUD_VOICE_CREDENTIAL_REF: z
+      .string()
+      .min(1)
+      .default("GEMINI_API_KEY"),
+    // Job platforms to import from: ethiojobs, hahujobs, afriwork.
+    DIMTS_JOB_SOURCES: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((item) => item.trim().toLowerCase())
+          .filter(Boolean),
+      )
+      .pipe(z.array(z.enum(["ethiojobs", "hahujobs", "afriwork"]))),
+    DIMTS_JOB_SYNC_INTERVAL_MS: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(604800000)
+      .default(21600000),
+    DIMTS_JOB_SYNC_LIMIT: z.coerce.number().int().min(1).max(200).default(40),
+    DIMTS_JOB_USER_AGENT: z.string().max(200).default("DimtsJobsBot/0.1"),
+    // Partner feeds: HahuJobs and Afriwork publish no public API or feed.
+    DIMTS_HAHUJOBS_FEED_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().url().optional(),
+    ),
+    DIMTS_HAHUJOBS_FEED_TOKEN: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(8).max(512).optional(),
+    ),
+    DIMTS_AFRIWORK_FEED_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().url().optional(),
+    ),
+    DIMTS_AFRIWORK_FEED_TOKEN: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.string().min(8).max(512).optional(),
     ),
     DIMTS_JOBS_ALERT_INTERVAL_MS: z.coerce
       .number()
@@ -398,9 +517,55 @@ const environmentSchema = z
         return channels as Array<"sms" | "telegram">;
       }),
     DIMTS_HOST_ORIGINS: z.string().default(""),
+    // Public HTTPS base URL of this API (no /v1), e.g.
+    // https://dimts-api.onrender.com. In Telegram webhook mode the API
+    // registers <url>/v1/telegram/webhook with Telegram on start.
+    DIMTS_PUBLIC_API_URL: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z
+        .string()
+        .url()
+        .refine((value) => {
+          const url = new URL(value);
+          return (
+            (url.protocol === "https:" || isLocalHttpUrl(value)) &&
+            !url.username &&
+            !url.password &&
+            !url.search &&
+            !url.hash
+          );
+        }, "must use HTTPS without credentials, query or fragment")
+        .transform((value) => value.replace(/\/+$/u, "").replace(/\/v1$/u, ""))
+        .optional(),
+    ),
     DIMTS_DEFAULT_LANG: z.string().min(2).default("en"),
+    // Draft packs this host publishes as beta. Review-gated features stay off.
+    DIMTS_PREVIEW_LANGS: z
+      .string()
+      .default("")
+      .transform((value) =>
+        value
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean),
+      )
+      .pipe(
+        z.array(
+          z
+            .string()
+            .regex(
+              /^[a-z]{2,3}(?:-[A-Za-z0-9]{2,8})*$/u,
+              "invalid language code",
+            ),
+        ),
+      ),
     DIMTS_STT_ENGINE: z.enum(["none", "browser"]).default("none"),
     DIMTS_TTS_ENGINE: z.enum(["none", "browser"]).default("none"),
+    // Development only: try browser voice before the device review protocol.
+    DIMTS_VOICE_PREVIEW: z
+      .enum(["true", "false", ""])
+      .default("false")
+      .transform((value) => value === "true"),
     DIMTS_LANGUAGE_DETECTION_CONFIDENCE: z.coerce
       .number()
       .min(0)
@@ -413,6 +578,8 @@ const environmentSchema = z
     DIMTS_AI_TEMPERATURE: z.coerce.number().min(0).max(2).default(0.1),
     DIMTS_AI_CONSENT_VERSION: z.string().min(1).max(64).default("remote-ai-v1"),
     DIMTS_CONFIDENCE_FLOOR: z.coerce.number().min(0).max(1).default(0.35),
+    // Retrieval floor when a consented AI provider judges passage relevance.
+    DIMTS_AI_RECALL_FLOOR: z.coerce.number().min(0).max(1).default(0.2),
     DIMTS_RETENTION_HOURS: z.coerce.number().int().positive().default(24),
     DIMTS_TELEGRAM_TOKEN: z.preprocess(
       (value) => (value === "" ? undefined : value),
@@ -431,8 +598,15 @@ const environmentSchema = z
         .regex(/^[A-Za-z0-9_-]+$/u)
         .optional(),
     ),
-    DIMTS_TELEGRAM_MODE: z.enum(["webhook", "polling"]).default("webhook"),
-    DIMTS_SMS_MODE: z.enum(["simulator", "gateway"]).default("simulator"),
+    // Unset or empty: polling in development, webhook otherwise (see
+    // telegramMode). Production always rejects polling.
+    DIMTS_TELEGRAM_MODE: z.preprocess(
+      (value) => (value === "" ? undefined : value),
+      z.enum(["webhook", "polling"]).optional(),
+    ),
+    DIMTS_SMS_MODE: z
+      .enum(["simulator", "gateway", "smsethiopia"])
+      .default("simulator"),
     DIMTS_SMS_GATEWAY_SECRET: optionalSmsSecret,
     DIMTS_SMS_GATEWAY_URL: optionalSmsUrl,
     DIMTS_SMS_GATEWAY_TOKEN: optionalSmsSecret,
@@ -458,9 +632,41 @@ const environmentSchema = z
   })
   .superRefine((config, context) => {
     if (
-      config.DIMTS_TELEGRAM_MODE === "polling" &&
-      config.NODE_ENV === "production"
+      Boolean(config.DIMTS_LTI_WIDGET_URL) !==
+      Boolean(config.DIMTS_LTI_WIDGET_KEY)
     )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_LTI_WIDGET_URL"],
+        message:
+          "DIMTS_LTI_WIDGET_URL and DIMTS_LTI_WIDGET_KEY must be configured together",
+      });
+    if (config.NODE_ENV !== "development") {
+      const localHttp = [
+        config.DIMTS_LTI_WIDGET_URL ?? "",
+        ...config.DIMTS_LTI_PLATFORMS.flatMap((platform) => [
+          platform.issuer,
+          platform.authLoginUrl,
+          platform.authTokenUrl,
+          platform.jwksUri,
+        ]),
+      ].some(isLocalHttpUrl);
+      if (localHttp)
+        context.addIssue({
+          code: z.ZodIssueCode.custom,
+          path: ["DIMTS_LTI_PLATFORMS"],
+          message:
+            "Plain-HTTP LTI URLs are allowed only with NODE_ENV=development",
+        });
+    }
+    if (config.DIMTS_VOICE_PREVIEW && config.NODE_ENV !== "development")
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_VOICE_PREVIEW"],
+        message:
+          "Unreviewed voice preview is allowed only with NODE_ENV=development",
+      });
+    if (telegramMode(config) === "polling" && config.NODE_ENV === "production")
       context.addIssue({
         code: z.ZodIssueCode.custom,
         path: ["DIMTS_TELEGRAM_MODE"],
@@ -469,7 +675,7 @@ const environmentSchema = z
       });
     if (
       config.DIMTS_TELEGRAM_TOKEN &&
-      config.DIMTS_TELEGRAM_MODE === "webhook" &&
+      telegramMode(config) === "webhook" &&
       !config.DIMTS_TELEGRAM_SECRET
     )
       context.addIssue({
@@ -497,9 +703,19 @@ const environmentSchema = z
           "Telegram webhook secret must differ from other configured credentials",
       });
     if (
-      Boolean(config.DIMTS_SMS_GATEWAY_URL) !==
+      config.DIMTS_SMS_MODE === "smsethiopia" &&
+      !config.DIMTS_SMS_GATEWAY_TOKEN
+    )
+      context.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ["DIMTS_SMS_GATEWAY_TOKEN"],
+        message: "SMS Ethiopia mode requires the campaign API key",
+      });
+    if (
+      config.DIMTS_SMS_MODE !== "smsethiopia" &&
+      (Boolean(config.DIMTS_SMS_GATEWAY_URL) !==
         Boolean(config.DIMTS_SMS_GATEWAY_TOKEN) ||
-      (config.DIMTS_SMS_MODE === "gateway" && !config.DIMTS_SMS_GATEWAY_URL)
+        (config.DIMTS_SMS_MODE === "gateway" && !config.DIMTS_SMS_GATEWAY_URL))
     )
       context.addIssue({
         code: z.ZodIssueCode.custom,
@@ -581,11 +797,24 @@ const environmentSchema = z
     }
   });
 
-export type ApiConfig = z.infer<typeof environmentSchema>;
+type ParsedConfig = z.infer<typeof environmentSchema>;
+export type ApiConfig = Omit<ParsedConfig, "DIMTS_TELEGRAM_MODE"> & {
+  DIMTS_TELEGRAM_MODE: "webhook" | "polling";
+};
+
+function telegramMode(config: {
+  NODE_ENV: string;
+  DIMTS_TELEGRAM_MODE?: "webhook" | "polling" | undefined;
+}): "webhook" | "polling" {
+  return (
+    config.DIMTS_TELEGRAM_MODE ??
+    (config.NODE_ENV === "development" ? "polling" : "webhook")
+  );
+}
 
 export function parseConfig(
   environment: NodeJS.ProcessEnv | Record<string, unknown>,
-) {
+): ApiConfig {
   const parsed = environmentSchema.safeParse(environment);
   if (!parsed.success) {
     const details = parsed.error.issues
@@ -619,7 +848,10 @@ export function parseConfig(
       `Invalid API configuration: DIMTS_AI_PROVIDER ${parsed.data.DIMTS_AI_PROVIDER} is not an enabled provider`,
     );
   }
-  return parsed.data;
+  return {
+    ...parsed.data,
+    DIMTS_TELEGRAM_MODE: telegramMode(parsed.data),
+  } as ApiConfig;
 }
 
 export function configuredOrigins(config: ApiConfig): string[] {

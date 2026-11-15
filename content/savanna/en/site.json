@@ -1,0 +1,12 @@
+{
+  "library": "Course library",
+  "libraryIntro": "These are the lessons Dimts reads to answer your questions. Every answer links to the exact section it used.",
+  "onThisPage": "On this page",
+  "readIn": "Read in",
+  "allLessons": "All lessons",
+  "askAbout": "Ask Dimts about this lesson",
+  "reviewNotice": "This translation is waiting for review by a native speaker.",
+  "cited": "Cited by Dimts",
+  "sections": "{count} sections",
+  "home": "Dimts home"
+}

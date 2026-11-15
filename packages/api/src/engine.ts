@@ -98,6 +98,11 @@ export function createEngineDependencies(options: {
   packs: Map<string, LangPack>;
   grounding: Pick<PostgresGrounding, "search" | "currentVersion">;
   providerRuntime: ApiProviderRuntime;
+  answerEvent?: (event: {
+    provider: string;
+    latencyMs: number;
+    answered: boolean;
+  }) => void;
   languageDetector?: LanguageDetector;
   conversationSignals?: ConversationSignals;
   answerCache?: AnswerCache;
@@ -109,7 +114,16 @@ export function createEngineDependencies(options: {
   return {
     search: (question, lang) =>
       grounding.search(question, lang, reviewedMappings(packs.get(lang))),
-    answer: (request, policy) => providerRuntime.answer(request, policy),
+    answer: async (request, policy) => {
+      const result = await providerRuntime.answer(request, policy);
+      // Provider identity, latency and outcome only; never question or answer text.
+      options.answerEvent?.({
+        provider: result.provider,
+        latencyMs: result.latencyMs,
+        answered: result.usedPassageIds.length > 0,
+      });
+      return result;
+    },
     glossaryFor: (question, lang) => {
       return glossaryTerms(packs.get(lang), lang).filter(({ term }) =>
         containsWholeTerm(question, term, lang),
@@ -123,6 +137,10 @@ export function createEngineDependencies(options: {
       packs.get(lang)?.prompts.answer_mode === "generative"
         ? "generative"
         : "extractive",
+    recallFloor: (lang, policy) =>
+      providerRuntime.canJudge?.(lang, policy)
+        ? config.DIMTS_AI_RECALL_FLOOR
+        : undefined,
     confidenceFloor: (lang) => {
       const floor = packs.get(lang)?.prompts.floor;
       return typeof floor === "number" ? floor : config.DIMTS_CONFIDENCE_FLOOR;

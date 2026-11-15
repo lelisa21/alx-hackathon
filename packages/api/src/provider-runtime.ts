@@ -3,6 +3,7 @@ import {
   OfflineProvider,
   OpenAiCompatible,
   OpenAiProvider,
+  OpenRouterProvider,
   GeminiProvider,
   XaiProvider,
   ProviderRegistry,
@@ -12,6 +13,7 @@ import type { LangPack } from "@dimts/locales-tools";
 import type {
   OfflineFaq,
   ProviderBinding,
+  ProviderFailureEvent,
   ResolvedProviderBinding,
 } from "@dimts/ai";
 import type { ApiConfig } from "./config.js";
@@ -23,6 +25,8 @@ export interface ApiProviderRuntime {
     request: AnswerRequest,
     policy: { cloudOk: boolean },
   ): Promise<AnswerResult>;
+  /** True when a configured, enabled AI provider can serve this request. */
+  canJudge?(lang: string, policy: { cloudOk: boolean }): boolean;
 }
 
 function offlineFaqs(
@@ -52,9 +56,23 @@ function offlineFaqs(
   );
 }
 
+/**
+ * True for values copied from an example file instead of a real key, such as
+ * "REPLACE_WITH_YOUR_KEY", "your-api-key" or "sk-...". A real key never
+ * contains these markers, so the check cannot reject a working credential.
+ */
+export function isPlaceholderCredential(value: string): boolean {
+  // Local model servers may use short tokens such as "ollama", so length is
+  // not a signal; only explicit template markers are.
+  return /replace[-_ ]?(?:with|me)|your[-_ ]?(?:api[-_ ]?)?key|change[-_ ]?me|placeholder|xxxx|\.\.\.|<[^>]*>/iu.test(
+    value.trim(),
+  );
+}
+
 function resolveBindings(
   bindings: ProviderBinding[],
   environment: Record<string, string | undefined>,
+  onWarning?: (event: { provider: string; reason: string }) => void,
 ): ResolvedProviderBinding[] {
   return bindings.map((binding) => {
     if (!binding.credentialRef) return binding;
@@ -64,6 +82,15 @@ function resolveBindings(
       throw new Error(
         `Provider credential reference ${binding.credentialRef} is unavailable.`,
       );
+    }
+    // A placeholder key fails every request (Gemini answers 400). Disable the
+    // provider and say so once, so the rest of the ladder serves learners.
+    if (isPlaceholderCredential(apiKey)) {
+      onWarning?.({
+        provider: binding.id,
+        reason: `placeholder_credential:${binding.credentialRef}`,
+      });
+      return { ...binding, enabled: false };
     }
     return { ...binding, apiKey };
   });
@@ -77,6 +104,12 @@ export function createApiProviderRuntime(
     source: string,
     passageIds: string[],
   ) => Promise<string | null>,
+  hooks: {
+    /** Content-free failure of one provider attempt. */
+    onProviderFailure?: (event: ProviderFailureEvent) => void;
+    /** Configuration problem that disabled a provider at start. */
+    onWarning?: (event: { provider: string; reason: string }) => void;
+  } = {},
 ): ApiProviderRuntime {
   const registry = new ProviderRegistry()
     .register("openai-compatible", (binding) => {
@@ -100,6 +133,29 @@ export function createApiProviderRuntime(
         ...(binding.apiKey ? { apiKey: binding.apiKey } : {}),
       });
     })
+    .register(
+      "openrouter",
+      (binding) =>
+        new OpenRouterProvider({
+          name: binding.id,
+          model: binding.model,
+          capabilities: binding.capabilities,
+          allowedDataClasses: binding.allowedDataClasses,
+          maxTokens: config.DIMTS_AI_MAX_TOKENS,
+          temperature: config.DIMTS_AI_TEMPERATURE,
+          ...(binding.endpoint ? { baseUrl: binding.endpoint } : {}),
+          ...(binding.apiKey ? { apiKey: binding.apiKey } : {}),
+          ...(binding.fallbackModels
+            ? { fallbackModels: binding.fallbackModels }
+            : {}),
+          ...(config.DIMTS_PUBLIC_API_URL
+            ? { referer: config.DIMTS_PUBLIC_API_URL }
+            : {}),
+          ...(binding.evaluatedLanguages
+            ? { evaluatedLanguages: binding.evaluatedLanguages }
+            : {}),
+        }),
+    )
     .register(
       "offline",
       (binding) =>
@@ -156,6 +212,7 @@ export function createApiProviderRuntime(
   const configuredBindings = resolveBindings(
     config.DIMTS_AI_PROVIDERS,
     environment,
+    hooks.onWarning,
   );
   const providerMap = new Map(
     registry
@@ -182,10 +239,29 @@ export function createApiProviderRuntime(
   const timeouts = Object.fromEntries(
     configuredBindings.map(({ id, timeoutMs }) => [id, timeoutMs]),
   );
-  const ladder = new Ladder(providers, timeouts);
+  const ladder = new Ladder(
+    providers,
+    timeouts,
+    undefined,
+    hooks.onProviderFailure,
+  );
 
+  const judges = configuredBindings.filter(
+    ({ enabled, capabilities }) =>
+      enabled &&
+      capabilities.structuredOutput &&
+      capabilities.modalities.includes("text"),
+  );
   return {
     providerOrder,
+    canJudge(lang, policy) {
+      return judges.some(
+        ({ privacyClass, capabilities }) =>
+          (privacyClass === "local" || policy.cloudOk) &&
+          (capabilities.languages.includes("*") ||
+            capabilities.languages.includes(lang)),
+      );
+    },
     get activeProvider() {
       return ladder.activeProvider;
     },

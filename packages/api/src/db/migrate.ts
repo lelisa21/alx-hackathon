@@ -3,7 +3,22 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pg from "pg";
 
+// Arbitrary constant; serialises migrators when deploy instances overlap.
+const MIGRATION_LOCK_ID = 4_731_202_611;
+
 export async function applyMigrations(
+  client: pg.Client,
+  directory: string,
+): Promise<string[]> {
+  await client.query("SELECT pg_advisory_lock($1)", [MIGRATION_LOCK_ID]);
+  try {
+    return await applyPendingMigrations(client, directory);
+  } finally {
+    await client.query("SELECT pg_advisory_unlock($1)", [MIGRATION_LOCK_ID]);
+  }
+}
+
+async function applyPendingMigrations(
   client: pg.Client,
   directory: string,
 ): Promise<string[]> {

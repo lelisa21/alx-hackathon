@@ -85,10 +85,12 @@ removal of privacy or output-validation rules to make a request succeed.
   `https://api.openai.com/v1`, `max_output_tokens`, JSON schema through
   `text.format`, and `store: false`. The parser accepts completed assistant
   output only. [OpenAI Responses reference](https://developers.openai.com/api/reference/resources/responses/methods/create)
-- `gemini`: native `models/{model}:generateContent`, default endpoint
-  `https://generativelanguage.googleapis.com/v1beta`, `x-goog-api-key`,
-  `systemInstruction`, `contents` and `generationConfig`. Blocked, incomplete
-  or non-text candidates are rejected. [Gemini generateContent reference](https://ai.google.dev/api/generate-content)
+- `gemini`: the official `@google/genai` SDK Interactions API at
+  `https://generativelanguage.googleapis.com/v1/interactions`. Requests use
+  `store: false`, structured JSON output, the provider's system instruction,
+  and the configured output-token limit. Temperature is omitted for models
+  that do not support it, including Gemini 4. Only completed interactions with
+  non-empty text are accepted. [Gemini Interactions reference](https://ai.google.dev/gemini-api/docs/interactions)
 - `xai`: the documented Responses request and output format, default endpoint
   `https://api.x.ai/v1`, with `store: false` and structured JSON output.
   It has its own adapter registration and conformance fixtures rather than
@@ -108,6 +110,38 @@ learner who has not granted current remote-AI consent. Revoke consent through
 the existing session API; the next ask must not contact a remote provider.
 `store: false` is an API storage setting, not a claim about a vendor's complete
 data-retention or training policy; the host must check its actual account terms.
+
+## Enable Gemini for a local test
+
+The checked-in Gemini adapter uses the Interactions API; the provider ID in
+`DIMTS_AI_PROVIDER`, the ladder, and the binding's `id` must all match. Keep the
+API key in the server environment as `GEMINI_API_KEY`, referenced by
+`credentialRef`; never put it in widget markup, source control, or a chat.
+Use a newly rotated key, not one that has been disclosed.
+
+After confirming the current terms for the specific Google account and region,
+configure the local `.env` with the following non-secret settings and enable the
+Gemini binding:
+
+```dotenv
+DIMTS_AI_PROVIDER=gemini
+DIMTS_AI_LADDER=gemini,offline
+DIMTS_AI_PROVIDERS=[{"id":"gemini","adapter":"gemini","model":"gemini-4-hydrogen","credentialRef":"GEMINI_API_KEY","privacyClass":"remote","enabled":true,"priority":1,"timeoutMs":8000,"allowedDataClasses":["question","course-passage"],"evaluatedLanguages":[],"capabilities":{"languages":["en"],"modes":["extractive"],"modalities":["text"],"structuredOutput":true}}]
+```
+
+Provide `GEMINI_API_KEY` through a local secret manager or an untracked,
+access-controlled `.env` entry. If the key is absent, keep Gemini disabled and
+select `offline`; an enabled binding without its referenced key prevents API
+startup. The model name must also be available to the account and region.
+No live Gemini request or account/model availability check has been performed
+for this workspace.
+
+Do not send real learner or private course content until the account's terms
+and data controls have been checked. `store: false` does not promise that Google
+will not retain or use data for service improvement. Until a suitable paid or
+otherwise no-training arrangement is verified, limit tests to synthetic,
+non-sensitive prompts and public sample material. Keep the OpenRouter binding
+disabled until its terms are independently reviewed as well.
 
 ## Validation and operating limits
 

@@ -1,4 +1,5 @@
-export { sourceHash, toPassages } from "./ingest.js";
+export { markdownOutline, sourceHash, toPassages } from "./ingest.js";
+export type { MarkdownHeading } from "./ingest.js";
 export { parseJobPostingPassages } from "./job-posting.js";
 export type {
   JobPostingParseError,

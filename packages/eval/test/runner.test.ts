@@ -7,7 +7,8 @@ describe("offline evaluation service boundary", () => {
   it("runs every language in both modes, preserves review blockers and measures actual FAQ/cache results", async () => {
     const result = await runEvaluation(path.resolve("."));
     expect(result.issues).toEqual([]);
-    expect(result.reports).toHaveLength(3);
+    // en, am, om, ti (ar-test is a CI layout fixture without evaluation data).
+    expect(result.reports).toHaveLength(4);
     for (const report of result.reports) {
       expect(report.questionCount).toBeGreaterThanOrEqual(10);
       expect(report.runCount).toBe(report.questionCount * 2);

@@ -7,7 +7,7 @@ export interface InsightQuery {
   startDate?: string; // ISO 8601 date YYYY-MM-DD
   endDate?: string;
   lang?: string; // BCP 47 code or null for all
-  minCellSize?: number; // default 5; groups <5 become "Other"
+  minCellSize?: number; // default/minimum 5 questions; smaller topics become "Other"
 }
 
 export interface InsightRow {

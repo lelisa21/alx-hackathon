@@ -44,3 +44,66 @@ export function hasInstructionInjection(text: string): boolean {
   const normalized = text.normalize("NFKC").replace(/\s+/gu, " ");
   return INSTRUCTION_PATTERNS.some((pattern) => pattern.test(normalized));
 }
+
+const MIN_SKELETON = 3;
+
+/** Consonant skeleton of a word. Ge'ez syllables differ by vowel order in
+ * inflection (ነጥቢ, ነጥብኹም), so each syllable maps to its row's base form. */
+function skeleton(word: string): string {
+  return Array.from(word.normalize("NFC").toLocaleLowerCase(), (character) => {
+    const code = character.codePointAt(0) ?? 0;
+    return code >= 0x1200 && code < 0x1380
+      ? String.fromCodePoint(code - (code % 8))
+      : character;
+  }).join("");
+}
+
+// A Ge'ez syllable carries consonant and vowel, so three are a content stem;
+// Latin-script words need four letters, which drops most function words.
+function contentWords(text: string): string[] {
+  return (text.normalize("NFC").match(/[\p{L}\p{N}]+/gu) ?? [])
+    .map(skeleton)
+    .filter(
+      (word) =>
+        Array.from(word).length >=
+        (/\p{Script=Ethiopic}/u.test(word) ? MIN_SKELETON : 4),
+    );
+}
+
+/**
+ * A grounded answer may rephrase, but it must stay inside its sources:
+ * every number must appear in the cited passages, and at least half of its
+ * content words must share a stem with words of the same-language passages
+ * (a reply quoting English job postings in Amharic checks numbers only).
+ */
+export function isAnswerSupported(
+  text: string,
+  passages: { text: string; lang: string }[],
+  lang: string,
+): boolean {
+  if (!passages.length) return false;
+  const source = passages.map((passage) => passage.text).join(" ");
+  const numbers = text.match(/\d+(?:[.,]\d+)?/gu) ?? [];
+  if (numbers.some((value) => !source.includes(value))) return false;
+  const base = (code: string) => code.toLowerCase().split("-")[0];
+  const sameLanguage = passages.filter(
+    (passage) => base(passage.lang) === base(lang),
+  );
+  if (!sameLanguage.length) return true;
+  const sourceWords = contentWords(
+    sameLanguage.map((passage) => passage.text).join(" "),
+  );
+  const answerWords = contentWords(text);
+  if (answerWords.length < 3) return true;
+  const supported = answerWords.filter((word) =>
+    sourceWords.some(
+      (sourceWord) =>
+        sourceWord.includes(word) ||
+        word.includes(sourceWord) ||
+        (Array.from(word).slice(0, 4).join("") ===
+          Array.from(sourceWord).slice(0, 4).join("") &&
+          Array.from(word).length >= 4),
+    ),
+  ).length;
+  return supported / answerWords.length >= 0.5;
+}

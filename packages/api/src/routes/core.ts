@@ -35,6 +35,7 @@ import { sendProblem } from "../middleware/problem.js";
 import type { ConversationStateStore } from "../db/conversation-state.js";
 import { buildReviewedFaq } from "../faq.js";
 import { getVoiceCapabilities } from "../voice-capabilities.js";
+import { renderDocsPage } from "../docs-page.js";
 
 interface CoreRouteOptions {
   config: ApiConfig;
@@ -43,7 +44,7 @@ interface CoreRouteOptions {
   askDependencies?: AskDependencies;
   providerRuntime?: ApiProviderRuntime;
   grounding?: Pick<PostgresGrounding, "currentVersion"> &
-    Partial<Pick<PostgresGrounding, "resolveFaqCitations">>;
+    Partial<Pick<PostgresGrounding, "resolveFaqCitations" | "courseQuestions">>;
   conversationStore?: ConversationStateStore;
 }
 
@@ -244,12 +245,28 @@ export function createCoreRouter(options: CoreRouteOptions): Router {
     response.json(payload);
   });
 
-  router.get("/docs", (_request, response) => {
-    response
-      .type("html")
-      .send(
-        '<!doctype html><html lang="en"><meta charset="utf-8"><title>Dimts API</title><main><h1>Dimts API</h1><a href="/v1/openapi.yaml">OpenAPI specification</a></main></html>',
-      );
+  // Public: the questions this language's course content answers. Asking one
+  // goes through the normal grounded, cited answer path.
+  router.get("/course/questions", async (request, response) => {
+    const lang =
+      typeof request.query.lang === "string" ? request.query.lang : "";
+    if (!validPublicLang(packs, lang)) {
+      sendProblem(response, 400, "invalid_request", "error.invalid");
+      return;
+    }
+    const questions =
+      (await options.grounding?.courseQuestions?.(lang).catch(() => [])) ?? [];
+    response.set("Cache-Control", "public, max-age=300");
+    response.json({ lang, questions });
+  });
+
+  router.get("/docs", (request, response) => {
+    response.type("html").send(
+      renderDocsPage({
+        apiBase: `${request.protocol}://${request.get("host") ?? ""}`,
+        widgetUrl: config.DIMTS_LTI_WIDGET_URL,
+      }),
+    );
   });
 
   router.get("/openapi.yaml", (_request, response) => {

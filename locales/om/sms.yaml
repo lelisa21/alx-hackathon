@@ -1,7 +1,7 @@
 # Draft templates and shared keywords from SRS 20.5. Channel delivery and segment encoding belong to P07.
 help: Gargaarsaaf GARGAARSA ergaa.
 stop: Ergaa dhaabuuf DHAABI ergaa.
-menu: 1 English 2 አማርኛ 3 Afaan Oromoo
+menu: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ
 more: Dabalataaf 1 ergaa.
 human: Nama argachuuf 2 ergaa.
 stopped: Ergaan biraa isinitti hin ergamu.
@@ -33,7 +33,7 @@ unavailable: "Tajaajilli kun hin qophoofne. Gaaffiin hin ergamne. Barachuu itti 
 callback_sent: "Gaaffiin akka isiniif bilbilamu fudhatameera. Yeroon bilbilaa hin mirkanoofne."
 jobs_type: "Hojii akkamii? Hundaaf ALL, haquuf CANCEL ergaa."
 jobs_region: "Naannoo kam? Hundaaf ALL, haquuf CANCEL ergaa."
-jobs_language: "Afaan ergaa hojii: 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_language: "Afaan ergaa hojii: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ"
 jobs_consent: "Ergaa hojii guyyaa guyyaan lakkoofsa kanaan guyyaa 30f? Hayyamuuf Y. STOP SMS hunda dhaaba."
 jobs_active: "Ergaan hojii guyyaa 30f banameera. Bulchuuf JOBS; SMS hunda dhaabuuf STOP."
 jobs_stopped: "Ergaan hojii dhaabbateera; lakkoofsi haqameera. Barachuu itti fufaa."

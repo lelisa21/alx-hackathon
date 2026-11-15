@@ -1,0 +1,45 @@
+# Scheduled jobs for the hosted deployment (blueprint 3.4 and 14.1).
+# Requires repository secrets DIMTS_API_URL (for example
+# https://dimts-api.onrender.com) and DIMTS_CRON_SECRET. Skips when unset.
+name: cron
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+    - cron: "30 7 * * *"
+  workflow_dispatch:
+    inputs:
+      job:
+        description: Job to run
+        type: choice
+        options: [retention, alerts]
+        default: retention
+
+permissions: {}
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      DIMTS_API_URL: ${{ secrets.DIMTS_API_URL }}
+      DIMTS_CRON_SECRET: ${{ secrets.DIMTS_CRON_SECRET }}
+      JOB: ${{ github.event.inputs.job || (github.event.schedule == '30 7 * * *' && 'alerts' || 'retention') }}
+    steps:
+      - name: Call the internal job route
+        run: |
+          if [ -z "$DIMTS_API_URL" ] || [ -z "$DIMTS_CRON_SECRET" ]; then
+            echo "::notice::DIMTS_API_URL or DIMTS_CRON_SECRET is not set; skipping."
+            exit 0
+          fi
+          case "$JOB" in
+            retention) path=/v1/internal/retention ;;
+            alerts) path=/v1/internal/alerts ;;
+            *) echo "Unknown job"; exit 1 ;;
+          esac
+          # A sleeping free instance can take about a minute to wake.
+          curl --fail-with-body --silent --show-error \
+            --retry 4 --retry-all-errors --retry-delay 20 --max-time 120 \
+            -X POST -H "Authorization: Bearer $DIMTS_CRON_SECRET" \
+            -o /dev/null -w "$JOB: HTTP %{http_code}\n" \
+            "${DIMTS_API_URL%/}$path"

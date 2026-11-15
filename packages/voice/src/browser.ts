@@ -40,6 +40,10 @@ interface RecognitionConstructor {
     langs: string[];
     processLocally: true;
   }) => Promise<string>;
+  install?: (options: {
+    langs: string[];
+    processLocally: true;
+  }) => Promise<boolean>;
 }
 
 interface BrowserSpeechGlobals {
@@ -81,28 +85,26 @@ function quiet(action: () => void): void {
   }
 }
 
-async function localRecognitionAvailable(
+async function localRecognitionStatus(
   Constructor: RecognitionConstructor | undefined,
   tag: string,
-): Promise<boolean> {
+): Promise<string> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   try {
-    if (!Constructor?.available) return false;
+    if (!Constructor?.available) return "unavailable";
     const probe = new Constructor();
-    if (!("processLocally" in probe)) return false;
+    if (!("processLocally" in probe)) return "unavailable";
     probe.processLocally = true;
-    if (probe.processLocally !== true) return false;
+    if (probe.processLocally !== true) return "unavailable";
     // FR-VOICE-09: no implicit remote recognition or language-pack downloads.
     return await Promise.race([
-      Constructor.available({ langs: [tag], processLocally: true }).then(
-        (state) => state === "available",
-      ),
-      new Promise<false>((resolve) => {
-        timer = setTimeout(() => resolve(false), PROBE_MS);
+      Constructor.available({ langs: [tag], processLocally: true }),
+      new Promise<string>((resolve) => {
+        timer = setTimeout(() => resolve("unavailable"), PROBE_MS);
       }),
     ]);
   } catch {
-    return false;
+    return "unavailable";
   } finally {
     clearTimeout(timer);
   }
@@ -122,6 +124,7 @@ export async function createBrowserVoiceAdapters(options: {
     options.languages.map((language) => [language.code, language]),
   );
   const localRecognition = new Set<string>();
+  const installableRecognition = new Set<string>();
   let localVoices = new Map<string, SpeechSynthesisVoice>();
   let disposed = false;
   let cancelRecognition: (() => void) | undefined;
@@ -132,13 +135,14 @@ export async function createBrowserVoiceAdapters(options: {
 
   await Promise.all(
     options.languages.map(async (language) => {
-      if (
-        language.stt &&
-        language.voice?.engine === "browser" &&
-        (await localRecognitionAvailable(Constructor, language.voice.bcp_tag))
-      ) {
-        localRecognition.add(language.code);
-      }
+      if (!language.stt || language.voice?.engine !== "browser") return;
+      const status = await localRecognitionStatus(
+        Constructor,
+        language.voice.bcp_tag,
+      );
+      if (status === "available") localRecognition.add(language.code);
+      else if (status === "downloadable" && Constructor?.install)
+        installableRecognition.add(language.code);
     }),
   );
 
@@ -177,6 +181,30 @@ export async function createBrowserVoiceAdapters(options: {
 
   const speechToText: SpeechToText = {
     supported: (lang) => !disposed && localRecognition.has(lang),
+    installable: (lang) => !disposed && installableRecognition.has(lang),
+    async install(lang) {
+      const tag = declarations.get(lang)?.voice?.bcp_tag;
+      if (disposed || !tag || !installableRecognition.has(lang)) return false;
+      try {
+        // Explicit learner action only (FR-VOICE-09): downloads the browser's
+        // on-device recognition pack; recognition stays local afterwards.
+        const installed = await Constructor?.install?.({
+          langs: [tag],
+          processLocally: true,
+        });
+        if (
+          installed !== true ||
+          (await localRecognitionStatus(Constructor, tag)) !== "available"
+        )
+          return false;
+        installableRecognition.delete(lang);
+        localRecognition.add(lang);
+        options.onCapabilitiesChanged?.();
+        return true;
+      } catch {
+        return false;
+      }
+    },
     start(lang) {
       cancelRecognition?.();
       cancelSynthesis?.();

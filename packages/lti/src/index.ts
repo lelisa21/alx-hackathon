@@ -69,11 +69,16 @@ export async function validateLtiToken(
       throw new Error("Nonce mismatch");
     }
 
-    // Validate deployment ID if specified
-    const deploymentId = claims[
-      "https://purl.imsglobal.org/spec/lti/claim/deployment_id"
-    ] as string | undefined;
-    if (platform.deploymentId && deploymentId !== platform.deploymentId) {
+    // The claim must be present and match the configured deployment ID.
+    const deploymentId =
+      claims["https://purl.imsglobal.org/spec/lti/claim/deployment_id"];
+    if (
+      typeof platform.deploymentId !== "string" ||
+      !platform.deploymentId.trim() ||
+      typeof deploymentId !== "string" ||
+      !deploymentId.trim() ||
+      deploymentId !== platform.deploymentId
+    ) {
       throw new Error("Invalid deployment ID");
     }
 

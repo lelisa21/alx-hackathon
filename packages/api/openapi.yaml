@@ -6857,6 +6857,259 @@ paths:
                   - code
                   - messageKey
                 additionalProperties: false
+  /v1/insights:
+    get:
+      summary: Read anonymous teacher insights
+      description: Returns topic and language aggregates only. Access requires a
+        secret host key or an LTI instructor session. Topics with fewer than
+        five questions are combined as Other; minCellSize may only raise that
+        floor.
+      security:
+        - hostKey: []
+        - sessionBearer: []
+      parameters:
+        - schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$/u
+          required: false
+          name: startDate
+          in: query
+        - schema:
+            type: string
+            pattern: ^\d{4}-\d{2}-\d{2}$/u
+          required: false
+          name: endDate
+          in: query
+        - schema:
+            type: string
+            minLength: 2
+            maxLength: 35
+          required: false
+          name: lang
+          in: query
+        - schema:
+            type: integer
+            minimum: 5
+            maximum: 100
+            default: 5
+          required: false
+          name: minCellSize
+          in: query
+        - schema:
+            type: string
+            enum:
+              - json
+              - csv
+            default: json
+          required: false
+          name: format
+          in: query
+      responses:
+        "200":
+          description: Anonymous aggregate insights as JSON or CSV
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  insights:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        topicId:
+                          type: string
+                          minLength: 1
+                          maxLength: 256
+                        topicLabel:
+                          type:
+                            - string
+                            - "null"
+                          maxLength: 1000
+                        lang:
+                          type: string
+                          minLength: 2
+                          maxLength: 35
+                        period:
+                          type: string
+                          pattern: ^\d{4}-\d{2}-\d{2}$/u
+                        questionCount:
+                          type: integer
+                          minimum: 0
+                        notfoundCount:
+                          type: integer
+                          minimum: 0
+                        helpfulCount:
+                          type: integer
+                          minimum: 0
+                        unhelpfulCount:
+                          type: integer
+                          minimum: 0
+                      required:
+                        - topicId
+                        - topicLabel
+                        - lang
+                        - period
+                        - questionCount
+                        - notfoundCount
+                        - helpfulCount
+                        - unhelpfulCount
+                      additionalProperties: false
+                  period:
+                    type: object
+                    properties:
+                      start:
+                        type: string
+                        pattern: ^\d{4}-\d{2}-\d{2}$/u
+                      end:
+                        type: string
+                        pattern: ^\d{4}-\d{2}-\d{2}$/u
+                    required:
+                      - start
+                      - end
+                  exportedAt:
+                    type: string
+                    format: date-time
+                required:
+                  - insights
+                  - period
+                  - exportedAt
+                additionalProperties: false
+            text/csv:
+              schema:
+                type: string
+        "400":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "401":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "500":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
+        "501":
+          description: Problem response
+          content:
+            application/problem+json:
+              schema:
+                type: object
+                properties:
+                  type:
+                    type: string
+                  title:
+                    type: string
+                  status:
+                    type: number
+                  code:
+                    type: string
+                    enum:
+                      - invalid_request
+                      - unauthorized
+                      - forbidden
+                      - not_found
+                      - conflict
+                      - rate_limited
+                      - payload_too_large
+                      - internal
+                  messageKey:
+                    type: string
+                required:
+                  - type
+                  - title
+                  - status
+                  - code
+                  - messageKey
+                additionalProperties: false
   /v1/internal/alerts:
     post:
       summary: Run at most one daily digest per subscriber or preview without sending

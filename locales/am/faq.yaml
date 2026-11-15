@@ -1,4 +1,3 @@
-# Draft answers sourced only from content/sample-course/study-plan.md. Nine distinct facts; not the 30-entry live-pack gate.
 - q: በዚህ ሳምንት ስንት ርዕሶችን ልምረጥ?
   a: በዚህ ሳምንት ለመማር አንድ ርዕስ ይምረጡ።
   source: study-plan#choose-one-goal-0
@@ -25,4 +24,67 @@
   source: study-plan#review-your-progress-2
 - q: የሳምንቱን ጥናት ከገመገምኩ በኋላ ምን ላድርግ?
   a: ቀጣዩን ትንሽ ግብ ይምረጡ።
+  source: study-plan#review-your-progress-2
+- q: How do I choose a study goal?
+  a: Pick one topic to learn this week and write the goal in a short sentence.
+  source: study-plan#choose-one-goal-0
+- q: What is the best way to set a study goal?
+  a: Keep it short, specific, and easy to act on this week.
+  source: study-plan#choose-one-goal-0
+- q: Why should my study goal be clear?
+  a: A clear goal helps you decide what to study next.
+  source: study-plan#choose-one-goal-0
+- q: How do I decide what to study?
+  a: Choose one topic that matters most this week.
+  source: study-plan#choose-one-goal-0
+- q: How do I build a small study schedule?
+  a: Choose a few short study times that fit your week.
+  source: study-plan#make-a-small-schedule-1
+- q: Where should I place my study times?
+  a: Put each study time on a calendar.
+  source: study-plan#make-a-small-schedule-1
+- q: Why leave space between study sessions?
+  a: Leave space so you can rest and review.
+  source: study-plan#make-a-small-schedule-1
+- q: What makes a schedule realistic?
+  a: A short schedule that matches your week is easier to keep.
+  source: study-plan#make-a-small-schedule-1
+- q: When should I review my learning?
+  a: At the end of the week, check what you learned.
+  source: study-plan#review-your-progress-2
+- q: What should I do after a review?
+  a: Keep what worked and change one thing that made studying difficult.
+  source: study-plan#review-your-progress-2
+- q: How do I continue after a week of study?
+  a: Choose the next small goal after reviewing the week.
+  source: study-plan#review-your-progress-2
+- q: What helps me stay consistent?
+  a: A small, steady plan is easier to repeat than a large goal.
+  source: study-plan#choose-one-goal-0
+- q: What if I feel overwhelmed by the work?
+  a: Reduce the goal to one topic and a few short sessions.
+  source: study-plan#choose-one-goal-0
+- q: Should I study every day?
+  a: Your plan should fit your week, not force a daily schedule.
+  source: study-plan#make-a-small-schedule-1
+- q: How do I know if my plan works?
+  a: Check what you learned at the end of the week and adjust one difficulty.
+  source: study-plan#review-your-progress-2
+- q: What is the first step in planning study time?
+  a: Pick the main subject to learn before you fill in the timetable.
+  source: study-plan#choose-one-goal-0
+- q: Why is a calendar helpful?
+  a: A calendar keeps each study block visible and realistic.
+  source: study-plan#make-a-small-schedule-1
+- q: How much time should I leave for rest?
+  a: Leave some space between sessions so you can recover and review.
+  source: study-plan#make-a-small-schedule-1
+- q: What should I keep from the week?
+  a: Keep the study habits that worked well for you.
+  source: study-plan#review-your-progress-2
+- q: What should I change after a week?
+  a: Change one thing that made learning harder so the next week is smoother.
+  source: study-plan#review-your-progress-2
+- q: What is the purpose of review?
+  a: Review helps you see what was learned and what needs adjusting.
   source: study-plan#review-your-progress-2

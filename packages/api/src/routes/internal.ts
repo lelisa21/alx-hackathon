@@ -3,6 +3,7 @@ import express from "express";
 import type { ApiConfig } from "../config.js";
 import type { ApiRepository } from "../types.js";
 import { sendProblem } from "../middleware/problem.js";
+import type { JobSourceSync } from "@dimts/jobs";
 import type { JobsApiService } from "./jobs.js";
 import { AlertsQuerySchema, AlertsResponseSchema } from "../jobs-schemas.js";
 
@@ -10,6 +11,7 @@ export function createInternalRouter(
   config: ApiConfig,
   repository: ApiRepository,
   jobs?: JobsApiService,
+  jobSources?: Pick<JobSourceSync, "syncAll" | "status">,
 ): express.Router {
   const router = express.Router();
 
@@ -46,6 +48,16 @@ export function createInternalRouter(
         await jobs.runAlerts({ dryRun: query.dry === "1" }),
       ),
     );
+  });
+
+  // Re-import from the configured job platforms now (also runs on a timer).
+  router.post("/jobs/sync", async (_request, response) => {
+    if (!jobSources) {
+      sendProblem(response, 503, "internal", "jobs.unavailable");
+      return;
+    }
+    await jobSources.syncAll();
+    response.json({ sources: jobSources.status() });
   });
 
   return router;

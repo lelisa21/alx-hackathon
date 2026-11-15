@@ -11,6 +11,22 @@ permissions:
 jobs:
   validate:
     runs-on: ubuntu-latest
+    # Compose keeps its database on an internal network with no host port, so
+    # CI uses a service container (blueprint 2.6) for migration and API tests.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: dimts
+          POSTGRES_USER: dimts
+          POSTGRES_PASSWORD: dimts-ci-only
+        ports:
+          - "5432:5432"
+        options: >-
+          --health-cmd "pg_isready -U dimts -d dimts"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
     steps:
       - uses: actions/checkout@v6
         with:
@@ -33,12 +49,6 @@ jobs:
       - run: pnpm eval
       - run: pnpm build
       - run: pnpm size
-      - name: Start local database
-        run: docker compose --profile local up -d --wait db
-        env:
-          POSTGRES_PASSWORD: dimts-ci-only
-      - name: Check database health
-        run: docker compose --profile local exec -T db pg_isready -U dimts -d dimts
       - name: Apply database migrations
         run: pnpm migrate
         env:
@@ -51,9 +61,6 @@ jobs:
         run: pnpm exec vitest run packages/api/test/*.integration.test.ts --maxWorkers=1
         env:
           DIMTS_TEST_DATABASE_URL: postgresql://dimts:dimts-ci-only@localhost:5432/dimts
-      - name: Stop local database
-        if: always()
-        run: docker compose --profile local down --volumes
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
       - name: Run widget and axe matrix

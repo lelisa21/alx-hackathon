@@ -46,7 +46,9 @@ function normaliseOromo(value: string): string {
 
 export function normalise(value: string, lang: string): string {
   const baseLanguage = lang.toLowerCase().split("-")[0];
-  if (baseLanguage === "am") return normaliseAmharic(value);
+  // Tigrinya shares the Ge'ez script and its spelling variants (ሠ/ሰ, ጸ/ፀ).
+  if (baseLanguage === "am" || baseLanguage === "ti")
+    return normaliseAmharic(value);
   if (baseLanguage === "om") return normaliseOromo(value);
   return cleanSearchText(value.normalize("NFC").toLowerCase());
 }

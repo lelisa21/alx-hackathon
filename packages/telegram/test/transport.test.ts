@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   createTelegramTransport,
   startTelegramPolling,
+  TelegramTransportError,
 } from "../src/transport.js";
 import { formatTelegramReply, splitTelegramText } from "../src/format.js";
 
@@ -510,5 +511,68 @@ describe("FR-TG-08 local polling", () => {
     expect(getUpdates.mock.calls[1]![0]).toBe(8);
     await polling.stop();
     expect(handleUpdate).toHaveBeenCalledTimes(1);
+  });
+
+  it("removes a registered webhook before polling so getUpdates is not refused", async () => {
+    const order: string[] = [];
+    const getUpdates = vi.fn(
+      async (_offset: number | undefined, signal?: AbortSignal) => {
+        order.push("getUpdates");
+        return new Promise<unknown[]>((resolve) =>
+          signal?.addEventListener("abort", () => resolve([]), { once: true }),
+        );
+      },
+    );
+    const polling = startTelegramPolling({
+      transport: {
+        getUpdates,
+        deleteWebhook: async () => {
+          order.push("deleteWebhook");
+        },
+      },
+      environment: "development",
+      handleUpdate: async () => undefined,
+    });
+    await vi.waitFor(() => expect(getUpdates).toHaveBeenCalled());
+    await polling.stop();
+    expect(order.slice(0, 2)).toEqual(["deleteWebhook", "getUpdates"]);
+  });
+
+  it("reports polling failures instead of retrying silently", async () => {
+    const onError = vi.fn();
+    const getUpdates = vi.fn(async () => {
+      throw new Error("network down");
+    });
+    const polling = startTelegramPolling({
+      transport: { getUpdates },
+      environment: "development",
+      handleUpdate: async () => undefined,
+      onError,
+    });
+    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    expect(onError.mock.calls[0]![0]).toEqual({ failures: 1, retryMs: 1000 });
+    await polling.stop();
+  });
+
+  it("backs off when another process polls the same token (409)", async () => {
+    const events: { code?: number; failures: number; retryMs: number }[] = [];
+    const getUpdates = vi.fn(async () => {
+      throw new TelegramTransportError(409);
+    });
+    const polling = startTelegramPolling({
+      transport: { getUpdates },
+      environment: "development",
+      handleUpdate: async () => undefined,
+      onError: (event) => events.push(event),
+      retryDelay: (code, failures) =>
+        code === 409 ? Math.min(40, 5 * 2 ** (failures - 1)) : 1,
+    });
+    await vi.waitFor(() => expect(events.length).toBeGreaterThanOrEqual(3));
+    await polling.stop();
+    expect(events.slice(0, 3)).toEqual([
+      { code: 409, failures: 1, retryMs: 5 },
+      { code: 409, failures: 2, retryMs: 10 },
+      { code: 409, failures: 3, retryMs: 20 },
+    ]);
   });
 });

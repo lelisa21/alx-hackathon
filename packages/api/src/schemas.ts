@@ -194,7 +194,7 @@ export const InsightsQuerySchema = z
       .regex(/^\d{4}-\d{2}-\d{2}$/u)
       .optional(),
     lang: z.string().min(2).max(35).optional(),
-    minCellSize: z.coerce.number().int().min(1).max(100).default(5),
+    minCellSize: z.coerce.number().int().min(5).max(100).default(5),
     format: z.enum(["json", "csv"]).default("json").optional(),
   })
   .strict();

@@ -115,7 +115,7 @@ it("P07 supplies localized simulator, explicit SMS consent and management copy",
 });
 
 it("FR-JOB-11 explains each career term in the learner's locale", () => {
-  for (const lang of ["en", "am", "om"]) {
+  for (const lang of ["en", "am", "om", "ti"]) {
     const glossary = packs.get(lang)!.glossary as {
       id: string;
       simple_definition: string;
@@ -324,7 +324,7 @@ describe("P01 authored locale data", () => {
     );
     expect(missing).toEqual([]);
   });
-  for (const code of ["en", "am", "om"]) {
+  for (const code of ["en", "am", "om", "ti"]) {
     it(`${code} contains usable rules, sourced FAQ, and diverse evaluation cases`, () => {
       const pack = packs.get(code)!;
       expect(
@@ -380,7 +380,7 @@ describe("P01 authored locale data", () => {
 
   it("replaces scaffold English with distinct draft UI translations and retains ICU variables", () => {
     const en = packs.get("en")!;
-    for (const code of ["am", "om"]) {
+    for (const code of ["am", "om", "ti"]) {
       const pack = packs.get(code)!;
       for (const key of [
         "welcome.title",
@@ -417,7 +417,7 @@ describe("P01 authored locale data", () => {
       id: string;
       simple_definition: string;
     }[];
-    for (const code of ["am", "om"]) {
+    for (const code of ["am", "om", "ti"]) {
       const glossary = packs.get(code)!.glossary as {
         id: string;
         simple_definition: string;

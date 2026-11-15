@@ -3,6 +3,20 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## P08 — local Telegram polling (14 November 2026)
+
+- **Requirements:** FR-TG-01–12 and NFR-SEC local-versus-production channel
+  boundary.
+- **Decision:** The Compose `local` profile defaults to development mode so an
+  operator can explicitly enable Telegram polling with a configured bot token.
+  Hosted or isolated Compose acceptance remains production/webhook-only.
+- **Isolation:** `pnpm test:compose` overrides local `.env` channel credentials
+  and relay settings, preventing tests from polling or sending to external
+  services. SMS remains on its local simulator; unconfigured remote providers
+  remain disabled/offline.
+- **Limit:** This does not substitute for Savanna LTI metadata or production
+  OIDC; no issuer, client ID, endpoints, or deployment ID are invented.
+
 ## P09 — Anonymous feedback and teacher insights (13 November 2026)
 
 - **Scope before implementation:** FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20,
@@ -18,28 +32,47 @@ decision register is authoritative for architectural choices.
   lang, period, question_count, notfound_count, helpful, unhelpful). Formula
   injection defense: prefix = + - @ with '. RFC 4180: CRLF line endings, quoted
   fields with comma/quote/newline, escaped quotes doubled.
-- **Small-cell suppression (D34):** Groups with combined count <5 (default,
-  configurable via minCellSize parameter) combined into "Other" row per
-  language/period. Threshold applies to (questionCount + notfoundCount +
-  helpfulCount + unhelpfulCount).
+- **Small-cell suppression (D34):** Topics with fewer than five questions per
+  language/period are combined into "Other". The threshold uses
+  `questionCount` only; not-found counts are a subset, and feedback votes do
+  not make a small topic visible. Callers may request a stricter threshold,
+  but cannot lower the privacy floor below five.
 - **Privacy boundary (D35):** Query only aggregates (feedback_counter,
   insight_aggregate tables via FULL OUTER JOIN). Never join with session,
-  message, or identifying tables. topicLabel set to null (may be enriched
-  later from passage metadata if needed). No session IDs, learner identifiers,
-  question text, or raw feedback events exposed.
+  message, or identifying tables. `topicLabel` resolves citation passage IDs
+  against the course passage metadata. No session IDs, learner identifiers,
+  question text, or raw feedback events are exposed.
 - **Feedback recording:** P02 POST /v1/feedback records only
   (topic_id, lang, period, helpful/unhelpful counts) in feedback_counter.
   Session-local negative_feedback_streak remains session-only, never in
   aggregates. P09 does not modify P02's feedback contract.
-- **Question/notfound recording:** Recording logic not yet integrated into
-  ask route. insight_aggregate.question_count and notfound_count must be
-  incremented when reply kind recorded. Deferred to P09 follow-up or full
-  implementation gate.
+- **Question/notfound recording:** New reply rows increment
+  `insight_aggregate.question_count` and the not-found subset in the same
+  transaction. Idempotent reply replays do not increment the aggregates again.
 - **Locale keys:** insights.* keys added to en/am/om ui.yaml (27 keys,
   including title, loading, empty, error, filters, table headers, CSV download,
   summary template). All UI copy from packs, no hardcoded strings.
-- **Widget page:** Teacher insights page deferred; API and service complete.
-  Widget implementation and browser tests are in scope but not yet delivered.
+- **Widget page:** Delivered in the 15 November follow-up. P09 release
+  acceptance still needs real LMS/hosted checks and human accessibility review.
+
+## P09 follow-up — instructor insights page and privacy floor (15 November 2026)
+
+- **Requirements:** FR-INSIGHT-01–04, NFR-PRIV-03, NFR-A11Y-01, and the
+  instructor role mapping in FR-INT-06.
+- **Instructor browser path:** An LTI launch with `insightsAccess` renders the
+  insights component and passes its session bearer only to that page. It does
+  not render the tutor with a host key. The response is `no-store, private`,
+  uses `Referrer-Policy: no-referrer`, and the existing CSP only permits the
+  configured widget origin to run scripts. Learner launches remain on the
+  tutor path.
+- **Privacy floor:** `minCellSize` must be at least five at the API boundary;
+  the insights service also enforces five for direct callers. Authorized
+  callers can choose a stricter threshold.
+- **Page:** Localized loading, empty, error/retry, filters, summary, semantic
+  table, and authenticated CSV export are implemented. The instructor bearer
+  is not persisted in browser storage.
+- **Limit:** Automated tests do not replace real LMS, hosted database, or
+  co-designer/assistive-technology acceptance.
 
 ## P08 — Telegram private-chat adapter (13 November 2026)
 
@@ -430,9 +463,11 @@ lang,needs,otherText?,name?,interviewAt?`. Needs are `sign_language_interpreter`
   Contacts remain absent until verified by the host, as Blueprint section
   5 requires. No native-language, voice, or Android acceptance is claimed.
 - **Content boundary:** use only the checked-in study-plan and sample-job
-  sources for draft questions and FAQ provenance. Nine FAQ entries and 30
-  glossary seeds each for `en`, `am` and `om` are useful review material, not the 30 FAQ /
-  200 reviewed-term live target. Do not invent answers or pad lists.
+  sources for draft questions and FAQ provenance. The checked-in `en`, `am`,
+  and `om` packs now include representative glossary/FAQ material based on the
+  sample course and job fixtures, but they remain draft-only material pending
+  native review. Do not invent answers or pad lists beyond the available
+  checked-in passages.
 - **Per-key fallback contract:** keep the existing locale UI JSON record
   and endpoint. Resolve missing keys through `meta.fallback`; the additive
   `X-Dimts-Locale-Fallback: 0|1` response header is exposed through CORS,
@@ -1189,3 +1224,230 @@ selection remain prerequisites for production voice.
   of platform metadata. LTI state and replay tables therefore do not require
   rows in the legacy `lti_platform` registration table; their platform IDs
   remain configuration identifiers, not foreign keys to learner data.
+
+## P11 — hosted deployment readiness (14 November 2026)
+
+- **Requirements:** NFR-SEC-12 (validated secrets), blueprint 3.3 (hashed host
+  keys and helper tokens), 3.4 (24-hour retention), 2.6 and 14.1 (hosted and
+  CI topologies), FR-INT-05/06 (LTI launch).
+- **Provisioning:** Hosted deployments had no supported way to create a
+  `host_key` or `helper` row, so every hosted widget session was refused.
+  Added `pnpm admin host-key|helper` (`packages/api/src/db/admin.ts`). It
+  stores only SHA-256 hashes, reads the secret from `DIMTS_PROVISION_SECRET`
+  (never argv), requires HTTPS origins except loopback, requires an origin for
+  public keys, requires 32+ characters for secret keys, and requires a 32-byte
+  base64url helper token. `DIMTS_PROVISION_SECRET` is an operator CLI input,
+  not API configuration.
+- **Migrations on Render:** The free plan has no pre-deploy hook, so the start
+  command runs `migrate` first. `applyMigrations` now holds a PostgreSQL
+  advisory lock so overlapping deploy instances cannot race.
+- **Scheduled jobs:** Added `cron.yml` (retention 06:00 UTC, alerts 07:30 UTC)
+  and the event-bounded `keepwarm.yml` from blueprint 14.1. Both skip when the
+  `DIMTS_API_URL`/`DIMTS_CRON_SECRET` repository secrets are absent.
+- **LTI redirect URI:** Derived from the request (`trust proxy` honours
+  `X-Forwarded-Proto`) instead of a fixed placeholder host. The platform still
+  redirects only to its registered URIs.
+- **Static assets:** The Render static site sends
+  `Access-Control-Allow-Origin: *` because host pages import the widget module,
+  its chunks and fonts cross-origin. The assets are public and credential-free.
+- **CI database:** Compose keeps PostgreSQL on an internal network with no host
+  port, so CI uses a PostgreSQL service container as blueprint 2.6 specifies.
+- **Container:** The API image runs as the unprivileged `node` user, and
+  dependency download is layered on the lockfile alone.
+- **Fixed defects:** SIGTERM crashed (`server.app` is undefined), skipping pool
+  and timer cleanup; nginx dropped WebSocket upgrade headers for
+  `/v1/help/ws`; two PostgreSQL integration tests had stale fixtures.
+
+## Savanna integration, trilingual content and channel verification (14 November 2026)
+
+- **Requirements:** FR-INT-01/11 (embed), FR-LANG-01/04, FR-CONV-05,
+  FR-TUTOR-08/10 (citations), FR-SMS, FR-TG, FR-VOICE-01/02 (preview).
+- **Root cause of "nothing answers":** the `passage` table was empty (no
+  content had ever been ingested), and Amharic/Oromo were hidden because their
+  packs are `draft`. Every question returned `notfound` in every language.
+- **Trilingual course content:** `content/savanna/{en,am,om}/` holds six
+  lessons per language written from the frozen Savanna captures (dashboard,
+  scores and graduation, WR 100, VA-1, study plan, getting help). Headings are
+  phrased as learner questions because headings are indexed with the passage.
+  Every sentence is at most 12 words so Simple mode and SMS never reject an
+  extract. The Amharic and Oromo text is unreviewed draft content; the lesson
+  pages say so.
+- **Ingestion:** `content:ingest` now accepts language subfolders. Lesson ids
+  are `<lesson>.<lang>` and each passage cites
+  `DIMTS_CONTENT_BASE_URL/<lang>/<lesson>#<section>`. `--if-changed` skips the
+  ingest when the active source hash matches, so the local API container
+  re-ingests on start only after content changes.
+- **Lesson pages:** `scripts/build-lessons.mjs` renders the same Markdown to
+  `/learn/<lang>/<lesson>`. Heading ids come from `markdownOutline()`, the
+  function ingestion uses for anchors, so every citation lands on its section
+  (verified for all 144 passages). The cited section is highlighted.
+- **Draft language preview:** `DIMTS_PREVIEW_LANGS=am,om` publishes listed
+  draft packs as `beta` in memory. Pack files and review metadata are
+  unchanged, so glossary cross-language retrieval, published FAQs and voice
+  flags stay review-gated. Rejected alternative: marking the packs `beta` in
+  YAML, which the validator correctly refuses without a named reviewer.
+- **Oromo language check bug:** `isAnswerInLanguage` split words at the hudhaa
+  apostrophe (`danda'a` → `danda` + `a`), and `a` is an English stopword, so
+  correct Oromo answers were rejected. Apostrophes inside Oromo words are now
+  joined first, and the Oromo function-word list was extended with common
+  non-English words.
+- **Escalation keywords (FR-CONV-05):** bare keywords such as "help", "human"
+  or ሰው matched anywhere, so "Will AI replace human virtual assistants?" was
+  escalated instead of answered. A single-word escalation keyword now fires
+  only in messages of three words or fewer ("help", "I need help"); multi-word
+  phrases match anywhere, and explicit phrases ("need a person", "talk to a
+  human", ሰው ያስፈልገኛል, nama barbaada) were added as data. Distress keywords
+  are never narrowed.
+- **Remote AI:** Gemini (`gemini-3.1-flash-lite`, ~1.5 s; `gemini-4-hydrogen`
+  fallback) and OpenRouter are configured for en/am/om in extractive mode with
+  `evaluatedLanguages: []`. They run only after the learner allows remote AI.
+  `DIMTS_AI_RECALL_FLOOR=0.15` lets inflected Amharic questions reach the
+  consented provider; it still returns not-found when passages do not answer.
+- **Savanna integration:** the web image serves the unmodified captures at
+  `/savanna/` and nginx `sub_filter` injects one `<script async
+src="/dimts-host.js">`, the same single-tag embed a real host would add.
+  `dimts-host.js` is an nginx envsubst template carrying the public widget key.
+- **Widget UI:** branded header, starter questions (`suggest.*` keys), typing
+  indicator, avatar bubbles, citation chips, pill launcher and a close icon
+  whose accessible name comes from `embed.close`. The initial language follows
+  the browser, then English, instead of the first pack alphabetically (which
+  showed Amharic to everyone). Inside the embed the help button flows below the
+  composer instead of covering it, and the panel is sized in `em` so a host's
+  small root font size cannot shrink it.
+- **Gemini 4 adapter:** the adapter sent `thinking_level: minimal` to every
+  Gemini 3+ model; Gemini 4 rejects it with HTTP 400, so a Gemini 4 binding could
+  never answer. Gemini 4 now uses `low`. The local ladder is flash-lite 3.1,
+  flash-lite 3.5, OpenRouter, Gemini 4, offline; Interactions API latency varied
+  from 1 s to 50 s during testing, which the per-provider timeouts absorb.
+- **Fixed defects:** `@dimts/telegram` did not type-check (grammY's fetch shim
+  types), which blocked every Docker build; `lti.launch.unconfigured` was
+  missing from every pack.
+- **Known limitation:** Playwright's bundled headless Chromium crashes when the
+  widget probes speech APIs with voice enabled. Installed Chrome and Edge do
+  not; the e2e suite mocks voice and is unaffected.
+
+## Production hardening: AI, voice, Telegram, jobs and widget (15 November 2026)
+
+Every finding below was reproduced against the live services or the running
+Docker stack before it was changed.
+
+- **Gemini key placeholder:** `.env` held `REPLACE_WITH_…` as
+  `GEMINI_API_KEY`; Gemini answers that with HTTP 400 on every request, and the
+  ladder swallowed it silently. Credentials that are obvious templates
+  (`replace with`, `your api key`, `…`, `<…>`) now disable that provider (and
+  cloud voice) at start with one `ai_provider_disabled` /
+  `cloud_voice_disabled` warning. Length is not a signal: local model servers
+  use short tokens such as `ollama`.
+- **Failure visibility:** every failed provider attempt is logged as
+  `ai_provider_failed` with provider, reason code, HTTP status and the vendor's
+  own error text, never question, passages or answer. This is how the
+  OpenRouter `free-models-per-day` limit (50 requests a day without credits) was
+  found.
+- **Cooldowns (blueprint 3.2 over SRS FR-AI-03):** a provider that is down or
+  rate limited cools down for 60 s; a rejected key or unknown model for 15
+  minutes. A malformed answer is retried once and falls through for that
+  question only: cooling a provider down for one paraphrased sentence sent every
+  learner to the offline answerer for a minute.
+- **OpenRouter adapter:** `adapter: "openrouter"` sends OpenRouter's `models`
+  routing list (primary plus at most two `fallbackModels`), `reasoning:
+{enabled:false}`, attribution headers, and checks health on `/key` (a few
+  hundred bytes, validates the key) instead of the 850 KB model list. Models
+  chosen by live tests on 2026-11-15: `particle-ai/particle-1:free` (declined an
+  off-topic Amharic question; answered in 1–2 s), then
+  `inclusionai/ling-3.2-flash:free` and `nvidia/nemotron-3.5-super-vl:free`.
+  Rejected: Gemma 4 `:free` (HTTP 429 upstream most of the time), ERNIE (HTTP
+  400: reasoning cannot be disabled), dots (garbled Amharic). With reasoning on,
+  nemotron spent all 512 tokens thinking and returned empty content.
+- **Answer parsing:** fenced or wrapped JSON is accepted (only the outermost
+  object), `null` content and `finish_reason: length` are reported as
+  `truncated`, and an explicit relevance rule asks the model to decline when
+  passages only share words such as "what is".
+- **Cloud voice:** `gemini-2.0-flash-lite` (the STT default) is shut down and
+  `gemini-2.5-flash` is deprecated; the code also sent Gemini 3's
+  `thinkingLevel` to 2.5 models. Both directions now use the Interactions API
+  (`Api-Revision: 2026-05-20`): transcription on `gemini-4-hydrogen` with an
+  `audio` input item, read-aloud on `gemini-3.8-flash-lite-tts`
+  (`response_format: {type:"audio"}`, WAV output). Gemini TTS lists Amharic but
+  not Afaan Oromoo, so `DIMTS_CLOUD_VOICE_SPEAK_LANGS` (default `en,am`) is
+  separate from the transcription languages and the widget offers read-aloud
+  only where the server can speak.
+- **Telegram:** the log showed `telegram_setup_failed` every 5 s with no
+  reason. Telegram answered `409 Conflict`: a second process polls the same
+  bot token. Errors now carry the Bot API code with an actionable message, and
+  polling backs off (5 s doubling to 60 s on 409; 5 min on 401) instead of
+  fighting the other poller every second. With `DIMTS_PUBLIC_API_URL` set in
+  webhook mode, the API registers `<url>/v1/telegram/webhook` with its secret on
+  every start (`telegram_webhook_registered`).
+- **Jobs in chat:** extractive answers copied 30-word job descriptions and
+  failed the 15-word rule, and fact lines ("Accountant. Green Hope trading PLC.
+  Addis Ababa.") failed the language check for lacking function words.
+  Extractive mode now prefers a posting's title, employer and location lines;
+  answers cited only from job postings may consist of such names (still no
+  foreign function words or script); the verbatim check treats lines as
+  sentences and ignores a dropped closing period. Generative mode stays gated by
+  `evaluatedLanguages` (no English generative evaluation is recorded).
+- **Retrieval:** question words ("what", "is", ምንድን, ነው, maal, …) are removed
+  from the query before scoring. "ፓይዘን ምንድን ነው?" matched "ምናባዊ ረዳት ምንድን
+  ነው?" on "what is" alone and the offline answerer replied with an unrelated
+  passage. `pnpm eval`: English answer recall 33.3% → 100% (12/12), reply-kind
+  accuracy 69.2% → 100%, not-found correctness unchanged at 100%, all measured
+  gates pass. The eval's language metric now applies the same job-facts rule as
+  the engine.
+- **Jobs in the widget:** an uncommitted change showed Jobs and support only
+  with `data-jobs-enabled`, which neither the embed loader nor any host set, so
+  embedded pages had no jobs and `p06-career` failed. Jobs is on by default; a
+  host opts out with `data-jobs="off"` on the embed script.
+- **Job alerts:** `DIMTS_JOBS_ALERT_INTERVAL_MS=0` relied on an external cron
+  that no deployment had; hosted and local configs now run alerts hourly in
+  process. The relay variables stay empty: Telegram and SMS deliver natively.
+- **Widget visual refresh:** gradient header with a scrolling tool row (chips no
+  longer cut off), tinted conversation with white answer cards, icon reply
+  actions, a single composer with mic and send pills, a 46rem-tall panel cap on
+  larger screens and 16 px base type. The remote-AI consent checkbox (24 px,
+  failing the project's own 48 px target test in every language and theme) is a
+  48 px switch with a native fallback in forced-colors mode. All 48 px, 8 px
+  spacing, lang/dir and overflow checks pass.
+- **Known limitations:** retrieval is lexical; a long job description that
+  mentions "hiring" can outrank the posting whose title matches. HahuJobs (a
+  client-rendered page over a private GraphQL API) and Afriwork (no job pages in
+  its sitemap) have no public feed and stay `needs_setup`. The SMS Ethiopia
+  wire format could not be re-verified (its docs render client-side).
+
+## Live end-to-end verification with real credentials (15 November 2026, evening)
+
+Run against the Docker stack with the real Gemini key, OpenRouter key and a new
+Telegram bot: 44/44 API checks and 18/18 browser checks (phone and desktop).
+
+- **Gemini free-tier quota:** Google answered `gemini-4-hydrogen` with 429
+  "limit: 20 requests per day on Free Tier. Please retry in 7h49m58s", shared by
+  answers and transcription. `gemini-4-hydrogen` stays first, as requested, with
+  more free Gemini models behind it (separate quotas): answers fall to
+  `gemini-3.5-flash-lite` then `gemini-3.1-flash-lite`; transcription to
+  `gemini-3.6-flash` (near-exact Amharic in about 1.9 s) then
+  `gemini-3.5-flash-lite`; read-aloud to `gemini-3.8-flash-tts`.
+  `gemini-2.5-flash-lite` returns 404 for new users; `gemini-3.8-flash` hung.
+- **Quota-aware cooldown:** a 429 that states its reset ("retry in 7h49m58s",
+  google.rpc.RetryInfo, `Retry-After`, OpenRouter `X-RateLimit-Reset`) parks
+  the provider or voice model until then (at most 24 h) instead of retrying
+  every minute. The SDK's `RateLimitError` nests the vendor error one level
+  deeper than `APIError`; both shapes and the raw body are read.
+- **Oromo answers:** "Furtuu Amma na gargaaraa jedhu filadhaa." (select Help
+  me now) failed the Oromo language check for lacking listed function words,
+  so a correct quoted answer became not-found. Added common Oromo function words
+  that are not English words (amma, na, nu, jedhu, itti, irra, booda, dura,
+  kanaaf, immoo, akkasumas, hunda, tokko); eval gates unchanged.
+- **Widget:** the remote-AI consent now precedes the starter questions (it sat
+  below them, under the sticky composer, so learners never saw it); the panel
+  is capped at 416 × 736 px instead of `rem` sizes that followed the host
+  page's root font; the help pill passes under the sticky header when the panel
+  scrolls; the Ge'ez-script toggle uses the 48 px switch; job-form microphone
+  buttons are compact pills; a consent status line no longer stays in the
+  previous language after a language change.
+- **Interview-support requests need the host relay:** correction of the
+  earlier note that the relay variables are unnecessary. Job alerts are
+  delivered natively; interview-support requests go only to the host relay.
+  Without one the widget no longer shows a disabled button and a "no delivery
+  channel" warning (alerts do work); it simply does not offer the request.
+- **Helper hours:** `DIMTS_HELPER_HOURS=[{"day":1,"start":"09:00","end":"17:00"}]`
+  (the template example) makes helpers available only Mondays 09:00–17:00 UTC;
+  claims were correctly refused on Sunday. The value is the operator's to set.

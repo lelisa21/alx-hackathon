@@ -39,6 +39,10 @@ export interface TelegramTransport {
   answerCallback(callbackId: string): Promise<void>;
   cancelContact?(chatId: string): void;
   getUpdates(offset?: number, signal?: AbortSignal): Promise<unknown[]>;
+  /** Removes any registered webhook; Telegram refuses getUpdates while one is set. */
+  deleteWebhook?(): Promise<void>;
+  /** Registers the public HTTPS webhook with its secret token. */
+  setWebhook?(input: { url: string; secret: string }): Promise<void>;
   downloadVoice(
     voice: TelegramVoiceFile,
   ): Promise<{ audio: Uint8Array; mimeType: string }>;
@@ -46,10 +50,20 @@ export interface TelegramTransport {
 }
 
 export class TelegramTransportError extends Error {
-  constructor() {
+  /** Telegram Bot API error_code (401 bad token, 409 conflict, ...). */
+  readonly code: number | undefined;
+  constructor(code?: number) {
     super("telegram_transport_unavailable");
     this.name = "TelegramTransportError";
+    this.code = code;
   }
+}
+
+/** Keeps only the Bot API error code; descriptions may name the chat. */
+function transportError(error: unknown): TelegramTransportError {
+  return new TelegramTransportError(
+    error instanceof GrammyError ? error.error_code : undefined,
+  );
 }
 const MAX_AUDIO = 8 * 1024 * 1024;
 const RECEIPT_TTL = 24 * 60 * 60 * 1000;
@@ -84,6 +98,9 @@ export function createTelegramTransport(options: {
   now?: () => number;
   sleep?: (ms: number, signal: AbortSignal) => Promise<void>;
 }): TelegramTransport {
+  type GrammyFetch = NonNullable<
+    NonNullable<ConstructorParameters<typeof Api>[1]>["fetch"]
+  >;
   if (
     !/^[0-9]+:[A-Za-z0-9_-]{20,}$/u.test(options.token) ||
     options.hashKey.length < 32
@@ -96,7 +113,9 @@ export function createTelegramTransport(options: {
   // grammY creates a polyfill signal internally. Node's native fetch rejects
   // that object; relay its abort event to a native controller. Keep the listener
   // through JSON consumption so a stalled response body is bounded too.
-  const sdkFetch: typeof fetch = async (url, request) => {
+  // grammY types fetch with its own RequestInit/Response shims, which are
+  // structurally compatible with Node's but not assignable; convert here.
+  const sdkFetch = async (url: URL | RequestInfo, request?: RequestInit) => {
     const controller = new AbortController();
     const upstream = request?.signal;
     const abort = () => controller.abort();
@@ -123,7 +142,7 @@ export function createTelegramTransport(options: {
     }
   };
   const api = new Api(options.token, {
-    fetch: sdkFetch,
+    fetch: sdkFetch as unknown as GrammyFetch,
     timeoutSeconds: 35,
     sensitiveLogs: false,
     baseFetchConfig: { redirect: "error" },
@@ -392,8 +411,8 @@ export function createTelegramTransport(options: {
           },
           sdkSignal(signals(8000)),
         );
-      } catch {
-        throw new TelegramTransportError();
+      } catch (error) {
+        throw transportError(error);
       }
     },
     async answerCallback(callbackId) {
@@ -404,6 +423,37 @@ export function createTelegramTransport(options: {
         );
       } catch {
         throw new TelegramTransportError();
+      }
+    },
+    async deleteWebhook() {
+      try {
+        await api.raw.deleteWebhook(
+          { drop_pending_updates: false },
+          sdkSignal(signals(8000)),
+        );
+      } catch (error) {
+        throw transportError(error);
+      }
+    },
+    async setWebhook({ url, secret }) {
+      const target = new URL(url);
+      if (
+        target.protocol !== "https:" ||
+        !/^[A-Za-z0-9_-]{1,256}$/u.test(secret)
+      )
+        throw new TelegramTransportError();
+      try {
+        await api.raw.setWebhook(
+          {
+            url: target.toString(),
+            secret_token: secret,
+            allowed_updates: ["message", "callback_query"],
+            drop_pending_updates: false,
+          },
+          sdkSignal(signals(8000)),
+        );
+      } catch (error) {
+        throw transportError(error);
       }
     },
     async getUpdates(offset, signal) {
@@ -417,8 +467,8 @@ export function createTelegramTransport(options: {
           },
           sdkSignal(signals(30_000, signal)),
         );
-      } catch {
-        throw new TelegramTransportError();
+      } catch (error) {
+        throw transportError(error);
       }
     },
     async downloadVoice(voice) {
@@ -534,15 +584,44 @@ export function createTelegramTransport(options: {
 }
 
 export function startTelegramPolling(options: {
-  transport: Pick<TelegramTransport, "getUpdates">;
+  transport: Pick<TelegramTransport, "getUpdates" | "deleteWebhook">;
   environment: "development" | "test" | "production";
   handleUpdate(update: unknown): Promise<unknown>;
+  /**
+   * Called on each failed poll with the Bot API error code (409: another
+   * process polls this token; 401: the token is wrong) and the number of
+   * consecutive failures. Carries no update content.
+   */
+  onError?(event: { code?: number; failures: number; retryMs: number }): void;
+  /** Backoff override for tests. */
+  retryDelay?(code: number | undefined, failures: number): number;
 }): { stop(): Promise<void>; done: Promise<void> } {
   if (options.environment === "production")
     throw new Error("telegram_polling_forbidden");
   const controller = new AbortController();
+  // Two pollers on one token keep cutting each other off with 409; retrying
+  // every second only keeps the fight going. Back off instead.
+  const retryDelay =
+    options.retryDelay ??
+    ((code: number | undefined, failures: number) =>
+      code === 401 || code === 404
+        ? 300_000
+        : code === 409
+          ? Math.min(60_000, 5_000 * 2 ** (failures - 1))
+          : Math.min(30_000, 1_000 * 2 ** (failures - 1)));
   const done = (async () => {
     let offset: number | undefined;
+    let failures = 0;
+    // A webhook left over from a hosted deploy makes getUpdates fail (409).
+    await options.transport.deleteWebhook?.().catch((error: unknown) =>
+      options.onError?.({
+        ...(error instanceof TelegramTransportError && error.code
+          ? { code: error.code }
+          : {}),
+        failures: 0,
+        retryMs: 0,
+      }),
+    );
     while (!controller.signal.aborted) {
       try {
         const updates = await options.transport.getUpdates(
@@ -562,9 +641,20 @@ export function startTelegramPolling(options: {
           await options.handleUpdate(update);
           offset = Number(update.update_id) + 1;
         }
-      } catch {
-        if (!controller.signal.aborted)
-          await delay(1000, controller.signal).catch(() => {});
+        failures = 0;
+      } catch (error) {
+        if (!controller.signal.aborted) {
+          failures += 1;
+          const code =
+            error instanceof TelegramTransportError ? error.code : undefined;
+          const retryMs = retryDelay(code, failures);
+          options.onError?.({
+            ...(code ? { code } : {}),
+            failures,
+            retryMs,
+          });
+          await delay(retryMs, controller.signal).catch(() => {});
+        }
       }
     }
   })();

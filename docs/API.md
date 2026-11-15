@@ -26,9 +26,12 @@ or credentials to application logs.
    `DIMTS_JWT_SECRET`, and `DIMTS_CRON_SECRET`; the first two must decode to
    32 bytes. Keep `.env` private and untracked.
 
-3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` matches the
-   widget origin. The widget key is a public identifier for local development;
-   do not reuse it in production.
+3. Set `DIMTS_LOCAL_WIDGET_KEY` and make sure `DIMTS_HOST_ORIGINS` includes the
+   exact origin of each page that embeds the widget (scheme, host and port).
+   For the stock local widget shell, that origin is
+   `http://localhost:5173`; a separately served host page needs its own entry.
+   The widget key is a public identifier for local development; do not reuse it
+   in production.
 4. Start the local stack with `docker compose --profile local up --build -d --wait`.
    Compose starts PostgreSQL, runs migrations and local-host bootstrap before
    the API becomes healthy, and serves the widget shell at
@@ -46,6 +49,15 @@ database access. The API and widget share a separate edge bridge for the
 loopback-published host ports and API integrations. All published ports bind
 only to loopback. The configured AI provider defaults to offline; no provider
 credentials are required for the local stack.
+
+The Compose `local` profile defaults to `NODE_ENV=development`; set
+`DIMTS_TELEGRAM_MODE=polling` in `.env` to test the configured bot locally.
+Polling requires a valid bot token and no active webhook. Do not combine it
+with production mode. To exercise scheduled job alerts, start the `scheduler`
+profile as well, and seed only the tracked sample records with
+`docker compose --profile local --profile seed run --rm seed`. The isolated
+`pnpm test:compose` harness pins production/webhook mode and disables external
+integrations so it never polls or sends through credentials from `.env`.
 
 `GET /v1/health`, `GET /v1/languages`, `GET /v1/locales/{code}/ui`,
 `GET /v1/openapi.yaml`, and `GET /v1/docs` are public. Draft packs are hidden

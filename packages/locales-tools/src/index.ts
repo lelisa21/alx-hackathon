@@ -190,10 +190,18 @@ export function getVisiblePacks(
 export function suggestLanguage(
   text: string,
 ):
-  | { kind: "suggest"; lang: "am" }
+  | { kind: "suggest"; lang: "ti" }
+  | { kind: "choose"; languages: ["am", "ti"] }
   | { kind: "choose"; languages: ["om", "en"] }
   | null {
-  if (/[\u1200-\u137f]/u.test(text)) return { kind: "suggest", lang: "am" };
+  if (/[\u1200-\u137f]/u.test(text)) {
+    // Ge'ez script is Amharic or Tigrinya. Tigrinya-only letters (\u1250, \u12b8 rows)
+    // or word-initial \u12a3 point to Tigrinya; otherwise the learner chooses.
+    return /[\u1250-\u1256\u12b8-\u12be]/u.test(text) ||
+      /(?:^|\s)\u12a3/u.test(text)
+      ? { kind: "suggest", lang: "ti" }
+      : { kind: "choose", languages: ["am", "ti"] };
+  }
   if (/[A-Za-z]/u.test(text))
     return { kind: "choose", languages: ["om", "en"] };
   return null;

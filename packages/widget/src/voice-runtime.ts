@@ -1,5 +1,8 @@
 import {
+  combineSpeechToText,
+  combineTextToSpeech,
   createBrowserVoiceAdapters,
+  createCloudVoiceAdapters,
   MAX_RECORDING_MS,
   VoiceError,
 } from "@dimts/voice";
@@ -43,6 +46,9 @@ export interface VoiceContext {
 
 export const voiceRuntime = {
   createBrowserAdapters: createBrowserVoiceAdapters,
+  createCloudAdapters: createCloudVoiceAdapters,
+  combineSpeechToText,
+  combineTextToSpeech,
   async speak(
     this: VoiceContext,
     text: string,

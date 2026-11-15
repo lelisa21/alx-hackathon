@@ -1,7 +1,8 @@
 # P09 Investigation: Anonymous Feedback and Teacher Insights
 
-**Status:** Investigation Complete  
-**Date:** 13 November 2026  
+**Status:** Historical investigation; implementation and requirement corrections
+recorded in the 15 November follow-up and current remaining work plan.
+**Date:** 13 November 2026; follow-up 15 November 2026
 **Authority:** Dimts-System-Blueprint-v2.0.md, REMAINING_WORK_PLAN.md P09 section
 
 ---
@@ -10,7 +11,7 @@
 
 ### From P09 prompt (REMAINING_WORK_PLAN.md):
 
-> Deliver privacy-preserving feedback collection and the complete instructor insights feature (domain aggregation, API, access control, accessible page, and CSV). Requirements: **FR-CONV-12, FR-INSIGHT-01–04, FR-UI-20, and NFR-PRIV-03**.
+> Deliver privacy-preserving feedback collection and the complete instructor insights feature (domain aggregation, API, access control, accessible page, and CSV). Requirements: **FR-CONV-12, FR-INSIGHT-01–04, and NFR-PRIV-03**. FR-UI-20 refers to per-reply controls; it is not the teacher-page requirement.
 
 ### Key Requirements by ID
 
@@ -23,12 +24,16 @@
 
 **FR-INSIGHT-01 through FR-INSIGHT-04 (Teacher insights - SRS):**
 
-- FR-INSIGHT-01: Aggregation of anonymized feedback data
-- FR-INSIGHT-02: Access control (teacher/instructor access only)
-- FR-INSIGHT-03: CSV export with privacy guarantees
-- FR-INSIGHT-04: Teacher-facing insights page with semantic tables
+- FR-INSIGHT-01: Most-asked topics, counts per language and period, and
+  not-found counts.
+- FR-INSIGHT-02: No question text, session IDs, or contact data; topics with
+  fewer than five questions in the period are combined as Other.
+- FR-INSIGHT-03: Accessible teacher page with semantic table, summary, and CSV.
+- FR-INSIGHT-04: Access requires a host token or LTI Instructor role.
 
-**FR-UI-20 (Teacher page - SRS):**
+**FR-UI-20 is the per-reply controls requirement, not the teacher page.** The
+teacher page uses FR-INSIGHT-03 and the screen-level accessibility requirement
+NFR-A11Y-01. Its specified states and controls are:
 
 - Text summary before any chart
 - Semantic table headers
@@ -262,7 +267,7 @@ const InsightsQuerySchema = z.object({
   startDate: z.string().date().optional(),
   endDate: z.string().date().optional(),
   lang: z.string().min(2).max(8).optional(),
-  minCellSize: z.number().int().min(1).max(100).default(5),
+  minCellSize: z.number().int().min(5).max(100).default(5),
   format: z.enum(["json", "csv"]).default("json"),
 });
 ```

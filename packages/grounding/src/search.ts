@@ -6,6 +6,132 @@ export interface GlossaryEntry {
   en: string;
   am?: string;
   om?: string;
+  ti?: string;
+}
+
+// Question and function words carry no topic. Counted as matches, they let
+// "ፓይዘን ምንድን ነው?" ("what is Python?") match the heading
+// "ምናባዊ ረዳት ምንድን ነው?" ("what is a virtual assistant?") on "ምንድን ነው"
+// alone, above the confidence floor. They are removed from the query only.
+const QUESTION_WORDS: Record<string, readonly string[]> = {
+  en: [
+    "what",
+    "whats",
+    "is",
+    "are",
+    "was",
+    "were",
+    "how",
+    "do",
+    "does",
+    "did",
+    "can",
+    "could",
+    "should",
+    "would",
+    "which",
+    "who",
+    "whom",
+    "whose",
+    "when",
+    "where",
+    "why",
+    "the",
+    "an",
+    "of",
+    "to",
+    "in",
+    "on",
+    "for",
+    "my",
+    "me",
+    "it",
+    "its",
+    "there",
+    "any",
+    "this",
+    "that",
+    "about",
+    "please",
+    "tell",
+  ],
+  am: [
+    "ምንድን",
+    "ምንድነው",
+    "ምንድ",
+    "ነው",
+    "ናቸው",
+    "ምን",
+    "እንዴት",
+    "ማን",
+    "የት",
+    "መቼ",
+    "ለምን",
+    "ስንት",
+    "እባክዎ",
+    "እባክህ",
+    "እባክሽ",
+  ],
+  ti: [
+    "እንታይ",
+    "እንታ",
+    "እዩ",
+    "እዮም",
+    "ብኸመይ",
+    "ከመይ",
+    "መን",
+    "ኣበይ",
+    "መዓስ",
+    "ስለምንታይ",
+    "ክንደይ",
+    "ድዩ",
+    "ዶ",
+    "እዚ",
+    "እቲ",
+    "ኣብ",
+    "ናይ",
+    "በጃኹም",
+  ],
+  om: [
+    "maal",
+    "maali",
+    "maalii",
+    "maaliif",
+    "akkamitti",
+    "akkam",
+    "eenyu",
+    "eessa",
+    "eessatti",
+    "yoom",
+    "meeqa",
+    "dha",
+    "moo",
+    "kun",
+    "kana",
+    "sana",
+  ],
+};
+const questionWordCache = new Map<string, Set<string>>();
+function questionWords(lang: string): Set<string> {
+  const base = lang.toLowerCase().split("-")[0] ?? lang;
+  let words = questionWordCache.get(base);
+  if (!words) {
+    words = new Set(
+      (QUESTION_WORDS[base] ?? []).flatMap((word) =>
+        queryTokens(normalise(word, base)),
+      ),
+    );
+    questionWordCache.set(base, words);
+  }
+  return words;
+}
+
+/** Query tokens without question words; empty when only those remain. */
+export function topicTokens(question: string, lang: string): string[] {
+  const skip = questionWords(lang);
+  return queryTokens(normalise(question, lang)).filter(
+    (token) => !skip.has(token),
+  );
 }
 
 export interface SearchCandidate {
@@ -86,7 +212,7 @@ export function rankPassages(
   glossary: GlossaryEntry[],
   limit = 5,
 ): ScoredPassage[] {
-  const questionTokens = queryTokens(normalise(question, lang));
+  const questionTokens = topicTokens(question, lang);
   if (questionTokens.length === 0) return [];
 
   const allowedLanguages = new Set(

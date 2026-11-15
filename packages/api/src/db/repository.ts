@@ -142,9 +142,10 @@ export function createPostgresRepository(
           session.channel,
           session.lang,
           tokenHash,
-          session.resumeHash,
-          session.cloudOk,
-          session.consentVersion,
+          session.resumeHash ?? null,
+          // NOT NULL in the schema; channels that omit it have no consent.
+          session.cloudOk ?? false,
+          session.consentVersion ?? null,
           session.expiresAt,
           session.ltiContext ? JSON.stringify(session.ltiContext) : null,
         ],
@@ -254,24 +255,49 @@ export function createPostgresRepository(
       return (result.rowCount ?? 0) > 0;
     },
     async saveReply(saved: SavedReply) {
-      await pool.query(
-        `INSERT INTO message
-           (id, session_id, reply_to, role, text, lang, kind, citations, reply)
-         VALUES ($1, $2, $3, 'dimts', $4, $5, $6, $7::jsonb, $8::jsonb)
-         ON CONFLICT (session_id, reply_to)
-         WHERE reply_to IS NOT NULL
-         DO NOTHING`,
-        [
-          saved.reply.id,
-          saved.sessionId,
-          saved.clientMsgId,
-          saved.reply.text,
-          saved.reply.lang,
-          saved.reply.kind,
-          JSON.stringify(saved.reply.citations),
-          JSON.stringify(saved.reply),
-        ],
-      );
+      const client = await pool.connect();
+      try {
+        await client.query("BEGIN");
+        const inserted = await client.query(
+          `INSERT INTO message
+             (id, session_id, reply_to, role, text, lang, kind, citations, reply)
+           VALUES ($1, $2, $3, 'dimts', $4, $5, $6, $7::jsonb, $8::jsonb)
+           ON CONFLICT (session_id, reply_to)
+           WHERE reply_to IS NOT NULL
+           DO NOTHING
+           RETURNING id`,
+          [
+            saved.reply.id,
+            saved.sessionId,
+            saved.clientMsgId,
+            saved.reply.text,
+            saved.reply.lang,
+            saved.reply.kind,
+            JSON.stringify(saved.reply.citations),
+            JSON.stringify(saved.reply),
+          ],
+        );
+        // Wire insight_aggregate counters only when the row is new (not a replay).
+        if ((inserted.rowCount ?? 0) > 0) {
+          const topicId =
+            saved.reply.citations[0]?.passageId ?? "uncategorized";
+          const isNotFound = saved.reply.kind === "notfound";
+          await client.query(
+            `INSERT INTO insight_aggregate (topic_id, lang, period, question_count, notfound_count)
+             VALUES ($1, $2, (now() AT TIME ZONE 'UTC')::date, 1, $3)
+             ON CONFLICT (topic_id, lang, period) DO UPDATE
+             SET question_count = insight_aggregate.question_count + 1,
+                 notfound_count = insight_aggregate.notfound_count + EXCLUDED.notfound_count`,
+            [topicId, saved.reply.lang, isNotFound ? 1 : 0],
+          );
+        }
+        await client.query("COMMIT");
+      } catch (error) {
+        await client.query("ROLLBACK");
+        throw error;
+      } finally {
+        client.release();
+      }
     },
     async releaseQuestion(sessionId, clientMsgId) {
       await pool.query(

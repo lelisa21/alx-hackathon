@@ -6,6 +6,8 @@ import type { JobsDelivery } from "@dimts/jobs";
 import type { LangPack } from "@dimts/locales-tools";
 import {
   TelegramService,
+  TelegramTransportError,
+  createTelegramVoice,
   createTelegramTransport,
   startTelegramPolling,
 } from "@dimts/telegram";
@@ -48,6 +50,20 @@ export type TelegramApiService = Pick<
 export function telegramConfigured(config: ApiConfig) {
   return Boolean(config.DIMTS_TELEGRAM_TOKEN);
 }
+
+/** Content-free Telegram setup/polling failure for operators. */
+export interface TelegramRuntimeError {
+  stage: "commands" | "webhook" | "polling";
+  /** Bot API error_code: 401 bad token, 409 another poller or webhook. */
+  code?: number;
+  failures?: number;
+  retryMs?: number;
+}
+
+const errorCode = (error: unknown) =>
+  error instanceof TelegramTransportError && error.code
+    ? { code: error.code }
+    : {};
 
 /** Native Telegram is the sole digest path: legacy host delivery cannot bypass
  * consent checks, permanent Stop, deduplication or the per-chat send queue. */
@@ -158,10 +174,14 @@ export function createTelegramRuntime(options: {
   jobs?: JobsApiService;
   transport?: TelegramTransport;
   voice?: TelegramVoice;
+  /** Cloud transcription for voice notes when no voice port is supplied. */
+  cloudVoice?: Parameters<typeof createTelegramVoice>[0]["adapters"];
   helpStore?: HelpStore;
   helpSocketStore?: HelpSocketStore;
   socket(): HelpSocketRuntime | undefined;
-  onError?(): void;
+  onError?(event: TelegramRuntimeError): void;
+  /** Called once the webhook is registered with Telegram. */
+  onWebhookRegistered?(url: string): void;
 }) {
   const { config, pool, repository, packs } = options;
   if (!telegramConfigured(config)) return undefined;
@@ -267,7 +287,18 @@ export function createTelegramRuntime(options: {
           },
         }
       : {}),
-    ...(options.voice ? { voice: options.voice } : {}),
+    ...(options.voice
+      ? { voice: options.voice }
+      : options.cloudVoice
+        ? {
+            voice: createTelegramVoice({
+              transport,
+              adapters: options.cloudVoice,
+            }),
+            // Audio goes to a remote speech service: ask each chat once.
+            voiceConsentRequired: true,
+          }
+        : {}),
   });
   const ready = (async () => {
     for (const registration of telegramCommandRegistrations(packs)) {
@@ -276,19 +307,44 @@ export function createTelegramRuntime(options: {
         registration.languageCode,
       );
     }
-  })().catch(() => options.onError?.());
+  })().catch((error: unknown) =>
+    options.onError?.({ stage: "commands", ...errorCode(error) }),
+  );
+  // Webhook mode needs Telegram to know the public URL. With
+  // DIMTS_PUBLIC_API_URL set, register it on every start so a redeploy or a
+  // changed secret never leaves the bot silent.
+  const webhookUrl =
+    config.DIMTS_TELEGRAM_MODE === "webhook" &&
+    config.DIMTS_PUBLIC_API_URL &&
+    config.DIMTS_TELEGRAM_SECRET &&
+    config.DIMTS_PUBLIC_API_URL.startsWith("https://")
+      ? `${config.DIMTS_PUBLIC_API_URL}/v1/telegram/webhook`
+      : undefined;
+  const webhook =
+    webhookUrl && transport.setWebhook
+      ? transport
+          .setWebhook({
+            url: webhookUrl,
+            secret: config.DIMTS_TELEGRAM_SECRET!,
+          })
+          .then(() => options.onWebhookRegistered?.(webhookUrl))
+          .catch((error: unknown) =>
+            options.onError?.({ stage: "webhook", ...errorCode(error) }),
+          )
+      : Promise.resolve();
   const polling =
     config.DIMTS_TELEGRAM_MODE === "polling"
       ? startTelegramPolling({
           transport,
           environment: config.NODE_ENV,
           handleUpdate: (update) => service.handleUpdate(update),
+          onError: (event) => options.onError?.({ stage: "polling", ...event }),
         })
       : undefined;
-  void polling?.done.catch(() => options.onError?.());
+  void polling?.done.catch(() => options.onError?.({ stage: "polling" }));
   return {
     service,
-    ready,
+    ready: Promise.all([ready, webhook]).then(() => undefined),
     helpSocketStore: bridge?.store,
     forgetHelp: (requestId: string) => bridge?.forget(requestId),
     async close() {

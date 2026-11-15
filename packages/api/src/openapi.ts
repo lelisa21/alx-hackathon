@@ -55,6 +55,8 @@ import {
   HelpImageResponseSchema,
   HelpImageListSchema,
   HelperCloseRequestSchema,
+  InsightsQuerySchema,
+  InsightsResponseSchema,
   LanguageListSchema,
   LocaleUiSchema,
   LocaleFaqSchema,
@@ -794,6 +796,28 @@ registry.registerPath({
   },
 });
 registry.registerPath({
+  method: "get",
+  path: "/v1/insights",
+  summary: "Read anonymous teacher insights",
+  description:
+    "Returns topic and language aggregates only. Access requires a secret host key or an LTI instructor session. Topics with fewer than five questions are combined as Other; minCellSize may only raise that floor.",
+  security: [{ hostKey: [] }, { sessionBearer: [] }],
+  request: { query: InsightsQuerySchema },
+  responses: {
+    "200": {
+      description: "Anonymous aggregate insights as JSON or CSV",
+      content: {
+        "application/json": { schema: InsightsResponseSchema },
+        "text/csv": { schema: z.string() },
+      },
+    },
+    "400": problemResponse,
+    "401": problemResponse,
+    "500": problemResponse,
+    "501": problemResponse,
+  },
+});
+registry.registerPath({
   method: "post",
   path: "/v1/internal/alerts",
   summary:
@@ -940,5 +964,5 @@ export function generateOpenApiDocument(): object {
 }
 
 export function generateOpenApiYaml(): string {
-  return stringify(generateOpenApiDocument());
+  return stringify(generateOpenApiDocument()).replace(/\r?\n/g, "\r\n");
 }

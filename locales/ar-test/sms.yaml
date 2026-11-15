@@ -1,7 +1,7 @@
 # Draft templates and shared keywords from SRS 20.5. Channel delivery and segment encoding belong to P07.
 help: Reply HELP for support.
 stop: Reply STOP to stop messages.
-menu: 1 English 2 አማርኛ 3 Afaan Oromoo
+menu: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ
 more: Reply 1 for more.
 human: Reply 2 for a person.
 stopped: You will get no more messages.
@@ -33,7 +33,7 @@ unavailable: "This service is not configured. No request was sent. You can keep 
 callback_sent: "Your callback request was accepted. A callback time is not guaranteed."
 jobs_type: "What kind of job? Reply ALL for any type, or CANCEL."
 jobs_region: "Which region? Reply ALL for anywhere, or CANCEL."
-jobs_language: "Alert language: 1 English 2 አማርኛ 3 Afaan Oromoo"
+jobs_language: "Alert language: 1 English 2 አማርኛ 3 Afaan Oromoo 4 ትግርኛ"
 jobs_consent: "Daily job alerts to this number for 30 days? Reply Y to agree. STOP stops all SMS."
 jobs_active: "Job alerts are active for 30 days. JOBS to manage; STOP to stop all SMS."
 jobs_stopped: "Job alerts stopped and contact deleted. You can keep learning."
