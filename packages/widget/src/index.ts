@@ -722,7 +722,7 @@ export class DimtsAssistant extends LitElement {
       display: flex;
       flex-direction: column;
       margin-inline: auto;
-      max-inline-size: 42rem;
+      max-inline-size: min(100%, 42rem);
       min-block-size: min(32rem, var(--dimts-available-height));
       max-block-size: var(--dimts-available-height);
       overflow-y: auto;
@@ -1163,6 +1163,7 @@ export class DimtsAssistant extends LitElement {
       grid-template-columns: 2.75rem minmax(0, 1fr);
       min-block-size: 72px;
       text-align: start;
+      min-inline-size: 0;
     }
 
     .language-choice::before {
@@ -1180,6 +1181,18 @@ export class DimtsAssistant extends LitElement {
       font-weight: 800;
       grid-row: span 2;
       justify-content: center;
+      flex-shrink: 0;
+    }
+
+    @media (max-width: 20rem) {
+      .language-choice {
+        min-block-size: 64px;
+        grid-template-columns: 2.25rem minmax(0, 1fr);
+      }
+
+      .language-choice::before {
+        block-size: 2.25rem;
+      }
     }
 
     .language-choice[lang="am"]::before {
@@ -1217,8 +1230,9 @@ export class DimtsAssistant extends LitElement {
       display: flex;
       flex: 1;
       flex-direction: column;
-      min-block-size: 8rem;
+      min-block-size: 6rem;
       padding: 1rem;
+      gap: 0.75rem;
     }
 
     .empty-state {
@@ -1229,6 +1243,7 @@ export class DimtsAssistant extends LitElement {
       margin-block: auto;
       padding: 1.5rem 0.5rem;
       text-align: center;
+      display: grid;
     }
 
     .empty-state strong {
@@ -1248,8 +1263,10 @@ export class DimtsAssistant extends LitElement {
       border-radius: 1.125rem;
       border-end-start-radius: 0.25rem;
       margin-block: 0 0.875rem;
-      max-inline-size: 92%;
+      max-inline-size: min(90%, 45ch);
       padding: 0.75rem 1rem;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     article[data-role="assistant"] {
@@ -1287,12 +1304,15 @@ export class DimtsAssistant extends LitElement {
       color: var(--dimts-primary-text);
       border-end-end-radius: 0.25rem;
       border-end-start-radius: 1rem;
-      max-inline-size: 85%;
+      max-inline-size: min(85%, 45ch);
     }
 
     article p {
       margin-block: 0;
       white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: break-word;
+      hyphens: auto;
     }
 
     .citations {
@@ -1314,6 +1334,8 @@ export class DimtsAssistant extends LitElement {
       gap: 0.375rem;
       padding: 0.25rem 0.875rem;
       text-decoration: none;
+      word-break: break-word;
+      overflow-wrap: break-word;
     }
 
     .citation::before {
@@ -1350,9 +1372,11 @@ export class DimtsAssistant extends LitElement {
       border-block-start: 1px solid var(--dimts-border);
       box-shadow: 0 -6px 16px rgb(0 0 0 / 6%);
       inset-block-end: 0;
-      padding: 0.625rem 1rem 0.75rem;
+      padding: 0.625rem 1rem calc(0.75rem + env(safe-area-inset-bottom));
       position: sticky;
       z-index: 2;
+      /* Mobile keyboard support: keep composer visible when keyboard appears */
+      padding-block-end: max(0.75rem, env(safe-area-inset-bottom));
     }
 
     .composer > label {
@@ -1363,13 +1387,14 @@ export class DimtsAssistant extends LitElement {
     }
 
     textarea {
-      max-block-size: 40vh;
+      max-block-size: min(40vh, 12rem);
       background: var(--dimts-surface);
       border: 2px solid var(--dimts-border);
       border-radius: var(--dimts-radius, 1rem);
       display: block;
       inline-size: 100%;
       min-block-size: 3rem;
+      min-inline-size: 0;
       padding: 0.75rem;
       resize: vertical;
     }
@@ -1449,6 +1474,11 @@ export class DimtsAssistant extends LitElement {
       padding: 1rem;
       position: fixed;
       z-index: 3;
+      /* Support devices with notches/rounded corners */
+      padding-block-start: max(1rem, env(safe-area-inset-top));
+      padding-block-end: max(1rem, env(safe-area-inset-bottom));
+      padding-inline-start: max(1rem, env(safe-area-inset-left));
+      padding-inline-end: max(1rem, env(safe-area-inset-right));
     }
 
     .help-dialog {
@@ -1456,20 +1486,23 @@ export class DimtsAssistant extends LitElement {
       border: 2px solid var(--dimts-border);
       border-radius: 0.75rem;
       margin-inline: auto;
-      max-block-size: 100%;
+      max-block-size: min(100vh, 90dvh);
       max-inline-size: 36rem;
       min-inline-size: 0;
       overflow-y: auto;
       padding: 1.25rem;
-      inline-size: 100%;
+      inline-size: min(100%, calc(100% - 2rem));
     }
 
     .help-summary {
       border: 1px solid var(--dimts-border);
       margin-block: 0.75rem;
-      max-block-size: 12rem;
+      max-block-size: min(12rem, 50vh);
       overflow-y: auto;
       padding: 0.75rem;
+      word-wrap: break-word;
+      overflow-wrap: break-word;
+      min-inline-size: 0;
     }
 
     .share-banner {
@@ -1501,8 +1534,9 @@ export class DimtsAssistant extends LitElement {
     }
 
     .help-chat-messages {
-      max-block-size: 16rem;
+      max-block-size: min(16rem, 40vh);
       overflow-y: auto;
+      min-inline-size: 0;
     }
 
     .visually-hidden {
@@ -1517,6 +1551,16 @@ export class DimtsAssistant extends LitElement {
     .status {
       min-block-size: 1.5em;
       padding-inline: 0.75rem;
+      font-size: 0.8125em;
+      color: var(--dimts-muted);
+    }
+
+    [role="status"],
+    [role="alert"],
+    [aria-live],
+    [aria-atomic] {
+      word-wrap: break-word;
+      overflow-wrap: break-word;
     }
 
     .panel {
@@ -1557,11 +1601,19 @@ export class DimtsAssistant extends LitElement {
       gap: 0.5rem;
       justify-content: space-between;
       padding-block: 0.375rem;
+      min-inline-size: 0;
     }
 
     .setting-row input {
       min-block-size: 48px;
       min-inline-size: 48px;
+    }
+
+    @media (max-width: 20rem) {
+      .setting-row {
+        flex-direction: column;
+        align-items: flex-start;
+      }
     }
 
     .mic {
@@ -1617,6 +1669,127 @@ export class DimtsAssistant extends LitElement {
       .composer-actions > .muted,
       .composer-actions > .voice-install {
         flex-basis: 100%;
+      }
+    }
+
+    /* Enhanced mobile responsiveness: 320px and up */
+    @media (max-width: 20rem) {
+      /* Extra small phones */
+      main {
+        max-inline-size: 100%;
+        border-radius: 0;
+        margin-inline: 0;
+        min-block-size: min(16rem, var(--dimts-available-height));
+      }
+
+      header {
+        padding-inline: 0.5rem;
+        padding-block: 0.5rem 0.375rem;
+        gap: 0.375rem;
+      }
+
+      .brand {
+        flex: 1 1 4rem;
+      }
+
+      .messages {
+        padding-inline: 0.5rem;
+        gap: 0.5rem;
+      }
+
+      .composer {
+        padding-inline: 0.5rem;
+        padding-block-start: 0.5rem;
+      }
+
+      article {
+        max-inline-size: min(95%, 35ch);
+      }
+
+      article[data-role="learner"] {
+        max-inline-size: min(80%, 35ch);
+      }
+
+      .empty-state {
+        padding: 1rem 0.25rem;
+        inline-size: min(100%, 20rem);
+      }
+
+      .language-choice {
+        min-block-size: 64px;
+        grid-template-columns: 2.25rem minmax(0, 1fr);
+      }
+    }
+
+    @media (min-width: 20rem) and (max-width: 29.9rem) {
+      /* Small phones: 320px-479px */
+      main {
+        max-inline-size: 100%;
+        margin-inline: 0;
+        border-radius: 0;
+      }
+
+      header {
+        padding-inline: 0.75rem;
+      }
+
+      .messages {
+        padding: 0.75rem;
+      }
+
+      .composer {
+        padding-inline: 0.75rem;
+      }
+
+      article {
+        max-inline-size: min(92%, 40ch);
+      }
+
+      article[data-role="learner"] {
+        max-inline-size: min(85%, 40ch);
+      }
+    }
+
+    @media (min-width: 30rem) and (max-width: 47.9rem) {
+      /* Tablets portrait: 480px-767px */
+      article {
+        max-inline-size: min(85%, 50ch);
+      }
+
+      article[data-role="learner"] {
+        max-inline-size: min(75%, 50ch);
+      }
+    }
+
+    @media (min-width: 48rem) {
+      /* Desktop and larger tablets: 768px+ */
+      article {
+        max-inline-size: min(80%, 65ch);
+      }
+
+      article[data-role="learner"] {
+        max-inline-size: min(70%, 65ch);
+      }
+    }
+
+    /* Landscape mode support */
+    @media (orientation: landscape) and (max-height: 30rem) {
+      /* Mobile landscape with small viewport height */
+      main {
+        max-block-size: calc(100dvh - 1rem);
+        min-block-size: auto;
+      }
+
+      header {
+        padding-block: 0.5rem 0.375rem;
+      }
+
+      .messages {
+        padding-block: 0.5rem;
+      }
+
+      .composer {
+        padding-block-start: 0.375rem;
       }
     }
 
