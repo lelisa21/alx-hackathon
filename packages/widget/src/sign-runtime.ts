@@ -1,4 +1,4 @@
-import { html, nothing } from "lit";
+import { html } from "lit";
 import type { TemplateResult } from "lit";
 
 export interface SignContext {

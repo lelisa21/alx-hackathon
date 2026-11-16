@@ -11,7 +11,7 @@ import type { HelpContext } from "./help-runtime.js";
 import type { CareerContext } from "./career-runtime.js";
 import { installDefaultApi } from "./public-api.js";
 import type { SpeechToText, TextToSpeech } from "@bridgely/voice";
-import { detectLanguage, suggestLanguageOptions } from "./language.js";
+import { suggestLanguageOptions } from "./language.js";
 import {
   hasTransliteration,
   suggestTransliteration,
