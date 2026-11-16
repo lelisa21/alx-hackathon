@@ -173,9 +173,39 @@
         text-decoration: none !important;
         transform: translateY(-1px);
       }
+      button.mode-pill {
+        cursor: pointer;
+        font: inherit;
+      }
       .mode-pill svg {
         inline-size: 1.05rem;
         block-size: 1.05rem;
+      }
+      .nav-lang-picker {
+        display: inline-flex;
+        align-items: center;
+        margin-inline-start: 0.25rem;
+      }
+      .nav-select {
+        background: rgba(255, 255, 255, 0.12);
+        color: #ffffff;
+        border: 1px solid rgba(255, 255, 255, 0.25);
+        border-radius: 999px;
+        padding: 0.42rem 0.85rem;
+        font-size: 0.875rem;
+        font-weight: 600;
+        cursor: pointer;
+        outline: none;
+        transition: all 0.2s ease;
+      }
+      .nav-select:hover,
+      .nav-select:focus {
+        background: rgba(255, 255, 255, 0.22);
+        border-color: rgba(255, 255, 255, 0.4);
+      }
+      .nav-select option {
+        background: #002b56;
+        color: #ffffff;
       }
 
       /* Skip Link */
@@ -537,18 +567,35 @@
         </a>
 
         <div class="nav-modes">
+          <a class="mode-pill" href="/learn/" title="Lessons and course guide">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+            <span>Lessons</span>
+          </a>
+          <button class="mode-pill" id="nav-jobs-btn" type="button" title="Explore accessible careers and job openings">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>
+            <span>Jobs</span>
+          </button>
+          <a class="mode-pill" href="/v1/docs" title="Interactive API and system documentation">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+            <span>API Docs</span>
+          </a>
+          <a class="mode-pill" href="/helper" title="Human Helper support console">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+            <span>Human Help</span>
+          </a>
           <a class="mode-pill" href="/sim/sms" title="SMS Simulator for basic phones without internet">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
             <span>SMS Sim</span>
           </a>
-          <a class="mode-pill" href="/helper" title="Human Helper support console">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
-            <span>Helper</span>
-          </a>
-          <a class="mode-pill" href="/savanna/pages/homepage-v1-paced.html" title="Savanna Course Demo">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-            <span>Savanna</span>
-          </a>
+          <div class="nav-lang-picker">
+            <label for="global-nav-lang" class="visually-hidden">Language</label>
+            <select id="global-nav-lang" class="nav-select" title="Change application language">
+              <option value="en">English (US)</option>
+              <option value="am">አማርኛ (Amharic)</option>
+              <option value="om">Afaan Oromoo</option>
+              <option value="ti">ትግርኛ (Tigrinya)</option>
+            </select>
+          </div>
         </div>
 
         <div class="access-guide" data-dimts-access-guide="homepage"></div>
@@ -792,6 +839,40 @@
           );
           list.replaceChildren.apply(list, items);
         });
+
+        // Top navbar controls integration
+        var navJobsBtn = document.getElementById("nav-jobs-btn");
+        if (navJobsBtn) {
+          navJobsBtn.addEventListener("click", function () {
+            var assistant = document.querySelector("bridgely-assistant");
+            if (assistant) {
+              assistant.scrollIntoView({ behavior: "smooth" });
+              if (typeof assistant.openJobs === "function") {
+                assistant.openJobs();
+              } else if (typeof assistant.openCareer === "function") {
+                assistant.openCareer();
+              } else {
+                var btn = assistant.shadowRoot && assistant.shadowRoot.querySelector(".career-launcher");
+                if (btn) btn.click();
+              }
+            }
+          });
+        }
+
+        var globalNavLang = document.getElementById("global-nav-lang");
+        if (globalNavLang) {
+          globalNavLang.addEventListener("change", function (e) {
+            var lang = e.target.value;
+            var assistant = document.querySelector("bridgely-assistant");
+            if (assistant) {
+              if (typeof assistant.selectLanguage === "function") {
+                assistant.selectLanguage(lang);
+              } else if (typeof assistant.chooseLanguage === "function") {
+                assistant.chooseLanguage(lang);
+              }
+            }
+          });
+        }
       })();
     </script>
     <script type="module" src="/Bridgely-widget.js"></script>

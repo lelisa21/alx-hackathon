@@ -77,8 +77,8 @@ describe("widget size gate", () => {
       writeFile(path.join(widgetDist, "bridgely-helper-console.js"), "export {};"),
       writeFile(
         path.join(widgetDist, "Bridgely-faq-sizes.json"),
-        // Just over the 160 kB initial-load limit (scripts/size-gate.mjs).
-        JSON.stringify({ en: 1024, am: 161 * 1024 }),
+        // Over the initial-load limit (scripts/size-gate.mjs).
+        JSON.stringify({ en: 1024, am: 170 * 1024 }),
       ),
       writeEnglishPack(),
     ]);
@@ -161,7 +161,7 @@ describe("widget size gate", () => {
     await Promise.all([
       writeFile(
         path.join(widgetDist, "Bridgely-widget.js"),
-        randomBytes(64 * 1024),
+        randomBytes(70 * 1024),
       ),
       writeFile(
         path.join(widgetDist, "bridgely-helper-console.js"),
@@ -184,7 +184,7 @@ describe("widget size gate", () => {
         path.join(widgetDist, "bridgely-helper-console.js"),
         "export {};\n",
       ),
-      writeFile(path.join(widgetDist, "widget.css"), randomBytes(160 * 1024)),
+      writeFile(path.join(widgetDist, "widget.css"), randomBytes(170 * 1024)),
       writeEnglishPack(),
     ]);
 
@@ -237,7 +237,7 @@ describe("widget size gate", () => {
       writeFile(path.join(widgetDist, "Bridgely-widget.js"), "export {};\n"),
       writeFile(
         path.join(widgetDist, "bridgely-helper-console.js"),
-        randomBytes(64 * 1024),
+        randomBytes(70 * 1024),
       ),
       writeEnglishPack(),
     ]);

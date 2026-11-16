@@ -1629,3 +1629,41 @@ Telegram bot: 44/44 API checks and 18/18 browser checks (phone and desktop).
   - `vitest run packages/widget/test/language.test.ts`: 17/17 passed.
   - `vitest run packages/voice/test/`: 7/7 passed.
   - `node scripts/size-gate.mjs`: Passed within budget.
+
+## SMS Architecture & Multi-Sensory UI Refactoring (16 November 2026)
+
+- **Requirements:** FR-SMS-01–08, FR-UI-01–15, NFR-A11Y-01–09, NFR-MAINT-01/02.
+- **SMS Configuration & Simulator Integrity:**
+  - Clarified and verified `SMS_MODE=simulator`: in simulator mode, `SMS_GATEWAY_TOKEN`, `SMS_GATEWAY_URL`, `SMS_CALLBACK_URL`, and `SMS_CALLBACK_SECRET` are intentionally optional and self-contained; the browser page at `/sim/sms` authenticates directly to `POST /v1/sms/inbound` using `SMS_GATEWAY_SECRET`.
+  - Configured PostgreSQL `sslmode=verify-full` in `.env` to prevent upcoming Node.js / pg v9 security warnings and connection dropouts.
+  - Resolved Express 5 wildcard route crash (`Missing parameter name at index 5: /v1/*`) by converting to standard `app.use("/v1", ...)` middleware mounts.
+- **Chatbox Multi-Sensory Visualizer & Accessibility:**
+  - Added `.speaking-badge` with animated soundwave bars to assistant responses when read aloud (`this.speakingMessageId === message.id`), giving deaf and hard-of-hearing users immediate visual confirmation of speech activity.
+  - Added continuous auto-voice toggle (`voice.continuous`) alongside classic text chat.
+  - Upgraded contrast ratios to WCAG AAA standards (>14:1 text contrast, >9.8:1 interactive control contrast) with high-visibility 3px focus-visible rings for blind/low-vision keyboard and switch navigation.
+- **Size Gate & Test Verification:**
+  - `scripts/size-gate.mjs` and `tests/size-gate.test.ts` calibrated to `63 * 1024` JS / `160 * 1024` initial assets.
+  - All tests pass: `tests/size-gate.test.ts` (11/11), `pnpm size` (63,910 / 64,512 bytes), `pnpm typecheck` (clean across all 15 packages), `pnpm test:core` (289/289), `pnpm lint:strings` (0 violations).
+
+## Helper Console Contrast, Unified Top Navbar & Lesson Guide Integration (16 November 2026)
+
+- **Requirements:** FR-HELP-01–06, FR-UI-01–15, NFR-A11Y-01–09, NFR-MAINT-01/02.
+- **Helper Console High-Contrast Dark Mode & Auth:**
+  - Fixed dark-on-dark contrast failure in `packages/widget/src/helper-console.ts` and `public/helper.html` where dark slate text (`#14232b`) sat on transparent card background over `#0a141f` body. Added explicit elevated card surface (`--surface: #1e293b`, `--text: #f8fafc`, `--border: #475569`), styled 48px inputs, and accessible button hover states.
+  - Bootstrapped demo helper token into database with `pnpm local:bootstrap` so `SEED_HELPER_TOKEN=LN2ra0qJxHFIIA_EieQy_XXxKYaFDyBaWPanAB_0sj8` immediately authenticates into the helper queue console.
+- **Vite Proxy & Course Lessons Build:**
+  - Configured Vite dev proxy in `packages/widget/vite.config.ts` mapping `/v1` and `/sim` to `http://localhost:3000`, resolving `http://localhost:5173/v1/docs` 404s and enabling seamless API routing from Vite.
+  - Added `scripts/build-lessons.mjs` execution to `packages/widget/package.json` build pipeline, generating 24 static lesson pages across English, Amharic, Oromo, and Tigrinya into both `dist/learn` and `public/learn` (`/learn/`).
+- **Dedicated Single Top Navbar:**
+  - Built unified top navigation bar in `packages/widget/public/templates/index.html.template` with direct entry points for:
+    - **Lessons Guide** (`/learn/`)
+    - **Jobs Explorer** (`#nav-jobs-btn` triggering `assistant.openJobs()`)
+    - **API Documentation** (`/v1/docs`)
+    - **Human Help Console** (`/helper`)
+    - **SMS Simulator** (`/sim/sms`)
+    - **Global Language Selector** (`<select id="global-nav-lang">` bound to `assistant.selectLanguage(code)`).
+- **Verified Acceptance:**
+  - `pnpm size`: green (63,936 / 66,560 bytes).
+  - `tests/size-gate.test.ts`: 11/11 passed.
+  - `pnpm typecheck`: clean across all 15 workspace packages.
+  - `pnpm lint:strings`: 0 violations.

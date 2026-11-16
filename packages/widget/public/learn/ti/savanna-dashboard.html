@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ti" dir="ltr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ዳሽቦርድ Savanna ምጥቃም · Bridgely</title>
+<meta name="description" content="Savanna ናይ ALX መምሃሪ መድረኽ እዩ። ዳሽቦርድኩም መበገሲ ገጽ እዩ። ኮርስኩም፣ ዕማማትኩምን ፍጻመታትኩምን የርኢ። ኣብ ነፍሲ ወከፍ መጽናዕቲ ቅድሚ ኩሉ ክፈትዎ።">
+<link rel="stylesheet" href="/learn/learn.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23164e63'/%3E%3Cpath d='M9 8h7a8 8 0 0 1 0 16H9z' fill='none' stroke='%23fff' stroke-width='3'/%3E%3C/svg%3E">
+
+</head>
+<body>
+<header class="topbar">
+  <a class="brand" href="/" aria-label="መበገሲ Bridgely"><span class="mark" aria-hidden="true">D</span><span>Bridgely</span></a>
+  <a class="crumb" href="/learn/ti/">ቤተ-መጻሕፍቲ ኮርስ</a>
+  <nav class="langs" aria-label="ብካልእ ቋንቋ ኣንብቡ"><a lang="en" href="/learn/en/savanna-dashboard.html">English</a><a lang="am" href="/learn/am/savanna-dashboard.html">አማርኛ</a><a lang="om" href="/learn/om/savanna-dashboard.html">Afaan Oromoo</a><a lang="ti" href="/learn/ti/savanna-dashboard.html" aria-current="page">ትግርኛ</a></nav>
+</header>
+<main class="lesson">
+  <div class="lesson-head">
+    <a class="back" href="/learn/ti/">← ኩሎም ትምህርትታት</a>
+    <h1>ዳሽቦርድ Savanna ምጥቃም</h1>
+    <p class="notice" role="note">እዚ ትርጉም ብወለዶ ተዛራቢ ክሳብ ዝግምገም ይጽበ ኣሎ።</p>
+    <button class="ask" type="button" data-Bridgely-open hidden>ብዛዕባ እዚ ትምህርቲ ንBridgely ሕተቱ</button>
+  </div>
+  <nav class="toc" aria-labelledby="toc-heading">
+    <h2 id="toc-heading">ኣብዚ ገጽ</h2>
+    <ol><li><a href="#%E1%8B%B3%E1%88%BD%E1%89%A6%E1%88%AD%E1%8B%B5-savanna-%E1%8A%A5%E1%8A%95%E1%89%B3%E1%8B%AD-%E1%8A%A5%E1%8B%A9">ዳሽቦርድ Savanna እንታይ እዩ?</a></li><li><a href="#%E1%8A%AB%E1%89%A5-%E1%8B%98%E1%89%8B%E1%88%A8%E1%8C%BD%E1%8A%AD%E1%8B%8E-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%89%95%E1%8C%BD%E1%88%8D">ካብ ዘቋረጽክዎ ብኸመይ እቕጽል?</a></li><li><a href="#%E1%89%80%E1%88%A8%E1%89%A3-%E1%8B%95%E1%88%9B%E1%88%9B%E1%89%B0%E1%8B%AD-%E1%8A%A3%E1%89%A0%E1%8B%AD-%E1%8A%A5%E1%88%AD%E1%8A%A2">ቀረባ ዕማማተይ ኣበይ እርኢ?</a></li><li><a href="#%E1%8A%93%E1%89%A5-%E1%8A%AB%E1%88%8D%E1%8A%A5-%E1%8A%AE%E1%88%AD%E1%88%B5-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%89%95%E1%8B%AD%E1%88%AD">ናብ ካልእ ኮርስ ብኸመይ እቕይር?</a></li><li><a href="#%E1%88%98%E1%88%B5%E1%88%98%E1%88%AD-%E1%88%B0%E1%88%99%E1%8A%93%E1%89%B5-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%8C%A5%E1%89%80%E1%88%9D">መስመር ሰሙናት ብኸመይ እጥቀም?</a></li><li><a href="#%E1%8B%9D%E1%88%98%E1%8C%BD%E1%8A%A5-%E1%8D%8D%E1%8C%BB%E1%88%98%E1%89%B3%E1%89%B0%E1%8B%AD-%E1%8A%A3%E1%89%A0%E1%8B%AD-%E1%8A%A3%E1%88%88%E1%8B%89">ዝመጽእ ፍጻመታተይ ኣበይ ኣለዉ?</a></li><li><a href="#%E1%8C%8E%E1%8A%93%E1%8B%8A-%E1%88%9C%E1%8A%91-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%8B%93%E1%8C%BD%E1%8B%8E">ጎናዊ ሜኑ ብኸመይ እዓጽዎ?</a></li><li><a href="#%E1%8A%A3%E1%89%A5-%E1%8C%8E%E1%8A%93%E1%8B%8A-%E1%88%9C%E1%8A%91-%E1%8A%A5%E1%8A%95%E1%89%B3%E1%8B%AD-%E1%8A%A3%E1%88%8E">ኣብ ጎናዊ ሜኑ እንታይ ኣሎ?</a></li></ol>
+  </nav>
+  <article class="lesson-body">
+<section class="lesson-section" id="ዳሽቦርድ-savanna-እንታይ-እዩ" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8B%B3%E1%88%BD%E1%89%A6%E1%88%AD%E1%8B%B5-savanna-%E1%8A%A5%E1%8A%95%E1%89%B3%E1%8B%AD-%E1%8A%A5%E1%8B%A9" aria-hidden="true">#</a>ዳሽቦርድ Savanna እንታይ እዩ?</h2>
+<p>Savanna ናይ ALX መምሃሪ መድረኽ እዩ። ዳሽቦርድኩም መበገሲ ገጽ እዩ። ኮርስኩም፣ ዕማማትኩምን ፍጻመታትኩምን የርኢ። ኣብ ነፍሲ ወከፍ መጽናዕቲ ቅድሚ ኩሉ ክፈትዎ።</p>
+</section>
+<section class="lesson-section" id="ካብ-ዘቋረጽክዎ-ብኸመይ-እቕጽል" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8A%AB%E1%89%A5-%E1%8B%98%E1%89%8B%E1%88%A8%E1%8C%BD%E1%8A%AD%E1%8B%8E-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%89%95%E1%8C%BD%E1%88%8D" aria-hidden="true">#</a>ካብ ዘቋረጽክዎ ብኸመይ እቕጽል?</h2>
+<p>ካብ ዘቋረጽኩምዎ ቀጽሉ ዝብል ካርድ ድለዩ። ኣብቲ ካርድ ዘሎ ቀጽል ዝብል መጠወቒ ጠውቑ። Savanna ኣብ መወዳእታ ዝተጠቐምኩምሉ ትምህርቲ ይኸፍት።</p>
+</section>
+<section class="lesson-section" id="ቀረባ-ዕማማተይ-ኣበይ-እርኢ" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%89%80%E1%88%A8%E1%89%A3-%E1%8B%95%E1%88%9B%E1%88%9B%E1%89%B0%E1%8B%AD-%E1%8A%A3%E1%89%A0%E1%8B%AD-%E1%8A%A5%E1%88%AD%E1%8A%A2" aria-hidden="true">#</a>ቀረባ ዕማማተይ ኣበይ እርኢ?</h2>
+<p>ቀረባ ዕማማትኩም ዝብል ክፋል ድለዩ። ኣብዚ ሰሙን ክወድኡ ዘለዎም ዕማማት ይዝርዝር። ነፍሲ ወከፍ ዕማም ሰሙኑ፣ ክብደቱን ግስጋሰኡን የርኢ። ዕማም ንምኽፋት ቀጽል ዝብል ጠውቑ።</p>
+</section>
+<section class="lesson-section" id="ናብ-ካልእ-ኮርስ-ብኸመይ-እቕይር" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8A%93%E1%89%A5-%E1%8A%AB%E1%88%8D%E1%8A%A5-%E1%8A%AE%E1%88%AD%E1%88%B5-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%89%95%E1%8B%AD%E1%88%AD" aria-hidden="true">#</a>ናብ ካልእ ኮርስ ብኸመይ እቕይር?</h2>
+<p>ኣብ ላዕሊ ገጽ ዘሎ ኮርሳተይ ዝብል ዝርዝር ክፈቱ። ኣብ ፕሮግራምኩም ዘለዉ ኩሎም ኮርሳት ይዝርዝር። ዳሽቦርዱ ንምኽፋት ሓደ ኮርስ ምረጹ።</p>
+</section>
+<section class="lesson-section" id="መስመር-ሰሙናት-ብኸመይ-እጥቀም" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%88%98%E1%88%B5%E1%88%98%E1%88%AD-%E1%88%B0%E1%88%99%E1%8A%93%E1%89%B5-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%8C%A5%E1%89%80%E1%88%9D" aria-hidden="true">#</a>መስመር ሰሙናት ብኸመይ እጥቀም?</h2>
+<p>ብግዜ ዝኸይድ ኮርስ ኣብ ላዕሊ መስመር ሰሙናት የርኢ። ዕማማትን ትምህርትታትን ንምርኣይ ሓደ ሰሙን ምረጹ። ቅድሚኡ ወይ ድሕሪኡ ዘለዉ ሰሙናት ንምርኣይ ምልክታት ተጠቐሙ። እቲ ህሉው ሰሙን ጎሊሑ ይርአ።</p>
+</section>
+<section class="lesson-section" id="ዝመጽእ-ፍጻመታተይ-ኣበይ-ኣለዉ" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8B%9D%E1%88%98%E1%8C%BD%E1%8A%A5-%E1%8D%8D%E1%8C%BB%E1%88%98%E1%89%B3%E1%89%B0%E1%8B%AD-%E1%8A%A3%E1%89%A0%E1%8B%AD-%E1%8A%A3%E1%88%88%E1%8B%89" aria-hidden="true">#</a>ዝመጽእ ፍጻመታተይ ኣበይ ኣለዉ?</h2>
+<p>ዝመጽእ ፍጻመታትኩም ዝብል ክፋል ቀጥታዊ ክፍለ ግዜታትን ዓውደ-መጽናዕትታትን ይዝርዝር። ነፍሲ ወከፍ ፍጻመ ዕለቱን ሰዓቱን የርኢ። ምሉእ ካሌንደር ንምርኣይ ኩሎም ፍጻመታተይ ርኣዩ ዝብል ጠውቑ።</p>
+</section>
+<section class="lesson-section" id="ጎናዊ-ሜኑ-ብኸመይ-እዓጽዎ" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8C%8E%E1%8A%93%E1%8B%8A-%E1%88%9C%E1%8A%91-%E1%89%A5%E1%8A%B8%E1%88%98%E1%8B%AD-%E1%8A%A5%E1%8B%93%E1%8C%BD%E1%8B%8E" aria-hidden="true">#</a>ጎናዊ ሜኑ ብኸመይ እዓጽዎ?</h2>
+<p>ኣብ ላዕሊ ዘሎ ሰለስተ መስመራት ዘለዎ መጠወቒ ሜኑ ጠውቑ። ጎናዊ ሜኑ ናብ ጸቢብ መስመር ምልክታት ይንኣስ። ምሉእ ሜኑ ንምርኣይ ደጊምኩም ጠውቑ። Savanna ምርጫኹም ይዝክር።</p>
+</section>
+<section class="lesson-section" id="ኣብ-ጎናዊ-ሜኑ-እንታይ-ኣሎ" data-cited="Bridgely ዝጠቐሶ ክፋል" tabindex="-1">
+<h2><a class="anchor" href="#%E1%8A%A3%E1%89%A5-%E1%8C%8E%E1%8A%93%E1%8B%8A-%E1%88%9C%E1%8A%91-%E1%8A%A5%E1%8A%95%E1%89%B3%E1%8B%AD-%E1%8A%A3%E1%88%8E" aria-hidden="true">#</a>ኣብ ጎናዊ ሜኑ እንታይ ኣሎ?</h2>
+<p>ጎናዊ ሜኑ ናብ መበገሲ፣ ኮርሳተይን ኣምራትን የራኽብ። ከምኡ'ውን ናብ ፕሮጀክትታት፣ ብጾትን ፕሮፋይለይን የራኽብ። ዝተቐድሑ ክፍለ ግዜታት ንምርኣይ ቪድዮ ብድሌት ተጠቐሙ።</p>
+</section>
+  </article>
+</main>
+<script async src="/Bridgely-host.js" data-lang="ti"></script>
+</body>
+</html>

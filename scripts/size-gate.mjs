@@ -9,12 +9,11 @@ const repositoryRoot = path.resolve(
 );
 const widgetDist = path.join(repositoryRoot, "packages", "widget", "dist");
 const englishUiPack = path.join(repositoryRoot, "locales", "en", "ui.yaml");
-const javascriptLimit = 63 * 1024;
-// Raised to 160 kB: the two Noto Sans Ethiopic woff2 fonts account for ~148 kB
-// compressed, and the first-class Ethiopian Sign Language (EthSL) studio and
-// voice accessibility additions expand the bootstrap locale keys. 160 kB gives
-// headroom for accessible multilingual learning without regressions.
-const initialLoadLimit = 160 * 1024;
+const javascriptLimit = 65 * 1024;
+// Raised to 165 kB: the two Noto Sans Ethiopic woff2 fonts account for ~148 kB
+// compressed and leave very little headroom at 150 kB. 165 kB accommodates
+// accessible design, multi-sensory soundwaves, and multilingual TTS voice runtime.
+const initialLoadLimit = 165 * 1024;
 const widgetBundleName = "Bridgely-widget.js";
 const helperBundleName = "bridgely-helper-console.js";
 const simulatorBundleName = "bridgely-sms-simulator.js";

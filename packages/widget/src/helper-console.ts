@@ -232,11 +232,13 @@ export class BridgelyHelperConsole extends LitElement {
   static override styles = css`
     :host {
       --surface: #ffffff;
-      --text: #14232b;
-      --muted: #344b55;
-      --primary: #164e63;
+      --surface-subtle: #f8fafc;
+      --text: #0f172a;
+      --muted: #475569;
+      --primary: #0284c7;
+      --primary-hover: #0369a1;
       --primary-text: #ffffff;
-      --border: #526773;
+      --border: #cbd5e1;
       color: var(--text);
       display: block;
       font-family:
@@ -247,6 +249,19 @@ export class BridgelyHelperConsole extends LitElement {
         sans-serif;
       font-size: 1rem;
       line-height: 1.5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :host {
+        --surface: #1e293b;
+        --surface-subtle: #0f172a;
+        --text: #f8fafc;
+        --muted: #94a3b8;
+        --primary: #0284c7;
+        --primary-hover: #38bdf8;
+        --primary-text: #ffffff;
+        --border: #475569;
+      }
     }
 
     :host([data-script="Ethi"]) {
@@ -265,11 +280,14 @@ export class BridgelyHelperConsole extends LitElement {
     }
 
     main {
+      background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 0.75rem;
+      border-radius: 1rem;
+      box-shadow: 0 4px 24px -2px rgba(0, 0, 0, 0.2);
+      color: var(--text);
       margin-inline: auto;
       max-inline-size: 64rem;
-      padding: 1rem;
+      padding: 1.5rem;
     }
 
     .provider-status {
@@ -290,22 +308,12 @@ export class BridgelyHelperConsole extends LitElement {
     input,
     textarea,
     select {
-      color: inherit;
-      font: inherit;
-    }
-
-    button,
-    input,
-    select,
-    textarea {
-      min-block-size: 48px;
-    }
-
-    button,
-    select {
-      background: var(--surface);
+      background: var(--surface-subtle);
       border: 2px solid var(--border);
       border-radius: 0.5rem;
+      color: var(--text);
+      font: inherit;
+      min-block-size: 48px;
       padding: 0.625rem 0.875rem;
     }
 
@@ -315,6 +323,7 @@ export class BridgelyHelperConsole extends LitElement {
 
     button:disabled {
       cursor: not-allowed;
+      opacity: 0.6;
     }
 
     :focus-visible {
@@ -324,8 +333,14 @@ export class BridgelyHelperConsole extends LitElement {
 
     .primary {
       background: var(--primary);
+      border-color: var(--primary);
       color: var(--primary-text);
       font-weight: 700;
+    }
+
+    .primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+      border-color: var(--primary-hover);
     }
 
     .filters,

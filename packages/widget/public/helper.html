@@ -12,38 +12,40 @@
     <style>
       :root {
         color-scheme: light dark;
-        --bg: #eef3f5;
+        --bg: #f8fafc;
         --bar: #002b56;
       }
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #0a141f;
-          --bar: #0f1b2d;
+          --bg: #0b1120;
+          --bar: #020617;
         }
       }
       body {
         margin: 0;
         background: var(--bg);
-        font:
-          16px/1.5 system-ui,
-          sans-serif;
+        font: 16px/1.5 system-ui, -apple-system, sans-serif;
       }
       header {
         display: flex;
         align-items: center;
         gap: 0.75rem;
-        padding: 0.75rem 1rem;
+        padding: 0.875rem 1.5rem;
         background: var(--bar);
         color: #fff;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       }
       header a {
         color: inherit;
         font-weight: 700;
         text-decoration: none;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
       }
       main {
-        max-inline-size: 60rem;
-        margin: 1.5rem auto;
+        max-inline-size: 64rem;
+        margin: 2rem auto;
         padding-inline: 1rem;
       }
     </style>
