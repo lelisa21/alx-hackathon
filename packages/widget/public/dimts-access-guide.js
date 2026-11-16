@@ -1,4 +1,4 @@
-/* Shared, host-isolated access guide for the Dimts homepage and Savanna. */
+/* Shared, host-isolated access guide for the Bridgely homepage and Savanna. */
 (function () {
   "use strict";
 
@@ -243,7 +243,7 @@
   // Diagnostics are opt-in and deliberately contain no recognized speech.
   function debug(stage, details) {
     if (globalThis.DIMTS_ACCESS_DEBUG !== true) return;
-    globalThis.console.debug("[Dimts Access Guide] " + stage, details);
+    globalThis.console.debug("[Bridgely Access Guide] " + stage, details);
   }
 
   function element(name, text, attributes) {
@@ -450,12 +450,13 @@
     }
 
     function openAssistant() {
-      if (globalThis.Dimts && typeof globalThis.Dimts.open === "function") {
+      var client = globalThis.Bridgely || globalThis.Dimts;
+      if (client && typeof client.open === "function") {
         status.textContent = copy["home.access.opening"].replace(
           "{destination}",
           copy["home.access.assistant"],
         );
-        globalThis.Dimts.open();
+        client.open();
         return;
       }
       status.textContent = copy["home.access.assistantUnavailable"];

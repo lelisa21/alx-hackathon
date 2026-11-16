@@ -195,6 +195,7 @@ export class BridgelyAssistant extends LitElement {
     feedback: { state: true },
     startingSession: { state: true },
     slowRequest: { state: true },
+    autoVoice: { state: true },
   };
 
   declare api: string;
@@ -208,6 +209,7 @@ export class BridgelyAssistant extends LitElement {
   declare private sessionId: string;
   declare private sessionToken: string;
   declare private loading: boolean;
+  declare private autoVoice: boolean;
   declare private voiceInstall: "idle" | "installing" | "failed";
   /** Asking the learner to allow cloud voice for this session. */
   declare private cloudVoiceAsk: boolean;
@@ -654,6 +656,7 @@ export class BridgelyAssistant extends LitElement {
     this.transliterationEnabled = false;
     this.transliterationSuggestion = null;
     this.settings = this.readSettings();
+    this.autoVoice = false;
     this.isRecording = false;
     this.recordingStopRequested = false;
     this.speechReview = false;
@@ -1993,18 +1996,49 @@ export class BridgelyAssistant extends LitElement {
     }
 
     article[data-role="assistant"] > .avatar {
-      block-size: 2rem;
-      font-size: 0.85em;
-      inline-size: 2rem;
+      block-size: 2.25rem;
+      font-size: 0.9em;
+      inline-size: 2.25rem;
+      box-shadow: 0 2px 6px color-mix(in srgb, var(--Bridgely-primary) 20%, transparent);
     }
 
     article[data-role="assistant"] > p {
       background: var(--Bridgely-surface);
-      border: 1px solid var(--Bridgely-hairline);
+      border: 1.5px solid color-mix(in srgb, var(--Bridgely-border) 35%, var(--Bridgely-surface));
       border-radius: 1.125rem;
       border-start-start-radius: 0.375rem;
-      box-shadow: 0 1px 2px rgb(0 0 0 / 5%);
-      padding: 0.75rem 0.95rem;
+      box-shadow: 0 2px 8px rgb(0 0 0 / 4%), 0 1px 2px rgb(0 0 0 / 6%);
+      padding-block: 0.875rem;
+      padding-inline: 1.125rem;
+      font-size: 0.95em;
+      line-height: 1.6;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    article[data-role="assistant"].is-speaking > p {
+      border-color: var(--Bridgely-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--Bridgely-primary) 18%, transparent),
+        0 4px 12px color-mix(in srgb, var(--Bridgely-primary) 15%, transparent);
+    }
+
+    .speaking-badge {
+      align-items: center;
+      background: var(--Bridgely-accent-soft);
+      border: 1px solid var(--Bridgely-primary);
+      border-radius: 999px;
+      color: var(--Bridgely-primary);
+      display: inline-flex;
+      font-size: 0.75em;
+      font-weight: 700;
+      gap: 0.35rem;
+      padding-block: 0.2rem;
+      padding-inline: 0.625rem;
+      margin-block-start: 0.375rem;
+    }
+
+    .speaking-badge .wave-bar {
+      inline-size: 2.5px;
+      block-size: 8px;
     }
 
     article[data-role="learner"] {
@@ -2013,15 +2047,18 @@ export class BridgelyAssistant extends LitElement {
       max-inline-size: min(85%, 45ch);
       background: linear-gradient(
         135deg,
-        var(--Bridgely-primary),
-        color-mix(in srgb, var(--Bridgely-primary) 85%, var(--Bridgely-primary-text))
+        var(--Bridgely-primary) 0%,
+        color-mix(in srgb, var(--Bridgely-primary) 82%, #000) 100%
       );
       border: 0;
       border-radius: 1.125rem;
-      border-end-end-radius: 0.375rem;
-      box-shadow: 0 2px 8px
-        color-mix(in srgb, var(--Bridgely-primary) 22%, transparent);
-      padding: 0.625rem 0.95rem;
+      border-end-end-radius: 0.25rem;
+      box-shadow: 0 4px 14px
+        color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
+      padding-block: 0.75rem;
+      padding-inline: 1.125rem;
+      font-size: 0.95em;
+      line-height: 1.5;
     }
 
     /* Focus moves to a new answer for screen readers; keep it visible but
@@ -2029,19 +2066,28 @@ export class BridgelyAssistant extends LitElement {
     article:focus-visible {
       border-radius: 1.25rem;
       box-shadow: none;
-      outline: 2px solid color-mix(in srgb, var(--Bridgely-focus) 60%, transparent);
+      outline: 3px solid color-mix(in srgb, var(--Bridgely-focus) 70%, transparent);
       outline-offset: 4px;
     }
 
     .citation {
       background: var(--Bridgely-accent-soft);
-      border-color: var(--Bridgely-accent-line);
+      border: 1px solid var(--Bridgely-accent-line);
       border-radius: 0.875rem;
       font-size: 0.8125em;
-      font-weight: 500;
+      font-weight: 600;
       line-height: 1.35;
-      padding: 0.375rem 0.875rem;
+      padding-block: 0.375rem;
+      padding-inline: 0.875rem;
       text-align: start;
+      transition: all 0.15s ease;
+    }
+
+    .citation:hover {
+      background: color-mix(in srgb, var(--Bridgely-primary) 16%, var(--Bridgely-surface));
+      border-color: var(--Bridgely-primary);
+      text-decoration: none;
+      transform: translateY(-1px);
     }
 
     .citation::before {
@@ -2049,26 +2095,33 @@ export class BridgelyAssistant extends LitElement {
     }
 
     .reply-actions {
+      display: flex;
+      flex-wrap: wrap;
       gap: 0.5rem;
-      margin-block-start: 0.25rem;
+      margin-block-start: 0.5rem;
     }
 
     .reply-actions button {
       align-items: center;
-      background: transparent;
-      border-color: transparent;
+      background: color-mix(in srgb, var(--Bridgely-text) 3%, var(--Bridgely-surface));
+      border: 1px solid color-mix(in srgb, var(--Bridgely-border) 25%, var(--Bridgely-surface));
+      border-radius: 999px;
       color: var(--Bridgely-muted);
       display: inline-flex;
       font-size: 0.8125em;
       font-weight: 600;
       gap: 0.375rem;
-      padding-inline: 0.625rem;
+      padding-block: 0.35rem;
+      padding-inline: 0.75rem;
+      min-block-size: 38px;
+      transition: all 0.15s ease;
     }
 
     .reply-actions button:not(:disabled):hover {
       background: var(--Bridgely-surface);
-      border-color: var(--Bridgely-hairline);
+      border-color: var(--Bridgely-primary);
       color: var(--Bridgely-text);
+      transform: translateY(-1px);
     }
 
     .reply-actions button[aria-pressed="true"] {
@@ -2110,14 +2163,19 @@ export class BridgelyAssistant extends LitElement {
     .suggestion {
       align-items: center;
       background: var(--Bridgely-surface);
-      border-color: var(--Bridgely-hairline);
-      border-radius: 0.875rem;
-      box-shadow: 0 1px 2px rgb(0 0 0 / 4%);
+      border: 1.5px solid color-mix(in srgb, var(--Bridgely-border) 35%, var(--Bridgely-surface));
+      border-radius: 1rem;
+      box-shadow: 0 2px 6px rgb(0 0 0 / 4%);
       color: var(--Bridgely-text);
       display: flex;
       font-size: 0.9em;
+      font-weight: 600;
       gap: 0.75rem;
       justify-content: space-between;
+      min-block-size: 52px;
+      padding-block: 0.75rem;
+      padding-inline: 1.125rem;
+      transition: all 0.2s ease;
     }
 
     .suggestion::after {
@@ -2135,7 +2193,9 @@ export class BridgelyAssistant extends LitElement {
 
     .suggestion:not(:disabled):hover {
       background: var(--Bridgely-accent-soft);
-      border-color: var(--Bridgely-accent-line);
+      border-color: var(--Bridgely-primary);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 14px rgb(0 0 0 / 8%);
     }
 
     .welcome h1 {
@@ -2147,43 +2207,96 @@ export class BridgelyAssistant extends LitElement {
     /* Composer: one rounded field, microphone and send as clear pills. */
     .composer {
       background: var(--Bridgely-surface);
-      border-block-start: 1px solid var(--Bridgely-hairline);
-      box-shadow: 0 -8px 24px rgb(0 0 0 / 6%);
+      border-block-start: 1px solid color-mix(in srgb, var(--Bridgely-border) 25%, var(--Bridgely-surface));
+      box-shadow: 0 -4px 20px rgb(0 0 0 / 5%);
       inset-block-end: 0;
       position: sticky;
       z-index: 2;
-      padding: 0.625rem 0.875rem max(0.875rem, calc(0.75rem + env(safe-area-inset-bottom)));
+      padding-block: 0.75rem max(0.875rem, calc(0.75rem + env(safe-area-inset-bottom)));
+      padding-inline: 1rem;
     }
 
-    .composer > label {
-      display: block;
+    .composer-header {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: space-between;
+      margin-block-end: 0.375rem;
+    }
+
+    .composer-label {
       color: var(--Bridgely-muted);
       font-size: 0.75em;
       font-weight: 700;
       letter-spacing: 0.02em;
-      margin-block-end: 0.25rem;
+      margin: 0;
+    }
+
+    .auto-voice-toggle {
+      align-items: center;
+      background: var(--Bridgely-ink-soft);
+      border: 1px solid var(--Bridgely-hairline);
+      border-radius: 999px;
+      color: var(--Bridgely-text);
+      cursor: pointer;
+      display: inline-flex;
+      font-size: 0.8125em;
+      font-weight: 600;
+      gap: 0.375rem;
+      min-block-size: 40px;
+      padding-block: 0.25rem;
+      padding-inline: 0.75rem;
+      transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    }
+
+    .auto-voice-toggle::before {
+      background: currentColor;
+      block-size: 1.1em;
+      content: "";
+      flex: none;
+      inline-size: 1.1em;
+      mask: var(--Bridgely-icon-speaker) center / contain no-repeat;
+    }
+
+    .auto-voice-toggle[aria-pressed="true"] {
+      background: var(--Bridgely-accent-soft);
+      border-color: var(--Bridgely-primary);
+      color: var(--Bridgely-primary);
+      font-weight: 700;
+      box-shadow: 0 0 0 1px var(--Bridgely-primary);
+    }
+
+    .composer-input-wrapper {
+      position: relative;
+      inline-size: 100%;
     }
 
     textarea {
       display: block;
       inline-size: 100%;
       min-inline-size: 0;
-      background: var(--Bridgely-ink-soft);
-      border: 1px solid var(--Bridgely-border);
-      border-radius: 1rem;
+      background: color-mix(in srgb, var(--Bridgely-text) 3%, var(--Bridgely-surface));
+      border: 1.5px solid color-mix(in srgb, var(--Bridgely-border) 40%, var(--Bridgely-surface));
+      border-radius: 1.125rem;
       field-sizing: content;
       max-block-size: 9rem;
-      min-block-size: 3.25rem;
-      padding: 0.75rem 0.9rem;
+      min-block-size: 3.5rem;
+      padding-block: 0.85rem;
+      padding-inline: 1.1rem;
       resize: none;
+      font-size: 1em;
+      line-height: 1.5;
       transition:
-        background-color 0.15s ease,
-        border-color 0.15s ease;
+        border-color 0.2s ease,
+        box-shadow 0.2s ease,
+        background-color 0.2s ease;
     }
 
     textarea:focus {
       background: var(--Bridgely-surface);
       border-color: var(--Bridgely-primary);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--Bridgely-primary) 18%, transparent);
     }
 
     .composer-actions {
@@ -2193,15 +2306,24 @@ export class BridgelyAssistant extends LitElement {
     .mic {
       align-items: center;
       background: var(--Bridgely-accent-soft);
-      border-color: var(--Bridgely-accent-line);
+      border: 1.5px solid var(--Bridgely-accent-line);
+      border-radius: 999px;
+      color: var(--Bridgely-primary);
       display: inline-flex;
       font-size: 0.875em;
-      font-weight: 600;
+      font-weight: 700;
       gap: 0.5rem;
       justify-content: center;
       /* FR-VOICE: the microphone stays a large 64px target. */
       min-block-size: 64px;
+      padding-block: 0.5rem;
       padding-inline: 1rem 1.25rem;
+      transition: all 0.2s ease;
+    }
+
+    .mic:not(:disabled):hover {
+      background: color-mix(in srgb, var(--Bridgely-primary) 15%, var(--Bridgely-surface));
+      transform: translateY(-1px);
     }
 
     .mic::before {
@@ -2214,45 +2336,67 @@ export class BridgelyAssistant extends LitElement {
     }
 
     .mic[aria-pressed="true"] {
-      background: var(--Bridgely-primary);
-      border-color: var(--Bridgely-primary);
-      color: var(--Bridgely-primary-text);
-      animation: halo-pulse 1.4s infinite;
+      background: #dc2626;
+      border-color: #dc2626;
+      color: #ffffff;
+      animation: mic-pulse 1.4s infinite;
+    }
+
+    @keyframes mic-pulse {
+      0%, 100% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.4);
+      }
+      50% {
+        box-shadow: 0 0 0 8px rgba(220, 38, 38, 0);
+      }
     }
 
     .voice-wave-container {
       align-items: center;
-      background: var(--Bridgely-surface);
-      border: 1px solid var(--Bridgely-accent-line);
-      border-radius: var(--Bridgely-radius, 0.75rem);
+      background: color-mix(in srgb, var(--Bridgely-primary) 8%, var(--Bridgely-surface));
+      border: 1.5px solid var(--Bridgely-primary);
+      border-radius: 1rem;
       display: flex;
-      gap: 0.5rem;
-      margin-block: 0.375rem;
-      padding: 0.375rem 0.75rem;
+      gap: 0.75rem;
+      margin-block: 0.5rem;
+      padding-block: 0.625rem;
+      padding-inline: 1rem;
+      box-shadow: 0 2px 10px color-mix(in srgb, var(--Bridgely-primary) 12%, transparent);
     }
 
     .voice-wave-visualizer {
       align-items: center;
       display: inline-flex;
-      gap: 3px;
+      gap: 4px;
+      block-size: 24px;
     }
 
     .wave-bar {
       background: var(--Bridgely-primary);
       border-radius: 999px;
-      inline-size: 3px;
-      block-size: 10px;
-      animation: wave-bar-pulse 0.8s ease-in-out infinite alternate;
+      inline-size: 3.5px;
+      block-size: 14px;
+      animation: wave-bar-pulse 0.7s ease-in-out infinite alternate;
     }
 
-    .wave-bar:nth-child(2n) {
-      animation-delay: 0.2s;
-      block-size: 16px;
+    .wave-bar:nth-child(2) {
+      animation-delay: 0.15s;
+      block-size: 22px;
     }
 
-    .wave-bar:nth-child(3n) {
-      animation-delay: 0.4s;
-      block-size: 8px;
+    .wave-bar:nth-child(3) {
+      animation-delay: 0.3s;
+      block-size: 26px;
+    }
+
+    .wave-bar:nth-child(4) {
+      animation-delay: 0.45s;
+      block-size: 18px;
+    }
+
+    .wave-bar:nth-child(5) {
+      animation-delay: 0.6s;
+      block-size: 12px;
     }
 
     @keyframes wave-bar-pulse {
@@ -2264,14 +2408,77 @@ export class BridgelyAssistant extends LitElement {
       }
     }
 
+    .composer-buttons {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-inline-start: auto;
+    }
+
+    .speech-review-card {
+      align-items: center;
+      background: var(--Bridgely-accent-soft);
+      border: 1px solid var(--Bridgely-accent-line);
+      border-radius: 0.75rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      justify-content: space-between;
+      margin-block: 0.375rem;
+      padding-block: 0.5rem;
+      padding-inline: 0.75rem;
+    }
+
+    .speech-review-actions {
+      align-items: center;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .voice-stop-btn {
+      align-items: center;
+      background: var(--Bridgely-surface);
+      border: 1px solid var(--Bridgely-border);
+      border-radius: 999px;
+      cursor: pointer;
+      display: inline-flex;
+      font-size: 0.8125em;
+      font-weight: 600;
+      margin-inline-start: auto;
+      min-block-size: 36px;
+      padding-block: 0.25rem;
+      padding-inline: 0.75rem;
+      transition: background 0.15s ease;
+    }
+
     .send-action {
       align-items: center;
-      box-shadow: 0 4px 12px
+      background: linear-gradient(
+        135deg,
+        var(--Bridgely-primary) 0%,
+        color-mix(in srgb, var(--Bridgely-primary) 82%, #000) 100%
+      );
+      color: var(--Bridgely-primary-text);
+      border: 0;
+      border-radius: 999px;
+      box-shadow: 0 3px 10px
         color-mix(in srgb, var(--Bridgely-primary) 28%, transparent);
       display: inline-flex;
+      font-weight: 700;
       gap: 0.5rem;
       justify-content: center;
       min-inline-size: 6.5rem;
+      min-block-size: 48px;
+      padding-block: 0.625rem;
+      padding-inline: 1.25rem;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .send-action:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 5px 14px color-mix(in srgb, var(--Bridgely-primary) 38%, transparent);
     }
 
     .send-action::after {
@@ -2791,7 +2998,20 @@ export class BridgelyAssistant extends LitElement {
     const selected = this.languages.find((language) => language.code === code);
     if (!selected) return;
     this.cancelRecording();
-    this.careerModule?.suspend.call(this as unknown as CareerContext);
+    if (
+      this.careerModule &&
+      (this.careerModule as { isOpen?: (this: CareerContext) => boolean }).isOpen?.call(
+        this as unknown as CareerContext,
+      )
+    ) {
+      (
+        this.careerModule as {
+          onLanguageChanged?: (this: CareerContext, code: string) => void;
+        }
+      ).onLanguageChanged?.call(this as unknown as CareerContext, selected.code);
+    } else {
+      this.careerModule?.suspend.call(this as unknown as CareerContext);
+    }
     this.stopSpeech();
     this.fallbackNotice = "";
     this.fallbackPending = false;
@@ -3454,7 +3674,9 @@ export class BridgelyAssistant extends LitElement {
       this.noticeIsError = false;
       this.retryAvailable = false;
       if (
-        this.settings.readAloud === "always" &&
+        (this.autoVoice ||
+          this.settings.readAloud === "always" ||
+          question.via === "voice") &&
         this.canSpeak(assistantMessage.lang)
       ) {
         void this.speak(
@@ -3613,6 +3835,20 @@ export class BridgelyAssistant extends LitElement {
       if (generation !== this.sessionGeneration) return;
       this.notice = this.t("voice.outputFailed");
       this.noticeIsError = true;
+    }
+  }
+
+  private toggleAutoVoice(): void {
+    this.autoVoice = !this.autoVoice;
+    if (this.autoVoice) {
+      this.voiceIntent = true;
+      if (!this.isRecording && !this.busy && this.canRecord()) {
+        this.startRecording();
+      }
+    } else {
+      if (this.isRecording) {
+        this.stopRecording();
+      }
     }
   }
 
@@ -4391,6 +4627,7 @@ export class BridgelyAssistant extends LitElement {
                     <article
                       data-role="assistant"
                       data-message-id=${message.id}
+                      class=${this.speakingMessageId === message.id ? "is-speaking" : ""}
                       tabindex="-1"
                       lang=${message.lang}
                       dir=${message.dir}
@@ -4400,6 +4637,16 @@ export class BridgelyAssistant extends LitElement {
                         >${this.avatarLetter}</span
                       >
                       <p>${message.text}</p>
+                      ${
+                        this.speakingMessageId === message.id
+                          ? html`<span class="speaking-badge" aria-hidden="true">
+                              <span class="wave-bar"></span>
+                              <span class="wave-bar"></span>
+                              <span class="wave-bar"></span>
+                              <span>${this.t("voice.listeningWave")}</span>
+                            </span>`
+                          : nothing
+                      }
                       ${
                         message.citations.length
                           ? html`
@@ -4528,35 +4775,44 @@ export class BridgelyAssistant extends LitElement {
             lang=${this.selectedLang}
             dir=${this.currentLanguage?.dir ?? "ltr"}
           >
-            <label for="message">${this.t("composer.label")}</label>
-            <textarea
-              id="message"
-              lang=${this.selectedLang}
-              dir=${this.currentDirection}
-              .value=${this.draft}
-              placeholder=${this.t("composer.placeholder")}
-              ?disabled=${this.busy}
-              @input=${(event: Event) => {
-                this.pendingQuestion = undefined;
-                this.draft = (event.currentTarget as HTMLTextAreaElement).value;
-                this.updateTransliteration();
-                if (this.draft.trim().length >= 4) {
-                  const available = this.languages.map((l) => l.code);
-                  const detected = detectLanguage(this.draft, available, this.selectedLang);
-                  if (detected !== this.selectedLang) {
-                    void this.chooseLanguage(detected);
+            <div class="composer-header">
+              <label for="message" class="composer-label">${this.t("composer.label")}</label>
+              ${this.canRecord()
+                ? html`<button
+                    type="button"
+                    class="auto-voice-toggle"
+                    lang=${this.uiLanguage}
+                    dir=${this.uiDirection}
+                    aria-pressed=${this.autoVoice}
+                    @click=${() => this.toggleAutoVoice()}
+                  >
+                    <span>${this.t("voice.continuous")}</span>
+                  </button>`
+                : nothing}
+            </div>
+            <div class="composer-input-wrapper">
+              <textarea
+                id="message"
+                lang=${this.selectedLang}
+                dir=${this.currentDirection}
+                .value=${this.draft}
+                placeholder=${this.t("composer.placeholder")}
+                ?disabled=${this.busy}
+                @input=${(event: Event) => {
+                  this.pendingQuestion = undefined;
+                  this.draft = (event.currentTarget as HTMLTextAreaElement).value;
+                  this.updateTransliteration();
+                }}
+                @keydown=${(event: KeyboardEvent) => {
+                  if (event.key === "Enter" && !event.shiftKey) {
+                    event.preventDefault();
+                    this.renderRoot
+                      .querySelector<HTMLFormElement>(".composer")
+                      ?.requestSubmit();
                   }
-                }
-              }}
-              @keydown=${(event: KeyboardEvent) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  this.renderRoot
-                    .querySelector<HTMLFormElement>(".composer")
-                    ?.requestSubmit();
-                }
-              }}
-            ></textarea>
+                }}
+              ></textarea>
+            </div>
             ${this.renderTransliteration()} ${this.renderCloudVoicePrompt()}
             ${this.currentLanguage?.status === "beta" && (this.canRecord() || this.canSpeak(this.selectedLang)) ? html`<p class="muted">${this.t("status.beta")}: ${this.t("voice.betaNote")}</p>` : nothing}
             ${this.isRecording ? html`
@@ -4569,29 +4825,42 @@ export class BridgelyAssistant extends LitElement {
                   <span class="wave-bar"></span>
                 </div>
                 <p class="status">${this.t(this.recordingStopRequested ? "voice.processing" : "voice.listening")}</p>
+                <button
+                  type="button"
+                  class="voice-stop-btn"
+                  lang=${this.selectedLang}
+                  dir=${this.currentDirection}
+                  @click=${() => this.stopRecording()}
+                >
+                  ${this.t("mic.stop")}
+                </button>
               </div>
             ` : nothing}
             ${
               this.speechReview
                 ? html`
-                    <p
-                      class="status"
-                      role="status"
-                      aria-live="polite"
-                      lang=${this.selectedLang}
-                      dir=${this.currentDirection}
-                    >
-                      ${this.t("review.heard", { text: this.draft })}
-                    </p>
-                    <button
-                      type="button"
-                      lang=${this.selectedLang}
-                      dir=${this.currentDirection}
-                      @click=${() => this.startRecording()}
-                    >
-                      ${this.t("review.retry")}
-                    </button>
-                    ${this.renderSpeechControls("review")}
+                    <div class="speech-review-card">
+                      <p
+                        class="status"
+                        role="status"
+                        aria-live="polite"
+                        lang=${this.selectedLang}
+                        dir=${this.currentDirection}
+                      >
+                        ${this.t("review.heard", { text: this.draft })}
+                      </p>
+                      <div class="speech-review-actions">
+                        <button
+                          type="button"
+                          lang=${this.selectedLang}
+                          dir=${this.currentDirection}
+                          @click=${() => this.startRecording()}
+                        >
+                          ${this.t("review.retry")}
+                        </button>
+                        ${this.renderSpeechControls("review")}
+                      </div>
+                    </div>
                   `
                 : nothing
             }
@@ -4670,36 +4939,38 @@ export class BridgelyAssistant extends LitElement {
                         ${this.t("voice.inputUnavailable")}
                       </span>`
               }
-              ${
-                this.canRecord()
-                  ? html`<button
-                      class="mic"
-                      type="button"
-                      lang=${this.selectedLang}
-                      dir=${this.currentDirection}
-                      aria-label=${this.t(
-                        this.isRecording ? "mic.stop" : "mic.start",
-                      )}
-                      aria-pressed=${this.isRecording}
-                      ?disabled=${this.busy || this.recordingStopRequested}
-                      @click=${() =>
-                        this.isRecording
-                          ? this.stopRecording()
-                          : this.startRecording()}
-                    >
-                      ${this.t(this.isRecording ? "mic.stop" : "mic.start")}
-                    </button>`
-                  : nothing
-              }
-              <button
-                class=${this.helpPreviewOpen || this.helpRequestId ? "send-action" : "primary send-action"}
-                type="submit"
-                lang=${this.selectedLang}
-                dir=${this.currentDirection}
-                ?disabled=${this.busy || this.isRecording || this.consentBusy || this.consentFailed}
-              >
-                ${this.t("review.send")}
-              </button>
+              <div class="composer-buttons">
+                ${
+                  this.canRecord()
+                    ? html`<button
+                        class="mic"
+                        type="button"
+                        lang=${this.selectedLang}
+                        dir=${this.currentDirection}
+                        aria-label=${this.t(
+                          this.isRecording ? "mic.stop" : "mic.start",
+                        )}
+                        aria-pressed=${this.isRecording}
+                        ?disabled=${this.busy || this.recordingStopRequested}
+                        @click=${() =>
+                          this.isRecording
+                            ? this.stopRecording()
+                            : this.startRecording()}
+                      >
+                        ${this.t(this.isRecording ? "mic.stop" : "mic.start")}
+                      </button>`
+                    : nothing
+                }
+                <button
+                  class=${this.helpPreviewOpen || this.helpRequestId ? "send-action" : "primary send-action"}
+                  type="submit"
+                  lang=${this.selectedLang}
+                  dir=${this.currentDirection}
+                  ?disabled=${this.busy || this.isRecording || this.consentBusy || this.consentFailed}
+                >
+                  ${this.t("review.send")}
+                </button>
+              </div>
             </div>
           </form>
         </div>

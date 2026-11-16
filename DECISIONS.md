@@ -3,6 +3,17 @@
 This file records project choices and resolutions. The system blueprint's
 decision register is authoritative for architectural choices.
 
+## Phase 2 — Multilingual Voice Engineering, UI/UX Overhaul & Bridgely Rebranding (15 November 2026)
+
+- **Requirements:** FR-LANG-01–10, FR-VOICE-01–08, FR-UI-01–21, FR-JOB-01–15, NFR-A11Y-01–06.
+- **Branding:** Replaced user-facing and documentation references to "Dimts" with "Bridgely" across all READMEs, access guide scripts, HTML templates, and build outputs, while maintaining compatibility shims for runtime globals (`globalThis.Bridgely || globalThis.Dimts`).
+- **Continuous Voice Interaction:** Added continuous hands-free voice interaction across the 4 foundational languages (`en`, `am`, `om`, `ti`). When an inquiry is submitted via voice (`via: "voice"`), Bridgely answers aloud automatically without requiring manual "Send" clicks or a permanent global read-aloud toggle. Ethiopic and Latin speech sentence chunking (`segmentTextForSpeech`) segments utterances around punctuation marks (`።`, `፧`, `፤`, `.`, `?`, `!`) to prevent Chromium's 15-second synthetic voice timeout.
+- **Chatbox UI Refactoring & Dual Voice/Text Interaction:** Completely refactored the chatbox layout into a modern conversational design (`.composer-header`, `.composer-input-wrapper`, `.composer-buttons`, `.speech-review-card`) while preserving all prior chat features. Removed mid-keystroke language reloads from the text input so typing is smooth and uninterrupted. Added an explicit `voice.continuous` (Auto-Voice) toggle for hands-free continuous conversations while retaining manual mic review (Heard review, Retry, Send) when Auto-Voice is off.
+- **Inclusive Design for Deaf & Blind Learners:** Added live speaking soundwave indicators (`.speaking-badge`) directly onto active assistant message cards so deaf and hard-of-hearing learners visually observe speech playback. Enforced WCAG AAA color contrast ratios across dark/light/contrast themes (14:1 text contrast), distinct 3px focus rings with 3px outline offsets for low-vision and switch navigation, audio earcons (`playTone`) and haptic feedback (`vibrate`) on recording states, and immediate access to the Ethiopian Sign Language (EthSL) Studio in the header.
+- **Career / Jobs Language Synchronization:** Decoupled language selection in `chooseLanguage` from tearing down the career panel. The career runtime now exposes `isOpen()` and `onLanguageChanged(code)` to immediately refresh `/jobs?lang=${code}` without losing context or resetting back to English.
+- **SMS Simulator & Gateway Secret:** Clarified that the SMS Simulator at `/sim/sms` requires the gateway secret configured in `.env` (`SMS_GATEWAY_SECRET`). The simulator auto-normalizes Ethiopian phone numbers (`09...` or `07...` to `+251...`) and routes messages to the local API endpoint (`/v1/sms/inbound`) with bearer authentication.
+
+
 ## Tigrinya availability
 
 - **Requirements:** FR-LANG-01/02/06/09/10 and FR-UI-01–21.

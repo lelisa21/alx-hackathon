@@ -112,7 +112,7 @@ interface State extends Progress {
   run: number;
 }
 const states = new WeakMap<CareerContext, State>();
-function initial(): State {
+function initial(context?: CareerContext): State {
   return {
     open: false,
     active: false,
@@ -120,7 +120,7 @@ function initial(): State {
     step: 0,
     jobType: "",
     region: "",
-    lang: "en",
+    lang: context?.selectedLang ?? "en",
     channel: "sms",
     draftId: "",
     clientRequestId: "",
@@ -156,7 +156,7 @@ function initial(): State {
 function state(context: CareerContext): State {
   let value = states.get(context);
   if (!value) {
-    value = initial();
+    value = initial(context);
     states.set(context, value);
   }
   return value;
@@ -976,12 +976,27 @@ export const careerRuntime = {
       return;
     }
     value.saved = stored(this);
+    value.lang = this.selectedLang;
     refresh(this, true);
     await perform(this, () => catalog(this));
+  },
+  isOpen(this: CareerContext): boolean {
+    return Boolean(states.get(this)?.open);
+  },
+  onLanguageChanged(this: CareerContext, code: string): void {
+    const value = state(this);
+    value.lang = code;
+    if (value.open) {
+      void perform(this, () => catalog(this));
+    }
   },
   render(this: CareerContext) {
     const value = state(this);
     if (!value.open) return nothing;
+    if (!value.active && value.lang !== this.selectedLang) {
+      value.lang = this.selectedLang;
+      void perform(this, () => catalog(this));
+    }
     return html`<section
       class="panel career"
       lang=${this.uiLanguage}

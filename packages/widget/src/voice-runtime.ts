@@ -30,9 +30,11 @@ export interface VoiceContext {
   recordingTimer: number | undefined;
   audioContext: AudioContext | undefined;
   continuousVoice?: boolean;
+  autoVoice?: boolean;
   chooseLanguage?(code: string): Promise<void>;
   openSign?(): Promise<void>;
   openSettings?(): void;
+  askQuestion?(): Promise<void>;
   t(key: string, values?: Record<string, string | number>): string;
   canSpeak(lang: string): boolean;
   canRecord(lang?: string): boolean;
@@ -42,6 +44,7 @@ export interface VoiceContext {
     lang: string,
     run: number,
   ): Promise<void>;
+  startRecording(): void;
   stopRecording(): void;
   startRecordingCue(): void;
   stopRecordingCue(): void;
@@ -83,6 +86,13 @@ export const voiceRuntime = {
       if (run === this.speechRun) {
         this.speakingMessageId = null;
         this.speechPaused = false;
+        if (this.autoVoice && !this.isRecording && this.canRecord()) {
+          window.setTimeout(() => {
+            if (this.autoVoice && !this.isRecording && this.canRecord()) {
+              this.startRecording();
+            }
+          }, 400);
+        }
       }
     }
   },
@@ -156,7 +166,17 @@ export const voiceRuntime = {
             lang = detected;
           }
         }
-        if (this.canSpeak(lang)) void this.speak(transcript, lang, "review");
+        if (this.autoVoice) {
+          this.speechReview = false;
+          if (typeof this.askQuestion === "function") {
+            void this.askQuestion();
+          }
+        } else {
+          this.speechReview = true;
+          if (this.canSpeak(lang)) {
+            void this.speak(transcript, lang, "review");
+          }
+        }
       }
     } catch (error) {
       if (run !== this.recordingRun) return;

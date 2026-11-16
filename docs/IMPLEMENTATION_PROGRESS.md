@@ -2,7 +2,7 @@
 
 Updated: 15 November 2026.
 
-## P12 — Dimts public homepage access guide; implemented increment, acceptance open
+## P12 — Bridgely public homepage access guide; implemented increment, acceptance open
 
 Requirements quoted before implementation: FR-HOME-ACCESS-01–04 and
 NFR-HOME-A11Y-01; accessibility principles FR-UI-01/06 and NFR-A11Y-01–04.
